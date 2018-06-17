@@ -2,8 +2,10 @@ MODE = 'Development'
 
 
 class Config:
-    HOST = 'localhost'
-    PORT = 8081
+    """Default configuration values for litecord."""
+    DEBUG = False
+    IS_SSL = False
+    WEBSERVER_URL = 'localhost:5000'
     POSTGRES = {}
 
 
@@ -18,4 +20,5 @@ class Development(Config):
 
 
 class Production(Config):
-    pass
+    DEBUG = False
+    IS_SSL = True

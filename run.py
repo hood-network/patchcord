@@ -16,6 +16,10 @@ log = logging.getLogger(__name__)
 def make_app():
     app = Quart(__name__)
     app.config.from_object(f'config.{config.MODE}')
+
+    if app.config['DEBUG']:
+        logging.basicConfig(level=logging.DEBUG)
+
     return app
 
 
