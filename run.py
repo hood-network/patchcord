@@ -1,9 +1,10 @@
 import logging
 
 import asyncpg
-from quart import Quart, g
+from quart import Quart, g, Blueprint
 
 import config
+from litecord.blueprints import gateway
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
@@ -16,6 +17,7 @@ def make_app():
 
 
 app = make_app()
+app.register_blueprint(gateway, url_prefix='/api/v6')
 
 
 @app.before_serving
