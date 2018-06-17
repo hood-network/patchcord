@@ -1,12 +1,14 @@
 import logging
 import asyncio
 
+import websockets
 import asyncpg
 from quart import Quart, g, jsonify
 
 import config
 
 from litecord.blueprints import gateway, auth
+from litecord.gateway import websocket_handler
 from litecord.errors import LitecordError
 
 logging.basicConfig(level=logging.INFO)
@@ -36,6 +38,14 @@ async def app_before_serving():
 
     app.loop = asyncio.get_event_loop()
     g.loop = asyncio.get_event_loop()
+
+    # start the websocket, etc
+    host, port = app.config['WS_HOST'], app.config['WS_PORT']
+    log.info(f'starting websocket at {host} {port}')
+    ws_future = websockets.serve(
+        websocket_handler, host, port)
+
+    await ws_future
 
 
 @app.after_serving

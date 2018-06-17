@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "e8807281b43032a3fde4598f48c98436b8ef50fe332a413e71c37062a16b61d9"
+            "sha256": "e37a82fc53dadfc4b8ebbded3bb043d686fa5c2cde07b11589430586e236386b"
         },
         "host-environment-markers": {
             "implementation_name": "cpython",
@@ -112,6 +112,10 @@
         "typing-extensions": {
             "hashes": [],
             "version": "==3.6.5"
+        },
+        "websockets": {
+            "hashes": [],
+            "version": "==5.0.1"
         },
         "wsproto": {
             "hashes": [],

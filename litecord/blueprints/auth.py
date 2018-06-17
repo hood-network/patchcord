@@ -29,9 +29,6 @@ async def check_password(pwd_hash, given_password) -> bool:
     pwd_hash = pwd_hash.encode('utf-8')
     given_password = given_password.encode('utf-8')
 
-    print(repr(pwd_hash))
-    print(repr(given_password))
-
     future = app.loop.run_in_executor(
         None, bcrypt.checkpw, given_password, pwd_hash)
 
@@ -73,8 +70,6 @@ async def register():
 @bp.route('/login', methods=['POST'])
 async def login():
     """Login one user into Litecord."""
-    print(request.headers)
-
     j = await request.get_json()
     email, password = j['email'], j['password']
 
