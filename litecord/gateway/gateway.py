@@ -6,8 +6,6 @@ async def websocket_handler(ws, url):
         urllib.parse.urlparse(url).query
     )
 
-    print(qs)
-
     try:
         gw_version = qs['v'][0]
         gw_encoding = qs['encoding'][0]
