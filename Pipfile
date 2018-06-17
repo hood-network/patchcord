@@ -4,6 +4,8 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
+bcrypt = "==3.1.4"
+itsdangerous = "==0.24"
 asyncpg = "==0.16.0"
 Quart = "==0.6.0"
 

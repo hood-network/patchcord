@@ -57,13 +57,13 @@ CREATE TABLE IF NOT EXISTS users (
     id bigint UNIQUE NOT NULL,
     username varchar(32) NOT NULL,
     discriminator varchar(4) NOT NULL,
-    avatar bigint REFERENCES files (id),
+    email varchar(255) NOT NULL UNIQUE,
 
     -- user properties
     bot boolean DEFAULT FALSE,
     mfa_enabled boolean DEFAULT FALSE,
     verified boolean DEFAULT FALSE,
-    email varchar(255) NOT NULL,
+    avatar bigint REFERENCES files (id) DEFAULT NULL,
 
     -- user badges, discord dev, etc
     flags int DEFAULT 0,
@@ -74,7 +74,6 @@ CREATE TABLE IF NOT EXISTS users (
     -- private info
     phone varchar(60) DEFAULT '',
     password_hash text NOT NULL,
-    password_salt text NOT NULL,
 
     PRIMARY KEY (id, username, discriminator)
 );
