@@ -2,7 +2,7 @@ import urllib.parse
 from .websocket import GatewayWebsocket
 
 
-async def websocket_handler(ws, url):
+async def websocket_handler(app, ws, url):
     qs = urllib.parse.parse_qs(
         urllib.parse.urlparse(url).query
     )
@@ -27,6 +27,6 @@ async def websocket_handler(ws, url):
     if gw_compress and gw_compress not in ('zlib-stream',):
         return await ws.close(1000, 'Invalid gateway compress')
 
-    gws = GatewayWebsocket(ws, v=gw_version,
+    gws = GatewayWebsocket(app, ws, v=gw_version,
                            encoding=gw_encoding, compress=gw_compress)
     await gws.run()
