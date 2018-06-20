@@ -75,7 +75,7 @@ class GatewayWebsocket:
             'd': {
                 'heartbeat_interval': 45000,
                 '_trace': [
-                    'despacito'
+                    'lesbian-server'
                 ],
             }
         })
@@ -92,13 +92,14 @@ class GatewayWebsocket:
         })
 
     async def dispatch_ready(self):
+        """Dispatch the READY packet for a connecting user."""
         await self.dispatch('READY', {
             'v': 6,
-            'user': {'i': 'Boobs !! ! .........'},
+            'user': {},
             'private_channels': [],
             'guilds': [],
             'session_id': self.state.session_id,
-            '_trace': ['despacito']
+            '_trace': ['transbian']
         })
 
     async def _check_shards(self):
