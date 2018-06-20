@@ -120,7 +120,7 @@ class GatewayWebsocket:
             raise ShardingRequired('Too many shards.')
 
         if current_shard > shard_count:
-            raise InvaildShard('Shard count > Total shards')
+            raise InvalidShard('Shard count > Total shards')
 
     async def handle_0(self, payload: dict):
         """Handle the OP 0 Identify packet."""
