@@ -34,10 +34,10 @@ async def raw_token_check(token, db=None):
 
     try:
         signer.unsign(token)
-        log.debug(f'login for uid {user_id} successful')
+        log.debug('login for uid %d successful', user_id)
         return user_id
     except BadSignature:
-        log.warning('token fail for uid {user_id}')
+        log.warning('token failed for uid %d', user_id)
         raise AuthError('Invalid token')
 
 

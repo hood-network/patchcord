@@ -188,8 +188,6 @@ class GatewayWebsocket:
             await self.send_hello()
             await self.listen_messages()
         except WebsocketClose as err:
-            log.warning(f'Closed a client, state={self.state or "<none>"} '
-                        f'{err!r}')
+            log.warning('closed a client, state=%r err=%r', self.state, err)
 
-            await self.ws.close(code=err.code,
-                                reason=err.reason)
+            await self.ws.close(code=err.code, reason=err.reason)
