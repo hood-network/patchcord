@@ -75,15 +75,6 @@ async def handle_litecord_err(err):
     }), err.status_code
 
 
-@app.errorhandler(Exception)
-def handle_exception(err):
-    log.exception('Error happened in the app')
-    return jsonify({
-        'error': True,
-        'message': repr(err)
-    }), 500
-
-
 @app.route('/')
 async def index():
     return 'hewwo'
