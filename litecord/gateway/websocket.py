@@ -1,5 +1,6 @@
 import json
 import collections
+from typing import List
 
 import earl
 from logbook import Logger
@@ -17,6 +18,10 @@ WebsocketProperties = collections.namedtuple(
     'WebsocketProperties', 'v encoding compress'
 )
 
+WebsocketObjects = collections.namedtuple(
+    'WebsocketObjects', 'db state_manager storage loop'
+)
+
 
 def encode_json(payload) -> str:
     return json.dumps(payload)
@@ -30,16 +35,17 @@ def encode_etf(payload) -> str:
     return earl.pack(payload)
 
 
-def decode_etf(data):
+def decode_etf(data: bytes):
     return earl.unpack(data)
 
 
 class GatewayWebsocket:
     """Main gateway websocket logic."""
 
-    def __init__(self, sm, db, ws, **kwargs):
-        self.state_manager = sm
-        self.db = db
+    def __init__(self, ws, **kwargs):
+        self.ext = WebsocketObjects(*kwargs['prop'])
+        self.storage = self.ext.storage
+        self.state_manager = self.ext.state_manager
         self.ws = ws
 
         self.wsp = WebsocketProperties(kwargs.get('v'),
@@ -91,22 +97,53 @@ class GatewayWebsocket:
             'd': data,
         })
 
+    async def _make_guild_list(self) -> List[int]:
+        # TODO: This function does not account for sharding.
+        user_id = self.state.user_id
+
+        guild_ids = await self.ext.db.fetch("""
+        SELECT guild_id
+        FROM members
+        WHERE user_id = $1
+        """, user_id)
+
+        return [{
+            'id': row[0],
+            'unavailable': True,
+        } for row in guild_ids]
+
+    async def guild_dispatch(self, unavailable_guilds: List[dict]):
+        for guild_obj in unavailable_guilds:
+            guild = await self.storage.get_guild(guild_obj['id'],
+                                                 self.state.user_id)
+
+            if not guild:
+                continue
+
+            await self.dispatch('GUILD_CREATE', dict(guild))
+
     async def dispatch_ready(self):
         """Dispatch the READY packet for a connecting user."""
+        guilds = await self._make_guild_list()
+        user = await self.storage.get_user(self.state.user_id, True)
+
         await self.dispatch('READY', {
             'v': 6,
-            'user': {},
+            'user': user,
             'private_channels': [],
-            'guilds': [],
+            'guilds': guilds,
             'session_id': self.state.session_id,
             '_trace': ['transbian']
         })
+
+        # async dispatch of guilds
+        self.ext.loop.create_task(self.guild_dispatch(guilds))
 
     async def _check_shards(self):
         shard = self.state.shard
         current_shard, shard_count = shard
 
-        guilds = await self.db.fetchval("""
+        guilds = await self.ext.db.fetchval("""
         SELECT COUNT(*)
         FROM members
         WHERE user_id = $1
@@ -139,7 +176,7 @@ class GatewayWebsocket:
         presence = data.get('presence')
 
         try:
-            user_id = await raw_token_check(token, self.db)
+            user_id = await raw_token_check(token, self.ext.db)
         except AuthError:
             raise WebsocketClose(4004, 'Authentication failed')
 

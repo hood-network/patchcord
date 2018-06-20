@@ -267,6 +267,8 @@ CREATE TABLE IF NOT EXISTS members (
     guild_id bigint REFERENCES guilds (id) ON DELETE CASCADE,
     nickname varchar(100) DEFAULT NULL,
     joined_at timestamp without time zone default now(),
+    deafened boolean DEFAULT false,
+    muted boolean DEFAULT false,
     PRIMARY KEY (user_id, guild_id)
 );
 

@@ -12,6 +12,7 @@ from litecord.blueprints import gateway, auth
 from litecord.gateway import websocket_handler
 from litecord.errors import LitecordError
 from litecord.gateway.state_manager import StateManager
+from litecord.storage import Storage
 
 # setup logbook
 handler = StreamHandler(sys.stdout, level=logbook.INFO)
@@ -46,6 +47,7 @@ async def app_before_serving():
     g.loop = asyncio.get_event_loop()
 
     app.state_manager = StateManager()
+    app.storage = Storage(app.db)
 
     # start the websocket, etc
     host, port = app.config['WS_HOST'], app.config['WS_PORT']
@@ -54,7 +56,8 @@ async def app_before_serving():
     async def _wrapper(ws, url):
         # We wrap the main websocket_handler
         # so we can pass quart's app object.
-        await websocket_handler(app.db, app.state_manager, ws, url)
+        await websocket_handler((app.db, app.state_manager,
+                                app.storage, app.loop), ws, url)
 
     ws_future = websockets.serve(_wrapper, host, port)
 
