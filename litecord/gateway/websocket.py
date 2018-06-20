@@ -6,7 +6,9 @@ import earl
 
 from ..errors import WebsocketClose, AuthError
 from ..auth import raw_token_check
-from .errors import DecodeError, UnknownOPCode
+from .errors import DecodeError, UnknownOPCode, \
+    InvalidShard, ShardingRequired
+
 from .opcodes import OP
 from .state import GatewayState, gen_session_id
 
@@ -34,8 +36,9 @@ def decode_etf(data):
 
 class GatewayWebsocket:
     """Main gateway websocket logic."""
-    def __init__(self, app, ws, **kwargs):
-        self.app = app
+    def __init__(self, sm, db, ws, **kwargs):
+        self.state_manager = sm
+        self.db = db
         self.ws = ws
 
         self.wsp = WebsocketProperties(kwargs.get('v'),
@@ -78,12 +81,46 @@ class GatewayWebsocket:
 
     async def dispatch(self, event, data):
         """Dispatch an event to the websocket."""
+        self.state.seq += 1
+
         await self.send({
             'op': OP.DISPATCH,
             't': event.upper(),
-            # 's': self.state.seq,
+            's': self.state.seq,
             'd': data,
         })
+
+    async def dispatch_ready(self):
+        await self.dispatch('READY', {
+            'v': 6,
+            'user': {'i': 'Boobs !! ! .........'},
+            'private_channels': [],
+            'guilds': [],
+            'session_id': self.state.session_id,
+            '_trace': ['despacito']
+        })
+
+    async def _check_shards(self):
+        shard = self.state.shard
+        current_shard, shard_count = shard
+
+        guilds = await self.db.fetchval("""
+        SELECT COUNT(*)
+        FROM members
+        WHERE user_id = $1
+        """, self.state.user_id)
+
+        recommended = max(int(guilds / 1200), 1)
+
+        if shard_count < recommended:
+            raise ShardingRequired('Too many guilds for shard '
+                                   f'{current_shard}')
+
+        if guilds / shard_count > 0.8:
+            raise ShardingRequired('Too many shards.')
+
+        if current_shard > shard_count:
+            raise InvaildShard('Shard count > Total shards')
 
     async def handle_0(self, payload: dict):
         """Handle the OP 0 Identify packet."""
@@ -100,33 +137,25 @@ class GatewayWebsocket:
         presence = data.get('presence')
 
         try:
-            user_id = await raw_token_check(token)
+            user_id = await raw_token_check(token, self.db)
         except AuthError:
             raise WebsocketClose(4004, 'Authentication failed')
 
-        session_id = gen_session_id()
-
         self.state = GatewayState(
-            session_id=session_id,
             user_id=user_id,
             properties=properties,
             compress=compress,
             large=large,
             shard=shard,
-            presence=presence
+            presence=presence,
         )
 
-        self.app.state_manager.insert(self.state)
+        self.state.ws = self
 
-        # TODO: dispatch READY
-        await self.dispatch('READY', {
-            'v': 6,
-            'user': {'i': 'Boobs !! ! .........'},
-            'private_channels': [],
-            'guilds': [],
-            'session_id': session_id,
-            '_trace': ['despacito']
-        })
+        await self._check_shards()
+
+        self.state_manager.insert(self.state)
+        await self.dispatch_ready()
 
     async def process_message(self, payload):
         """Process a single message coming in from the client."""
@@ -159,6 +188,8 @@ class GatewayWebsocket:
             await self.send_hello()
             await self.listen_messages()
         except WebsocketClose as err:
-            log.warning(f'Closed a client, {self.state or "<none>"} {err!r}')
+            log.warning(f'Closed a client, state={self.state or "<none>"} '
+                        f'{err!r}')
+
             await self.ws.close(code=err.code,
                                 reason=err.reason)

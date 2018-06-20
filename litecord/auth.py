@@ -11,7 +11,8 @@ from .errors import AuthError
 log = logging.getLogger(__name__)
 
 
-async def raw_token_check(token):
+async def raw_token_check(token, db=None):
+    db = db or app.db
     user_id, _hmac = token.split('.')
 
     try:
@@ -20,7 +21,7 @@ async def raw_token_check(token):
     except (ValueError, binascii.Error):
         raise AuthError('Invalid user ID type')
 
-    pwd_hash = await app.db.fetchval("""
+    pwd_hash = await db.fetchval("""
     SELECT password_hash
     FROM users
     WHERE id = $1
