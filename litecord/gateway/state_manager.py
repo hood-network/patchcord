@@ -11,6 +11,7 @@ log = logging.getLogger(__name__)
 
 class StateManager:
     """Manager for gateway state information."""
+
     def __init__(self):
         self.states = defaultdict(dict)
 

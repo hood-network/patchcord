@@ -10,7 +10,7 @@ import config
 from litecord.blueprints import gateway, auth
 from litecord.gateway import websocket_handler
 from litecord.errors import LitecordError
-from litecord.gateway.state_man import StateManager
+from litecord.gateway.state_manager import StateManager
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
