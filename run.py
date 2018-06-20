@@ -77,6 +77,15 @@ async def handle_litecord_err(err):
     }), err.status_code
 
 
+@app.errorhandler(500)
+async def handle_500(err):
+    return jsonify({
+        'error': True,
+        'message': repr(err),
+        'internal_server_error': True,
+    })
+
+
 @app.route('/')
 async def index():
     return 'hewwo'
