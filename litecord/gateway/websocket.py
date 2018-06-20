@@ -1,21 +1,21 @@
 import json
-import logging
 import collections
 
 import earl
+from logbook import Logger
 
 from litecord.errors import WebsocketClose, AuthError
 from litecord.auth import raw_token_check
 from .errors import DecodeError, UnknownOPCode, \
     InvalidShard, ShardingRequired
-
 from .opcodes import OP
 from .state import GatewayState
 
 
-log = logging.getLogger(__name__)
+log = Logger(__name__)
 WebsocketProperties = collections.namedtuple(
-    'WebsocketProperties', 'v encoding compress')
+    'WebsocketProperties', 'v encoding compress'
+)
 
 
 def encode_json(payload) -> str:
@@ -190,6 +190,6 @@ class GatewayWebsocket:
             await self.send_hello()
             await self.listen_messages()
         except WebsocketClose as err:
-            log.warning('closed a client, state=%r err=%r', self.state, err)
+            log.warning('closed a client, state={} err={}', self.state, err)
 
             await self.ws.close(code=err.code, reason=err.reason)

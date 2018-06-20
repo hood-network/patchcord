@@ -10,6 +10,7 @@ asyncpg = "==0.16.0"
 websockets = "==5.0.1"
 Quart = "==0.6.0"
 Earl-ETF = "==2.1.2"
+logbook = "*"
 
 [dev-packages]
 

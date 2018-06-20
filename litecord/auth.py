@@ -1,14 +1,14 @@
 import base64
-import logging
 import binascii
 
 from itsdangerous import Signer, BadSignature
+from logbook import Logger
 from quart import request, current_app as app
 
 from .errors import AuthError
 
 
-log = logging.getLogger(__name__)
+log = Logger(__name__)
 
 
 async def raw_token_check(token, db=None):
@@ -34,10 +34,10 @@ async def raw_token_check(token, db=None):
 
     try:
         signer.unsign(token)
-        log.debug('login for uid %d successful', user_id)
+        log.debug('login for uid {} successful', user_id)
         return user_id
     except BadSignature:
-        log.warning('token failed for uid %d', user_id)
+        log.warning('token failed for uid {}', user_id)
         raise AuthError('Invalid token')
 
 

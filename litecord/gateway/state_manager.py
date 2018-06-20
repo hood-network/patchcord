@@ -1,12 +1,12 @@
-import logging
-
 from typing import List
 from collections import defaultdict
+
+from logbook import Logger
 
 from .state import GatewayState
 
 
-log = logging.getLogger(__name__)
+log = Logger(__name__)
 
 
 class StateManager:
@@ -19,7 +19,7 @@ class StateManager:
         """Insert a new state object."""
         user_states = self.states[state.user_id]
 
-        log.info(f'Inserting state {state!r}')
+        log.info('inserting state: {!r}', state)
         user_states[state.session_id] = state
 
     def fetch(self, user_id: int, session_id: str) -> GatewayState:
@@ -32,7 +32,7 @@ class StateManager:
             return
 
         try:
-            log.info(f'Removing state {state!r}')
+            log.info('removing state: {!r}', state)
             self.states[state.user_id].pop(state.session_id)
         except KeyError:
             pass

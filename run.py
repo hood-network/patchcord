@@ -1,19 +1,22 @@
-import logging
 import asyncio
+import sys
 
-import websockets
 import asyncpg
+import logbook
+import websockets
 from quart import Quart, g, jsonify
+from logbook import StreamHandler, Logger
 
 import config
-
 from litecord.blueprints import gateway, auth
 from litecord.gateway import websocket_handler
 from litecord.errors import LitecordError
 from litecord.gateway.state_manager import StateManager
 
-logging.basicConfig(level=logging.INFO)
-log = logging.getLogger(__name__)
+# setup logbook
+handler = StreamHandler(sys.stdout, level=logbook.INFO)
+handler.push_application()
+log = Logger('litecord.boot')
 
 
 def make_app():
@@ -21,7 +24,7 @@ def make_app():
     app.config.from_object(f'config.{config.MODE}')
 
     if app.config['DEBUG']:
-        logging.basicConfig(level=logging.DEBUG)
+        handler.level = logbook.DEBUG
 
     return app
 
