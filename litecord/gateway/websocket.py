@@ -98,7 +98,6 @@ class GatewayWebsocket:
 
     async def _make_guild_list(self) -> List[int]:
         # TODO: This function does not account for sharding.
-        # TODO: This function does not account for bots.
         user_id = self.state.user_id
 
         guild_ids = await self.ext.db.fetch("""
