@@ -12,6 +12,7 @@ class GatewayState:
 
     Used to store all information tied to the websocket's session.
     """
+
     def __init__(self, **kwargs):
         self.session_id = kwargs.get('session_id', gen_session_id())
         self.seq = kwargs.get('seq', 0)

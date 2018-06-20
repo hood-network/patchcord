@@ -36,6 +36,7 @@ def decode_etf(data):
 
 class GatewayWebsocket:
     """Main gateway websocket logic."""
+
     def __init__(self, sm, db, ws, **kwargs):
         self.state_manager = sm
         self.db = db
