@@ -18,8 +18,7 @@ class GatewayState:
         self.seq = kwargs.get('seq', 0)
         self.shard = kwargs.get('shard', [0, 1])
         self.user_id = kwargs.get('user_id')
-
-        self.ws = None
+        self.bot = kwargs.get('bot', False)
 
         for key in kwargs:
             value = kwargs[key]

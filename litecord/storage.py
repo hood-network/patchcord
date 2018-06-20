@@ -1,4 +1,6 @@
-from typing import Dict
+from typing import List, Dict, Any
+
+from .enums import ChannelType
 
 
 class Storage:
@@ -6,10 +8,27 @@ class Storage:
     def __init__(self, db):
         self.db = db
 
-    async def get_user(self, guild_id, secure=False):
-        pass
+    async def get_user(self, user_id, secure=False) -> Dict[str, Any]:
+        """Get a single user payload."""
+        user_row = await self.db.fetchrow("""
+        SELECT id::text, username, discriminator, avatar, email,
+            flags, bot, mfa_enabled, verified, premium
+        FROM users
+        WHERE users.id = $1
+        """, user_id)
 
-    async def get_guild(self, guild_id: int, state) -> Dict:
+        duser = dict(user_row)
+
+        if not secure:
+            duser.pop('email')
+            duser.pop('mfa_enabled')
+            duser.pop('verified')
+            duser.pop('mfa_enabled')
+
+        return duser
+
+    async def get_guild(self, guild_id: int, state=None) -> Dict:
+        """Get gulid payload."""
         row = await self.db.fetchrow("""
         SELECT *
         FROM guilds
@@ -39,6 +58,98 @@ class Storage:
             'emojis': [],
         }}
 
+    async def get_member_data(self, guild_id) -> List[Dict[str, Any]]:
+        """Get member information on a guild."""
+        members_basic = await self.db.fetch("""
+        SELECT user_id, nickname, joined_at
+        FROM members
+        WHERE guild_id = $1
+        """, guild_id)
+
+        members = []
+
+        for row in members_basic:
+            member_id = row['user_id']
+
+            members_roles = await self.db.fetch("""
+            SELECT role_id::text
+            FROM member_roles
+            WHERE guild_id = $1 AND user_id = $2
+            """, guild_id, member_id)
+
+            members.append({
+                'user': await self.get_user(member_id),
+                'nick': row['nickname'],
+                'roles': [row[0] for row in members_roles],
+                'joined_at': row['joined_at'].isoformat(),
+                'deaf': row['deafened'],
+                'mute': row['muted'],
+            })
+
+        return members
+
+    async def _channels_extra(self, row, channel_type: int) -> Dict:
+        """Fill in more information about a channel."""
+        # TODO: This could probably be better with a dictionary.
+
+        # TODO: dm and group dm?
+        if channel_type == ChannelType.GUILD_TEXT:
+            topic = await self.db.fetchval("""
+            SELECT topic FROM guild_text_channels
+            WHERE id = $1
+            """, row['id'])
+
+            return {**row, **{
+                'topic': topic,
+            }}
+        elif channel_type == ChannelType.GUILD_VOICE:
+            vrow = await self.db.fetchval("""
+            SELECT bitrate, user_limit FROM guild_voice_channels
+            WHERE id = $1
+            """, row['id'])
+
+            return {**row, **dict(vrow)}
+
+    async def get_channel_data(self, guild_id) -> List[Dict]:
+        """Get channel information on a guild"""
+        channel_basics = await self.db.fetch("""
+        SELECT * FROM guild_channels
+        WHERE guild_id = $1
+        """, guild_id)
+
+        channels = []
+
+        for row in channel_basics:
+            ctype = await self.db.fetchval("""
+            SELECT channel_type FROM channels
+            WHERE id = $1
+            """, row['id'])
+
+            res = await self._channels_extra(row, ctype)
+
+            # type is a SQL keyword, so we can't do
+            # 'overwrite_type AS type'
+            overwrite_rows = await self.db.fetch("""
+            SELECT user_id::text AS id, overwrite_type, allow, deny
+            FROM channel_overwrites
+            WHERE channel_id = $1
+            """, row['id'])
+
+            def _overwrite_convert(ov_row):
+                drow = dict(ov_row)
+                drow['type'] = drow['overwrite_type']
+                drow.pop('overwrite_type')
+                return drow
+
+            res['permission_overwrites'] = list(map(_overwrite_convert,
+                                                    overwrite_rows))
+
+            # Making sure.
+            res['id'] = str(res['id'])
+            channels.append(res)
+
+        return channels
+
     async def get_guild_extra(self, guild_id: int, state=None) -> Dict:
         """Get extra information about a guild."""
         res = {}
@@ -59,37 +170,14 @@ class Storage:
             res['large'] = state.large > member_count
             res['joined_at'] = joined_at.isoformat()
 
-        members_basic = await self.db.fetch("""
-        SELECT user_id, nickname, joined_at
-        FROM members
-        WHERE guild_id = $1
-        """, guild_id)
-
-        members = []
-
-        for row in members_basic:
-            member_id = row['user_id']
-
-            members_roles = await self.db.fetch("""
-            SELECT role_id
-            FROM member_roles
-            WHERE guild_id = $1 AND user_id = $2
-            """, guild_id, member_id)
-
-            members.append({
-                'user': await self.get_user(member_id),
-                'nick': row['nickname'],
-                'roles': [str(row[0]) for row in members_roles],
-                'joined_at': row['joined_at'].isoformat(),
-                'deaf': row['deafened'],
-                'mute': row['muted'],
-            })
+        members = await self.get_member_data(guild_id)
+        channels = await self.get_channel_data(guild_id)
 
         return {**res, **{
             'member_count': member_count,
             'members': members,
             'voice_states': [],
+            'channels': channels,
             # TODO: finish those
-            'channels': [],
             'presences': [],
         }}

@@ -45,7 +45,6 @@ class GatewayWebsocket:
     def __init__(self, ws, **kwargs):
         self.ext = WebsocketObjects(*kwargs['prop'])
         self.storage = self.ext.storage
-        self.state_manager = self.ext.state_manager
         self.ws = ws
 
         self.wsp = WebsocketProperties(kwargs.get('v'),
@@ -99,6 +98,7 @@ class GatewayWebsocket:
 
     async def _make_guild_list(self) -> List[int]:
         # TODO: This function does not account for sharding.
+        # TODO: This function does not account for bots.
         user_id = self.state.user_id
 
         guild_ids = await self.ext.db.fetch("""
@@ -107,15 +107,27 @@ class GatewayWebsocket:
         WHERE user_id = $1
         """, user_id)
 
-        return [{
-            'id': row[0],
-            'unavailable': True,
-        } for row in guild_ids]
+        if self.state.bot:
+            return [{
+                'id': row[0],
+                'unavailable': True,
+            } for row in guild_ids]
+
+        return [
+            await self.storage.get_guild(row[0], self.state)
+            for row in guild_ids
+        ]
 
     async def guild_dispatch(self, unavailable_guilds: List[dict]):
+        """Dispatch GUILD_CREATE information."""
+
+        # Users don't get asynchronous guild dispatching.
+        if not self.state.bot:
+            return
+
         for guild_obj in unavailable_guilds:
             guild = await self.storage.get_guild(guild_obj['id'],
-                                                 self.state.user_id)
+                                                 self.state)
 
             if not guild:
                 continue
@@ -123,7 +135,7 @@ class GatewayWebsocket:
             await self.dispatch('GUILD_CREATE', dict(guild))
 
     async def dispatch_ready(self):
-        """Dispatch the READY packet for a connecting user."""
+        """Dispatch the READY packet for a connecting account."""
         guilds = await self._make_guild_list()
         user = await self.storage.get_user(self.state.user_id, True)
 
@@ -180,20 +192,25 @@ class GatewayWebsocket:
         except AuthError:
             raise WebsocketClose(4004, 'Authentication failed')
 
+        bot = await self.ext.db.fetchval("""
+        SELECT bot FROM users
+        WHERE id = $1
+        """, user_id)
+
         self.state = GatewayState(
             user_id=user_id,
+            bot=bot,
             properties=properties,
             compress=compress,
             large=large,
             shard=shard,
             presence=presence,
+            ws=self
         )
-
-        self.state.ws = self
 
         await self._check_shards()
 
-        self.state_manager.insert(self.state)
+        self.ext.state_manager.insert(self.state)
         await self.dispatch_ready()
 
     async def process_message(self, payload):
