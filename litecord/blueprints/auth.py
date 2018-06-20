@@ -6,8 +6,8 @@ import itsdangerous
 import bcrypt
 from quart import Blueprint, jsonify, request, current_app as app
 
-from ..snowflake import get_snowflake
-from ..errors import AuthError
+from litecord.snowflake import get_snowflake
+from litecord.errors import AuthError
 
 
 bp = Blueprint('auth', __name__)

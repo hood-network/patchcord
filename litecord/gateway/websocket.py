@@ -4,13 +4,13 @@ import collections
 
 import earl
 
-from ..errors import WebsocketClose, AuthError
-from ..auth import raw_token_check
+from litecord.errors import WebsocketClose, AuthError
+from litecord.auth import raw_token_check
 from .errors import DecodeError, UnknownOPCode, \
     InvalidShard, ShardingRequired
 
 from .opcodes import OP
-from .state import GatewayState, gen_session_id
+from .state import GatewayState
 
 
 log = logging.getLogger(__name__)

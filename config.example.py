@@ -6,6 +6,8 @@ class Config:
     DEBUG = False
     IS_SSL = False
     WEBSERVER_URL = 'localhost:5000'
+    WS_HOST = 'localhost'
+    WS_PORT = 5001
     POSTGRES = {}
 
 

@@ -1,4 +1,4 @@
-from ..errors import WebsocketClose
+from litecord.errors import WebsocketClose
 
 
 class UnknownOPCode(WebsocketClose):
