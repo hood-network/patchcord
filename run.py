@@ -22,8 +22,10 @@ log = Logger('litecord.boot')
 def make_app():
     app = Quart(__name__)
     app.config.from_object(f'config.{config.MODE}')
+    is_debug = app.config.get('DEBUG', False)
+    app.debug = is_debug
 
-    if app.config['DEBUG']:
+    if is_debug:
         handler.level = logbook.DEBUG
 
     return app
