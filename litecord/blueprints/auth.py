@@ -15,32 +15,31 @@ bp = Blueprint('auth', __name__)
 
 async def hash_data(data: str) -> str:
     """Hash information with bcrypt."""
-    data = bytes(data, 'utf-8')
+    buf = data.encode()
 
-    future = app.loop.run_in_executor(
-        None, bcrypt.hashpw, data, bcrypt.gensalt(14))
+    hashed = await app.loop.run_in_executor(
+        None, bcrypt.hashpw, buf, bcrypt.gensalt(14)
+    )
 
-    hashed = await future
-    return hashed.decode('utf-8')
+    return hashed.decode()
 
 
-async def check_password(pwd_hash, given_password) -> bool:
+async def check_password(pwd_hash: str, given_password: str) -> bool:
     """Check if a given password matches the given hash."""
-    pwd_hash = pwd_hash.encode('utf-8')
-    given_password = given_password.encode('utf-8')
+    pwd_encoded = pwd_hash.encode()
+    given_encoded = given_password.encode()
 
-    future = app.loop.run_in_executor(
-        None, bcrypt.checkpw, given_password, pwd_hash)
-
-    return await future
+    return await app.loop.run_in_executor(
+        None, bcrypt.checkpw, given_encoded, pwd_encoded
+    )
 
 
 def make_token(user_id, user_pwd_hash) -> str:
     """Generate a single token for a user."""
     signer = itsdangerous.Signer(user_pwd_hash)
-    user_id = base64.b64encode(str(user_id).encode('utf-8'))
+    user_id = base64.b64encode(str(user_id).encode())
 
-    return signer.sign(user_id).decode('utf-8')
+    return signer.sign(user_id).decode()
 
 
 @bp.route('/register', methods=['POST'])

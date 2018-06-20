@@ -16,7 +16,7 @@ async def raw_token_check(token, db=None):
     user_id, _hmac = token.split('.')
 
     try:
-        user_id = base64.b64decode(user_id.encode('utf-8'))
+        user_id = base64.b64decode(user_id.encode())
         user_id = int(user_id)
     except (ValueError, binascii.Error):
         raise AuthError('Invalid user ID type')
