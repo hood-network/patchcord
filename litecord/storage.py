@@ -72,7 +72,66 @@ class Storage:
 
         return guild_ids
 
-    async def get_member_data(self, guild_id) -> List[Dict[str, Any]]:
+    async def get_member_data_one(self, guild_id, member_id) -> Dict[str, any]:
+        basic = await self.db.fetchrow("""
+        SELECT user_id, nickname, joined_at, deafened, muted
+        FROM members
+        WHERE guild_id = $1 and user_id = $2
+        """, guild_id, member_id)
+
+        if not basic:
+            return
+
+        members_roles = await self.db.fetch("""
+        SELECT role_id::text
+        FROM member_roles
+        WHERE guild_id = $1 AND user_id = $2
+        """, guild_id, member_id)
+
+        return {
+            'user': await self.get_user(member_id),
+            'nick': basic['nickname'],
+            'roles': [row[0] for row in members_roles],
+            'joined_at': basic['joined_at'].isoformat(),
+            'deaf': basic['deafened'],
+            'mute': basic['muted'],
+        }
+
+    async def _member_dict(self, row, guild_id, member_id) -> Dict[str, Any]:
+        members_roles = await self.db.fetch("""
+        SELECT role_id::text
+        FROM member_roles
+        WHERE guild_id = $1 AND user_id = $2
+        """, guild_id, member_id)
+
+        return {
+            'user': await self.get_user(member_id),
+            'nick': row['nickname'],
+            'roles': [row[0] for row in members_roles],
+            'joined_at': row['joined_at'].isoformat(),
+            'deaf': row['deafened'],
+            'mute': row['muted'],
+        }
+
+    async def get_member_multi(self, guild_id: int,
+                               user_ids: List[int]) -> List[Dict[str, Any]]:
+        """Get member information about multiple users in a guild."""
+        members = []
+
+        # bad idea bad idea bad idea
+        for user_id in user_ids:
+            row = await self.db.fetchrow("""
+            SELECT user_id, nickname, joined_at, defened, muted
+            FROM members
+            WHERE guild_id = $1 AND user_id = $2
+            """, guild_id, user_id)
+
+            member = await self._member_dict(row, guild_id, user_id)
+            members.append(member)
+
+        return members
+
+    async def get_member_data(self, guild_id: int) -> List[Dict[str, Any]]:
         """Get member information on a guild."""
         members_basic = await self.db.fetch("""
         SELECT user_id, nickname, joined_at, deafened, muted
@@ -83,22 +142,8 @@ class Storage:
         members = []
 
         for row in members_basic:
-            member_id = row['user_id']
-
-            members_roles = await self.db.fetch("""
-            SELECT role_id::text
-            FROM member_roles
-            WHERE guild_id = $1 AND user_id = $2
-            """, guild_id, member_id)
-
-            members.append({
-                'user': await self.get_user(member_id),
-                'nick': row['nickname'],
-                'roles': [row[0] for row in members_roles],
-                'joined_at': row['joined_at'].isoformat(),
-                'deaf': row['deafened'],
-                'mute': row['muted'],
-            })
+            member = await self._member_dict(row, guild_id, row['user_id'])
+            members.append(member)
 
         return members
 
@@ -139,7 +184,7 @@ class Storage:
             WHERE id = $1
             """, row['id'])
 
-            res = await self._channels_extra(row, ctype)
+            res = await self._channels_extra(dict(row), ctype)
 
             # type is a SQL keyword, so we can't do
             # 'overwrite_type AS type'

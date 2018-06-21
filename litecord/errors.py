@@ -18,6 +18,14 @@ class Forbidden(LitecordError):
     status_code = 403
 
 
+class NotFound(LitecordError):
+    status_code = 404
+
+
+class GuildNotFound(LitecordError):
+    status_code = 404
+
+
 class WebsocketClose(Exception):
     @property
     def code(self):
