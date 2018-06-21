@@ -8,7 +8,7 @@ from quart import Quart, g, jsonify
 from logbook import StreamHandler, Logger
 
 import config
-from litecord.blueprints import gateway, auth
+from litecord.blueprints import gateway, auth, users
 from litecord.gateway import websocket_handler
 from litecord.errors import LitecordError
 from litecord.gateway.state_manager import StateManager
@@ -35,6 +35,7 @@ def make_app():
 app = make_app()
 app.register_blueprint(gateway, url_prefix='/api/v6')
 app.register_blueprint(auth, url_prefix='/api/v6')
+app.register_blueprint(users, url_prefix='/api/v6/users')
 
 
 @app.before_serving

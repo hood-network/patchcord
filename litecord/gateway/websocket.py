@@ -5,7 +5,7 @@ from typing import List
 import earl
 from logbook import Logger
 
-from litecord.errors import WebsocketClose, AuthError
+from litecord.errors import WebsocketClose, Unauthorized, Forbidden
 from litecord.auth import raw_token_check
 from .errors import DecodeError, UnknownOPCode, \
     InvalidShard, ShardingRequired
@@ -100,11 +100,7 @@ class GatewayWebsocket:
         # TODO: This function does not account for sharding.
         user_id = self.state.user_id
 
-        guild_ids = await self.ext.db.fetch("""
-        SELECT guild_id
-        FROM members
-        WHERE user_id = $1
-        """, user_id)
+        guild_ids = await self.storage.get_user_guilds(user_id)
 
         if self.state.bot:
             return [{
@@ -188,7 +184,7 @@ class GatewayWebsocket:
 
         try:
             user_id = await raw_token_check(token, self.ext.db)
-        except AuthError:
+        except (Unauthorized, Forbidden):
             raise WebsocketClose(4004, 'Authentication failed')
 
         bot = await self.ext.db.fetchval("""

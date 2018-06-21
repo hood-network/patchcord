@@ -5,7 +5,7 @@ from itsdangerous import Signer, BadSignature
 from logbook import Logger
 from quart import request, current_app as app
 
-from .errors import AuthError
+from .errors import Forbidden, Unauthorized
 
 
 log = Logger(__name__)
@@ -19,7 +19,7 @@ async def raw_token_check(token, db=None):
         user_id = base64.b64decode(user_id.encode())
         user_id = int(user_id)
     except (ValueError, binascii.Error):
-        raise AuthError('Invalid user ID type')
+        raise Unauthorized('Invalid user ID type')
 
     pwd_hash = await db.fetchval("""
     SELECT password_hash
@@ -28,7 +28,7 @@ async def raw_token_check(token, db=None):
     """, user_id)
 
     if not pwd_hash:
-        raise AuthError('User ID not found')
+        raise Unauthorized('User ID not found')
 
     signer = Signer(pwd_hash)
 
@@ -38,7 +38,7 @@ async def raw_token_check(token, db=None):
         return user_id
     except BadSignature:
         log.warning('token failed for uid {}', user_id)
-        raise AuthError('Invalid token')
+        raise Forbidden('Invalid token')
 
 
 async def token_check():
@@ -46,6 +46,6 @@ async def token_check():
     try:
         token = request.headers['Authorization']
     except KeyError:
-        raise AuthError('No token provided')
+        raise Unauthorized('No token provided')
 
-    await raw_token_check(token)
+    return await raw_token_check(token)

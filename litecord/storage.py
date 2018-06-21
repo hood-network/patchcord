@@ -10,12 +10,17 @@ class Storage:
 
     async def get_user(self, user_id, secure=False) -> Dict[str, Any]:
         """Get a single user payload."""
+        user_id = int(user_id)
+
         user_row = await self.db.fetchrow("""
         SELECT id::text, username, discriminator, avatar, email,
             flags, bot, mfa_enabled, verified, premium
         FROM users
         WHERE users.id = $1
         """, user_id)
+
+        if not user_row:
+            return
 
         duser = dict(user_row)
 
@@ -57,6 +62,16 @@ class Storage:
             'roles': [],
             'emojis': [],
         }}
+
+    async def get_user_guilds(self, user_id: int) -> List[int]:
+        """Get all guild IDs a user is on."""
+        guild_ids = await self.db.fetch("""
+        SELECT guild_id
+        FROM members
+        WHERE user_id = $1
+        """, user_id)
+
+        return guild_ids
 
     async def get_member_data(self, guild_id) -> List[Dict[str, Any]]:
         """Get member information on a guild."""

@@ -7,7 +7,7 @@ import bcrypt
 from quart import Blueprint, jsonify, request, current_app as app
 
 from litecord.snowflake import get_snowflake
-from litecord.errors import AuthError
+from litecord.errors import BadRequest
 
 
 bp = Blueprint('auth', __name__)
@@ -59,7 +59,7 @@ async def register():
         VALUES ($1, $2, $3, $4, $5)
         """, new_id, email, username, new_discrim, pwd_hash)
     except asyncpg.UniqueViolationError:
-        raise AuthError('Email already used.')
+        raise BadRequest('Email already used.')
 
     return jsonify({
         'token': make_token(new_id, pwd_hash)

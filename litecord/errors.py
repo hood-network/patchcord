@@ -6,7 +6,15 @@ class LitecordError(Exception):
         return self.args[0]
 
 
-class AuthError(LitecordError):
+class BadRequest(LitecordError):
+    status_code = 400
+
+
+class Unauthorized(LitecordError):
+    status_code = 401
+
+
+class Forbidden(LitecordError):
     status_code = 403
 
 
