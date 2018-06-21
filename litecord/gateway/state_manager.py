@@ -37,11 +37,14 @@ class StateManager:
         except KeyError:
             pass
 
-    def fetch_states(self, user_id, guild_id) -> List[GatewayState]:
+    def fetch_states(self, user_id: int, guild_id: int) -> List[GatewayState]:
         """Fetch all states that are tied to a guild."""
         states = []
 
-        for state in self.states[user_id]:
+        for state in self.states[user_id].values():
+            # find out if we are the shard for the guild id
+            # this works if shard_count == 1 (the default for
+            # single gw connections) since N % 1 is always 0
             shard_id = (guild_id >> 22) % state.shard_count
 
             if shard_id == state.current_shard:

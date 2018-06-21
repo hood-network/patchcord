@@ -70,7 +70,11 @@ async def create_guild():
     guild_json = await app.storage.get_guild(guild_id, user_id)
     guild_extra = await app.storage.get_guild_extra(guild_id, user_id, 250)
 
-    return jsonify({**guild_json, **guild_extra})
+    guild_total = {**guild_json, **guild_extra}
+
+    app.dispatcher.sub_guild(guild_id, user_id)
+    await app.dispatcher.dispatch_guild(guild_id, 'GUILD_CREATE', guild_total)
+    return jsonify(guild_total)
 
 
 @bp.route('/<int:guild_id>', methods=['GET'])
@@ -84,6 +88,7 @@ async def get_guild(guild_id):
 
 @bp.route('/<int:guild_id>', methods=['DELETE'])
 async def delete_guild(guild_id):
+    """Delete a guild."""
     user_id = await token_check()
 
     owner_id = await app.db.fetchval("""
@@ -98,7 +103,20 @@ async def delete_guild(guild_id):
     if user_id != owner_id:
         raise Forbidden('You are not the owner of the guild')
 
-    # TODO: delete guild, fire GUILD_DELETE to guild
+    await app.db.execute("""
+    DELETE FROM guild
+    WHERE guilds.id = $1
+    """, guild_id)
+
+    await app.dispatcher.dispatch_guild(guild_id, 'GUILD_DELETE', {
+        'id': guild_id,
+        'unavailable': False,
+    })
+
+    # remove from the dispatcher so nobody
+    # becomes the little memer that tries to fuck up with
+    # everybody's gateway
+    app.dispatcher.remove_guild(guild_id)
 
     return '', 204
 
@@ -166,8 +184,7 @@ async def create_channel(guild_id):
 
         raise NotImplementedError()
 
-    # TODO: fire Channel Create event
-
+    await app.dispatcher.dispatch_guild(guild_id, 'CHANNEL_CREATE', channel)
     return jsonify(channel)
 
 

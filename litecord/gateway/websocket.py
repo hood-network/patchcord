@@ -204,6 +204,8 @@ class GatewayWebsocket:
             compress=compress,
             large=large,
             shard=shard,
+            current_shard=shard[0],
+            shard_count=shard[1],
             presence=presence,
             ws=self
         )

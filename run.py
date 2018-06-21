@@ -13,6 +13,7 @@ from litecord.gateway import websocket_handler
 from litecord.errors import LitecordError
 from litecord.gateway.state_manager import StateManager
 from litecord.storage import Storage
+from litecord.dispatcher import EventDispatcher
 
 # setup logbook
 handler = StreamHandler(sys.stdout, level=logbook.INFO)
@@ -49,6 +50,7 @@ async def app_before_serving():
     g.loop = asyncio.get_event_loop()
 
     app.state_manager = StateManager()
+    app.dispatcher = EventDispatcher(app.state_manager)
     app.storage = Storage(app.db)
 
     # start the websocket, etc
