@@ -28,11 +28,10 @@ class Storage:
             duser.pop('email')
             duser.pop('mfa_enabled')
             duser.pop('verified')
-            duser.pop('mfa_enabled')
 
         return duser
 
-    async def get_guild(self, guild_id: int, state=None) -> Dict:
+    async def get_guild(self, guild_id: int, user_id=None) -> Dict:
         """Get gulid payload."""
         row = await self.db.fetchrow("""
         SELECT *
@@ -45,8 +44,8 @@ class Storage:
 
         drow = dict(row)
 
-        if state:
-            drow['owner'] = drow['owner_id'] == state.user_id
+        if user_id:
+            drow['owner'] = drow['owner_id'] == user_id
 
         # TODO: Probably a really bad idea to repeat str() calls
         #   Any ideas to make this simpler?
@@ -76,7 +75,7 @@ class Storage:
     async def get_member_data(self, guild_id) -> List[Dict[str, Any]]:
         """Get member information on a guild."""
         members_basic = await self.db.fetch("""
-        SELECT user_id, nickname, joined_at
+        SELECT user_id, nickname, joined_at, deafened, muted
         FROM members
         WHERE guild_id = $1
         """, guild_id)
@@ -145,7 +144,7 @@ class Storage:
             # type is a SQL keyword, so we can't do
             # 'overwrite_type AS type'
             overwrite_rows = await self.db.fetch("""
-            SELECT user_id::text AS id, overwrite_type, allow, deny
+            SELECT target_id::text AS id, overwrite_type, allow, deny
             FROM channel_overwrites
             WHERE channel_id = $1
             """, row['id'])
@@ -165,7 +164,8 @@ class Storage:
 
         return channels
 
-    async def get_guild_extra(self, guild_id: int, state=None) -> Dict:
+    async def get_guild_extra(self, guild_id: int,
+                              user_id=None, large=None) -> Dict:
         """Get extra information about a guild."""
         res = {}
 
@@ -175,14 +175,14 @@ class Storage:
         WHERE guild_id = $1
         """, guild_id)
 
-        if state:
+        if user_id and large:
             joined_at = await self.db.fetchval("""
             SELECT joined_at
             FROM members
             WHERE guild_id = $1 AND user_id = $2
-            """, guild_id, state.user_id)
+            """, guild_id, user_id)
 
-            res['large'] = state.large > member_count
+            res['large'] = member_count > large
             res['joined_at'] = joined_at.isoformat()
 
         members = await self.get_member_data(guild_id)

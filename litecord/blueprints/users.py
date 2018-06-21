@@ -96,7 +96,7 @@ async def leave_guild(guild_id):
     return '', 204
 
 
-@bp.route('/@me/connections', methods=['GET'])
+# @bp.route('/@me/connections', methods=['GET'])
 async def get_connections():
     pass
 

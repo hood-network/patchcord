@@ -109,7 +109,11 @@ class GatewayWebsocket:
             } for row in guild_ids]
 
         return [
-            await self.storage.get_guild(row[0], self.state)
+            {
+                **await self.storage.get_guild(row[0], user_id),
+                **await self.storage.get_guild_extra(row[0], user_id,
+                                                     self.state.large)
+            }
             for row in guild_ids
         ]
 
@@ -122,7 +126,7 @@ class GatewayWebsocket:
 
         for guild_obj in unavailable_guilds:
             guild = await self.storage.get_guild(guild_obj['id'],
-                                                 self.state)
+                                                 self.state.user_id)
 
             if not guild:
                 continue
@@ -162,8 +166,9 @@ class GatewayWebsocket:
             raise ShardingRequired('Too many guilds for shard '
                                    f'{current_shard}')
 
-        if guilds / shard_count > 0.8:
-            raise ShardingRequired('Too many shards.')
+        if guilds > 2500 and guilds / shard_count > 0.8:
+            raise ShardingRequired('Too many shards. '
+                                   f'(g={guilds} sc={shard_count})')
 
         if current_shard > shard_count:
             raise InvalidShard('Shard count > Total shards')
