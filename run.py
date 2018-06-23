@@ -76,12 +76,17 @@ async def app_after_serving():
 
 @app.errorhandler(LitecordError)
 async def handle_litecord_err(err):
-    return jsonify({
+    try:
+        ejson = err.json
+    except IndexError:
+        ejson = {}
+
+    return jsonify({**{
         'error': True,
         # 'code': err.code,
         'status': err.status_code,
         'message': err.message,
-    }), err.status_code
+    }, **ejson}), err.status_code
 
 
 @app.errorhandler(500)

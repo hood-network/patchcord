@@ -5,6 +5,10 @@ class LitecordError(Exception):
     def message(self):
         return self.args[0]
 
+    @property
+    def json(self):
+        return self.args[1]
+
 
 class BadRequest(LitecordError):
     status_code = 400
