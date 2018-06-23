@@ -1,5 +1,7 @@
 import json
 import collections
+import pprint
+import zlib
 from typing import List
 
 import earl
@@ -15,7 +17,7 @@ from .state import GatewayState
 
 log = Logger(__name__)
 WebsocketProperties = collections.namedtuple(
-    'WebsocketProperties', 'v encoding compress'
+    'WebsocketProperties', 'v encoding compress zctx'
 )
 
 WebsocketObjects = collections.namedtuple(
@@ -49,7 +51,8 @@ class GatewayWebsocket:
 
         self.wsp = WebsocketProperties(kwargs.get('v'),
                                        kwargs.get('encoding', 'json'),
-                                       kwargs.get('compress', None))
+                                       kwargs.get('compress', None),
+                                       zlib.compressobj())
 
         self.state = None
 
@@ -67,11 +70,20 @@ class GatewayWebsocket:
 
     async def send(self, payload: dict):
         """Send a payload to the websocket"""
+        log.debug('Sending {}', pprint.pformat(payload))
         encoded = self.encoder(payload)
 
-        # TODO: compression
+        if not isinstance(encoded, bytes):
+            encoded = encoded.encode()
 
-        await self.ws.send(encoded)
+        if self.wsp.compress == 'zlib-stream':
+            data1 = self.wsp.zctx.compress(encoded)
+            data2 = self.wsp.zctx.flush(zlib.Z_FULL_FLUSH)
+
+            await self.ws.send(data1 + data2)
+        else:
+            # TODO: pure zlib
+            await self.ws.send(encoded)
 
     async def send_hello(self):
         """Send the OP 10 Hello packet over the websocket."""
@@ -173,8 +185,11 @@ class GatewayWebsocket:
         if current_shard > shard_count:
             raise InvalidShard('Shard count > Total shards')
 
-    async def handle_0(self, payload: dict):
-        """Handle the OP 0 Identify packet."""
+    async def handle_1(self, payload: dict):
+        pass
+
+    async def handle_2(self, payload: dict):
+        """Handle the OP 2 Identify packet."""
         data = payload['d']
         try:
             token, properties = data['token'], data['properties']
@@ -237,6 +252,10 @@ class GatewayWebsocket:
                 raise DecodeError('Payload length exceeded')
 
             payload = self.decoder(message)
+
+            pretty_printed = pprint.pformat(payload)
+            log.debug('received message: {}', pretty_printed)
+
             await self.process_message(payload)
 
     async def run(self):

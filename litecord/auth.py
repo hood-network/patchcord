@@ -48,4 +48,7 @@ async def token_check():
     except KeyError:
         raise Unauthorized('No token provided')
 
+    if token.startswith('Bot '):
+        token = token.replace('Bot ', '')
+
     return await raw_token_check(token)

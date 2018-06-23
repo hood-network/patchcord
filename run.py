@@ -6,6 +6,7 @@ import logbook
 import websockets
 from quart import Quart, g, jsonify
 from logbook import StreamHandler, Logger
+from logbook.compat import redirect_logging
 
 import config
 from litecord.blueprints import gateway, auth, users, guilds
@@ -19,6 +20,7 @@ from litecord.dispatcher import EventDispatcher
 handler = StreamHandler(sys.stdout, level=logbook.INFO)
 handler.push_application()
 log = Logger('litecord.boot')
+redirect_logging()
 
 
 def make_app():

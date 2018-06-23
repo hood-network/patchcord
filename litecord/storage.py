@@ -52,10 +52,15 @@ class Storage:
         #   (No, changing the types on the db wouldn't be nice)
         drow['id'] = str(drow['id'])
         drow['owner_id'] = str(drow['owner_id'])
-        drow['afk_channel_id'] = str(drow['afk_channel_id'])
-        drow['embed_channel_id'] = str(drow['embed_channel_id'])
-        drow['widget_channel_id'] = str(drow['widget_channel_id'])
-        drow['system_channel_id'] = str(drow['system_channel_id'])
+        drow['afk_channel_id'] = str(drow['afk_channel_id']) \
+            if drow['afk_channel_id'] else None
+        drow['embed_channel_id'] = str(drow['embed_channel_id']) \
+            if drow['embed_channel_id'] else None
+
+        drow['widget_channel_id'] = str(drow['widget_channel_id']) \
+            if drow['widget_channel_id'] else None
+        drow['system_channel_id'] = str(drow['system_channel_id']) \
+            if drow['system_channel_id'] else None
 
         return {**drow, **{
             'roles': [],
@@ -185,6 +190,7 @@ class Storage:
             """, row['id'])
 
             res = await self._channels_extra(dict(row), ctype)
+            res['type'] = ctype
 
             # type is a SQL keyword, so we can't do
             # 'overwrite_type AS type'
