@@ -234,6 +234,17 @@ async def update_nickname(guild_id):
     WHERE user_id = $2 AND guild_id = $3
     """, j['nick'], user_id, guild_id)
 
-    # TODO: fire guild member update event
+    roles = await app.db.fetch("""
+    SELECT role_id
+    FROM member_roles
+    WHERE user_id = $1 AND guild_id = $2
+    """, user_id, guild_id)
+
+    await app.dispatcher.dispatch_guild(guild_id, 'GUILD_MEMBER_UPDATE', {
+        'guild_id': str(guild_id),
+        'roles': list(map(str, roles)),
+        'user': await app.storage.get_user(user_id),
+        'nick': j['nick'],
+    })
 
     return j['nick']
