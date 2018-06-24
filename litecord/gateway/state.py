@@ -7,6 +7,18 @@ def gen_session_id() -> str:
     return hashlib.sha1(os.urandom(256)).hexdigest()
 
 
+class PayloadStore:
+    """Store manager for payloads."""
+    def __init__(self):
+        self.store = {}
+
+    def __getitem__(self, opcode: int):
+        return self.store[opcode]
+
+    def __setitem__(self, opcode: int, payload: dict):
+        self.store[opcode] = payload
+
+
 class GatewayState:
     """Main websocket state.
 
@@ -16,9 +28,11 @@ class GatewayState:
     def __init__(self, **kwargs):
         self.session_id = kwargs.get('session_id', gen_session_id())
         self.seq = kwargs.get('seq', 0)
+        self.last_seq = 0
         self.shard = kwargs.get('shard', [0, 1])
         self.user_id = kwargs.get('user_id')
         self.bot = kwargs.get('bot', False)
+        self.store = PayloadStore()
 
         for key in kwargs:
             value = kwargs[key]
