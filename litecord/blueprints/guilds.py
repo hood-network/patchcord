@@ -59,12 +59,10 @@ async def create_guild():
     VALUES ($1, $2)
     """, user_id, guild_id)
 
-    everyone_role_id = get_snowflake()
-
     await app.db.execute("""
     INSERT INTO roles (id, guild_id, name, position, permissions)
     VALUES ($1, $2, $3, $4, $5)
-    """, everyone_role_id, guild_id, '@everyone', 0, 104324161)
+    """, guild_id, guild_id, '@everyone', 0, 104324161)
 
     general_id = get_snowflake()
 

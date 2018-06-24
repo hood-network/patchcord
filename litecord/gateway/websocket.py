@@ -145,19 +145,71 @@ class GatewayWebsocket:
 
             await self.dispatch('GUILD_CREATE', dict(guild))
 
+    async def user_ready(self):
+        """Fetch information about users in the READY packet.
+
+        This part of the API is completly undocumented.
+        PLEAS DISCORD DO NOT BAN ME
+        """
+
+        return {
+            'relationships': [],
+            'user_guild_settings': [],
+            'notes': {},
+            'friend_suggestion_count': 0,
+            'presences': [],
+            'read_state': [],
+            'experiments': [],
+            'guild_experiments': [],
+            'connected_accounts': [],
+            'user_settings': {
+                'afk_timeout': 300,
+                'animate_emoji': True,
+                'convert_emoticons': False,
+                'default_guilds_restricted': True,
+                'detect_platform_accounts': False,
+                'developer_mode': True,
+                'enable_tts_command': False,
+                'explicit_content_filter': 2,
+                'friend_source_flags': {
+                    'mutual_friends': True
+                },
+                'gif_auto_play': True,
+                'guild_positions': [],
+                'inline_attachment_media': True,
+                'inline_embed_media': True,
+                'locale': 'en-US',
+                'message_display_compact': False,
+                'render_embeds': True,
+                'render_reactions': True,
+                'restricted_guilds': [],
+                'show_current_game': True,
+                'status': 'online',
+                'theme': 'dark',
+                'timezone_offset': 420,
+            },
+            'analytics_token': 'transbian',
+            'required_action': 'be gay',
+        }
+
     async def dispatch_ready(self):
         """Dispatch the READY packet for a connecting account."""
         guilds = await self._make_guild_list()
         user = await self.storage.get_user(self.state.user_id, True)
 
-        await self.dispatch('READY', {
+        uready = {}
+        if not self.state.bot:
+            # user, fetch info
+            uready = await self.user_ready()
+
+        await self.dispatch('READY', {**{
             'v': 6,
             'user': user,
             'private_channels': [],
             'guilds': guilds,
             'session_id': self.state.session_id,
             '_trace': ['transbian']
-        })
+        }, **uready})
 
         # async dispatch of guilds
         self.ext.loop.create_task(self.guild_dispatch(guilds))

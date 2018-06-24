@@ -278,7 +278,7 @@ CREATE TABLE IF NOT EXISTS roles (
     guild_id bigint REFERENCES guilds (id) ON DELETE CASCADE,
 
     name varchar(100) NOT NULL,
-    color int DEFAULT 0,
+    color int DEFAULT 1,
     hoist bool DEFAULT false,
     position int NOT NULL,
     permissions int NOT NULL,

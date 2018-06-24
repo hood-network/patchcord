@@ -112,7 +112,7 @@ class Storage:
         return {
             'user': await self.get_user(member_id),
             'nick': row['nickname'],
-            'roles': [row[0] for row in members_roles],
+            'roles': [guild_id] + [row[0] for row in members_roles],
             'joined_at': row['joined_at'].isoformat(),
             'deaf': row['deafened'],
             'mute': row['muted'],
@@ -177,7 +177,8 @@ class Storage:
     async def get_channel_data(self, guild_id) -> List[Dict]:
         """Get channel information on a guild"""
         channel_basics = await self.db.fetch("""
-        SELECT * FROM guild_channels
+        SELECT id, guild_id::text, parent_id, name, position, nsfw
+        FROM guild_channels
         WHERE guild_id = $1
         """, guild_id)
 
@@ -215,6 +216,21 @@ class Storage:
 
         return channels
 
+    async def get_role_data(self, guild_id: int) -> List[Dict[str, Any]]:
+        roledata = await self.db.fetch("""
+        SELECT id::text, name, color, hoist, position,
+               permissions, managed, mentionable
+        FROM roles
+        WHERE guild_id = $1
+        """, guild_id)
+
+        roles = []
+
+        for row in roledata:
+            roles.append(dict(row))
+
+        return roles
+
     async def get_guild_extra(self, guild_id: int,
                               user_id=None, large=None) -> Dict:
         """Get extra information about a guild."""
@@ -238,12 +254,14 @@ class Storage:
 
         members = await self.get_member_data(guild_id)
         channels = await self.get_channel_data(guild_id)
+        roles = await self.get_role_data(guild_id)
 
         return {**res, **{
             'member_count': member_count,
             'members': members,
             'voice_states': [],
             'channels': channels,
+            'roles': roles,
             # TODO: finish those
             'presences': [],
         }}
