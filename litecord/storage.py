@@ -63,7 +63,7 @@ class Storage:
             if drow['system_channel_id'] else None
 
         return {**drow, **{
-            'roles': [],
+            # TODO: those
             'emojis': [],
         }}
 

@@ -9,7 +9,7 @@ from logbook import StreamHandler, Logger
 from logbook.compat import redirect_logging
 
 import config
-from litecord.blueprints import gateway, auth, users, guilds
+from litecord.blueprints import gateway, auth, users, guilds, channels
 from litecord.gateway import websocket_handler
 from litecord.errors import LitecordError
 from litecord.gateway.state_manager import StateManager
@@ -40,6 +40,7 @@ app.register_blueprint(gateway, url_prefix='/api/v6')
 app.register_blueprint(auth, url_prefix='/api/v6')
 app.register_blueprint(users, url_prefix='/api/v6/users')
 app.register_blueprint(guilds, url_prefix='/api/v6/guilds')
+app.register_blueprint(channels, url_prefix='/api/v6/channels')
 
 
 @app.before_serving
