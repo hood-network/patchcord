@@ -3,7 +3,10 @@ class LitecordError(Exception):
 
     @property
     def message(self):
-        return self.args[0]
+        try:
+            return self.args[0]
+        except IndexError:
+            return repr(self)
 
     @property
     def json(self):
@@ -27,6 +30,10 @@ class NotFound(LitecordError):
 
 
 class GuildNotFound(LitecordError):
+    status_code = 404
+
+
+class ChannelNotFound(LitecordError):
     status_code = 404
 
 

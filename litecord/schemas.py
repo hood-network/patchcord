@@ -8,6 +8,15 @@ USERNAME_REGEX = re.compile(r'^[a-zA-Z0-9_]{2,19}$', re.A)
 EMAIL_REGEX = re.compile(r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$',
                          re.A)
 
+
+# collection of regexes
+USER_MENTION = re.compile(r'<@!?(\d+)>', re.A | re.M)
+CHAN_MENTION = re.compile(r'<#(\d+)>', re.A | re.M)
+ROLE_MENTION = re.compile(r'<@&(\d+)>', re.A | re.M)
+EMOJO_MENTION = re.compile(r'<:(\.+):(\d+)>', re.A | re.M)
+ANIMOJI_MENTION = re.compile(r'<a:(\.+):(\d+)>', re.A | re.M)
+
+
 class LitecordValidator(Validator):
     def _validate_type_username(self, value: str) -> bool:
         """Validate against the username regex."""
@@ -60,4 +69,12 @@ MEMBER_UPDATE = {
     'mute': {'type': 'bool', 'required': False},
     'deaf': {'type': 'bool', 'required': False},
     'channel_id': {'type': 'snowflake', 'required': False},
+}
+
+MESSAGE_CREATE = {
+    'content': {'type': 'string', 'minlength': 1, 'maxlength': 2000},
+    'nonce': {'type': 'number', 'required': False},
+    'tts': {'type': 'boolean', 'required': False},
+
+    # TODO: file, embed, payload_json
 }

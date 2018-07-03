@@ -24,6 +24,11 @@ class EventDispatcher:
         """Reset the guild bucket."""
         self.guild_buckets[guild_id] = set()
 
+    def sub_many(self, user_id: int, guild_ids: list):
+        """Subscribe to many guilds at a time."""
+        for guild_id in guild_ids:
+            self.sub_guild(guild_id, user_id)
+
     async def dispatch_guild(self, guild_id: int,
                              event_name: str, event_payload: Any):
         """Dispatch an event to a guild"""

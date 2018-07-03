@@ -1,6 +1,11 @@
 from typing import List, Dict, Any
 
 from .enums import ChannelType
+from .schemas import USER_MENTION, ROLE_MENTION
+
+
+async def _dummy(any_id):
+    return str(any_id)
 
 
 class Storage:
@@ -26,8 +31,8 @@ class Storage:
 
         if not secure:
             duser.pop('email')
-            duser.pop('mfa_enabled')
             duser.pop('verified')
+            duser.pop('mfa_enabled')
 
         return duser
 
@@ -174,6 +179,51 @@ class Storage:
 
             return {**row, **dict(vrow)}
 
+    async def get_chan_type(self, channel_id) -> int:
+        return await self.db.fetchval("""
+        SELECT channel_type
+        FROM channels
+        WHERE channels.id = $1
+        """, channel_id)
+
+    async def _chan_overwrites(self, channel_id):
+        overwrite_rows = await self.db.fetch("""
+        SELECT target_id::text AS id, overwrite_type, allow, deny
+        FROM channel_overwrites
+        WHERE channel_id = $1
+        """, channel_id)
+
+        def _overwrite_convert(ov_row):
+            drow = dict(ov_row)
+            drow['type'] = drow['overwrite_type']
+            drow.pop('overwrite_type')
+            return drow
+
+        return map(_overwrite_convert, overwrite_rows)
+
+    async def get_channel(self, channel_id) -> Dict[str, Any]:
+        """Fetch a single channel's information."""
+        chan_type = await self.get_chan_type(channel_id)
+
+        if chan_type in (ChannelType.GUILD_TEXT, ChannelType.GUILD_VOICE,
+                         ChannelType.GUILD_CATEGORY):
+            base = await self.db.fetchrow("""
+            SELECT id, guild_id::text, parent_id, name, position, nsfw
+            FROM guild_channels
+            WHERE guild_channels.id = $1
+            """, channel_id)
+
+            res = await self._channels_extra(dict(base), chan_type)
+            res['type'] = chan_type
+            res['permission_overwrites'] = \
+                list(await self._chan_overwrites(channel_id))
+
+            res['id'] = str(res['id'])
+            return res
+        else:
+            # TODO: dms and group dms
+            pass
+
     async def get_channel_data(self, guild_id) -> List[Dict]:
         """Get channel information on a guild"""
         channel_basics = await self.db.fetch("""
@@ -193,22 +243,8 @@ class Storage:
             res = await self._channels_extra(dict(row), ctype)
             res['type'] = ctype
 
-            # type is a SQL keyword, so we can't do
-            # 'overwrite_type AS type'
-            overwrite_rows = await self.db.fetch("""
-            SELECT target_id::text AS id, overwrite_type, allow, deny
-            FROM channel_overwrites
-            WHERE channel_id = $1
-            """, row['id'])
-
-            def _overwrite_convert(ov_row):
-                drow = dict(ov_row)
-                drow['type'] = drow['overwrite_type']
-                drow.pop('overwrite_type')
-                return drow
-
-            res['permission_overwrites'] = list(map(_overwrite_convert,
-                                                    overwrite_rows))
+            res['permission_overwrites'] = \
+                list(await self._chan_overwrites(row['id']))
 
             # Making sure.
             res['id'] = str(res['id'])
@@ -262,6 +298,69 @@ class Storage:
             'voice_states': [],
             'channels': channels,
             'roles': roles,
-            # TODO: finish those
+
+            # TODO: finish presences
             'presences': [],
         }}
+
+    async def _msg_regex(self, regex, method, content) -> List[Dict]:
+        res = []
+
+        for match in regex.finditer(content):
+            found_id = match.group(1)
+
+            try:
+                found_id = int(found_id)
+            except ValueError:
+                continue
+
+            obj = await method(found_id)
+            if obj:
+                res.append(obj)
+
+        return res
+
+    async def get_message(self, message_id: int) -> Dict:
+        """Get a single message's payload."""
+        row = await self.db.fetchrow("""
+        SELECT id::text, channel_id::text, author_id, content,
+            created_at AS timestamp, edited_at AS edited_timestamp,
+            tts, mention_everyone, nonce, message_type
+        FROM messages
+        WHERE id = $1
+        """, message_id)
+
+        if not row:
+            return
+
+        res = dict(row)
+        res['timestamp'] = res['timestamp'].isoformat()
+        res['type'] = res['message_type']
+        res.pop('message_type')
+
+        # calculate user mentions and role mentions by regex
+        res['mentions'] = await self._msg_regex(USER_MENTION, self.get_user,
+                                                row['content'])
+
+        # _dummy just returns the string of the id, since we don't
+        # actually use the role objects in mention_roles, just their ids.
+        res['mention_roles'] = await self._msg_regex(ROLE_MENTION, _dummy,
+                                                     row['content'])
+
+        # TODO: handle webhook authors
+        res['author'] = await self.get_user(res['author_id'])
+        res.pop('author_id')
+
+        # TODO: res['attachments']
+        res['attachments'] = []
+
+        # TODO: res['embeds']
+        res['embeds'] = []
+
+        # TODO: res['reactions']
+        res['reactions'] = []
+
+        # TODO: res['pinned']
+        res['pinned'] = False
+
+        return res

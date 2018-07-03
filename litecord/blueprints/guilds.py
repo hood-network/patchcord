@@ -18,7 +18,7 @@ async def guild_check(user_id: int, guild_id: int):
     """, user_id, guild_id)
 
     if not joined_at:
-        raise GuildNotFound()
+        raise GuildNotFound('guild not found')
 
 
 async def guild_owner_check(user_id: int, guild_id: int):

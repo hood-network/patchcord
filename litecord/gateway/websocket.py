@@ -22,7 +22,7 @@ WebsocketProperties = collections.namedtuple(
 )
 
 WebsocketObjects = collections.namedtuple(
-    'WebsocketObjects', 'db state_manager storage loop'
+    'WebsocketObjects', 'db state_manager storage loop dispatcher'
 )
 
 
@@ -81,7 +81,6 @@ class GatewayWebsocket:
         if not isinstance(encoded, bytes):
             encoded = encoded.encode()
 
-        print(self.wsp.compress)
         if self.wsp.compress == 'zlib-stream':
             data1 = self.wsp.zctx.compress(encoded)
             data2 = self.wsp.zctx.flush(zlib.Z_FULL_FLUSH)
@@ -246,6 +245,17 @@ class GatewayWebsocket:
         if current_shard > shard_count:
             raise InvalidShard('Shard count > Total shards')
 
+    async def subscribe_guilds(self):
+        """Subscribe to all available guilds"""
+        guild_ids = await self.ext.db.fetch("""
+        SELECT guild_id
+        FROM members
+        WHERE user_id = $1
+        """, self.state.user_id)
+
+        guild_ids = [r['guild_id'] for r in guild_ids]
+        self.ext.dispatcher.sub_many(self.state.user_id, guild_ids)
+
     async def handle_1(self, payload: Dict[str, Any]):
         """Handle OP 1 Heartbeat packets."""
         pass
@@ -291,6 +301,7 @@ class GatewayWebsocket:
 
         self.ext.state_manager.insert(self.state)
         await self.dispatch_ready()
+        await self.subscribe_guilds()
 
     async def handle_3(self, payload: Dict[str, Any]):
         """Handle OP 3 Status Update."""
@@ -386,6 +397,9 @@ class GatewayWebsocket:
             log.warning('closed a client, state={} err={}', self.state, err)
 
             await self.ws.close(code=err.code, reason=err.reason)
+        except Exception as err:
+            log.exception('An exception has occoured. state={}', self.state)
+            await self.ws.close(code=4000, reason=repr(err))
         finally:
             if self.state:
                 self.state.ws = None
