@@ -64,7 +64,7 @@ async def app_before_serving():
         # We wrap the main websocket_handler
         # so we can pass quart's app object.
         await websocket_handler((app.db, app.state_manager, app.storage,
-                                app.loop, app.dispatcher), ws, url)
+                                 app.loop, app.dispatcher), ws, url)
 
     ws_future = websockets.serve(_wrapper, host, port)
 

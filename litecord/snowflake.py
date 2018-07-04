@@ -5,10 +5,11 @@ snowflake.py - snowflake helper functions
     File brought in from
         litecord-reference(https://github.com/lnmds/litecord-reference)
 """
-import time
-import hashlib
 import os
+import time
 import base64
+import hashlib
+import datetime
 
 # encoded in ms
 EPOCH = 1420070400000
@@ -88,6 +89,12 @@ def snowflake_time(snowflake: Snowflake) -> float:
     # since we don't want to break the entire
     # snowflake interface
     return timestamp / 1000
+
+
+def snowflake_datetime(snowflake: Snowflake) -> datetime.datetime:
+    """Return a datetime object representing the snowflake."""
+    unix_ts = snowflake_time(snowflake)
+    return datetime.datetime.fromtimestamp(unix_ts)
 
 
 def get_snowflake():

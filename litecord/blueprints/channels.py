@@ -4,7 +4,7 @@ from quart import Blueprint, request, current_app as app, jsonify
 from logbook import Logger
 
 from ..auth import token_check
-from ..snowflake import get_snowflake
+from ..snowflake import get_snowflake, snowflake_datetime
 from ..enums import ChannelType, MessageType
 from ..errors import Forbidden, BadRequest, ChannelNotFound, MessageNotFound
 from ..schemas import validate, MESSAGE_CREATE
@@ -73,7 +73,6 @@ async def get_messages(channel_id):
         result.append(msg)
 
     log.info('Fetched {} messages', len(result))
-    print(result)
     return jsonify(result)
 
 
@@ -117,6 +116,151 @@ async def create_message(channel_id):
     await app.dispatcher.dispatch_guild(guild_id, 'MESSAGE_CREATE', payload)
 
     return jsonify(payload)
+
+
+@bp.route('/<int:channel_id>/messages/<int:message_id>', methods=['PATCH'])
+async def edit_message(channel_id, message_id):
+    user_id = await token_check()
+    guild_id = await channel_check(user_id, channel_id)
+
+    author_id = await app.db.fetchval("""
+    SELECT author_id FROM messages
+    WHERE messages.id = $1
+    """, message_id)
+
+    if not author_id == user_id:
+        raise Forbidden('You can not edit this message')
+
+    j = await request.get_json()
+    updated = 'content' in j or 'embed' in j
+
+    if 'content' in j:
+        await app.db.execute("""
+        UPDATE messages
+        SET content=$1
+        WHERE messages.id = $2
+        """, j['content'], message_id)
+
+    # TODO: update embed
+
+    message = await app.storage.get_message(message_id)
+
+    # only dispatch MESSAGE_CREATE if we actually had any update to start with
+    if updated:
+        await app.dispatcher.dispatch_guild(guild_id,
+                                            'MESSAGE_UPDATE', message)
+
+    return jsonify(message)
+
+
+@bp.route('/<int:channel_id>/messages/<int:message_id>', methods=['DELETE'])
+async def delete_message(channel_id, message_id):
+    user_id = await token_check()
+    guild_id = await channel_check(user_id, channel_id)
+
+    author_id = await app.db.fetchval("""
+    SELECT author_id FROM messages
+    WHERE messages.id = $1
+    """, message_id)
+
+    # TODO: MANAGE_MESSAGES permission check
+    if not author_id == user_id:
+        raise Forbidden('You can not delete this message')
+
+    await app.db.execute("""
+    DELETE FROM messages
+    WHERE messages.id = $1
+    """, message_id)
+
+    await app.dispatcher.dispatch_guild(guild_id, 'MESSAGE_DELETE', {
+        'id': str(message_id),
+        'channel_id': str(channel_id)
+    })
+
+    return '', 204
+
+
+@bp.route('/<int:channel_id>/pins', methods=['GET'])
+async def get_pins(channel_id):
+    user_id = await token_check()
+    await channel_check(user_id, channel_id)
+
+    ids = await app.db.fetch("""
+    SELECT message_id
+    FROM channel_pins
+    WHERE channel_id = $1
+    ORDER BY message_id ASC
+    """, channel_id)
+
+    ids = [r['message_id'] for r in ids]
+    res = []
+
+    for message_id in ids:
+        message = await app.storage.get_message(message_id)
+        if message is not None:
+            res.append(message)
+
+    return jsonify(message)
+
+
+@bp.route('/<int:channel_id>/pins/<int:message_id>', methods=['PUT'])
+async def add_pin(channel_id, message_id):
+    user_id = await token_check()
+    guild_id = await channel_check(user_id, channel_id)
+
+    # TODO: check MANAGE_MESSAGES permission
+
+    await app.db.execute("""
+    INSERT INTO channel_pins (channel_id, message_id)
+    VALUES ($1, $2)
+    """, channel_id, message_id)
+
+    row = await app.db.fetchrow("""
+    SELECT message_id
+    FROM channel_pins
+    WHERE channel_id = $1
+    ORDER BY message_id ASC
+    LIMIT 1
+    """, channel_id)
+
+    timestamp = snowflake_datetime(row['message_id'])
+
+    await app.dispatcher.dispatch_guild(guild_id, 'CHANNEL_PINS_UPDATE', {
+        'channel_id': str(channel_id),
+        'last_pin_timestamp': timestamp.isoformat()
+    })
+
+    return '', 204
+
+
+@bp.route('/<int:channel_id>/pins/<int:message_id>', methods=['DELETE'])
+async def delete_pin(channel_id, message_id):
+    user_id = await token_check()
+    guild_id = await channel_check(user_id, channel_id)
+
+    # TODO: check MANAGE_MESSAGES permission
+
+    await app.db.execute("""
+    DELETE FROM channel_pins
+    WHERE channel_id = $1 AND message_id = $2
+    """, channel_id, message_id)
+
+    row = await app.db.fetchrow("""
+    SELECT message_id
+    FROM channel_pins
+    WHERE channel_id = $1
+    ORDER BY message_id ASC
+    LIMIT 1
+    """, channel_id)
+
+    timestamp = snowflake_datetime(row['message_id'])
+
+    await app.dispatcher.dispatch_guild(guild_id, 'CHANNEL_PINS_UPDATE', {
+        'channel_id': str(channel_id),
+        'last_pin_timestamp': timestamp.isoformat()
+    })
+
+    return '', 204
 
 
 @bp.route('/<int:channel_id>/typing', methods=['POST'])

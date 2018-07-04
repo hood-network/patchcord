@@ -372,6 +372,6 @@ CREATE TABLE IF NOT EXISTS message_reactions (
 
 CREATE TABLE IF NOT EXISTS channel_pins (
     channel_id bigint REFERENCES channels (id) UNIQUE,
-    message_id bigint REFERENCEs messages (id),
+    message_id bigint REFERENCES messages (id),
     PRIMARY KEY (channel_id, message_id)
 );
