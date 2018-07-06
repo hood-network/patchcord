@@ -5,6 +5,7 @@ import asyncpg
 import logbook
 import websockets
 from quart import Quart, g, jsonify
+from quart_cors import cors
 from logbook import StreamHandler, Logger
 from logbook.compat import redirect_logging
 
@@ -25,6 +26,7 @@ redirect_logging()
 
 def make_app():
     app = Quart(__name__)
+    app = cors(app)
     app.config.from_object(f'config.{config.MODE}')
     is_debug = app.config.get('DEBUG', False)
     app.debug = is_debug
