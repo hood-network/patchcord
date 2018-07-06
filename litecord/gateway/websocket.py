@@ -401,5 +401,7 @@ class GatewayWebsocket:
             log.exception('An exception has occoured. state={}', self.state)
             await self.ws.close(code=4000, reason=repr(err))
         finally:
+            self.ext.state_manager.remove(self)
+
             if self.state:
                 self.state.ws = None
