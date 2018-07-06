@@ -164,7 +164,7 @@ async def delete_message(channel_id, message_id):
     """, message_id)
 
     # TODO: MANAGE_MESSAGES permission check
-    if not author_id == user_id:
+    if author_id != user_id:
         raise Forbidden('You can not delete this message')
 
     await app.db.execute("""

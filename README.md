@@ -17,6 +17,12 @@ We use [pipenv] to manage our dependencies.
 $ git clone https://gitlab.com/lnmds/litecord
 $ cd litecord
 
+# create users as you want, etc
+$ psql -U some_user -f schema.sql database
+
+# edit config.py as you please
+$ cp config.example.py config.py
+
 # install all packages, including dev-packages
 $ pipenv install --dev
 ```
@@ -28,5 +34,5 @@ $ pipenv install --dev
 $ pipenv shell
 
 # boot litecord
-$ hypercorn run:app
+$ hypercorn -b 0.0.0.0:5000 run:app
 ```

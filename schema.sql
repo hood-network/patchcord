@@ -155,18 +155,20 @@ CREATE TABLE IF NOT EXISTS guild_channels (
 
 
 CREATE TABLE IF NOT EXISTS guild_text_channels (
-    id bigint REFERENCES guild_channels (id) PRIMARY KEY ON DELETE CASCADE,
-    topic text DEFAULT ''
+    id bigint REFERENCES guild_channels (id) ON DELETE CASCADE,
+    topic text DEFAULT '',
+    PRIMARY KEY (id)
 );
 
 CREATE TABLE IF NOT EXISTS guild_voice_channels (
-    id bigint REFERENCES guild_channels (id) PRIMARY KEY ON DELETE CASCADE,
+    id bigint REFERENCES guild_channels (id) ON DELETE CASCADE,
 
     -- default bitrate for discord is 64kbps
     bitrate int DEFAULT 64,
 
     -- 0 means infinite
-    user_limit int DEFAULT 0
+    user_limit int DEFAULT 0,
+    PRIMARY KEY (id)
 );
 
 
@@ -176,9 +178,10 @@ CREATE TABLE IF NOT EXISTS dm_channels (
 
 
 CREATE TABLE IF NOT EXISTS group_dm_channels (
-    id bigint REFERENCES channels (id) PRIMARY KEY ON DELETE CASCADE,
+    id bigint REFERENCES channels (id) ON DELETE CASCADE,
     owner_id bigint REFERENCES users (id),
-    icon bigint REFERENCES files (id)
+    icon bigint REFERENCES files (id),
+    PRIMARY KEY (id)
 );
 
 
