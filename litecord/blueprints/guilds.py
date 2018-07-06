@@ -81,6 +81,8 @@ async def create_guild():
     VALUES ($1)
     """, general_id)
 
+    # TODO: j['roles'] and j['channels']
+
     guild_json = await app.storage.get_guild(guild_id, user_id)
     guild_extra = await app.storage.get_guild_extra(guild_id, user_id, 250)
 
@@ -367,3 +369,88 @@ async def update_nickname(guild_id):
     }, **member})
 
     return j['nick']
+
+
+@bp.route('/<int:guild_id>/members/<int:member_id>', methods=['DELETE'])
+async def kick_member(guild_id, member_id):
+    user_id = await token_check()
+
+    # TODO: check KICK_MEMBERS permission
+    await guild_owner_check(user_id, guild_id)
+
+    await app.db.execute("""
+    DELETE FROM members
+    WHERE guild_id = $1 AND user_id = $2
+    """, guild_id, member_id)
+
+    await app.dispatcher.dispatch_user(user_id, 'GUILD_DELETE', {
+        'guild_id': guild_id,
+        'unavailable': False,
+    })
+
+    await app.dispatcher.dispatch_guild(guild_id, 'GUILD_MEMBER_REMOVE', {
+        'guild': guild_id,
+        'user': await app.storage.get_user(member_id),
+    })
+
+    return '', 204
+
+
+@bp.route('/<int:guild_id>/bans', methods=['GET'])
+async def get_bans(guild_id):
+    user_id = await token_check()
+
+    # TODO: check BAN_MEMBERS permission
+    await guild_owner_check(user_id, guild_id)
+
+    bans = await app.db.fetch("""
+    SELECT user_id, reason
+    FROM bans
+    WHERE bans.guild_id = $1
+    """, guild_id)
+
+    res = []
+
+    for ban in bans:
+        res.append({
+            'reason': ban['reason'],
+            'user': await app.storage.get_user(ban['user_id'])
+        })
+
+    return jsonify(res)
+
+
+@bp.route('/<int:guild_id>/bans/<int:member_id>', methods=['PUT'])
+async def create_ban(guild_id, member_id):
+    user_id = await token_check()
+
+    # TODO: check BAN_MEMBERS permission
+    await guild_owner_check(user_id, guild_id)
+
+    j = await request.get_json()
+
+    await app.db.execute("""
+    INSERT INTO bans (guild_id, user_id, reason)
+    VALUES ($1, $2, $3)
+    """, guild_id, member_id, j.get('reason', ''))
+
+    await app.db.execute("""
+    DELETE FROM members
+    WHERE guild_id = $1 AND user_id = $2
+    """, guild_id, user_id)
+
+    await app.dispatcher.dispatch_user(user_id, 'GUILD_DELETE', {
+        'guild_id': guild_id,
+        'unavailable': False,
+    })
+
+    await app.dispatcher.dispatch_guild(guild_id, 'GUILD_MEMBER_REMOVE', {
+        'guild': guild_id,
+        'user': await app.storage.get_user(member_id),
+    })
+
+    await app.dispatcher.dispatch_guild(guild_id, 'GUILD_BAN_ADD', {**{
+        'guild': guild_id,
+    }, **(await app.storage.get_user(member_id))})
+
+    return '', 204

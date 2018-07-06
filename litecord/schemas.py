@@ -22,6 +22,10 @@ class LitecordValidator(Validator):
         """Validate against the username regex."""
         return bool(USERNAME_REGEX.match(value))
 
+    def _validate_type_voice_region(self, value: str) -> bool:
+        # TODO: complete this list
+        return value in ('brazil', 'us-east', 'us-west', 'us-south', 'russia')
+
 
 def validate(reqjson, schema):
     validator = LitecordValidator(schema)
