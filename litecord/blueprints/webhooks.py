@@ -23,7 +23,7 @@ async def get_single_webhook(webhook_id):
     pass
 
 
-@bp.route('/webhooks/<int:webhook_id>/<str:webhook_token>', methods=['GET'])
+@bp.route('/webhooks/<int:webhook_id>/<webhook_token>', methods=['GET'])
 async def get_tokened_webhook(webhook_id, webhook_token):
     pass
 
@@ -33,7 +33,7 @@ async def modify_webhook(webhook_id):
     pass
 
 
-@bp.route('/webhooks/<int:webhook_id>/<str:webhook_token>', methods=['PATCH'])
+@bp.route('/webhooks/<int:webhook_id>/<webhook_token>', methods=['PATCH'])
 async def modify_webhook_tokened(webhook_id, webhook_token):
     pass
 
@@ -43,24 +43,22 @@ async def del_webhook(webhook_id):
     pass
 
 
-@bp.route('/webhooks/<int:webhook_id>/<str:webhook_token>', methods=['DELETE'])
+@bp.route('/webhooks/<int:webhook_id>/<webhook_token>', methods=['DELETE'])
 async def del_webhook_tokened(webhook_id, webhook_token):
     pass
 
 
-@bp.route('/webhooks/<int:webhook_id>/<str:webhook_token>', methods=['POST'])
+@bp.route('/webhooks/<int:webhook_id>/<webhook_token>', methods=['POST'])
 async def execute_webhook(webhook_id, webhook_token):
     pass
 
 
-@bp.route('/webhooks/<int:webhook_id>/<str:webhook_token>/slack',
+@bp.route('/webhooks/<int:webhook_id>/<webhook_token>/slack',
           methods=['POST'])
 async def execute_slack_webhook(webhook_id, webhook_token):
     pass
 
 
-@bp.route('/webhooks/<int:webhook_id>/<str:webhook_token>/github',
-          methods=['POST'])
+@bp.route('/webhooks/<int:webhook_id>/<webhook_token>/github', methods=['POST'])
 async def execute_github_webhook(webhook_id, webhook_token):
     pass
-
