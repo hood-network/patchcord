@@ -177,6 +177,7 @@ class GatewayWebsocket:
                 'default_guilds_restricted': True,
                 'detect_platform_accounts': False,
                 'developer_mode': True,
+                'disable_games_tab': True,
                 'enable_tts_command': False,
                 'explicit_content_filter': 2,
                 'friend_source_flags': {
