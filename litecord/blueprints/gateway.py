@@ -7,9 +7,7 @@ bp = Blueprint('gateway', __name__)
 
 def get_gw():
     proto = 'wss://' if app.config['IS_SSL'] else 'ws://'
-    ws_host = app.config['WS_HOST']
-    ws_port = app.config['WS_PORT']
-    return f'{proto}{ws_host}:{ws_port}/ws'
+    return f'{proto}{app.config["WEBSERVER_URL"]}/ws'
 
 
 @bp.route('/gateway')
