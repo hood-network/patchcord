@@ -77,7 +77,7 @@ MEMBER_UPDATE = {
 
 MESSAGE_CREATE = {
     'content': {'type': 'string', 'minlength': 1, 'maxlength': 2000},
-    'nonce': {'type': 'number', 'required': False},
+    'nonce': {'type': 'string', 'required': False},
     'tts': {'type': 'boolean', 'required': False},
 
     # TODO: file, embed, payload_json

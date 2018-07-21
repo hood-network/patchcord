@@ -334,6 +334,7 @@ class Storage:
             return
 
         res = dict(row)
+        res['nonce'] = str(res['nonce'])
         res['timestamp'] = res['timestamp'].isoformat()
         res['type'] = res['message_type']
         res.pop('message_type')

@@ -108,8 +108,16 @@ async def create_message(channel_id):
         INSERT INTO messages (id, channel_id, author_id, content, tts,
             mention_everyone, nonce, message_type)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-    """, message_id, channel_id, user_id, j['content'], j.get('tts', False),
-        '@everyone' in j['content'], j.get('nonce', 0), MessageType.DEFAULT)
+    """,
+        message_id,
+        channel_id,
+        user_id,
+        j['content'],
+        j.get('tts', False),
+        '@everyone' in j['content'],
+        int(j.get('nonce', 0)),
+        MessageType.DEFAULT
+    )
 
     # TODO: dispatch_channel
     payload = await app.storage.get_message(message_id)
