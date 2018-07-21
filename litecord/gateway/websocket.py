@@ -198,7 +198,6 @@ class GatewayWebsocket:
                 'timezone_offset': 420,
             },
             'analytics_token': 'transbian',
-            'required_action': 'be gay',
         }
 
     async def dispatch_ready(self):
