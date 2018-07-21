@@ -5,7 +5,6 @@ import asyncpg
 import logbook
 import websockets
 from quart import Quart, g, jsonify
-from quart_cors import cors
 from logbook import StreamHandler, Logger
 from logbook.compat import redirect_logging
 
@@ -26,7 +25,6 @@ redirect_logging()
 
 def make_app():
     app = Quart(__name__)
-    app = cors(app)
     app.config.from_object(f'config.{config.MODE}')
     is_debug = app.config.get('DEBUG', False)
     app.debug = is_debug
@@ -38,12 +36,27 @@ def make_app():
 
 
 app = make_app()
-app.register_blueprint(gateway, url_prefix='/api/v6')
-app.register_blueprint(auth, url_prefix='/api/v6')
-app.register_blueprint(users, url_prefix='/api/v6/users')
-app.register_blueprint(guilds, url_prefix='/api/v6/guilds')
-app.register_blueprint(channels, url_prefix='/api/v6/channels')
-app.register_blueprint(webhooks, url_prefix='/api/v6')
+
+bps = {
+    gateway: None,
+    auth: '/auth',
+    users: '/users',
+    guilds: '/guilds',
+    channels: '/channels',
+    webhooks: None
+}
+
+for bp, suffix in bps.items():
+    suffix = suffix or ''
+    app.register_blueprint(bp, url_prefix=f'/api/v6{suffix}')
+
+
+@app.after_request
+async def app_after_request(resp):
+    resp.headers['Access-Control-Allow-Origin'] = '*'
+    resp.headers['Access-Control-Allow-Headers'] = '*'
+    resp.headers['Access-Control-Allow-Methods'] = '*'
+    return resp
 
 
 @app.before_serving
