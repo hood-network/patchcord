@@ -44,7 +44,6 @@ def make_token(user_id, user_pwd_hash) -> str:
 
 @bp.route('/register', methods=['POST'])
 async def register():
-    """Register a user on litecord"""
     j = await request.get_json()
     email, password, username = j['email'], j['password'], j['username']
 
@@ -68,7 +67,6 @@ async def register():
 
 @bp.route('/login', methods=['POST'])
 async def login():
-    """Login one user into Litecord."""
     j = await request.get_json()
     email, password = j['email'], j['password']
 
@@ -79,12 +77,12 @@ async def login():
     """, email)
 
     if not row:
-        return jsonify({'email': ['User not found.']})
+        return jsonify({'email': ['User not found.']}), 401
 
     user_id, pwd_hash = row
 
     if not await check_password(pwd_hash, password):
-        return jsonify({'password': ['Password does not match.']})
+        return jsonify({'password': ['Password does not match.']}), 401
 
     return jsonify({
         'token': make_token(user_id, pwd_hash)
