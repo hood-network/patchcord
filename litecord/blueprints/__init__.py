@@ -4,3 +4,5 @@ from .users import bp as users
 from .guilds import bp as guilds
 from .channels import bp as channels
 from .webhooks import bp as webhooks
+from .science import bp as science
+from .voice import bp as voice
