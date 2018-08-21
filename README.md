@@ -30,9 +30,8 @@ $ pipenv install --dev
 ## Running
 
 ```
-# drop into the virtualenv's shell
-$ pipenv shell
-
-# boot litecord
-$ hypercorn -b 0.0.0.0:5000 run:app
+# hypercorn will by default bind to 0.0.0.0:5000, change that address
+# with the -b option (e.g -b 0.0.0.0:6969).
+# use '--access-log -' to show logs on stdout.
+$ pipenv run hypercorn run:app
 ```
