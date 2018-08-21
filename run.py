@@ -9,7 +9,8 @@ from logbook import StreamHandler, Logger
 from logbook.compat import redirect_logging
 
 import config
-from litecord.blueprints import gateway, auth, users, guilds, channels, webhooks, science, voice
+from litecord.blueprints import gateway, auth, users, guilds, channels, \
+    webhooks, science, voice
 from litecord.gateway import websocket_handler
 from litecord.errors import LitecordError
 from litecord.gateway.state_manager import StateManager
@@ -30,7 +31,9 @@ def make_app():
     app.debug = is_debug
 
     if is_debug:
+        log.info('on debug')
         handler.level = logbook.DEBUG
+        app.logger.level = logbook.DEBUG
 
     return app
 
@@ -55,8 +58,12 @@ for bp, suffix in bps.items():
 
 @app.after_request
 async def app_after_request(resp):
-    resp.headers['Access-Control-Allow-Origin'] = '*'
-    resp.headers['Access-Control-Allow-Headers'] = '*'
+    resp.headers['Access-Control-Allow-Origin'] = 'https://ptb.discordapp.com'
+    resp.headers['Access-Control-Allow-Headers'] = ('*, X-Super-Properties, '
+                                                    'X-Fingerprint, '
+                                                    'X-Context-Properties, '
+                                                    'X-Failed-Requests, '
+                                                    'Content-Type')
     resp.headers['Access-Control-Allow-Methods'] = '*'
     return resp
 
