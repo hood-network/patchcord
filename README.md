@@ -1,37 +1,41 @@
 # litecord
 
-Litecord is a free as in freedom implementation of Discord's backend services.
+Litecord is an open source implementation of Discord's backend and API in
+Python.
 
-Rewrite of [litecord-reference].
+This project is a rewrite of [litecord-reference].
+
 [litecord-reference]: https://gitlab.com/lnmds/litecord-reference
 
 ## Install
 
 - Python 3.6 or higher
 - PostgreSQL
+- [Pipenv]
 
-We use [pipenv] to manage our dependencies.
 [pipenv]: https://github.com/pypa/pipenv
 
-```
-$ git clone https://gitlab.com/lnmds/litecord
-$ cd litecord
+```sh
+$ git clone https://gitlab.com/lnmds/litecord.git && cd litecord
 
-# create users as you want, etc
-$ psql -U some_user -f schema.sql database
+# Setup the database:
+$ createdb litecord
+$ psql -f schema.sql litecord
 
-# edit config.py as you please
+# Configure litecord:
 $ cp config.example.py config.py
 
-# install all packages, including dev-packages
+# Install all packages:
 $ pipenv install --dev
 ```
 
 ## Running
 
-```
-# hypercorn will by default bind to 0.0.0.0:5000, change that address
-# with the -b option (e.g -b 0.0.0.0:6969).
-# use '--access-log -' to show logs on stdout.
+Hypercorn is used to run litecord. By default, it will bind to `0.0.0.0:5000`.
+You can use the `-b` option to change it (e.g. `-b 0.0.0.0:45000`).
+
+Use `--access-log -` to output access logs to stdout.
+
+```sh
 $ pipenv run hypercorn run:app
 ```
