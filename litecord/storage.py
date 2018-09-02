@@ -80,7 +80,7 @@ class Storage:
         WHERE user_id = $1
         """, user_id)
 
-        return guild_ids
+        return [row['guild_id'] for row in guild_ids]
 
     async def get_member_data_one(self, guild_id, member_id) -> Dict[str, any]:
         basic = await self.db.fetchrow("""

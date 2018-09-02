@@ -3,6 +3,7 @@ import sys
 
 import asyncpg
 import logbook
+import logging
 import websockets
 from quart import Quart, g, jsonify
 from logbook import StreamHandler, Logger
@@ -16,6 +17,7 @@ from litecord.errors import LitecordError
 from litecord.gateway.state_manager import StateManager
 from litecord.storage import Storage
 from litecord.dispatcher import EventDispatcher
+from litecord.presence import PresenceManager
 
 # setup logbook
 handler = StreamHandler(sys.stdout, level=logbook.INFO)
@@ -34,6 +36,9 @@ def make_app():
         log.info('on debug')
         handler.level = logbook.DEBUG
         app.logger.level = logbook.DEBUG
+
+    # always keep websockets on INFO
+    logging.getLogger('websockets').setLevel(logbook.INFO)
 
     return app
 
@@ -63,7 +68,10 @@ async def app_after_request(resp):
                                                     'X-Fingerprint, '
                                                     'X-Context-Properties, '
                                                     'X-Failed-Requests, '
-                                                    'Content-Type')
+                                                    'Content-Type, '
+                                                    'Authorization, '
+                                                    'Origin, '
+                                                    'If-None-Match')
     resp.headers['Access-Control-Allow-Methods'] = '*'
     return resp
 
@@ -80,6 +88,7 @@ async def app_before_serving():
     app.state_manager = StateManager()
     app.dispatcher = EventDispatcher(app.state_manager)
     app.storage = Storage(app.db)
+    app.presence = PresenceManager(app.storage, app.state_manager)
 
     # start the websocket, etc
     host, port = app.config['WS_HOST'], app.config['WS_PORT']
@@ -89,7 +98,8 @@ async def app_before_serving():
         # We wrap the main websocket_handler
         # so we can pass quart's app object.
         await websocket_handler((app.db, app.state_manager, app.storage,
-                                 app.loop, app.dispatcher), ws, url)
+                                 app.loop, app.dispatcher, app.presence),
+                                ws, url)
 
     ws_future = websockets.serve(_wrapper, host, port)
 

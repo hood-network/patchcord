@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Dict, Any
 from collections import defaultdict
 
 from logbook import Logger
@@ -49,5 +49,19 @@ class StateManager:
 
             if shard_id == state.current_shard:
                 states.append(state)
+
+        return states
+
+    def guild_states(self, member_ids: List[int],
+                     guild_id: int) -> List[GatewayState]:
+        states = []
+
+        for member_id in member_ids:
+            member_states = self.fetch_states(member_id, guild_id)
+
+            # for now, just get the first state
+            state = next(iter(member_states))
+
+            states.append(state)
 
         return states

@@ -13,3 +13,4 @@ class OP:
     HELLO = 10
     HEARTBEAT_ACK = 11
     GUILD_SYNC = 12
+    UNKNOWN = 14

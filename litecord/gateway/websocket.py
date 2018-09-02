@@ -22,7 +22,7 @@ WebsocketProperties = collections.namedtuple(
 )
 
 WebsocketObjects = collections.namedtuple(
-    'WebsocketObjects', 'db state_manager storage loop dispatcher'
+    'WebsocketObjects', 'db state_manager storage loop dispatcher presence'
 )
 
 
@@ -48,6 +48,7 @@ class GatewayWebsocket:
     def __init__(self, ws, **kwargs):
         self.ext = WebsocketObjects(*kwargs['prop'])
         self.storage = self.ext.storage
+        self.presence = self.ext.presence
         self.ws = ws
 
         self.wsp = WebsocketProperties(kwargs.get('v'),
@@ -130,11 +131,11 @@ class GatewayWebsocket:
 
         return [
             {
-                **await self.storage.get_guild(row[0], user_id),
-                **await self.storage.get_guild_extra(row[0], user_id,
+                **await self.storage.get_guild(guild_id, user_id),
+                **await self.storage.get_guild_extra(guild_id, user_id,
                                                      self.state.large)
             }
-            for row in guild_ids
+            for guild_id in guild_ids
         ]
 
     async def guild_dispatch(self, unavailable_guilds: List[Dict[str, Any]]):
@@ -307,6 +308,10 @@ class GatewayWebsocket:
         """Handle OP 3 Status Update."""
         pass
 
+    async def handle_4(self, payload: Dict[str, Any]):
+        """Handle OP 4 Voice Status Update."""
+        pass
+
     async def handle_6(self, payload: Dict[str, Any]):
         """Handle OP 6 Resume."""
         data = payload['d']
@@ -349,13 +354,54 @@ class GatewayWebsocket:
 
         await self.dispatch('RESUMED', {})
 
+    async def _guild_sync(self, guild_id: int):
+        members = await self.storage.get_member_data(guild_id)
+        member_ids = [int(m['user']['id']) for m in members]
+
+        log.debug(f'Syncing guild {guild_id} with {len(member_ids)} members')
+        presences = await self.presence.guild_presences(member_ids, guild_id)
+
+        await self.dispatch('GUILD_SYNC', {
+            'id': str(guild_id),
+            'presences': presences,
+            'members': members,
+        })
+
     async def handle_12(self, payload: Dict[str, Any]):
         """Handle OP 12 Guild Sync."""
         data = payload['d']
 
-        for _guild_id in data:
+        gids = await self.storage.get_user_guilds(self.state.user_id)
+
+        for guild_id in data:
+            try:
+                guild_id = int(guild_id)
+            except (ValueError, TypeError):
+                continue
+
             # check if user in guild
-            pass
+            if guild_id not in gids:
+                continue
+
+            await self._guild_sync(guild_id)
+
+    async def handle_14(self, payload: Dict[str, Any]):
+        # NOTE: put your HAZMAT suit on.
+        # OP 12 wasn't sent by the client, but OP 14 was,
+        # it contained a guild id, so i assume this is an
+        # evolution of OP 12.
+        # OP 14 is undocumented.
+        data = payload['d']
+
+        gids = await self.storage.get_user_guilds(self.state.user_id)
+        guild_id = int(data['guild_id'])
+
+        # make sure we are dealing with a sync to a guild
+        # the user is in.
+        if guild_id not in gids:
+            return
+
+        await self._guild_sync(guild_id)
 
     async def process_message(self, payload):
         """Process a single message coming in from the client."""
