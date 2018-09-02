@@ -4,10 +4,6 @@ from .enums import ChannelType
 from .schemas import USER_MENTION, ROLE_MENTION
 
 
-async def _dummy(any_id):
-    return str(any_id)
-
-
 class Storage:
     """Class for common SQL statements."""
     def __init__(self, db):
@@ -343,9 +339,9 @@ class Storage:
         res['mentions'] = await self._msg_regex(USER_MENTION, self.get_user,
                                                 row['content'])
 
-        # _dummy just returns the string of the id, since we don't
-        # actually use the role objects in mention_roles, just their ids.
-        res['mention_roles'] = await self._msg_regex(ROLE_MENTION, _dummy,
+        # we just return the id as a string, since we don't actually use the role
+        # objects in mention_roles, just their ids.
+        res['mention_roles'] = await self._msg_regex(ROLE_MENTION, str,
                                                      row['content'])
 
         # TODO: handle webhook authors
