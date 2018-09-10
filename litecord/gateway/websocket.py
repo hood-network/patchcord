@@ -15,6 +15,8 @@ from .errors import DecodeError, UnknownOPCode, \
 from .opcodes import OP
 from .state import GatewayState
 
+from ..schemas import validate, GW_STATUS_UPDATE
+
 
 log = Logger(__name__)
 WebsocketProperties = collections.namedtuple(
@@ -76,7 +78,7 @@ class GatewayWebsocket:
         This function accounts for the zlib-stream
         transport method used by Discord.
         """
-        log.debug('Sending {}', pprint.pformat(payload))
+        log.debug('sending {}', pprint.pformat(payload))
         encoded = self.encoder(payload)
 
         if not isinstance(encoded, bytes):
@@ -162,15 +164,29 @@ class GatewayWebsocket:
         """
 
         return {
+            # TODO
             'relationships': [],
+
+            # TODO
             'user_guild_settings': [],
+
+            # TODO
             'notes': {},
             'friend_suggestion_count': 0,
+
+            # TODO
             'presences': [],
+
+            # TODO
             'read_state': [],
+
             'experiments': [],
             'guild_experiments': [],
+
+            # TODO
             'connected_accounts': [],
+
+            # TODO: make those changeable
             'user_settings': {
                 'afk_timeout': 300,
                 'animate_emoji': True,
@@ -198,6 +214,7 @@ class GatewayWebsocket:
                 'theme': 'dark',
                 'timezone_offset': 420,
             },
+
             'analytics_token': 'transbian',
         }
 
@@ -246,19 +263,49 @@ class GatewayWebsocket:
         if current_shard > shard_count:
             raise InvalidShard('Shard count > Total shards')
 
-    async def subscribe_guilds(self):
-        """Subscribe to all available guilds"""
+    async def _guild_ids(self):
+        # TODO: account for sharding
         guild_ids = await self.ext.db.fetch("""
         SELECT guild_id
         FROM members
         WHERE user_id = $1
         """, self.state.user_id)
 
-        guild_ids = [r['guild_id'] for r in guild_ids]
+        return [r['guild_id'] for r in guild_ids]
+
+    async def subscribe_guilds(self):
+        """Subscribe to all available guilds"""
+        guild_ids = await self._guild_ids()
         self.ext.dispatcher.sub_many(self.state.user_id, guild_ids)
+
+    async def update_status(self, status: dict):
+        if status is None:
+            status = {
+                'afk': False,
+
+                # TODO: fetch status from settings
+                'status': 'online',
+                'game': None,
+
+                # TODO: this
+                'since': 0,
+            }
+
+            self.state.presence = status
+
+        status = validate(status, GW_STATUS_UPDATE)
+
+        if not status:
+            # invalid status, must ignore
+            return
+
+        self.state.presence = status
+        await self.ext.presence.dispatch_pres(self.state.user_id,
+                                              self.state.presence)
 
     async def handle_1(self, payload: Dict[str, Any]):
         """Handle OP 1 Heartbeat packets."""
+        # TODO: handling heartbeats
         pass
 
     async def handle_2(self, payload: Dict[str, Any]):
@@ -294,7 +341,6 @@ class GatewayWebsocket:
             shard=shard,
             current_shard=shard[0],
             shard_count=shard[1],
-            presence=presence,
             ws=self
         )
 
@@ -303,6 +349,9 @@ class GatewayWebsocket:
         self.ext.state_manager.insert(self.state)
         await self.dispatch_ready()
         await self.subscribe_guilds()
+
+        # dispatch presence only after subscribing
+        await self.update_status(presence)
 
     async def handle_3(self, payload: Dict[str, Any]):
         """Handle OP 3 Status Update."""
@@ -426,8 +475,8 @@ class GatewayWebsocket:
 
             payload = self.decoder(message)
 
-            pretty_printed = pprint.pformat(payload)
-            log.debug('received message: {}', pretty_printed)
+            log.debug('received message: {}',
+                      pprint.pformat(payload))
 
             await self.process_message(payload)
 
@@ -438,9 +487,9 @@ class GatewayWebsocket:
             await self.send_hello()
             await self.listen_messages()
         except websockets.exceptions.ConnectionClosed as err:
-            log.warning('Client closed, state={}, err={}', self.state, err)
+            log.warning('conn close, state={}, err={}', self.state, err)
         except WebsocketClose as err:
-            log.warning('closed a client, state={} err={}', self.state, err)
+            log.warning('ws close, state={} err={}', self.state, err)
 
             await self.ws.close(code=err.code, reason=err.reason)
         except Exception as err:

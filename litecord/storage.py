@@ -1,7 +1,12 @@
 from typing import List, Dict, Any
 
+from logbook import Logger
+
 from .enums import ChannelType
 from .schemas import USER_MENTION, ROLE_MENTION
+
+
+log = Logger(__name__)
 
 
 async def _dummy(any_id):
@@ -157,12 +162,13 @@ class Storage:
 
         return members
 
-    async def _channels_extra(self, row, channel_type: int) -> Dict:
+    async def _channels_extra(self, row) -> Dict:
         """Fill in more information about a channel."""
-        # TODO: This could probably be better with a dictionary.
+        channel_type = row['type']
 
         # TODO: dm and group dm?
-        if channel_type == ChannelType.GUILD_TEXT:
+        chan_type = ChannelType(channel_type)
+        if chan_type == ChannelType.GUILD_TEXT:
             topic = await self.db.fetchval("""
             SELECT topic FROM guild_text_channels
             WHERE id = $1
@@ -171,13 +177,15 @@ class Storage:
             return {**row, **{
                 'topic': topic,
             }}
-        elif channel_type == ChannelType.GUILD_VOICE:
+        elif chan_type == ChannelType.GUILD_VOICE:
             vrow = await self.db.fetchval("""
             SELECT bitrate, user_limit FROM guild_voice_channels
             WHERE id = $1
             """, row['id'])
 
             return {**row, **dict(vrow)}
+
+        log.warning('unknown channel type: {}', chan_type)
 
     async def get_chan_type(self, channel_id) -> int:
         return await self.db.fetchval("""
@@ -205,16 +213,19 @@ class Storage:
         """Fetch a single channel's information."""
         chan_type = await self.get_chan_type(channel_id)
 
-        if chan_type in (ChannelType.GUILD_TEXT, ChannelType.GUILD_VOICE,
-                         ChannelType.GUILD_CATEGORY):
+        if ChannelType(chan_type) in (ChannelType.GUILD_TEXT,
+                                      ChannelType.GUILD_VOICE,
+                                      ChannelType.GUILD_CATEGORY):
             base = await self.db.fetchrow("""
             SELECT id, guild_id::text, parent_id, name, position, nsfw
             FROM guild_channels
             WHERE guild_channels.id = $1
             """, channel_id)
 
-            res = await self._channels_extra(dict(base), chan_type)
-            res['type'] = chan_type
+            dbase = dict(base)
+            dbase['type'] = chan_type
+
+            res = await self._channels_extra(dbase)
             res['permission_overwrites'] = \
                 list(await self._chan_overwrites(channel_id))
 
@@ -240,8 +251,12 @@ class Storage:
             WHERE id = $1
             """, row['id'])
 
-            res = await self._channels_extra(dict(row), ctype)
-            res['type'] = ctype
+            drow = dict(row)
+            drow['type'] = ctype
+
+            res = await self._channels_extra(drow)
+
+            print(res)
 
             res['permission_overwrites'] = \
                 list(await self._chan_overwrites(row['id']))

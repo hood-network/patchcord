@@ -3,6 +3,7 @@ import re
 from cerberus import Validator
 
 from .errors import BadRequest
+from .enums import ActivityType, StatusType
 
 USERNAME_REGEX = re.compile(r'^[a-zA-Z0-9_]{2,19}$', re.A)
 EMAIL_REGEX = re.compile(r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$',
@@ -22,17 +23,38 @@ class LitecordValidator(Validator):
         """Validate against the username regex."""
         return bool(USERNAME_REGEX.match(value))
 
+    def _validate_type_snowflake(self, value: str) -> bool:
+        try:
+            int(value)
+            return True
+        except ValueError:
+            return False
+
     def _validate_type_voice_region(self, value: str) -> bool:
         # TODO: complete this list
         return value in ('brazil', 'us-east', 'us-west', 'us-south', 'russia')
 
+    def _validate_type_activity_type(self, value: int) -> bool:
+        return value in ActivityType.values()
 
-def validate(reqjson, schema):
+    def _validate_type_status_external(self, value: str) -> bool:
+        statuses = StatusType.values()
+
+        # clients should send INVISIBLE instead of OFFLINE
+        statuses.remove(StatusType.OFFLINE.value)
+
+        return value in statuses
+
+
+def validate(reqjson, schema, raise_err: bool = False):
     validator = LitecordValidator(schema)
     if not validator.validate(reqjson):
         errs = validator.errors
 
-        raise BadRequest('bad payload', errs)
+        if raise_err:
+            raise BadRequest('bad payload', errs)
+
+        return None
 
     return reqjson
 
@@ -75,10 +97,79 @@ MEMBER_UPDATE = {
     'channel_id': {'type': 'snowflake', 'required': False},
 }
 
+
 MESSAGE_CREATE = {
     'content': {'type': 'string', 'minlength': 1, 'maxlength': 2000},
     'nonce': {'type': 'string', 'required': False},
     'tts': {'type': 'boolean', 'required': False},
 
     # TODO: file, embed, payload_json
+}
+
+
+GW_ACTIVITY = {
+    'name': {'type': 'string', 'required': True},
+    'type': {'type': 'activity_type', 'required': True},
+
+    'url': {'type': 'string', 'required': False, 'nullable': True},
+
+    'timestamps': {
+        'type': 'dict',
+        'required': False,
+        'schema': {
+            'start': {'type': 'number', 'required': True},
+            'end': {'type': 'number', 'required': True},
+        },
+    },
+
+    'application_id': {'type': 'snowflake', 'required': False,
+                       'nullable': False},
+    'details': {'type': 'string', 'required': False, 'nullable': True},
+    'state': {'type': 'string', 'required': False, 'nullable': True},
+
+    'party': {
+        'type': 'dict',
+        'required': False,
+        'schema': {
+            'id': {'type': 'snowflake', 'required': False},
+            'size': {'type': 'list', 'required': False},
+        }
+    },
+
+    'assets': {
+        'type': 'dict',
+        'required': False,
+        'schema': {
+            'large_image': {'type': 'snowflake', 'required': False},
+            'large_text': {'type': 'string', 'required': False},
+            'small_image': {'type': 'snowflake', 'required': False},
+            'small_text': {'type': 'string', 'required': False},
+        }
+    },
+
+    'secrets': {
+        'type': 'dict',
+        'required': False,
+        'schema': {
+            'join': {'type': 'string', 'required': False},
+            'spectate': {'type': 'string', 'required': False},
+            'match': {'type': 'string', 'required': False},
+        }
+    },
+
+    'instance': {'type': 'boolean', 'required': False},
+    'flags': {'type': 'number', 'required': False},
+}
+
+GW_STATUS_UPDATE = {
+    'status': {'type': 'status_external', 'required': False},
+    'afk': {'type': 'boolean', 'required': False},
+
+    'since': {'type': 'number', 'required': True, 'nullable': True},
+    'game': {
+        'type': 'dict',
+        'required': True,
+        'nullable': True,
+        'schema': GW_ACTIVITY,
+    },
 }
