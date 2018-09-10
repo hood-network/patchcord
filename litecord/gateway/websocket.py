@@ -293,7 +293,7 @@ class GatewayWebsocket:
 
             self.state.presence = status
 
-        status = validate(status, GW_STATUS_UPDATE)
+        status = validate(status, GW_STATUS_UPDATE, False)
 
         if not status:
             # invalid status, must ignore

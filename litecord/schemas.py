@@ -46,7 +46,7 @@ class LitecordValidator(Validator):
         return value in statuses
 
 
-def validate(reqjson, schema, raise_err: bool = False):
+def validate(reqjson, schema, raise_err: bool = True):
     validator = LitecordValidator(schema)
     if not validator.validate(reqjson):
         errs = validator.errors
