@@ -69,7 +69,7 @@ async def create_guild():
     await app.db.execute("""
     INSERT INTO channels (id, channel_type)
     VALUES ($1, $2)
-    """, general_id, ChannelType.GUILD_TEXT)
+    """, general_id, ChannelType.GUILD_TEXT.value)
 
     await app.db.execute("""
     INSERT INTO guild_channels (id, guild_id, name, position)
@@ -211,6 +211,8 @@ async def create_channel(guild_id):
     new_channel_id = get_snowflake()
     channel_type = j.get('type', ChannelType.GUILD_TEXT)
 
+    channel_type = ChannelType(channel_type)
+
     if channel_type not in (ChannelType.GUILD_TEXT,
                             ChannelType.GUILD_VOICE):
         raise BadRequest('Invalid channel type')
@@ -218,7 +220,7 @@ async def create_channel(guild_id):
     await app.db.execute("""
     INSERT INTO channels (id, channel_type)
     VALUES ($1, $2)
-    """, new_channel_id, channel_type)
+    """, new_channel_id, channel_type.value)
 
     max_pos = await app.db.fetch("""
     SELECT MAX(position)

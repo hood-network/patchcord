@@ -23,8 +23,8 @@ async def channel_check(user_id, channel_id):
     if ctype is None:
         raise ChannelNotFound(f'channel type not found')
 
-    if ctype in (ChannelType.GUILD_TEXT, ChannelType.GUILD_VOICE,
-                 ChannelType.GUILD_CATEGORY):
+    if ChannelType(ctype) in (ChannelType.GUILD_TEXT, ChannelType.GUILD_VOICE,
+                              ChannelType.GUILD_CATEGORY):
         guild_id = await app.db.fetchval("""
         SELECT guild_id
         FROM guild_channels
@@ -116,7 +116,7 @@ async def create_message(channel_id):
         j.get('tts', False),
         '@everyone' in j['content'],
         int(j.get('nonce', 0)),
-        MessageType.DEFAULT
+        MessageType.DEFAULT.value
     )
 
     # TODO: dispatch_channel
