@@ -435,22 +435,153 @@ class GatewayWebsocket:
             await self._guild_sync(guild_id)
 
     async def handle_14(self, payload: Dict[str, Any]):
-        # NOTE: put your HAZMAT suit on.
-        # OP 12 wasn't sent by the client, but OP 14 was,
-        # it contained a guild id, so i assume this is an
-        # evolution of OP 12.
-        # OP 14 is undocumented.
+        """Lazy guilds handler.
+
+        This is the known structure of an OP 14:
+
+        lazy_request = {
+            'guild_id': guild_id,
+            'channels': {
+                // the client wants a specific range of members
+                // from the channel. so you must assume each query is
+                // for people with roles that can Read Messages
+                channel_id -> [[min, max], ...],
+                ...
+            },
+
+            'members': [?], // ???
+            'activities': bool, // ???
+            'typing': bool, // ???
+        }
+
+        This is the known structure of GUILD_MEMBER_LIST_UPDATE:
+
+        sync_item = {
+            'group': {
+                'id': string, // 'online' | 'offline' | any role id
+                'count': num
+            }
+        } | {
+            'member': member_object
+        }
+
+        list_op = 'SYNC' | 'INVALIDATE' | 'INSERT' | 'UPDATE' | 'DELETE'
+
+        list_data = {
+            'id': "everyone" // ??
+            'guild_id': guild_id,
+
+            'ops': [
+                {
+                    'op': list_op,
+
+                    // exists if op = 'SYNC' or 'INVALIDATE'
+                    'range': [num, num],
+
+                    // exists if op = 'SYNC'
+                    'items': sync_item[],
+
+                    // exists if op = 'INSERT' or 'DELETE'
+                    'index': num,
+
+                    // exists if op = 'INSERT'
+                    'item': sync_item,
+                }
+            ],
+
+            // maybe those represent roles that show people
+            // separately from the online list?
+            'groups': [
+                {
+                    'id': string // 'online' | 'offline' | any role id
+                    'count': num
+                }, ...
+            ]
+        }
+
+        # Implementation defails.
+
+        Lazy guilds are complicated to deal with in the backend level
+        as there are a lot of computation to be done for each request.
+
+        The current implementation is rudimentary and does not account
+        for any roles inside the guild.
+
+        A correct implementation would take account of roles and make
+        the correct groups on list_data:
+
+        For each channel in lazy_request['channels']:
+         - get all roles that have Read Messages on the channel:
+           - Also fetch their member counts, as it'll be important
+         - with the role list, order them like you normally would
+            (by their role priority)
+         - based on the channel's range's min and max and the ordered
+            role list, you can get the roles wanted for your list_data reply.
+         - make new groups ONLY when the role is hoisted.
+        """
         data = payload['d']
 
         gids = await self.storage.get_user_guilds(self.state.user_id)
         guild_id = int(data['guild_id'])
 
-        # make sure we are dealing with a sync to a guild
-        # the user is in.
+        # make sure to not extract info you shouldn't get
         if guild_id not in gids:
             return
 
-        await self._guild_sync(guild_id)
+        members = await self.storage.get_member_data(guild_id)
+        member_ids = [int(m['user']['id']) for m in members]
+
+        # the current implementation is rudimentary and only
+        # generates two groups: online and offline, using
+        # guild_presences for list_data.
+
+        # this also doesn't take account the channels in lazy_request.
+
+        guild_presences = await self.presence.guild_presences(member_ids,
+                                                              guild_id)
+
+        online = [{'member': p}
+                  for p in guild_presences
+                  if p['status'] == 'online']
+        offline = [{'member': p}
+                   for p in guild_presences
+                   if p['status'] == 'offline']
+
+        # construct items in the WORST WAY POSSIBLE.
+        items = [{
+            'group': {
+                'id': 'online',
+                'count': len(online),
+            }
+        }] + online + [{
+            'group': {
+                'id': 'offline',
+                'count': len(offline),
+            }
+        }] + offline
+
+        await self.dispatch('GUILD_MEMBER_LIST_UPDATE', {
+            'id': 'everyone',
+            'guild_id': data['guild_id'],
+            'groups': [
+                {
+                    'id': 'online',
+                    'count': len(online),
+                },
+                {
+                    'id': 'offline',
+                    'count': len(offline),
+                }
+            ],
+
+            'ops': [
+                {
+                    'range': [0, 99],
+                    'op': 'SYNC',
+                    'items': items
+                }
+            ]
+        })
 
     async def process_message(self, payload):
         """Process a single message coming in from the client."""

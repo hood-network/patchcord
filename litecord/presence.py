@@ -19,13 +19,14 @@ class PresenceManager:
             member = await self.storage.get_member_data_one(
                 guild_id, state.user_id)
 
-            presences.append({
-                'user': member['user'],
-                'roles': member['roles'],
+            presences.append({**member, **{
+                # NOTE: maybe remove guild_id?
                 'guild_id': guild_id,
+
+                # basic presence
                 'game': state.presence.get('game', None),
                 'status': state.presence.get('status', None),
-            })
+            }})
 
         return presences
 
