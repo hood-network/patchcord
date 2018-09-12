@@ -355,10 +355,28 @@ class GatewayWebsocket:
 
     async def handle_3(self, payload: Dict[str, Any]):
         """Handle OP 3 Status Update."""
-        pass
+        presence = payload['d']
+
+        # update_status will take care of validation and
+        # setting new presence to state
+        await self.update_status(presence)
 
     async def handle_4(self, payload: Dict[str, Any]):
         """Handle OP 4 Voice Status Update."""
+        pass
+
+    async def _handle_5(self, payload: Dict[str, Any]):
+        """Handle OP 5 Voice Server Ping.
+
+        packet's d structure:
+
+        {
+            delay: num,
+            speaking: num,
+            ssrc: num
+        }
+
+        """
         pass
 
     async def handle_6(self, payload: Dict[str, Any]):
