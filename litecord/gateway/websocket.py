@@ -379,6 +379,45 @@ class GatewayWebsocket:
         """
         pass
 
+    async def invalidate_session(self, resumable: bool = False):
+        """Invalidate the current session and signal that
+        to the client."""
+        await self.send({
+            'op': OP.INVALID_SESSION,
+            'd': resumable,
+        })
+
+        if not resumable and self.state:
+            self.state_manager.remove(self.state)
+
+    async def _resume(self, replay_seqs: iter):
+        presences = []
+
+        try:
+            for seq in replay_seqs:
+                try:
+                    payload = self.state.store[seq]
+                except KeyError:
+                    # ignore unknown seqs
+                    continue
+
+                payload_t = payload.get('t')
+
+                # presence resumption happens
+                # on a separate event, PRESENCE_REPLACE.
+                if payload_t == 'PRESENCE_UPDATE':
+                    presences.append(payload.get('d'))
+                    continue
+
+                await self.send(payload)
+        except Exception:
+            log.exception('error while resuming')
+            await self.invalidate()
+            return
+
+        if presences:
+            await self.dispatch('PRESENCE_REPLACE', presences)
+
     async def handle_6(self, payload: Dict[str, Any]):
         """Handle OP 6 Resume."""
         data = payload['d']
@@ -417,8 +456,7 @@ class GatewayWebsocket:
         self.state = state
         state.ws = self
 
-        # TODO: resend payloads
-
+        await self._resume(range(seq, state.seq))
         await self.dispatch('RESUMED', {})
 
     async def _guild_sync(self, guild_id: int):
