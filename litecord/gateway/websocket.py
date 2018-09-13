@@ -3,6 +3,7 @@ import collections
 import pprint
 import zlib
 from typing import List, Dict, Any
+from random import randint
 
 import earl
 import websockets
@@ -98,7 +99,8 @@ class GatewayWebsocket:
         await self.send({
             'op': OP.HELLO,
             'd': {
-                'heartbeat_interval': 45000,
+                # random heartbeat intervals
+                'heartbeat_interval': randint(40, 46) * 1000,
                 '_trace': [
                     'lesbian-server'
                 ],
@@ -231,6 +233,8 @@ class GatewayWebsocket:
         await self.dispatch('READY', {**{
             'v': 6,
             'user': user,
+
+            # TODO: dms
             'private_channels': [],
             'guilds': guilds,
             'session_id': self.state.session_id,
@@ -368,7 +372,7 @@ class GatewayWebsocket:
     async def _handle_5(self, payload: Dict[str, Any]):
         """Handle OP 5 Voice Server Ping.
 
-        packet's d structure:
+        packet's data structure:
 
         {
             delay: num,
@@ -379,7 +383,7 @@ class GatewayWebsocket:
         """
         pass
 
-    async def invalidate_session(self, resumable: bool = False):
+    async def invalidate_session(self, resumable: bool = True):
         """Invalidate the current session and signal that
         to the client."""
         await self.send({
@@ -436,10 +440,7 @@ class GatewayWebsocket:
         try:
             state = self.ext.state_manager.fetch(user_id, sess_id)
         except KeyError:
-            return await self.send({
-                'op': 9,
-                'd': False,
-            })
+            return await self.invalidate(False)
 
         if seq > state.seq:
             raise WebsocketClose(4007, 'Invalid seq')
@@ -447,10 +448,7 @@ class GatewayWebsocket:
         # check if a websocket isnt on that state already
         if state.ws is not None:
             log.info('Resuming failed, websocket already connected')
-            return await self.send({
-                'op': 9,
-                'd': False,
-            })
+            return await self.invalidate(False)
 
         # relink this connection
         self.state = state
@@ -683,7 +681,10 @@ class GatewayWebsocket:
             log.exception('An exception has occoured. state={}', self.state)
             await self.ws.close(code=4000, reason=repr(err))
         finally:
+            # TODO: move this to a heartbeat checker
+            # instead of websocket cleanup
             self.ext.state_manager.remove(self.state)
 
+            # disconnect the state from the websocket
             if self.state:
                 self.state.ws = None
