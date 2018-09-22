@@ -15,8 +15,8 @@ async def get_me():
     return jsonify(user)
 
 
-@bp.route('/<int:user_id>', methods=['GET'])
-async def get_other():
+@bp.route('/<int:target_id>', methods=['GET'])
+async def get_other(target_id):
     """Get any user, given the user ID."""
     user_id = await token_check()
 
@@ -28,7 +28,7 @@ async def get_other():
     if not bot:
         raise Forbidden('Only bots can use this endpoint')
 
-    other = await app.storage.get_user(user_id)
+    other = await app.storage.get_user(target_id)
     return jsonify(other)
 
 
@@ -109,3 +109,92 @@ async def get_dms():
 # @bp.route('/@me/channels', methods=['POST'])
 async def start_dm():
     pass
+
+
+@bp.route('/@me/notes/<int:target_id>', methods=['PUT'])
+async def put_note(target_id: int):
+    """Put a note to a user."""
+    user_id = await token_check()
+
+    j = await request.get_json()
+    note = str(j['note'])
+
+    try:
+        await app.db.execute("""
+        INSERT INTO notes (user_id, target_id, note)
+        VALUES ($1, $2, $3)
+        """, user_id, target_id, note)
+    except UniqueViolationError:
+        await app.db.execute("""
+        UPDATE notes
+        SET note = $3
+        WHERE user_id = $1 AND target_id = $2
+        """, user_id, target_id, note)
+
+    return '', 204
+
+
+@bp.route('/@me/settings', methods=['GET'])
+async def get_user_settings():
+    # TODO: for now, just return hardcoded defaults,
+    # once we get the user_settings table working
+    # we can move to that.
+    await token_check()
+
+    return jsonify({
+        'afk_timeout': 300,
+        'animate_emoji': True,
+        'convert_emoticons': False,
+        'default_guilds_restricted': True,
+        'detect_platform_accounts': False,
+        'developer_mode': True,
+        'disable_games_tab': True,
+        'enable_tts_command': False,
+        'explicit_content_filter': 2,
+        'friend_source_flags': {
+            'mutual_friends': True
+            },
+        'gif_auto_play': True,
+        'guild_positions': [],
+        'inline_attachment_media': True,
+        'inline_embed_media': True,
+        'locale': 'en-US',
+        'message_display_compact': False,
+        'render_embeds': True,
+        'render_reactions': True,
+        'restricted_guilds': [],
+        'show_current_game': True,
+        'status': 'online',
+        'theme': 'dark',
+        'timezone_offset': 420,
+    })
+
+
+@bp.route('/@me/settings', methods=['PATCH'])
+async def patch_current_settings():
+    return '', 204
+
+
+@bp.route('/@me/consent', methods=['GET'])
+async def get_consent():
+    """Always disable data collection."""
+    return jsonify({
+        'usage_statistics': {
+            'consented': False,
+        },
+        'personalization': {
+            'consented': False,
+        }
+    })
+
+
+@bp.route('/@me/harvest', methods=['GET'])
+async def get_harvest():
+    """Dummy route"""
+    return '', 204
+
+
+@bp.route('/@me/library', methods=['GET'])
+async def get_library():
+    """Probably related to Discord Store?"""
+    return jsonify([])

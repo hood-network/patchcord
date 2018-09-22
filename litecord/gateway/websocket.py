@@ -172,8 +172,7 @@ class GatewayWebsocket:
             # TODO
             'user_guild_settings': [],
 
-            # TODO
-            'notes': {},
+            'notes': await self.storage.fetch_notes(self.state.user_id),
             'friend_suggestion_count': 0,
 
             # TODO

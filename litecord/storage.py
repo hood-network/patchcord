@@ -380,3 +380,14 @@ class Storage:
         res['pinned'] = False
 
         return res
+
+    async def fetch_notes(self, user_id: int) -> dict:
+        """Fetch a users' notes"""
+        note_rows = await self.db.fetch("""
+        SELECT target_id, note
+        FROM notes
+        WHERE user_id = $1
+        """, user_id)
+
+        return {str(row['target_id']): row['note']
+                for row in note_rows}

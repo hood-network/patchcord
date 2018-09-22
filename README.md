@@ -23,6 +23,7 @@ $ createdb litecord
 $ psql -f schema.sql litecord
 
 # Configure litecord:
+# edit config.py as you wish
 $ cp config.example.py config.py
 
 # Install all packages:

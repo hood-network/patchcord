@@ -71,3 +71,9 @@ class StatusType(EasyEnum):
     IDLE = 'idle'
     INVISIBLE = 'invisible'
     OFFLINE = 'offline'
+
+
+class ExplicitFilter(EasyEnum):
+    EDGE = 0
+    FRIENDS = 1
+    SAFE = 2

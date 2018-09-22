@@ -78,6 +78,48 @@ CREATE TABLE IF NOT EXISTS users (
     PRIMARY KEY (id, username, discriminator)
 );
 
+/*
+
+CREATE TABLE IF NOT EXISTS user_settings (
+    id bigint REFERENCES users (id),
+    afk_timeout int DEFAULT 300,
+    animate_emoji bool DEFAULT true,
+    convert_emoticons bool DEFAULT false,
+    default_guilds_restricted bool DEFAULT false,
+    detect_platform_accounts bool DEFAULT false,
+
+    -- smirk emoji
+    developer_mode bool DEFAULT true,
+
+    disable_games_tab bool DEFAULT true,
+    enable_tts_command bool DEFAULT false,
+    explicit_content_filter int DEFAULT 2,
+
+    friend_source_everyone bool DEFAULT true,
+    friend_source_mutuals bool DEFAULT true,
+    friend_source_guilds bool DEFAULT true,
+
+    gif_auto_play bool DEFAULT true,
+    
+    -- TODO: guild_positions
+    -- TODO: restricted_guilds
+
+    inline_attachment_media bool DEFAULT true,
+    inline_embed_media bool DEFAULT true,
+    locale text DEFAULT 'en-US',
+    message_display_compact bool DEFAULT false,
+    render_embeds bool DEFAULT true,
+    render_reactions bool DEFAULT true,
+    show_current_game bool DEFAULT true,
+
+    status text DEFAULT 'online' NOT NULL,
+    theme text DEFAULT 'dark' NOT NULL,
+
+    timezone_offset int DEFAULT 0,
+
+);
+
+*/
 
 CREATE TABLE IF NOT EXISTS notes (
     user_id bigint REFERENCES users (id),
