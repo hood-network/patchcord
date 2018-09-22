@@ -16,7 +16,7 @@ This project is a rewrite of [litecord-reference].
 [pipenv]: https://github.com/pypa/pipenv
 
 ```sh
-$ git clone https://gitlab.com/lnmds/litecord.git && cd litecord
+$ git clone https://gitlab.com/luna/litecord.git && cd litecord
 
 # Setup the database:
 $ createdb litecord

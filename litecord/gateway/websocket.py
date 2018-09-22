@@ -392,7 +392,7 @@ class GatewayWebsocket:
         })
 
         if not resumable and self.state:
-            self.state_manager.remove(self.state)
+            self.ext.state_manager.remove(self.state)
 
     async def _resume(self, replay_seqs: iter):
         presences = []
@@ -416,7 +416,7 @@ class GatewayWebsocket:
                 await self.send(payload)
         except Exception:
             log.exception('error while resuming')
-            await self.invalidate()
+            await self.invalidate_session()
             return
 
         if presences:
@@ -440,7 +440,7 @@ class GatewayWebsocket:
         try:
             state = self.ext.state_manager.fetch(user_id, sess_id)
         except KeyError:
-            return await self.invalidate(False)
+            return await self.invalidate_session(False)
 
         if seq > state.seq:
             raise WebsocketClose(4007, 'Invalid seq')
@@ -448,7 +448,7 @@ class GatewayWebsocket:
         # check if a websocket isnt on that state already
         if state.ws is not None:
             log.info('Resuming failed, websocket already connected')
-            return await self.invalidate(False)
+            return await self.invalidate_session(False)
 
         # relink this connection
         self.state = state
