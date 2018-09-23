@@ -87,9 +87,11 @@ async def app_before_serving():
 
     app.state_manager = StateManager()
     app.dispatcher = EventDispatcher(app.state_manager)
+
     app.storage = Storage(app.db)
     app.presence = PresenceManager(app.storage,
                                    app.state_manager, app.dispatcher)
+    app.storage.presence = app.presence
 
     # start the websocket, etc
     host, port = app.config['WS_HOST'], app.config['WS_PORT']

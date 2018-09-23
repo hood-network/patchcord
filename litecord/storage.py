@@ -17,6 +17,7 @@ class Storage:
     """Class for common SQL statements."""
     def __init__(self, db):
         self.db = db
+        self.presence = None
 
     async def get_user(self, user_id, secure=False) -> Dict[str, Any]:
         """Get a single user payload."""
@@ -307,6 +308,8 @@ class Storage:
         channels = await self.get_channel_data(guild_id)
         roles = await self.get_role_data(guild_id)
 
+        mids = [int(m['user']['id']) for m in members]
+
         return {**res, **{
             'member_count': member_count,
             'members': members,
@@ -314,8 +317,9 @@ class Storage:
             'channels': channels,
             'roles': roles,
 
-            # TODO: finish presences
-            'presences': [],
+            'presences': await self.presence.guild_presences(
+                mids, guild_id
+            ),
         }}
 
     async def _msg_regex(self, regex, method, content) -> List[Dict]:
