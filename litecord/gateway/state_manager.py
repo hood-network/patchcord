@@ -60,8 +60,10 @@ class StateManager:
             member_states = self.fetch_states(member_id, guild_id)
 
             # for now, just get the first state
-            state = next(iter(member_states))
-
-            states.append(state)
+            try:
+                state = next(iter(member_states))
+                states.append(state)
+            except StopIteration:
+                pass
 
         return states
