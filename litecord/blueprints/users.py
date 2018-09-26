@@ -193,6 +193,10 @@ async def get_harvest():
     """Dummy route"""
     return '', 204
 
+@bp.route('/@me/activities/statistics/applications', methods=['GET'])
+async def get_stats_applications():
+    """Dummy route for info on gameplay time and such"""
+    return jsonify([])
 
 @bp.route('/@me/library', methods=['GET'])
 async def get_library():
