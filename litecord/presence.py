@@ -21,9 +21,6 @@ class PresenceManager:
 
             game = state.presence.get('game', None)
 
-            print('state:', state)
-            print('state.presence:', state.presence)
-
             # only use the data we need.
             presences.append({
                 'user': member['user'],

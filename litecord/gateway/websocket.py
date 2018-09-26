@@ -611,8 +611,6 @@ class GatewayWebsocket:
         guild_presences = await self.presence.guild_presences(member_ids,
                                                               guild_id)
 
-        pprint.pprint(guild_presences)
-
         log.info('loading {} presences for guild', len(guild_presences))
 
         online = [{'member': p}
