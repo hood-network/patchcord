@@ -19,14 +19,24 @@ class PresenceManager:
             member = await self.storage.get_member_data_one(
                 guild_id, state.user_id)
 
-            presences.append({**member, **{
-                # NOTE: maybe remove guild_id?
+            game = state.presence.get('game', None)
+
+            print('state:', state)
+            print('state.presence:', state.presence)
+
+            # only use the data we need.
+            presences.append({
+                'user': member['user'],
+                'roles': member['roles'],
                 'guild_id': guild_id,
 
                 # basic presence
-                'game': state.presence.get('game', None),
-                'status': state.presence.get('status', None),
-            }})
+                'status': state.presence['status'],
+
+                # game is an activity object, for rich presence
+                'game': game,
+                'activities': [game] if game else []
+            })
 
         return presences
 
@@ -40,14 +50,19 @@ class PresenceManager:
 
         member = await self.storage.get_member_data_one(guild_id, user_id)
 
+        game = state['game']
+
         await self.dispatcher.dispatch_guild(
             guild_id, 'PRESENCE_UPDATE', {
                 'user': member['user'],
                 'roles': member['roles'],
                 'guild_id': guild_id,
 
-                'game': state['game'],
                 'status': state['status'],
+
+                # rich presence stuff
+                'game': game,
+                'activities': [game] if game else []
             }
         )
 

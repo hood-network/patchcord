@@ -257,8 +257,6 @@ class Storage:
 
             res = await self._channels_extra(drow)
 
-            print(res)
-
             res['permission_overwrites'] = \
                 list(await self._chan_overwrites(row['id']))
 

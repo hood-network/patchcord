@@ -35,8 +35,8 @@ class EventDispatcher:
         users = self.guild_buckets[guild_id]
         dispatched = 0
 
-        log.info('Dispatching {} {!r} to {} users',
-                 guild_id, event_name, len(users))
+        log.debug('Dispatching {} {!r} to {} users',
+                  guild_id, event_name, len(users))
 
         for user_id in set(users):
             # fetch all connections that are tied to the guild,

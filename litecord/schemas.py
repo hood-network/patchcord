@@ -163,12 +163,13 @@ GW_ACTIVITY = {
 
 GW_STATUS_UPDATE = {
     'status': {'type': 'status_external', 'required': False},
+    'activities': {'type': 'list', 'schema': GW_ACTIVITY},
     'afk': {'type': 'boolean', 'required': False},
 
     'since': {'type': 'number', 'required': True, 'nullable': True},
     'game': {
         'type': 'dict',
-        'required': True,
+        'required': False,
         'nullable': True,
         'schema': GW_ACTIVITY,
     },

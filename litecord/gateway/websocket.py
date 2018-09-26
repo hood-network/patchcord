@@ -15,6 +15,7 @@ from .errors import DecodeError, UnknownOPCode, \
     InvalidShard, ShardingRequired
 from .opcodes import OP
 from .state import GatewayState
+from ..errors import BadRequest
 
 from ..schemas import validate, GW_STATUS_UPDATE
 
@@ -279,6 +280,7 @@ class GatewayWebsocket:
     async def subscribe_guilds(self):
         """Subscribe to all available guilds"""
         guild_ids = await self._guild_ids()
+        log.info('subscribing to {} guilds', len(guild_ids))
         self.ext.dispatcher.sub_many(self.state.user_id, guild_ids)
 
     async def update_status(self, status: dict):
@@ -296,13 +298,31 @@ class GatewayWebsocket:
 
             self.state.presence = status
 
-        status = validate(status, GW_STATUS_UPDATE, False)
-
-        if not status:
-            # invalid status, must ignore
+        try:
+            status = validate(status, GW_STATUS_UPDATE)
+        except BadRequest as err:
+            log.warning(f'Invalid payload: {err}')
             return
 
+        # try to extract game from activities
+        # when game not provided
+        if not status.get('game'):
+            try:
+                game = status['activities'][0]
+            except (KeyError, IndexError):
+                game = None
+
+        # construct final status
+        status = {
+            'afk': status.get('afk', False),
+            'status': status.get('status', 'online'),
+            'game': game,
+            'since': status.get('since', 0),
+        }
+
         self.state.presence = status
+        log.info(f'Updating presence status={status["status"]} for '
+                 f'uid={self.state.user_id}')
         await self.ext.presence.dispatch_pres(self.state.user_id,
                                               self.state.presence)
 
@@ -350,11 +370,9 @@ class GatewayWebsocket:
         await self._check_shards()
 
         self.ext.state_manager.insert(self.state)
-        await self.dispatch_ready()
-        await self.subscribe_guilds()
-
-        # dispatch presence only after subscribing
         await self.update_status(presence)
+        await self.subscribe_guilds()
+        await self.dispatch_ready()
 
     async def handle_3(self, payload: Dict[str, Any]):
         """Handle OP 3 Status Update."""
@@ -592,6 +610,10 @@ class GatewayWebsocket:
 
         guild_presences = await self.presence.guild_presences(member_ids,
                                                               guild_id)
+
+        pprint.pprint(guild_presences)
+
+        log.info('loading {} presences for guild', len(guild_presences))
 
         online = [{'member': p}
                   for p in guild_presences
