@@ -6,3 +6,4 @@ from .channels import bp as channels
 from .webhooks import bp as webhooks
 from .science import bp as science
 from .voice import bp as voice
+from .invites import bp as invites

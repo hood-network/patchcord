@@ -13,6 +13,10 @@ async def _dummy(any_id):
     return str(any_id)
 
 
+def dict_(val):
+    return dict(val) if val else None
+
+
 class Storage:
     """Class for common SQL statements."""
     def __init__(self, db):
@@ -73,10 +77,9 @@ class Storage:
         drow['system_channel_id'] = str(drow['system_channel_id']) \
             if drow['system_channel_id'] else None
 
-        return {**drow, **{
-            # TODO: those
-            'emojis': [],
-        }}
+        # TODO: emojis
+        drow['emojis'] = []
+        return drow
 
     async def get_user_guilds(self, user_id: int) -> List[int]:
         """Get all guild IDs a user is on."""
@@ -320,6 +323,15 @@ class Storage:
             ),
         }}
 
+    async def get_member_ids(self, guild_id: int) -> List[int]:
+        rows = await self.db.fetch("""
+        SELECT user_id
+        FROM members
+        WHERE guild_id = $1
+        """, guild_id)
+
+        return [r[0] for r in rows]
+
     async def _msg_regex(self, regex, method, content) -> List[Dict]:
         res = []
 
@@ -393,3 +405,76 @@ class Storage:
 
         return {str(row['target_id']): row['note']
                 for row in note_rows}
+
+    async def get_invite(self, invite_code: str) -> dict:
+        """Fetch invite information given its code."""
+        invite = await self.db.fetchrow("""
+        SELECT code, guild_id, channel_id
+        FROM invites
+        WHERE code = $1
+        """, invite_code)
+
+        if invite is None:
+            return None
+
+        dinv = dict_(invite)
+
+        # fetch some guild info
+        guild = await self.db.fetchrow("""
+        SELECT id::text, name, splash, icon
+        FROM guilds
+        WHERE id = $1
+        """, invite['guild_id'])
+
+        dinv['guild'] = dict(guild)
+
+        chan = await self.get_channel(invite['channel_id'])
+        dinv['channel'] = {
+            'id': chan['id'],
+            'name': chan['name'],
+            'type': chan['type'],
+        }
+
+        dinv.pop('guild_id')
+        dinv.pop('channel_id')
+
+        return dinv
+
+    async def get_invite_extra(self, invite_code: str) -> dict:
+        """Extra information about the invite, such as
+        approximate guild and presence counts."""
+        guild_id = await self.db.fetchval("""
+        SELECT guild_id
+        FROM invites
+        WHERE code = $1
+        """, invite_code)
+
+        if guild_id is None:
+            return {}
+
+        mids = await self.get_member_ids(guild_id)
+        pres = await self.presence.guild_presences(mids, guild_id)
+        online_count = sum(1 for p in pres if p['status'] == 'online')
+
+        return {
+            'approximate_presence_count': online_count,
+            'approximate_member_count': len(mids),
+        }
+
+    async def get_invite_metadata(self, invite_code: str) -> Dict[str, Any]:
+        """Fetch invite metadata (max_age and friends)."""
+        invite = await self.db.fetchrow("""
+        SELECT code, inviter, created_at, uses,
+               max_uses, max_age, temporary, created_at, revoked
+        FROM invites
+        WHERE code = $1
+        """, invite_code)
+
+        if invite is None:
+            return
+
+        dinv = dict_(invite)
+        inviter = await self.get_user(invite['inviter'])
+        dinv['inviter'] = inviter
+
+        return dinv

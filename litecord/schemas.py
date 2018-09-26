@@ -1,9 +1,13 @@
 import re
 
 from cerberus import Validator
+from logbook import Logger
 
 from .errors import BadRequest
 from .enums import ActivityType, StatusType
+
+
+log = Logger(__name__)
 
 USERNAME_REGEX = re.compile(r'^[a-zA-Z0-9_]{2,19}$', re.A)
 EMAIL_REGEX = re.compile(r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$',
@@ -48,6 +52,8 @@ class LitecordValidator(Validator):
 
 def validate(reqjson, schema, raise_err: bool = True):
     validator = LitecordValidator(schema)
+    log.debug('Validating {}', reqjson)
+
     if not validator.validate(reqjson):
         errs = validator.errors
 
@@ -173,4 +179,32 @@ GW_STATUS_UPDATE = {
         'nullable': True,
         'schema': GW_ACTIVITY,
     },
+}
+
+INVITE = {
+    # max_age in seconds
+    # 0 for infinite
+    'max_age': {
+        'type': 'number',
+        'min': 0,
+        'max': 86400,
+
+        # a day
+        'default': 86400
+    },
+
+    # max invite uses
+    'max_uses': {
+        'type': 'number',
+        'min': 0,
+
+        # idk
+        'max': 1000,
+
+        # default infinite
+        'default': 0
+    },
+
+    'temporary': {'type': 'boolean', 'required': False, 'default': False},
+    'unique': {'type': 'boolean', 'required': False, 'default': True},
 }
