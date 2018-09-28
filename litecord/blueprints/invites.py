@@ -124,7 +124,7 @@ async def get_guild_invites(guild_id: int):
 
 @bp.route('/channels/<int:channel_id>/invites', methods=['GET'])
 async def get_channel_invites(channel_id: int):
-    user_id = await token_check
+    user_id = await token_check()
     guild_id = await channel_check(user_id, channel_id)
 
     inv_codes = await app.db.fetch("""
