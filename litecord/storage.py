@@ -323,6 +323,13 @@ class Storage:
             ),
         }}
 
+    async def get_guild_full(self, guild_id: int,
+                             user_id: int, large_count: int = 250) -> Dict:
+        guild = await self.get_guild(guild_id, user_id)
+        extra = await self.get_guild_extra(guild_id, user_id, large_count)
+
+        return {**guild, **extra}
+
     async def get_member_ids(self, guild_id: int) -> List[int]:
         rows = await self.db.fetch("""
         SELECT user_id
@@ -421,12 +428,15 @@ class Storage:
 
         # fetch some guild info
         guild = await self.db.fetchrow("""
-        SELECT id::text, name, splash, icon
+        SELECT id::text, name, splash, icon, verification_level
         FROM guilds
         WHERE id = $1
         """, invite['guild_id'])
 
         dinv['guild'] = dict(guild)
+
+        # TODO: query actual guild features
+        dinv['guild']['features'] = []
 
         chan = await self.get_channel(invite['channel_id'])
         dinv['channel'] = {

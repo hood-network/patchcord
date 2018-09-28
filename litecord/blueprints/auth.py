@@ -87,3 +87,10 @@ async def login():
     return jsonify({
         'token': make_token(user_id, pwd_hash)
     })
+
+
+@bp.route('/consent-required', methods=['GET'])
+async def consent_required():
+    return jsonify({
+        'required': True,
+    })

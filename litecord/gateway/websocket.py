@@ -599,12 +599,11 @@ class GatewayWebsocket:
         if guild_id not in gids:
             return
 
-        members = await self.storage.get_member_data(guild_id)
-        member_ids = [int(m['user']['id']) for m in members]
+        member_ids = await self.storage.get_member_ids(guild_id)
 
         # the current implementation is rudimentary and only
         # generates two groups: online and offline, using
-        # guild_presences for list_data.
+        # PresenceManager.guild_presences to fill list_data.
 
         # this also doesn't take account the channels in lazy_request.
 

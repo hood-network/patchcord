@@ -52,10 +52,10 @@ class LitecordValidator(Validator):
 
 def validate(reqjson, schema, raise_err: bool = True):
     validator = LitecordValidator(schema)
-    log.debug('Validating {}', reqjson)
 
     if not validator.validate(reqjson):
         errs = validator.errors
+        log.warning('Error validating doc: {!r}', errs)
 
         if raise_err:
             raise BadRequest('bad payload', errs)

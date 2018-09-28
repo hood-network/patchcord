@@ -83,10 +83,7 @@ async def create_guild():
 
     # TODO: j['roles'] and j['channels']
 
-    guild_json = await app.storage.get_guild(guild_id, user_id)
-    guild_extra = await app.storage.get_guild_extra(guild_id, user_id, 250)
-
-    guild_total = {**guild_json, **guild_extra}
+    guild_total = await app.storage.get_guild_full(guild_id, user_id, 250)
 
     app.dispatcher.sub_guild(guild_id, user_id)
     await app.dispatcher.dispatch_guild(guild_id, 'GUILD_CREATE', guild_total)

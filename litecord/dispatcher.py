@@ -58,3 +58,26 @@ class EventDispatcher:
 
         log.info('Dispatched {} {!r} to {} states',
                  guild_id, event_name, dispatched)
+
+    async def _dispatch_states(self, states: list, event: str, data: Any):
+        for state in states:
+            await state.ws.dispatch(event, data)
+
+    async def dispatch_user_guild(self, user_id: int, guild_id: int,
+                                  event: str, data: Any):
+        """Dispatch a single event to a user inside a guild.
+
+        The difference between dispatch_user and dispatch_user_guild
+        is sharding management happening here, via StateManager.fetch_states
+        """
+        states = self.state_manager.fetch_states(user_id, guild_id)
+
+        if not states:
+            self.unsub_guild(guild_id, user_id)
+
+        await self._dispatch_states(states, event, data)
+
+    async def dispatch_user(self, user_id: int, event: str, data: Any):
+        """Dispatch an event to a single user."""
+        states = self.state_manager.user_states(user_id)
+        await self._dispatch_states(states, event, data)

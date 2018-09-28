@@ -52,18 +52,37 @@ class StateManager:
 
         return states
 
+    def user_states(self, user_id: int) -> List[GatewayState]:
+        """Fetch all states tied to a single user."""
+        return list(self.states[user_id].values())
+
     def guild_states(self, member_ids: List[int],
                      guild_id: int) -> List[GatewayState]:
+        """Fetch all possible states about members in a guild."""
         states = []
 
         for member_id in member_ids:
             member_states = self.fetch_states(member_id, guild_id)
 
-            # for now, just get the first state
-            try:
-                state = next(iter(member_states))
-                states.append(state)
-            except StopIteration:
-                pass
+            # member_states is empty if the user never logged in
+            # since server start, so we need to add a dummy state
+            if not member_states:
+                dummy_state = GatewayState(
+                    session_id='',
+                    user_id=member_id,
+                    presence={
+                        'afk': False,
+                        'status': 'offline',
+                        'game': None,
+                        'since': 0
+                    }
+                )
+
+                states.append(dummy_state)
+                continue
+
+            # push all available member states to the result
+            # array
+            states.extend(member_states)
 
         return states

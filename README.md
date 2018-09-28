@@ -5,7 +5,7 @@ Python.
 
 This project is a rewrite of [litecord-reference].
 
-[litecord-reference]: https://gitlab.com/lnmds/litecord-reference
+[litecord-reference]: https://gitlab.com/luna/litecord-reference
 
 ## Install
 
@@ -19,6 +19,8 @@ This project is a rewrite of [litecord-reference].
 $ git clone https://gitlab.com/luna/litecord.git && cd litecord
 
 # Setup the database:
+# don't forget that you can create a specific
+# postgres user just for the litecord database
 $ createdb litecord
 $ psql -f schema.sql litecord
 

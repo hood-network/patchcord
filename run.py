@@ -5,7 +5,7 @@ import asyncpg
 import logbook
 import logging
 import websockets
-from quart import Quart, g, jsonify
+from quart import Quart, g, jsonify, request
 from logbook import StreamHandler, Logger
 from logbook.compat import redirect_logging
 
@@ -64,7 +64,7 @@ for bp, suffix in bps.items():
 
 @app.after_request
 async def app_after_request(resp):
-    resp.headers['Access-Control-Allow-Origin'] = 'https://ptb.discordapp.com'
+    resp.headers['Access-Control-Allow-Origin'] = request.headers['Origin']
     resp.headers['Access-Control-Allow-Headers'] = ('*, X-Super-Properties, '
                                                     'X-Fingerprint, '
                                                     'X-Context-Properties, '
