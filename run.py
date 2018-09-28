@@ -64,7 +64,9 @@ for bp, suffix in bps.items():
 
 @app.after_request
 async def app_after_request(resp):
-    resp.headers['Access-Control-Allow-Origin'] = request.headers['Origin']
+    origin = request.headers.get('Origin', '*')
+    resp.headers['Access-Control-Allow-Origin'] = origin
+
     resp.headers['Access-Control-Allow-Headers'] = ('*, X-Super-Properties, '
                                                     'X-Fingerprint, '
                                                     'X-Context-Properties, '
