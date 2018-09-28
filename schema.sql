@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS files (
 
 CREATE TABLE IF NOT EXISTS users (
     id bigint UNIQUE NOT NULL,
-    username varchar(32) NOT NULL,
+    username text NOT NULL,
     discriminator varchar(4) NOT NULL,
     email varchar(255) NOT NULL UNIQUE,
 
@@ -146,7 +146,7 @@ CREATE TABLE IF NOT EXISTS channels (
 CREATE TABLE IF NOT EXISTS guilds (
     id bigint PRIMARY KEY NOT NULL,
 
-    name varchar(100) NOT NULL,
+    name text NOT NULL,
     icon text DEFAULT NULL,
     splash text DEFAULT NULL,
     owner_id bigint NOT NULL REFERENCES users (id),
@@ -310,7 +310,7 @@ CREATE TABLE IF NOT EXISTS webhooks (
 CREATE TABLE IF NOT EXISTS members (
     user_id bigint REFERENCES users (id) ON DELETE CASCADE,
     guild_id bigint REFERENCES guilds (id) ON DELETE CASCADE,
-    nickname varchar(100) DEFAULT NULL,
+    nickname text DEFAULT NULL,
     joined_at timestamp without time zone default now(),
     deafened boolean DEFAULT false,
     muted boolean DEFAULT false,
@@ -322,7 +322,7 @@ CREATE TABLE IF NOT EXISTS roles (
     id bigint UNIQUE NOT NULL,
     guild_id bigint REFERENCES guilds (id) ON DELETE CASCADE,
 
-    name varchar(100) NOT NULL,
+    name text NOT NULL,
     color int DEFAULT 1,
     hoist bool DEFAULT false,
     position int NOT NULL,
@@ -357,7 +357,7 @@ CREATE TABLE IF NOT EXISTS bans (
     -- on a guild's ban list.
     user_id bigint NOT NULL REFERENCES users (id),
 
-    reason varchar(512) NOT NULL,
+    reason text NOT NULL,
 
     PRIMARY KEY (user_id, guild_id)
 );
