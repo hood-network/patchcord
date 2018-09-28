@@ -277,8 +277,8 @@ async def trigger_typing(channel_id):
     guild_id = await channel_check(user_id, channel_id)
 
     await app.dispatcher.dispatch_guild(guild_id, 'TYPING_START', {
-        'channel_id': channel_id,
-        'user_id': user_id,
+        'channel_id': str(channel_id),
+        'user_id': str(user_id),
         'timestamp': int(time.time()),
     })
 
