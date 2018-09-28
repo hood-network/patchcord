@@ -453,3 +453,17 @@ async def create_ban(guild_id, member_id):
     }, **(await app.storage.get_user(member_id))})
 
     return '', 204
+
+
+@bp.route('/<int:guild_id>/messages/search')
+async def search_messages(guild_id):
+    user_id = await token_check()
+    await guild_check(user_id, guild_id)
+
+    # TODO: implement route
+
+    return jsonify({
+        'total_results': 0,
+        'messages': [],
+        'analytics_id': 'ass',
+    })
