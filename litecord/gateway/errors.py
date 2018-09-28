@@ -1,6 +1,15 @@
 from litecord.errors import WebsocketClose
 
 
+class GatewayError(WebsocketClose):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # hacky solution to
+        # decrease code repetition
+        self.args = [4000, self.args[0]]
+
+
 class UnknownOPCode(WebsocketClose):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
