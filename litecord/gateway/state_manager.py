@@ -19,7 +19,7 @@ class StateManager:
         """Insert a new state object."""
         user_states = self.states[state.user_id]
 
-        log.info('inserting state: {!r}', state)
+        log.debug('inserting state: {!r}', state)
         user_states[state.session_id] = state
 
     def fetch(self, user_id: int, session_id: str) -> GatewayState:
@@ -32,7 +32,7 @@ class StateManager:
             return
 
         try:
-            log.info('removing state: {!r}', state)
+            log.debug('removing state: {!r}', state)
             self.states[state.user_id].pop(state.session_id)
         except KeyError:
             pass

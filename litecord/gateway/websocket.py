@@ -83,8 +83,16 @@ class GatewayWebsocket:
         This function accounts for the zlib-stream
         transport method used by Discord.
         """
-        log.debug('sending {}', pprint.pformat(payload))
         encoded = self.encoder(payload)
+
+        if len(encoded) < 1024:
+            log.debug('sending {}', pprint.pformat(payload))
+        else:
+            log.debug('sending {}', pprint.pformat(payload))
+            log.debug('sending op={} s={} t={} (too big)',
+                      payload.get('op'),
+                      payload.get('s'),
+                      payload.get('t'))
 
         if not isinstance(encoded, bytes):
             encoded = encoded.encode()
@@ -100,8 +108,12 @@ class GatewayWebsocket:
 
     async def _hb_wait(self, interval: int):
         """Wait heartbeat"""
+        # if the client heartbeats in time,
+        # this task will be cancelled.
         await asyncio.sleep(interval / 1000)
         await self.ws.close(4000, 'Heartbeat expired')
+
+        self._cleanup()
 
     def _hb_start(self, interval: int):
         # always refresh the heartbeat task
@@ -362,9 +374,9 @@ class GatewayWebsocket:
 
     async def handle_2(self, payload: Dict[str, Any]):
         """Handle the OP 2 Identify packet."""
-        data = payload['d']
         try:
-            token, properties = data['token'], data['properties']
+            data = payload['d']
+            token = data['token']
         except KeyError:
             raise DecodeError('Invalid identify parameters')
 
@@ -387,7 +399,6 @@ class GatewayWebsocket:
         self.state = GatewayState(
             user_id=user_id,
             bot=bot,
-            properties=properties,
             compress=compress,
             large=large,
             shard=shard,
@@ -413,6 +424,15 @@ class GatewayWebsocket:
 
     async def handle_4(self, payload: Dict[str, Any]):
         """Handle OP 4 Voice Status Update."""
+        data = payload['d']
+        log.debug('got VSU cid={} gid={} deaf={} mute={} video={}',
+                  data.get('channel_id'),
+                  data.get('guild_id'),
+                  data.get('self_deaf'),
+                  data.get('self_mute'),
+                  data.get('self_video'))
+
+        # for now, do nothing
         pass
 
     async def _handle_5(self, payload: Dict[str, Any]):
@@ -629,6 +649,7 @@ class GatewayWebsocket:
             return
 
         member_ids = await self.storage.get_member_ids(guild_id)
+        log.debug('lazy: loading {} members', len(member_ids))
 
         # the current implementation is rudimentary and only
         # generates two groups: online and offline, using
@@ -639,14 +660,17 @@ class GatewayWebsocket:
         guild_presences = await self.presence.guild_presences(member_ids,
                                                               guild_id)
 
-        log.info('loading {} presences for guild', len(guild_presences))
-
         online = [{'member': p}
                   for p in guild_presences
                   if p['status'] == 'online']
         offline = [{'member': p}
                    for p in guild_presences
                    if p['status'] == 'offline']
+
+        log.debug('lazy: {} presences, online={}, offline={}',
+                  len(guild_presences),
+                  len(online),
+                  len(offline))
 
         # construct items in the WORST WAY POSSIBLE.
         items = [{
@@ -706,11 +730,41 @@ class GatewayWebsocket:
                 raise DecodeError('Payload length exceeded')
 
             payload = self.decoder(message)
-
-            log.debug('received message: {}',
-                      pprint.pformat(payload))
-
             await self.process_message(payload)
+
+    def _cleanup(self):
+        if self.state:
+            self.ext.state_manager.remove(self.state)
+            self.state.ws = None
+            self.state = None
+
+    async def _check_conns(self, user_id):
+        """Check if there are any existing connections.
+
+        If there aren't, dispatch a presence for offline.
+        """
+        if not user_id:
+            return
+
+        # TODO: account for sharding
+        # this only updates status to offline once
+        # ALL shards have come offline
+        states = self.ext.state_manager.user_states(user_id)
+        with_ws = [s for s in states if s.ws]
+
+        # there arent any other states with websocket
+        if not with_ws:
+            offline = {
+                'afk': False,
+                'status': 'offline',
+                'game': None,
+                'since': 0,
+            }
+
+            await self.ext.presence.dispatch_pres(
+                user_id,
+                offline
+            )
 
     async def run(self):
         """Wrap listen_messages inside
@@ -728,10 +782,6 @@ class GatewayWebsocket:
             log.exception('An exception has occoured. state={}', self.state)
             await self.ws.close(code=4000, reason=repr(err))
         finally:
-            # TODO: move this to a heartbeat checker
-            # instead of websocket cleanup
-            self.ext.state_manager.remove(self.state)
-
-            # disconnect the state from the websocket
-            if self.state:
-                self.state.ws = None
+            user_id = self.state.user_id if self.state else None
+            self._cleanup()
+            await self._check_conns(user_id)

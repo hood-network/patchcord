@@ -400,6 +400,18 @@ class Storage:
         # TODO: res['pinned']
         res['pinned'] = False
 
+        # this is specifically for lazy guilds.
+        guild_id = await self.db.fetchval("""
+        SELECT guild_id
+        FROM guild_channels
+        WHERE guild_channels.id = $1
+        """, res['channel_id'])
+
+        # only insert when the channel
+        # is actually from a guild.
+        if guild_id:
+            res['guild_id'] = guild_id
+
         return res
 
     async def fetch_notes(self, user_id: int) -> dict:

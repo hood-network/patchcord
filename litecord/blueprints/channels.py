@@ -153,7 +153,7 @@ async def edit_message(channel_id, message_id):
 
     message = await app.storage.get_message(message_id)
 
-    # only dispatch MESSAGE_CREATE if we actually had any update to start with
+    # only dispatch MESSAGE_UPDATE if we actually had any update to start with
     if updated:
         await app.dispatcher.dispatch_guild(guild_id,
                                             'MESSAGE_UPDATE', message)
@@ -182,7 +182,10 @@ async def delete_message(channel_id, message_id):
 
     await app.dispatcher.dispatch_guild(guild_id, 'MESSAGE_DELETE', {
         'id': str(message_id),
-        'channel_id': str(channel_id)
+        'channel_id': str(channel_id),
+
+        # for lazy guilds
+        'guild_id': str(guild_id),
     })
 
     return '', 204
@@ -280,6 +283,9 @@ async def trigger_typing(channel_id):
         'channel_id': str(channel_id),
         'user_id': str(user_id),
         'timestamp': int(time.time()),
+
+        # guild_id for lazy guilds
+        'guild_id': str(guild_id),
     })
 
     return '', 204

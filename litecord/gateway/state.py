@@ -52,6 +52,7 @@ class GatewayState:
         self.user_id = kwargs.get('user_id')
         self.bot = kwargs.get('bot', False)
         self.presence = {}
+        self.ws = None
         self.store = PayloadStore()
 
         for key in kwargs:
@@ -59,5 +60,5 @@ class GatewayState:
             self.__dict__[key] = value
 
     def __repr__(self):
-        return (f'GatewayState<session={self.session_id} seq={self.seq} '
+        return (f'GatewayState<seq={self.seq} '
                 f'shard={self.shard} uid={self.user_id}>')
