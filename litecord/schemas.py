@@ -4,7 +4,7 @@ from cerberus import Validator
 from logbook import Logger
 
 from .errors import BadRequest
-from .enums import ActivityType, StatusType
+from .enums import ActivityType, StatusType, ExplicitFilter
 
 
 log = Logger(__name__)
@@ -49,6 +49,14 @@ class LitecordValidator(Validator):
 
         return value in statuses
 
+    def _validate_type_explicit(self, value: str) -> bool:
+        try:
+            val = int(value)
+        except (TypeError, ValueError):
+            return False
+
+        return val in ExplicitFilter.values()
+
 
 def validate(reqjson, schema, raise_err: bool = True):
     validator = LitecordValidator(schema)
@@ -80,7 +88,7 @@ GUILD_UPDATE = {
         'type': 'msg_notifications',
         'required': False,
     },
-    'explicit_content_filter': {'type': 'explicit_content', 'required': False},
+    'explicit_content_filter': {'type': 'explicit', 'required': False},
 
     'afk_channel_id': {'type': 'snowflake', 'required': False},
     'afk_timeout': {'type': 'number', 'required': False},
@@ -169,7 +177,8 @@ GW_ACTIVITY = {
 
 GW_STATUS_UPDATE = {
     'status': {'type': 'status_external', 'required': False},
-    'activities': {'type': 'list', 'schema': GW_ACTIVITY},
+    'activities': {
+        'type': 'list', 'required': False, 'schema': GW_ACTIVITY},
     'afk': {'type': 'boolean', 'required': False},
 
     'since': {'type': 'number', 'required': True, 'nullable': True},
@@ -207,4 +216,49 @@ INVITE = {
 
     'temporary': {'type': 'boolean', 'required': False, 'default': False},
     'unique': {'type': 'boolean', 'required': False, 'default': True},
+}
+
+USER_SETTINGS = {
+    'afk_timeout': {
+        'type': 'number', 'required': False, 'min': 0, 'max': 3000},
+
+    'animate_emoji': {'type': 'boolean', 'required': False},
+    'convert_emoticons': {'type': 'boolean', 'required': False},
+    'default_guilds_restricted': {'type': 'boolean', 'required': False},
+    'detect_platform_accounts': {'type': 'boolean', 'required': False},
+    'developer_mode': {'type': 'boolean', 'required': False},
+    'disable_games_tab': {'type': 'boolean', 'required': False},
+    'enable_tts_command': {'type': 'boolean', 'required': False},
+
+    'explicit_content_filter': {'type': 'explicit', 'required': False},
+
+    'friend_source': {
+        'type': 'dict',
+        'required': False,
+        'schema': {
+            'all': {'type': 'boolean', 'required': False},
+            'mutual_guilds': {'type': 'boolean', 'required': False},
+            'mutual_friends': {'type': 'boolean', 'required': False},
+        }
+    },
+    'guild_positions': {
+        'type': 'list',
+        'required': False,
+        'schema': {'type': 'snowflake'}
+    },
+    'restricted_guilds': {
+        'type': 'list',
+        'required': False,
+        'schema': {'type': 'snowflake'}
+    },
+
+    'gif_auto_play': {'type': 'boolean', 'required': False},
+    'inline_attachment_media': {'type': 'boolean', 'required': False},
+    'inline_embed_media': {'type': 'boolean', 'required': False},
+    'message_display_compact': {'type': 'boolean', 'required': False},
+    'render_embeds': {'type': 'boolean', 'required': False},
+    'render_reactions': {'type': 'boolean', 'required': False},
+    'show_current_game': {'type': 'boolean', 'required': False},
+
+    'timezone_offset': {'type': 'number', 'required': False},
 }

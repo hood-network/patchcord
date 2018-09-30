@@ -75,7 +75,9 @@ async def app_after_request(resp):
                                                     'Authorization, '
                                                     'Origin, '
                                                     'If-None-Match')
-    resp.headers['Access-Control-Allow-Methods'] = '*'
+    # resp.headers['Access-Control-Allow-Methods'] = '*'
+    resp.headers['Access-Control-Allow-Methods'] = \
+        resp.headers.get('allow', '*')
     return resp
 
 

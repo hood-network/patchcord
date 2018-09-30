@@ -3,6 +3,7 @@ from asyncpg import UniqueViolationError
 
 from ..auth import token_check
 from ..errors import Forbidden, BadRequest
+from ..schemas import validate, USER_SETTINGS
 
 bp = Blueprint('user', __name__)
 
@@ -144,7 +145,19 @@ async def get_user_settings():
 
 @bp.route('/@me/settings', methods=['PATCH'])
 async def patch_current_settings():
-    return '', 204
+    user_id = await token_check()
+    j = validate(await request.get_json(), USER_SETTINGS)
+
+    for key in j:
+        await app.db.execute(f"""
+        UPDATE user_settings
+        SET {key}=$1
+        """, j[key])
+
+    settings = await app.storage.get_user_settings(user_id)
+    await app.dispatcher.dispatch_user(
+        user_id, 'USER_SETTINGS_UPDATE', settings)
+    return jsonify(settings)
 
 
 @bp.route('/@me/consent', methods=['GET', 'POST'])
