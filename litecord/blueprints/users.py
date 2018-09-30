@@ -156,13 +156,13 @@ async def get_user_settings():
             },
         'gif_auto_play': True,
         'guild_positions': [],
+        'restricted_guilds': [],
         'inline_attachment_media': True,
         'inline_embed_media': True,
         'locale': 'en-US',
         'message_display_compact': False,
         'render_embeds': True,
         'render_reactions': True,
-        'restricted_guilds': [],
         'show_current_game': True,
         'status': 'online',
         'theme': 'dark',
@@ -175,9 +175,14 @@ async def patch_current_settings():
     return '', 204
 
 
-@bp.route('/@me/consent', methods=['GET'])
+@bp.route('/@me/consent', methods=['GET', 'POST'])
 async def get_consent():
-    """Always disable data collection."""
+    """Always disable data collection.
+
+    Also takes any data collection changes
+    by the client and ignores them, as they
+    will always be false.
+    """
     return jsonify({
         'usage_statistics': {
             'consented': False,
@@ -193,10 +198,12 @@ async def get_harvest():
     """Dummy route"""
     return '', 204
 
+
 @bp.route('/@me/activities/statistics/applications', methods=['GET'])
 async def get_stats_applications():
     """Dummy route for info on gameplay time and such"""
     return jsonify([])
+
 
 @bp.route('/@me/library', methods=['GET'])
 async def get_library():

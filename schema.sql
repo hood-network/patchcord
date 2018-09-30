@@ -78,48 +78,70 @@ CREATE TABLE IF NOT EXISTS users (
     PRIMARY KEY (id, username, discriminator)
 );
 
-/*
-
+-- main user settings
 CREATE TABLE IF NOT EXISTS user_settings (
     id bigint REFERENCES users (id),
     afk_timeout int DEFAULT 300,
-    animate_emoji bool DEFAULT true,
-    convert_emoticons bool DEFAULT false,
-    default_guilds_restricted bool DEFAULT false,
+
+    -- connection detection (none by default)
     detect_platform_accounts bool DEFAULT false,
 
-    -- smirk emoji
-    developer_mode bool DEFAULT true,
-
-    disable_games_tab bool DEFAULT true,
-    enable_tts_command bool DEFAULT false,
+    -- privacy and safety
+    -- options like data usage are over
+    -- the get_consent function on users blueprint
+    default_guilds_restricted bool DEFAULT false,
     explicit_content_filter int DEFAULT 2,
+    friend_source jsonb DEFAULT '{"all": true}',
 
-    friend_source_everyone bool DEFAULT true,
-    friend_source_mutuals bool DEFAULT true,
-    friend_source_guilds bool DEFAULT true,
+    -- guild positions on the client.
+    guild_positions jsonb DEFAULT '[]',
 
-    gif_auto_play bool DEFAULT true,
-    
-    -- TODO: guild_positions
-    -- TODO: restricted_guilds
+    -- guilds that can't dm you
+    restricted_guilds jsonb DEFAULT '[]',
 
-    inline_attachment_media bool DEFAULT true,
-    inline_embed_media bool DEFAULT true,
-    locale text DEFAULT 'en-US',
-    message_display_compact bool DEFAULT false,
-    render_embeds bool DEFAULT true,
     render_reactions bool DEFAULT true,
+
+    -- show the current palying game
+    -- as an activity
     show_current_game bool DEFAULT true,
 
+    -- text and images
+
+    -- show MEDIA embeds for urls
+    inline_embed_media bool DEFAULT true,
+
+    -- show thumbnails for attachments
+    inline_attachment_media bool DEFAULT true,
+
+    -- autoplay gifs on the client
+    gif_auto_play bool DEFAULT true,
+
+    -- render OpenGraph embeds for urls posted in chat
+    render_embeds bool DEFAULT true,
+
+    -- play animated emojis
+    animate_emoji bool DEFAULT true,
+
+    -- convert :-) to the smile emoji and others
+    convert_emoticons bool DEFAULT false,
+
+    -- enable /tts
+    enable_tts_command bool DEFAULT false,
+
+    -- appearance
+    message_display_compact bool DEFAULT false,
     status text DEFAULT 'online' NOT NULL,
     theme text DEFAULT 'dark' NOT NULL,
+    developer_mode bool DEFAULT true,
+    disable_games_tab bool DEFAULT true,
+    locale text DEFAULT 'en-US',
 
-    timezone_offset int DEFAULT 0,
-
+    -- set by the client
+    -- the server uses this to make emails
+    -- about "look at what youve missed"
+    timezone_offset int DEFAULT 0
 );
 
-*/
 
 CREATE TABLE IF NOT EXISTS notes (
     user_id bigint REFERENCES users (id),
