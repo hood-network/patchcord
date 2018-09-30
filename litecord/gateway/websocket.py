@@ -201,15 +201,18 @@ class GatewayWebsocket:
         PLEAS DISCORD DO NOT BAN ME
         """
 
+        user_id = self.state.user_id
+
         return {
+            'user_settings': await self.storage.get_user_settings(user_id),
+            'notes': await self.storage.fetch_notes(user_id),
+            'friend_suggestion_count': 0,
+
             # TODO
             'relationships': [],
 
             # TODO
             'user_guild_settings': [],
-
-            'notes': await self.storage.fetch_notes(self.state.user_id),
-            'friend_suggestion_count': 0,
 
             # TODO
             'presences': [],
@@ -217,41 +220,11 @@ class GatewayWebsocket:
             # TODO
             'read_state': [],
 
-            'experiments': [],
-            'guild_experiments': [],
-
             # TODO
             'connected_accounts': [],
 
-            # TODO: make those changeable
-            'user_settings': {
-                'afk_timeout': 300,
-                'animate_emoji': True,
-                'convert_emoticons': False,
-                'default_guilds_restricted': True,
-                'detect_platform_accounts': False,
-                'developer_mode': True,
-                'disable_games_tab': True,
-                'enable_tts_command': False,
-                'explicit_content_filter': 2,
-                'friend_source_flags': {
-                    'mutual_friends': True
-                },
-                'gif_auto_play': True,
-                'guild_positions': [],
-                'inline_attachment_media': True,
-                'inline_embed_media': True,
-                'locale': 'en-US',
-                'message_display_compact': False,
-                'render_embeds': True,
-                'render_reactions': True,
-                'restricted_guilds': [],
-                'show_current_game': True,
-                'status': 'online',
-                'theme': 'dark',
-                'timezone_offset': 420,
-            },
-
+            'experiments': [],
+            'guild_experiments': [],
             'analytics_token': 'transbian',
         }
 
