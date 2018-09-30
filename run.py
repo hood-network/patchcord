@@ -83,6 +83,7 @@ async def app_after_request(resp):
 async def app_before_serving():
     log.info('opening db')
     app.db = await asyncpg.create_pool(**app.config['POSTGRES'])
+
     g.app = app
 
     app.loop = asyncio.get_event_loop()

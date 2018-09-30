@@ -136,38 +136,10 @@ async def put_note(target_id: int):
 
 @bp.route('/@me/settings', methods=['GET'])
 async def get_user_settings():
-    # TODO: for now, just return hardcoded defaults,
-    # once we get the user_settings table working
-    # we can move to that.
-    await token_check()
-
-    return jsonify({
-        'afk_timeout': 300,
-        'animate_emoji': True,
-        'convert_emoticons': False,
-        'default_guilds_restricted': True,
-        'detect_platform_accounts': False,
-        'developer_mode': True,
-        'disable_games_tab': True,
-        'enable_tts_command': False,
-        'explicit_content_filter': 2,
-        'friend_source_flags': {
-            'mutual_friends': True
-            },
-        'gif_auto_play': True,
-        'guild_positions': [],
-        'restricted_guilds': [],
-        'inline_attachment_media': True,
-        'inline_embed_media': True,
-        'locale': 'en-US',
-        'message_display_compact': False,
-        'render_embeds': True,
-        'render_reactions': True,
-        'show_current_game': True,
-        'status': 'online',
-        'theme': 'dark',
-        'timezone_offset': 420,
-    })
+    """Get the current user's settings."""
+    user_id = await token_check()
+    settings = await app.storage.get_user_settings(user_id)
+    return jsonify(settings)
 
 
 @bp.route('/@me/settings', methods=['PATCH'])

@@ -1,3 +1,4 @@
+import json
 from typing import List, Dict, Any
 
 from logbook import Logger
@@ -17,11 +18,44 @@ def dict_(val):
     return dict(val) if val else None
 
 
+async def _set_json(con):
+    """Set JSON and JSONB codecs for an
+    asyncpg connection."""
+    await con.set_type_codec(
+        'json',
+        encoder=json.dumps,
+        decoder=json.loads,
+        schema='pg_catalog'
+    )
+
+    await con.set_type_codec(
+        'jsonb',
+        encoder=json.dumps,
+        decoder=json.loads,
+        schema='pg_catalog'
+    )
+
+
 class Storage:
     """Class for common SQL statements."""
     def __init__(self, db):
         self.db = db
         self.presence = None
+
+    async def _fetchrow_with_json(self, query: str, *args):
+        """Fetch a single row with JSON/JSONB support."""
+        # the pool by itself doesn't have
+        # set_type_codec, so we must set it manually
+        # by acquiring the connection
+        async with self.db.acquire() as con:
+            await _set_json(con)
+            return await con.fetchrow(query, *args)
+
+    async def _fetch_with_json(self, query: str, *args):
+        """Fetch many rows with JSON/JSONB support."""
+        async with self.db.acquire() as con:
+            await _set_json(con)
+            return await con.fetch(query, *args)
 
     async def get_user(self, user_id, secure=False) -> Dict[str, Any]:
         """Get a single user payload."""
@@ -500,3 +534,26 @@ class Storage:
         dinv['inviter'] = inviter
 
         return dinv
+
+    async def get_user_settings(self, user_id: int) -> Dict[str, Any]:
+        row = await self._fetchrow_with_json("""
+        SELECT *
+        FROM user_settings
+        WHERE id = $1
+        """, user_id)
+
+        if not row:
+            log.info('Generating user settings for {}', user_id)
+
+            await self.db.execute("""
+            INSERT INTO user_settings (id)
+            VALUES ($1)
+            """, user_id)
+
+            # recalling get_user_settings
+            # should work after adding
+            return await self.get_user_settings(user_id)
+
+        drow = dict(row)
+        drow.pop('id')
+        return drow
