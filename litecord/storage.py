@@ -200,6 +200,20 @@ class Storage:
 
         return members
 
+    async def query_members(self, guild_id: int, query: str, limit: int):
+        """Find members with usernames matching the given query."""
+        mids = await self.db.fetch(f"""
+        SELECT user_id
+        FROM members
+        JOIN users ON members.user_id = users.id
+        WHERE members.guild_id = $1
+          AND users.username LIKE '%'||$2
+        LIMIT {limit}
+        """, guild_id, query)
+
+        members = await self.get_member_multi(guild_id, mids)
+        return members
+
     async def _channels_extra(self, row) -> Dict:
         """Fill in more information about a channel."""
         channel_type = row['type']
@@ -363,6 +377,16 @@ class Storage:
         extra = await self.get_guild_extra(guild_id, user_id, large_count)
 
         return {**guild, **extra}
+
+    async def guild_exists(self, guild_id: int):
+        """Return if a given guild ID exists."""
+        owner_id = await self.db.fetch("""
+        SELECT owner_id
+        FROM guilds
+        WHERE id = $1
+        """, guild_id)
+
+        return owner_id is not None
 
     async def get_member_ids(self, guild_id: int) -> List[int]:
         rows = await self.db.fetch("""

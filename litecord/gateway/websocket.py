@@ -496,6 +496,59 @@ class GatewayWebsocket:
         await self._resume(range(seq, state.seq))
         await self.dispatch('RESUMED', {})
 
+    async def _req_guild_members(self, guild_id: str, user_ids: List[int],
+                                 query: str, limit: int):
+        try:
+            guild_id = int(guild_id)
+        except (TypeError, ValueError):
+            return
+
+        limit = limit or 1000
+        exists = await self.storage.get_guild(guild_id)
+
+        if not exists:
+            return
+
+        # limit user_ids to 1000 possible members
+        user_ids = user_ids[:1000]
+
+        # assumption: requesting user_ids means
+        # we don't do query.
+        if user_ids:
+            members = await self.storage.get_member_multi(guild_id, user_ids)
+            mids = [m['user']['id'] for m in members]
+            not_found = [uid for uid in user_ids if uid not in mids]
+
+            await self.dispatch('GUILD_MEMBERS_CHUNK', {
+                'guild_id': str(guild_id),
+                'members': members,
+                'not_found': not_found,
+            })
+
+            return
+
+        # do the search
+        result = await self.storage.query_members(guild_id, query, limit)
+        await self.dispatch('GUILD_MEMBERS_CHUNK', {
+            'guild_id': str(guild_id),
+            'members': result
+        })
+
+    async def handle_8(self, data: Any):
+        """Handle OP 8 Request Guild Members."""
+        gids = data['guild_id']
+        uids, query, limit = data.get('user_ids', []), \
+            data.get('query', ''), \
+            data.get('limit', 0)
+
+        if isinstance(gids, str):
+            await self._req_guild_members(gids, uids, query, limit)
+            return
+
+        for gid in gids:
+            # ignore uids on multiple guilds
+            await self._req_guild_members(gid, [], query, limit)
+
     async def _guild_sync(self, guild_id: int):
         members = await self.storage.get_member_data(guild_id)
         member_ids = [int(m['user']['id']) for m in members]
