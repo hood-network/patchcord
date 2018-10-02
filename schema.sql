@@ -252,31 +252,64 @@ CREATE TABLE IF NOT EXISTS guild_voice_channels (
 
 
 CREATE TABLE IF NOT EXISTS dm_channels (
-    -- TODO
+    id bigint REFERENCES channels (id) ON DELETE CASCADE,
+
+    party1_id bigint REFERENCES users (id) ON DELETE CASCADE,
+    party2_id bigint REFERENCES users (id) ON DELETE CASCADE,
+
+    PRIMARY KEY (id, party1_id, party2_id)
 );
 
 
 CREATE TABLE IF NOT EXISTS group_dm_channels (
     id bigint REFERENCES channels (id) ON DELETE CASCADE,
     owner_id bigint REFERENCES users (id),
+    name text,
     icon bigint REFERENCES files (id),
     PRIMARY KEY (id)
+);
+
+CREATE TABLE IF NOT EXISTS group_dm_members (
+    id bigint REFERENCES group_dm_channels (id) ON DELETE CASCADE,
+    member_id bigint REFERENCES users (id),
+    PRIMARY KEY (id, member_id)
 );
 
 
 CREATE TABLE IF NOT EXISTS channel_overwrites (
     channel_id bigint REFERENCES channels (id),
-    target_id bigint,
-    overwrite_type text,
-    allow bool default false,
-    deny bool default false,
-    PRIMARY KEY (channel_id, target_id)
+
+    -- target_type = 0 -> use target_user
+    -- target_type = 1 -> user target_role
+    -- discord already has overwrite.type = 'role' | 'member'
+    -- so this allows us to be more compliant with the API
+    target_type integer default null,
+
+    -- keeping both columns separated and as foreign keys
+    -- instead of a single "target_id bigint" column
+    -- makes us able to remove the channel overwrites of
+    -- a role when its deleted (same for users, etc).
+    target_role bigint REFERENCES roles (id) ON DELETE CASCADE,
+    target_user bigint REFERENCES users (id) ON DELETE CASCADE,
+
+    -- since those are permission bit sets
+    -- they're bigints (64bits), discord,
+    -- for now, only needs 53.
+    allow bigint DEFAULT 0,
+    deny bigint DEFAULT 0,
+
+    PRIMARY KEY (channel_id, target_role, target_user)
 );
 
 
+CREATE TABLE IF NOT EXISTS features (
+    id serial PRIMARY KEY,
+    feature text NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS guild_features (
     guild_id bigint REFERENCES guilds (id) ON DELETE CASCADE,
-    feature text NOT NULL,
+    feature integer REFERENCES features (id),
     PRIMARY KEY (guild_id, feature)
 );
 
