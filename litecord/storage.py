@@ -249,18 +249,31 @@ class Storage:
 
     async def _chan_overwrites(self, channel_id):
         overwrite_rows = await self.db.fetch("""
-        SELECT target_id::text AS id, overwrite_type, allow, deny
+        SELECT target_type, target_role, target_user, allow, deny
         FROM channel_overwrites
         WHERE channel_id = $1
         """, channel_id)
 
-        def _overwrite_convert(ov_row):
-            drow = dict(ov_row)
-            drow['type'] = drow['overwrite_type']
+        def _overwrite_convert(row):
+            drow = dict(row)
+            drow['type'] = drow['target_type']
+
+            # if type is 0, the overwrite is for a user
+            # if type is 1, the overwrite is for a role
+            drow['id'] = {
+                0: drow['target_user'],
+                1: drow['target_role'],
+            }[drow['type']]
+
+            drow['id'] = str(drow['id'])
+
             drow.pop('overwrite_type')
+            drow.pop('target_user')
+            drow.pop('target_role')
+
             return drow
 
-        return map(_overwrite_convert, overwrite_rows)
+        return list(map(_overwrite_convert, overwrite_rows))
 
     async def get_channel(self, channel_id) -> Dict[str, Any]:
         """Fetch a single channel's information."""
