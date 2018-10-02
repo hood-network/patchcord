@@ -143,6 +143,21 @@ CREATE TABLE IF NOT EXISTS user_settings (
 );
 
 
+-- main user relationships
+CREATE TABLE IF NOT EXISTS relationships (
+    -- the id of who made the relationship
+    user_id bigint REFERENCES users (id),
+
+    -- the id of the peer who got a friendship
+    -- request or a block.
+    peer_id bigint REFERENCES users (id),
+
+    rel_type SMALLINT,
+
+    PRIMARY KEY (user_id, peer_id)
+);
+
+
 CREATE TABLE IF NOT EXISTS notes (
     user_id bigint REFERENCES users (id),
     target_id bigint REFERENCES users (id),
@@ -299,7 +314,7 @@ CREATE TABLE IF NOT EXISTS invites (
     channel_id bigint REFERENCES channels (id) ON DELETE CASCADE,
     inviter bigint REFERENCES users (id),
 
-    created_at timestamp without time zone default now(),
+    created_at timestamp without time zone default (now() at time zone 'utc'),
     uses bigint DEFAULT 0,
 
     -- -1 means infinite here
@@ -333,7 +348,7 @@ CREATE TABLE IF NOT EXISTS members (
     user_id bigint REFERENCES users (id) ON DELETE CASCADE,
     guild_id bigint REFERENCES guilds (id) ON DELETE CASCADE,
     nickname text DEFAULT NULL,
-    joined_at timestamp without time zone default now(),
+    joined_at timestamp without time zone default (now() at time zone 'utc'),
     deafened boolean DEFAULT false,
     muted boolean DEFAULT false,
     PRIMARY KEY (user_id, guild_id)
@@ -404,7 +419,7 @@ CREATE TABLE IF NOT EXISTS messages (
 
     content text,
 
-    created_at timestamp without time zone default now(),
+    created_at timestamp without time zone default (now() at time zone 'utc'),
     edited_at timestamp without time zone default NULL,
 
     tts bool default false,

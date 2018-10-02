@@ -206,10 +206,8 @@ class GatewayWebsocket:
         return {
             'user_settings': await self.storage.get_user_settings(user_id),
             'notes': await self.storage.fetch_notes(user_id),
+            'relationships': await self.storage.get_relationships(user_id),
             'friend_suggestion_count': 0,
-
-            # TODO
-            'relationships': [],
 
             # TODO
             'user_guild_settings': [],

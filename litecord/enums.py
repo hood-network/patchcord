@@ -77,3 +77,10 @@ class ExplicitFilter(EasyEnum):
     EDGE = 0
     FRIENDS = 1
     SAFE = 2
+
+
+class RelationshipType(EasyEnum):
+    FRIEND = 1
+    BLOCK = 2
+    INCOMING = 3
+    OUTGOING = 4

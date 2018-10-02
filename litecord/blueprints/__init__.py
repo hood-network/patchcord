@@ -7,3 +7,4 @@ from .webhooks import bp as webhooks
 from .science import bp as science
 from .voice import bp as voice
 from .invites import bp as invites
+from .relationships import bp as relationships

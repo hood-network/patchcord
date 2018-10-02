@@ -4,7 +4,7 @@ from cerberus import Validator
 from logbook import Logger
 
 from .errors import BadRequest
-from .enums import ActivityType, StatusType, ExplicitFilter
+from .enums import ActivityType, StatusType, ExplicitFilter, RelationshipType
 
 
 log = Logger(__name__)
@@ -57,20 +57,29 @@ class LitecordValidator(Validator):
 
         return val in ExplicitFilter.values()
 
+    def _validate_type_rel_type(self, value: str) -> bool:
+        try:
+            val = int(value)
+        except (TypeError, ValueError):
+            return False
+
+        return val in (RelationshipType.FRIEND.value,
+                       RelationshipType.BLOCK.value)
+
 
 def validate(reqjson, schema, raise_err: bool = True):
     validator = LitecordValidator(schema)
 
     if not validator.validate(reqjson):
         errs = validator.errors
-        log.warning('Error validating doc: {!r}', errs)
+        log.warning('Error validating doc {!r}: {!r}', reqjson, errs)
 
         if raise_err:
             raise BadRequest('bad payload', errs)
 
         return None
 
-    return reqjson
+    return validator.document
 
 
 GUILD_UPDATE = {
@@ -261,4 +270,12 @@ USER_SETTINGS = {
     'show_current_game': {'type': 'boolean', 'required': False},
 
     'timezone_offset': {'type': 'number', 'required': False},
+}
+
+RELATIONSHIP = {
+    'type': {
+        'type': 'rel_type',
+        'required': False,
+        'default': RelationshipType.FRIEND.value
+    }
 }

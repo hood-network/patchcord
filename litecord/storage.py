@@ -3,7 +3,7 @@ from typing import List, Dict, Any
 
 from logbook import Logger
 
-from .enums import ChannelType
+from .enums import ChannelType, RelationshipType
 from .schemas import USER_MENTION, ROLE_MENTION
 
 
@@ -61,6 +61,7 @@ class Storage:
         """Get a single user payload."""
         user_id = int(user_id)
 
+        # TODO: query less instead of popping when secure=True
         user_row = await self.db.fetchrow("""
         SELECT id::text, username, discriminator, avatar, email,
             flags, bot, mfa_enabled, verified, premium
@@ -463,7 +464,7 @@ class Storage:
         SELECT guild_id
         FROM guild_channels
         WHERE guild_channels.id = $1
-        """, res['channel_id'])
+        """, int(res['channel_id']))
 
         # only insert when the channel
         # is actually from a guild.
@@ -581,3 +582,96 @@ class Storage:
         drow = dict(row)
         drow.pop('id')
         return drow
+
+    async def get_relationships(self, user_id: int) -> List[Dict[str, Any]]:
+        """Get all relationships for a user."""
+        # first, fetch all friendships outgoing
+        # from the user
+        _friend = RelationshipType.FRIEND.value
+        _block = RelationshipType.BLOCK.value
+        _incoming = RelationshipType.INCOMING.value
+        _outgoing = RelationshipType.OUTGOING.value
+
+        # check all outgoing friends
+        friends = await self.db.fetch("""
+        SELECT user_id, peer_id, rel_type
+        FROM relationships
+        WHERE user_id = $1 AND rel_type = $2
+        """, user_id, _friend)
+        friends = list(map(dict, friends))
+
+        # mutuals is a list of ints
+        # of people who are actually friends
+        # and accepted the friend request
+        mutuals = []
+
+        # for each outgoing, find if theres an outgoing from them
+        for row in friends:
+            is_friend = await self.db.fetchrow(
+                """
+                SELECT user_id, peer_id
+                FROM relationships
+                WHERE user_id = $1 AND peer_id = $2 AND rel_type = $3
+                """, row['peer_id'], row['user_id'],
+                _friend)
+
+            if is_friend is not None:
+                mutuals.append(row['peer_id'])
+
+        # fetch friend requests directed at us
+        incoming_friends = await self.db.fetch("""
+        SELECT user_id, peer_id
+        FROM relationships
+        WHERE peer_id = $1 AND rel_type = $2
+        """, user_id, _friend)
+
+        # only need their ids
+        incoming_friends = [r['user_id'] for r in incoming_friends
+                            if r['user_id'] not in mutuals]
+
+        # only fetch blocks we did,
+        # not fetching the ones people did to us
+        blocks = await self.db.fetch("""
+        SELECT user_id, peer_id
+        FROM relationships
+        WHERE user_id = $1 AND rel_type = $2
+        """, user_id, _block)
+        blocks = list(map(dict, blocks))
+
+        res = []
+
+        for drow in friends:
+            drow['type'] = drow['rel_type']
+            drow.pop('rel_type')
+
+            # check if the receiver is a mutual
+            # if it isnt, its still on a friend request stage
+            if drow['peer_id'] not in mutuals:
+                drow['id'] = str(drow['peer_id'])
+                drow['type'] = _outgoing
+
+            drow['user'] = await self.get_user(drow['peer_id'])
+
+            drow.pop('user_id')
+            drow.pop('peer_id')
+            res.append(drow)
+
+        for peer_id in incoming_friends:
+            res.append({
+                'id': str(peer_id),
+                'user': await self.get_user(peer_id),
+                'type': _incoming,
+            })
+
+        for drow in blocks:
+            drow['type'] = drow['rel_type']
+            drow.pop('rel_type')
+
+            drow['id'] = str(drow['peer_id'])
+            drow['user'] = await self.get_user(drow['peer_id'])
+
+            drow.pop('user_id')
+            drow.pop('peer_id')
+            res.append(drow)
+
+        return res

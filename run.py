@@ -11,7 +11,7 @@ from logbook.compat import redirect_logging
 
 import config
 from litecord.blueprints import gateway, auth, users, guilds, channels, \
-    webhooks, science, voice, invites
+    webhooks, science, voice, invites, relationships
 from litecord.gateway import websocket_handler
 from litecord.errors import LitecordError
 from litecord.gateway.state_manager import StateManager
@@ -49,12 +49,13 @@ bps = {
     gateway: None,
     auth: '/auth',
     users: '/users',
+    relationships: '/users',
     guilds: '/guilds',
     channels: '/channels',
     webhooks: None,
     science: None,
     voice: '/voice',
-    invites: None
+    invites: None,
 }
 
 for bp, suffix in bps.items():
