@@ -431,7 +431,7 @@ CREATE TABLE IF NOT EXISTS messages (
 );
 
 CREATE TABLE IF NOT EXISTS message_attachments (
-    message_id bigint REFERENCES messages (id) UNIQUE,
+    message_id bigint REFERENCES messages (id),
     attachment bigint REFERENCES files (id),
     PRIMARY KEY (message_id, attachment)
 );
@@ -443,17 +443,17 @@ CREATE TABLE IF NOT EXISTS message_embeds (
 );
 
 CREATE TABLE IF NOT EXISTS message_reactions (
-    message_id bigint REFERENCES messages (id) UNIQUE,
+    message_id bigint REFERENCES messages (id),
     user_id bigint REFERENCES users (id),
 
     -- since it can be a custom emote, or unicode emoji
     emoji_id bigint REFERENCES guild_emoji (id),
     emoji_text text NOT NULL,
-    PRIMARY KEY (message_id, user_id)
+    PRIMARY KEY (message_id, user_id, emoji_id, emoji_text)
 );
 
 CREATE TABLE IF NOT EXISTS channel_pins (
-    channel_id bigint REFERENCES channels (id) UNIQUE,
+    channel_id bigint REFERENCES channels (id),
     message_id bigint REFERENCES messages (id),
     PRIMARY KEY (channel_id, message_id)
 );
