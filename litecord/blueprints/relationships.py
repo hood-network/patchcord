@@ -60,7 +60,23 @@ async def add_relationship(peer_id: int):
 
         return '', 204
 
-    # is a blocky!
+    # check if friend AND not acceptance of fr
+    if rel_type == _friend:
+        await _dispatch(user_id, 'RELATIONSHIP_ADD', {
+            'id': str(peer_id),
+            'type': RelationshipType.OUTGOING.value,
+            'user': await app.storage.get_user(peer_id),
+        })
+
+        await _dispatch(peer_id, 'RELATIONSHIP_ADD', {
+            'id': str(user_id),
+            'type': RelationshipType.INCOMING.value,
+            'user': await app.storage.get_user(user_id)
+        })
+
+        return '', 204
+
+    # its a block.
     await app.dispatcher.dispatch_user(user_id, 'RELATIONSHIP_ADD', {
         'id': str(peer_id),
         'type': RelationshipType.BLOCK.value,
@@ -90,7 +106,8 @@ async def remove_relationship(peer_id: int):
     WHERE user_id = $1 AND peer_id = $2
     """, peer_id, user_id)
 
-    if rel_type == _friend:
+    # if any of those are friend
+    if _friend in (rel_type, incoming_rel_type):
         # closing the friendship, have to delete both rows
         await app.db.execute("""
         DELETE FROM relationships
