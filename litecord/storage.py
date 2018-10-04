@@ -171,7 +171,7 @@ class Storage:
         return {
             'user': await self.get_user(member_id),
             'nick': row['nickname'],
-            'roles': [guild_id] + [row[0] for row in members_roles],
+            'roles': [row[0] for row in members_roles],
             'joined_at': row['joined_at'].isoformat(),
             'deaf': row['deafened'],
             'mute': row['muted'],
@@ -226,7 +226,7 @@ class Storage:
         return members
 
     async def _chan_last_message(self, channel_id: int):
-        return await self.db.fetch("""
+        return await self.db.fetchval("""
         SELECT MAX(id)
         FROM messages
         WHERE channel_id = $1

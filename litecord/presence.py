@@ -25,7 +25,7 @@ class PresenceManager:
             presences.append({
                 'user': member['user'],
                 'roles': member['roles'],
-                'guild_id': guild_id,
+                'guild_id': str(guild_id),
 
                 # basic presence
                 'status': state.presence['status'],
