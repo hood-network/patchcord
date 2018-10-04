@@ -252,7 +252,7 @@ CREATE TABLE IF NOT EXISTS guild_voice_channels (
 
 
 CREATE TABLE IF NOT EXISTS dm_channels (
-    id bigint REFERENCES channels (id) ON DELETE CASCADE,
+    id bigint REFERENCES channels (id) ON DELETE CASCADE UNIQUE,
 
     party1_id bigint REFERENCES users (id) ON DELETE CASCADE,
     party2_id bigint REFERENCES users (id) ON DELETE CASCADE,
