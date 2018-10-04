@@ -36,6 +36,16 @@ async def _set_json(con):
     )
 
 
+def _filter_recipients(recipients: List[Dict[str, Any]], user_id: int):
+    """Filter recipients in a list of recipients, removing
+    the one that is reundant (ourselves)."""
+    user_id = str(user_id)
+
+    return filter(
+        lambda recipient: recipient['id'] != user_id,
+        recipients)
+
+
 class Storage:
     """Class for common SQL statements."""
     def __init__(self, db):
@@ -215,12 +225,19 @@ class Storage:
         members = await self.get_member_multi(guild_id, mids)
         return members
 
+    async def _chan_last_message(self, channel_id: int):
+        return await self.db.fetch("""
+        SELECT MAX(id)
+        FROM messages
+        WHERE channel_id = $1
+        """, channel_id)
+
     async def _channels_extra(self, row) -> Dict:
         """Fill in more information about a channel."""
         channel_type = row['type']
 
-        # TODO: dm and group dm?
         chan_type = ChannelType(channel_type)
+
         if chan_type == ChannelType.GUILD_TEXT:
             topic = await self.db.fetchval("""
             SELECT topic FROM guild_text_channels
@@ -229,6 +246,8 @@ class Storage:
 
             return {**row, **{
                 'topic': topic,
+                'last_message_id': str(
+                    await self._chan_last_message(row['id']))
             }}
         elif chan_type == ChannelType.GUILD_VOICE:
             vrow = await self.db.fetchval("""
@@ -240,7 +259,8 @@ class Storage:
 
         log.warning('unknown channel type: {}', chan_type)
 
-    async def get_chan_type(self, channel_id) -> int:
+    async def get_chan_type(self, channel_id: int) -> int:
+        """Get the channel type integer, given channel ID."""
         return await self.db.fetchval("""
         SELECT channel_type
         FROM channels
@@ -275,13 +295,14 @@ class Storage:
 
         return list(map(_overwrite_convert, overwrite_rows))
 
-    async def get_channel(self, channel_id) -> Dict[str, Any]:
+    async def get_channel(self, channel_id: int) -> Dict[str, Any]:
         """Fetch a single channel's information."""
         chan_type = await self.get_chan_type(channel_id)
+        ctype = ChannelType(chan_type)
 
-        if ChannelType(chan_type) in (ChannelType.GUILD_TEXT,
-                                      ChannelType.GUILD_VOICE,
-                                      ChannelType.GUILD_CATEGORY):
+        if ctype in (ChannelType.GUILD_TEXT,
+                     ChannelType.GUILD_VOICE,
+                     ChannelType.GUILD_CATEGORY):
             base = await self.db.fetchrow("""
             SELECT id, guild_id::text, parent_id, name, position, nsfw
             FROM guild_channels
@@ -297,9 +318,34 @@ class Storage:
 
             res['id'] = str(res['id'])
             return res
-        else:
-            # TODO: dms and group dms
+        elif ctype == ChannelType.DM:
+            dm_row = await self.db.fetchrow("""
+            SELECT party1_id, party2_id
+            FROM dm_channels
+            WHERE id = $1
+            """, channel_id)
+
+            drow = dict(dm_row)
+            drow['type'] = chan_type
+
+            drow['last_message_id'] = str(
+                await self._chan_last_message(channel_id))
+
+            # dms have just two recipients.
+            drow['recipients'] = [
+                await self.get_user(drow['party1_id']),
+                await self.get_user(drow['party2_id'])
+            ]
+
+            drow.pop('party1_id')
+            drow.pop('party2_id')
+
+            drow['id'] = str(drow['id'])
+            return drow
+        elif ctype == ChannelType.GROUP_DM:
             pass
+
+        return None
 
     async def get_channel_data(self, guild_id) -> List[Dict]:
         """Get channel information on a guild"""
@@ -574,6 +620,7 @@ class Storage:
         return dinv
 
     async def get_user_settings(self, user_id: int) -> Dict[str, Any]:
+        """Get current user settings."""
         row = await self._fetchrow_with_json("""
         SELECT *
         FROM user_settings
@@ -686,5 +733,51 @@ class Storage:
             drow.pop('user_id')
             drow.pop('peer_id')
             res.append(drow)
+
+        return res
+
+    async def get_dm(self, dm_id: int, user_id: int = None):
+        dm_chan = await self.get_channel(dm_id)
+
+        if user_id:
+            dm_chan['recipients'] = _filter_recipients(
+                dm_chan['recipients'], user_id
+            )
+
+        return dm_chan
+
+    async def get_dms(self, user_id: int) -> List[Dict[str, Any]]:
+        """Get all DM channels for a user, including group DMs.
+
+        This will only fetch channels the user has in their state,
+        which is different than the whole list of DM channels.
+        """
+        dm_ids = await self.db.fetch("""
+        SELECT id
+        FROM dm_channel_state
+        WHERE user_id = $1
+        """, user_id)
+
+        res = []
+
+        for dm_id in dm_ids:
+            dm_chan = await self.get_dm(dm_id, user_id)
+            res.append(dm_chan)
+
+        return res
+
+    async def get_all_dms(self, user_id: int) -> List[Dict[str, Any]]:
+        """Get all DMs for a user, regardless of the DM state."""
+        dm_ids = await self.db.fetch("""
+        SELECT id
+        FROM dm_channels
+        WHERE party1_id = $1 OR party2_id = $2
+        """, user_id)
+
+        res = []
+
+        for dm_id in dm_ids:
+            dm_chan = await self.get_dm(dm_id, user_id)
+            res.append(dm_chan)
 
         return res

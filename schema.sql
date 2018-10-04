@@ -261,6 +261,13 @@ CREATE TABLE IF NOT EXISTS dm_channels (
 );
 
 
+CREATE TABLE IF NOT EXISTS dm_channel_state (
+    user_id bigint REFERENCES users (id) ON DELETE CASCADE,
+    dm_id bigint REFERENCES dm_channels (id) ON DELETE CASCADE,
+    PRIMARY KEY (user_id, dm_id)
+);
+
+
 CREATE TABLE IF NOT EXISTS group_dm_channels (
     id bigint REFERENCES channels (id) ON DELETE CASCADE,
     owner_id bigint REFERENCES users (id),
@@ -440,7 +447,7 @@ CREATE TABLE IF NOT EXISTS embeds (
 
 CREATE TABLE IF NOT EXISTS messages (
     id bigint PRIMARY KEY,
-    channel_id bigint REFERENCES channels (id),
+    channel_id bigint REFERENCES channels (id) ON DELETE CASCADE,
 
     -- those are mutually exclusive, only one of them
     -- can NOT be NULL at a time.
@@ -486,7 +493,7 @@ CREATE TABLE IF NOT EXISTS message_reactions (
 );
 
 CREATE TABLE IF NOT EXISTS channel_pins (
-    channel_id bigint REFERENCES channels (id),
-    message_id bigint REFERENCES messages (id),
+    channel_id bigint REFERENCES channels (id) ON DELETE CASCADE,
+    message_id bigint REFERENCES messages (id) ON DELETE CASCADE,
     PRIMARY KEY (channel_id, message_id)
 );

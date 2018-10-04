@@ -279,3 +279,16 @@ RELATIONSHIP = {
         'default': RelationshipType.FRIEND.value
     }
 }
+
+CREATE_DM = {
+    'recipient_id': {
+        'type': 'snowflake',
+        'required': True
+    }
+}
+
+CREATE_GROUP_DM = {
+    'type': 'list',
+    'required': True,
+    'schema': {'type': 'snowflake'}
+}

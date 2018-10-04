@@ -2,8 +2,11 @@ from quart import Blueprint, jsonify, request, current_app as app
 from asyncpg import UniqueViolationError
 
 from ..auth import token_check
+from ..snowflake import get_snowflake
 from ..errors import Forbidden, BadRequest
-from ..schemas import validate, USER_SETTINGS
+from ..schemas import validate, USER_SETTINGS, CREATE_DM, CREATE_GROUP_DM
+
+from .guilds import guild_check
 
 bp = Blueprint('user', __name__)
 
@@ -84,15 +87,31 @@ async def get_me_guilds():
 
 
 @bp.route('/@me/guilds/<int:guild_id>', methods=['DELETE'])
-async def leave_guild(guild_id):
+async def leave_guild(guild_id: int):
     user_id = await token_check()
+    await guild_check(user_id, guild_id)
 
     await app.db.execute("""
     DELETE FROM members
     WHERE user_id = $1 AND guild_id = $2
     """, user_id, guild_id)
 
-    # TODO: something to dispatch events to the users
+    # first dispatch guild delete to the user,
+    # then remove from the guild,
+    # then tell the others that the member was removed
+    await app.dispatcher.dispatch_user_guild(
+        user_id, guild_id, 'GUILD_DELETE', {
+            'id': str(guild_id),
+            'unavailable': False,
+        }
+    )
+
+    await app.dispatcher.unsub_guild(guild_id, user_id)
+
+    await app.dispatcher.dispatch_guild('GUILD_MEMBER_REMOVE', {
+        'guild_id': str(guild_id),
+        'user': await app.storage.get_user(user_id)
+    })
 
     return '', 204
 
@@ -102,14 +121,75 @@ async def get_connections():
     pass
 
 
-# @bp.route('/@me/channels', methods=['GET'])
+@bp.route('/@me/channels', methods=['GET'])
 async def get_dms():
-    pass
+    user_id = await token_check()
+    dms = await app.storage.get_dms(user_id)
+    return jsonify(dms)
 
 
-# @bp.route('/@me/channels', methods=['POST'])
+async def try_dm_state(user_id, dm_id):
+    """Try insertin the user into the dm state
+    for the given DM."""
+    try:
+        await app.db.execute("""
+        INSERT INTO dm_channel_state (id, dm_id)
+        VALUES ($1, $2)
+        """, user_id, dm_id)
+    except UniqueViolationError:
+        # if already in state, ignore
+        pass
+
+
+async def create_dm(user_id, recipient_id):
+    dm_id = get_snowflake()
+
+    try:
+        await app.db.execute("""
+        INSERT INTO dm_channels (id, party1_id, party2_id)
+        VALUES ($1, $2, $3)
+        """, dm_id, user_id, recipient_id)
+
+        await try_dm_state(user_id, dm_id)
+
+    except UniqueViolationError:
+        # the dm already exists
+        dm_id = await app.db.fetchval("""
+        SELECT id
+        FROM dm_channels
+        WHERE (party1_id = $1 OR party2_id = $1) AND
+              (party2_id = $2 OR party2_id = $2)
+        """, user_id, recipient_id)
+
+    dm = await app.storage.get_dm(dm_id, user_id)
+    return jsonify(dm)
+
+
+@bp.route('/@me/channels', methods=['POST'])
 async def start_dm():
-    pass
+    """Create a DM with a user."""
+    user_id = await token_check()
+    j = validate(await request.get_json(), CREATE_DM)
+    recipient_id = j['recipient_id']
+
+    return await create_dm(user_id, recipient_id)
+
+
+@bp.route('/<int:user_id>/channels', methods=['POST'])
+async def create_group_dm(p_user_id: int):
+    """Create a DM or a Group DM with user(s)."""
+    user_id = await token_check()
+    assert user_id == p_user_id
+
+    j = validate(await request.get_json(), CREATE_GROUP_DM)
+    recipients = j['recipients']
+
+    if list(recipients) == 1:
+        # its a group dm with 1 user... a dm!
+        return await create_dm(user_id, int(recipients[0]))
+
+    # TODO: group dms
+    return '', 500
 
 
 @bp.route('/@me/notes/<int:target_id>', methods=['PUT'])

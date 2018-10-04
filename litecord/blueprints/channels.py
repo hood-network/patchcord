@@ -5,7 +5,7 @@ from logbook import Logger
 
 from ..auth import token_check
 from ..snowflake import get_snowflake, snowflake_datetime
-from ..enums import ChannelType, MessageType
+from ..enums import ChannelType, MessageType, GUILD_CHANS
 from ..errors import Forbidden, BadRequest, ChannelNotFound, MessageNotFound
 from ..schemas import validate, MESSAGE_CREATE
 
@@ -18,13 +18,14 @@ bp = Blueprint('channels', __name__)
 async def channel_check(user_id, channel_id):
     """Check if the current user is authorized
     to read the channel's information."""
-    ctype = await app.storage.get_chan_type(channel_id)
+    chan_type = await app.storage.get_chan_type(channel_id)
 
-    if ctype is None:
+    if chan_type is None:
         raise ChannelNotFound(f'channel type not found')
 
-    if ChannelType(ctype) in (ChannelType.GUILD_TEXT, ChannelType.GUILD_VOICE,
-                              ChannelType.GUILD_CATEGORY):
+    ctype = ChannelType(chan_type)
+
+    if ctype in GUILD_CHANS:
         guild_id = await app.db.fetchval("""
         SELECT guild_id
         FROM guild_channels
@@ -34,10 +35,25 @@ async def channel_check(user_id, channel_id):
         await guild_check(user_id, guild_id)
         return guild_id
 
+    if ctype == ChannelType.DM:
+        parties = await app.db.fetchval("""
+        SELECT party1_id, party2_id
+        FROM dm_channels
+        WHERE id = $1 AND (party1_id = $2 OR party2_id = $2)
+        """, channel_id, user_id)
+
+        # get the id of the other party
+        parties.remove(user_id)
+        return parties[0]
+
 
 @bp.route('/<int:channel_id>', methods=['GET'])
 async def get_channel(channel_id):
+    """Get a single channel's information"""
     user_id = await token_check()
+
+    # channel_check takes care of checking
+    # DMs and group DMs
     await channel_check(user_id, channel_id)
     chan = await app.storage.get_channel(channel_id)
 
@@ -45,6 +61,129 @@ async def get_channel(channel_id):
         raise ChannelNotFound('single channel not found')
 
     return jsonify(chan)
+
+
+async def __guild_chan_sql(guild_id, channel_id, field: str) -> str:
+    """Update a guild's channel id field to NULL,
+    if it was set to the given channel id before."""
+    return await app.db.execute(f"""
+    UPDATE guilds
+    SET {field} = NULL
+    WHERE guilds.id = $1 AND {field} = $2
+    """, guild_id, channel_id)
+
+
+async def _update_guild_chan_text(guild_id: int, channel_id: int):
+    res_embed = await __guild_chan_sql(
+        guild_id, channel_id, 'embed_channel_id')
+
+    res_widget = await __guild_chan_sql(
+        guild_id, channel_id, 'widget_channel_id')
+
+    res_system = await __guild_chan_sql(
+        guild_id, channel_id, 'system_channel_id')
+
+    # if none of them were actually updated,
+    # ignore and dont dispatch anything
+    if 'UPDATE 1' not in (res_embed, res_widget, res_system):
+        return
+
+    # at least one of the fields were updated,
+    # dispatch GUILD_UPDATE
+    guild = await app.storage.get_guild(guild_id)
+    await app.dispatcher.dispatch_guild(
+        guild_id, 'GUILD_UPDATE', guild)
+
+
+async def _update_guild_chan_voice(guild_id: int, channel_id: int):
+    res = await __guild_chan_sql(guild_id, channel_id, 'afk_channel_id')
+
+    # guild didnt update
+    if res == 'UPDATE 0':
+        return
+
+    guild = await app.storage.get_guild(guild_id)
+    await app.dispatcher.dispatch_guild(
+        guild_id, 'GUILD_UPDATE', guild)
+
+
+async def _update_guild_chan_cat(guild_id: int, channel_id: int):
+    # get all channels that were childs of the category
+    childs = await app.db.fetch("""
+    SELECT id
+    FROM guild_channels
+    WHERE guild_id = $1 AND parent_id = $2
+    """, guild_id, channel_id)
+    childs = [c['id'] for c in childs]
+
+    # update every child channel to parent_id = NULL
+    await app.db.execute("""
+    UPDATE guild_channels
+    SET parent_id = NULL
+    WHERE guild_id = $1 AND parent_id = $2
+    """, guild_id, channel_id)
+
+    # tell all people in the guild of the category removal
+    for child_id in childs:
+        child = await app.storage.get_channel(child_id)
+        await app.dispatcher.dispatch_guild(
+            guild_id, 'CHANNEL_UPDATE', child
+        )
+
+
+@bp.route('/<int:channel_id>', methods=['DELETE'])
+async def close_channel(channel_id):
+    user_id = await token_check()
+
+    chan_type = await app.storage.get_chan_type(channel_id)
+    ctype = ChannelType(chan_type)
+
+    if ctype in GUILD_CHANS:
+        guild_id = await channel_check(user_id, channel_id)
+        chan = await app.storage.get_channel(channel_id)
+
+        # the selected function will take care of checking
+        # the sanity of tables once the channel becomes deleted.
+        _update_func = {
+            ChannelType.GUILD_TEXT: _update_guild_chan_text,
+            ChannelType.GUILD_VOICE: _update_guild_chan_voice,
+            ChannelType.GUILD_CATEGORY: _update_guild_chan_cat,
+        }[ctype]
+
+        await _update_func(guild_id, channel_id)
+
+        # this should take care of deleting all messages as well
+        # (if any)
+        await app.db.execute("""
+        DELETE FROM guild_channels
+        WHERE id = $1
+        """, channel_id)
+
+        await app.dispatcher.dispatch_guild(
+            guild_id, 'CHANNEL_DELETE', chan)
+        return jsonify(chan)
+
+    if ctype == ChannelType.DM:
+        chan = await app.storage.get_channel(channel_id)
+
+        # we don't ever actually delete DM channels off the database.
+        # instead, we close the channel for the user that is making
+        # the request via removing the link between them and
+        # the channel on dm_channel_state
+        await app.db.execute("""
+        DELETE FROM dm_channel_state (user_id, dm_id)
+        VALUES ($1, $2)
+        """, user_id, channel_id)
+
+        # nothing happens to the other party of the dm channel
+        await app.dispacher.dispatch_user(user_id, 'CHANNEL_DELETE', chan)
+        return jsonify(chan)
+
+    if ctype == ChannelType.GROUP_DM:
+        # TODO: group dm
+        pass
+
+    return '', 404
 
 
 @bp.route('/<int:channel_id>/messages', methods=['GET'])
@@ -82,7 +221,6 @@ async def get_single_message(channel_id, message_id):
     await channel_check(user_id, channel_id)
 
     # TODO: check READ_MESSAGE_HISTORY permissions
-
     message = await app.storage.get_message(message_id)
 
     if not message:
@@ -120,6 +258,8 @@ async def create_message(channel_id):
     )
 
     # TODO: dispatch_channel
+    # we really need dispatch_channel to make dm messages work,
+    # since they aren't part of any existing guild.
     payload = await app.storage.get_message(message_id)
     await app.dispatcher.dispatch_guild(guild_id, 'MESSAGE_CREATE', payload)
 
@@ -266,6 +406,7 @@ async def delete_pin(channel_id, message_id):
 
     timestamp = snowflake_datetime(row['message_id'])
 
+    # TODO: dispatch_channel
     await app.dispatcher.dispatch_guild(guild_id, 'CHANNEL_PINS_UPDATE', {
         'channel_id': str(channel_id),
         'last_pin_timestamp': timestamp.isoformat()
@@ -279,6 +420,7 @@ async def trigger_typing(channel_id):
     user_id = await token_check()
     guild_id = await channel_check(user_id, channel_id)
 
+    # TODO: dispatch_channel
     await app.dispatcher.dispatch_guild(guild_id, 'TYPING_START', {
         'channel_id': str(channel_id),
         'user_id': str(user_id),

@@ -17,6 +17,11 @@ class ChannelType(EasyEnum):
     GUILD_CATEGORY = 4
 
 
+GUILD_CHANS = (ChannelType.GUILD_TEXT,
+               ChannelType.GUILD_VOICE,
+               ChannelType.GUILD_CATEGORY)
+
+
 class ActivityType(EasyEnum):
     PLAYING = 0
     STREAMING = 1
