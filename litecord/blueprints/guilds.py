@@ -183,7 +183,7 @@ async def delete_guild(guild_id):
     # remove from the dispatcher so nobody
     # becomes the little memer that tries to fuck up with
     # everybody's gateway
-    app.dispatcher.remove_guild(guild_id)
+    await app.dispatcher.remove('guild', guild_id)
 
     return '', 204
 

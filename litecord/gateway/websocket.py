@@ -287,9 +287,11 @@ class GatewayWebsocket:
         """Subscribe to all available guilds"""
         guild_ids = await self._guild_ids()
         log.info('subscribing to {} guilds', len(guild_ids))
-        self.ext.dispatcher.sub_many(self.state.user_id, guild_ids)
+        await self.ext.dispatcher.sub_many('guild',
+                                           self.state.user_id, guild_ids)
 
     async def update_status(self, status: dict):
+        """Update the status of the current websocket connection."""
         if status is None:
             status = {
                 'afk': False,

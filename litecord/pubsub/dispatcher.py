@@ -21,6 +21,12 @@ class Dispatcher:
     async def dispatch(self, _key, *_args, **_kwargs):
         raise NotImplementedError
 
+    async def reset(self, _key):
+        raise NotImplementedError
+
+    async def remove(self, _key):
+        raise NotImplementedError
+
     async def _dispatch_states(self, states: list, event: str, data) -> int:
         dispatched = 0
 

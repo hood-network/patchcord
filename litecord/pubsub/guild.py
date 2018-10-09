@@ -26,6 +26,12 @@ class GuildDispatcher(Dispatcher):
     async def reset(self, guild_id: int):
         self.guild_buckets[guild_id] = set()
 
+    async def remove(self, guild_id: int):
+        try:
+            self.guild_buckets.pop(guild_id)
+        except KeyError:
+            pass
+
     async def dispatch(self, guild_id: int,
                        event_name: str, event_payload: Any):
         user_ids = self.guild_buckets[guild_id]
@@ -41,7 +47,7 @@ class GuildDispatcher(Dispatcher):
             if not states:
                 # user is actually disconnected,
                 # so we should just unsub it
-                await self._unsub(guild_id, user_id)
+                await self.unsub(guild_id, user_id)
                 continue
 
             dispatched += await self._dispatch_states(

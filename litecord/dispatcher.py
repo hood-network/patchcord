@@ -18,6 +18,8 @@ class EventDispatcher:
             'guild': GuildDispatcher(self),
             'member': MemberDispatcher(self),
             'user': UserDispatcher(self),
+
+            # TODO: channel, friends
         }
 
     async def action(self, backend_str: str, action: str, key, identifier):
@@ -45,16 +47,35 @@ class EventDispatcher:
         """
         backend = self.backends[backend_str]
         key = backend.KEY_TYPE(key)
-        return await backend._dispatch(key, *args, **kwargs)
+        return await backend.dispatch(key, *args, **kwargs)
 
     async def reset(self, backend_str: str, key: Any):
         """Reset the bucket in the given backend."""
         backend = self.backends[backend_str]
         key = backend.KEY_TYPE(key)
-        return await backend._reset(key)
+        return await backend.reset(key)
+
+    async def remove(self, backend_str: str, key: Any):
+        """Remove a key from the backend. This
+        might be a different operation than resetting."""
+        backend = self.backends[backend_str]
+        key = backend.KEY_TYPE(key)
+        return await backend.remove(key)
 
     async def sub_many(self, backend_str: str, identifier: Any, keys: list):
         """Subscribe to many buckets inside a single backend
         at a time."""
         for key in keys:
             await self.subscribe(backend_str, key, identifier)
+
+    async def dispatch_guild(self, guild_id, event, data):
+        """Backwards compatibility."""
+        return await self.dispatch('guild', guild_id, event, data)
+
+    async def dispatch_user_guild(self, user_id, guild_id, event, data):
+        """Backwards compatibility."""
+        return await self.dispatch('member', (guild_id, user_id), event, data)
+
+    async def dispatch_user(self, user_id, event, data):
+        """Backwards compatibility."""
+        return await self.dispatch('user', user_id, event, data)

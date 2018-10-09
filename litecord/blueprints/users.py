@@ -106,7 +106,7 @@ async def leave_guild(guild_id: int):
         }
     )
 
-    await app.dispatcher.unsub_guild(guild_id, user_id)
+    await app.dispatcher.unsub('guild', guild_id, user_id)
 
     await app.dispatcher.dispatch_guild('GUILD_MEMBER_REMOVE', {
         'guild_id': str(guild_id),
