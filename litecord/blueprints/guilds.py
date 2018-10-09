@@ -85,7 +85,7 @@ async def create_guild():
 
     guild_total = await app.storage.get_guild_full(guild_id, user_id, 250)
 
-    app.dispatcher.sub_guild(guild_id, user_id)
+    await app.dispatcher.sub('guild', guild_id, user_id)
     await app.dispatcher.dispatch_guild(guild_id, 'GUILD_CREATE', guild_total)
     return jsonify(guild_total)
 
@@ -438,10 +438,12 @@ async def create_ban(guild_id, member_id):
     WHERE guild_id = $1 AND user_id = $2
     """, guild_id, user_id)
 
-    await app.dispatcher.dispatch_user(user_id, 'GUILD_DELETE', {
+    await app.dispatcher.dispatch_user(member_id, 'GUILD_DELETE', {
         'guild_id': guild_id,
         'unavailable': False,
     })
+
+    await app.dispatcher.unsub('guild', guild_id, member_id)
 
     await app.dispatcher.dispatch_guild(guild_id, 'GUILD_MEMBER_REMOVE', {
         'guild': guild_id,
