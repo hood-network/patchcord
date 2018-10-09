@@ -3,6 +3,9 @@ from typing import Any
 
 from logbook import Logger
 
+from .pubsub import GuildDispatcher, MemberDispatcher, \
+    UserDispatcher
+
 log = Logger(__name__)
 
 
@@ -10,74 +13,48 @@ class EventDispatcher:
     """Pub/Sub routines for litecord."""
     def __init__(self, sm):
         self.state_manager = sm
-        self.guild_buckets = collections.defaultdict(set)
 
-    def sub_guild(self, guild_id: int, user_id: int):
-        """Subscribe to a guild's events, given the user ID."""
-        self.guild_buckets[guild_id].add(user_id)
+        self.backends = {
+            'guild': GuildDispatcher(self),
+            'member': MemberDispatcher(self),
+            'user': UserDispatcher(self),
+        }
 
-    def unsub_guild(self, guild_id: int, user_id: int):
-        """Unsubscribe from a guild, given user ID"""
-        self.guild_buckets[guild_id].discard(user_id)
+    async def action(self, backend_str: str, action: str, key, identifier):
+        """Send an action regarding a key/identifier pair to a backend."""
+        backend = self.backends[backend_str]
+        method = getattr(backend, f'{action}')
 
-    def remove_guild(self, guild_id):
-        """Reset the guild bucket."""
-        self.guild_buckets[guild_id] = set()
+        key = backend.KEY_TYPE(key)
+        identifier = backend.VAL_TYPE(identifier)
 
-    def sub_many(self, user_id: int, guild_ids: list):
-        """Subscribe to many guilds at a time."""
-        for guild_id in guild_ids:
-            self.sub_guild(guild_id, user_id)
+        return await method(key, identifier)
 
-    async def dispatch_guild(self, guild_id: int,
-                             event_name: str, event_payload: Any):
-        """Dispatch an event to a guild"""
-        users = self.guild_buckets[guild_id]
-        dispatched = 0
+    async def subscribe(self, backend: str, key: Any, identifier: Any):
+        """Subscribe a single element to the given backend."""
+        return await self.action(backend, 'sub', key, identifier)
 
-        log.debug('Dispatching {} {!r} to {} users',
-                  guild_id, event_name, len(users))
+    async def unsubscribe(self, backend: str, key: Any, identifier: Any):
+        """Unsubscribe an element from the given backend."""
+        return await self.action(backend, 'unsub', key, identifier)
 
-        for user_id in set(users):
-            # fetch all connections that are tied to the guild,
-            # this includes all connections that are just a single shard
-            # and all shards that are nicely working
-            states = self.state_manager.fetch_states(user_id, guild_id)
+    async def dispatch(self, backend_str: str, key: Any, *args, **kwargs):
+        """Dispatch an event to the backend.
 
-            # if there are no more states tied to the guild,
-            # why keep the user as a subscriber?
-            if not states:
-                self.unsub_guild(guild_id, user_id)
-                continue
-
-            # for each reasonable state/shard, dispatch event
-            for state in states:
-                # NOTE: maybe a separate task for that async?
-                await state.ws.dispatch(event_name, event_payload)
-                dispatched += 1
-
-        log.info('Dispatched {} {!r} to {} states',
-                 guild_id, event_name, dispatched)
-
-    async def _dispatch_states(self, states: list, event: str, data: Any):
-        for state in states:
-            await state.ws.dispatch(event, data)
-
-    async def dispatch_user_guild(self, user_id: int, guild_id: int,
-                                  event: str, data: Any):
-        """Dispatch a single event to a user inside a guild.
-
-        The difference between dispatch_user and dispatch_user_guild
-        is sharding management happening here, via StateManager.fetch_states
+        The backend is responsible for everything regarding the dispatch.
         """
-        states = self.state_manager.fetch_states(user_id, guild_id)
+        backend = self.backends[backend_str]
+        key = backend.KEY_TYPE(key)
+        return await backend._dispatch(key, *args, **kwargs)
 
-        if not states:
-            self.unsub_guild(guild_id, user_id)
+    async def reset(self, backend_str: str, key: Any):
+        """Reset the bucket in the given backend."""
+        backend = self.backends[backend_str]
+        key = backend.KEY_TYPE(key)
+        return await backend._reset(key)
 
-        await self._dispatch_states(states, event, data)
-
-    async def dispatch_user(self, user_id: int, event: str, data: Any):
-        """Dispatch an event to a single user."""
-        states = self.state_manager.user_states(user_id)
-        await self._dispatch_states(states, event, data)
+    async def sub_many(self, backend_str: str, identifier: Any, keys: list):
+        """Subscribe to many buckets inside a single backend
+        at a time."""
+        for key in keys:
+            await self.subscribe(backend_str, key, identifier)
