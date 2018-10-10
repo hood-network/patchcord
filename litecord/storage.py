@@ -74,7 +74,7 @@ class Storage:
         # TODO: query less instead of popping when secure=True
         user_row = await self.db.fetchrow("""
         SELECT id::text, username, discriminator, avatar, email,
-            flags, bot, mfa_enabled, verified, premium
+            flags, bot, mfa_enabled, verified, premium_since
         FROM users
         WHERE users.id = $1
         """, user_id)
@@ -83,6 +83,9 @@ class Storage:
             return
 
         duser = dict(user_row)
+
+        duser['premium'] = duser['premium_since'] is not None
+        duser.pop('premium_since')
 
         if not secure:
             duser.pop('email')
