@@ -180,6 +180,20 @@ CREATE TABLE IF NOT EXISTS channels (
     channel_type int NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS user_read_state (
+    user_id bigint REFERENCES users (id),
+    channel_id bigint REFERENCES channels (id),
+
+    -- we don't really need to link
+    -- this column to the messages table
+    last_message_id bigint,
+
+    -- counts are always positive
+    mention_count bigint CHECK (mention_count > -1),
+
+    PRIMARY KEY (user_id, channel_id)
+);
+
 CREATE TABLE IF NOT EXISTS guilds (
     id bigint PRIMARY KEY NOT NULL,
 

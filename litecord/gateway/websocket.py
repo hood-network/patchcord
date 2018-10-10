@@ -207,6 +207,8 @@ class GatewayWebsocket:
             'user_settings': await self.storage.get_user_settings(user_id),
             'notes': await self.storage.fetch_notes(user_id),
             'relationships': await self.storage.get_relationships(user_id),
+            'read_state': await self.storage.get_read_state(user_id),
+
             'friend_suggestion_count': 0,
 
             # TODO
@@ -214,9 +216,6 @@ class GatewayWebsocket:
 
             # TODO
             'presences': [],
-
-            # TODO
-            'read_state': [],
 
             # TODO
             'connected_accounts': [],
@@ -229,7 +228,9 @@ class GatewayWebsocket:
     async def dispatch_ready(self):
         """Dispatch the READY packet for a connecting account."""
         guilds = await self._make_guild_list()
-        user = await self.storage.get_user(self.state.user_id, True)
+
+        user_id = self.state.user_id
+        user = await self.storage.get_user(user_id, True)
 
         uready = {}
         if not self.state.bot:
@@ -240,8 +241,8 @@ class GatewayWebsocket:
             'v': 6,
             'user': user,
 
-            # TODO: dms
-            'private_channels': [],
+            'private_channels': await self.storage.get_dms(user_id),
+
             'guilds': guilds,
             'session_id': self.state.session_id,
             '_trace': ['transbian']

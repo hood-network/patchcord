@@ -5,20 +5,10 @@ from ..snowflake import get_snowflake
 from ..enums import ChannelType
 from ..errors import Forbidden, GuildNotFound, BadRequest
 from ..schemas import validate, GUILD_UPDATE
+from .channels import channel_ack
+from .checks import guild_check, channel_check
 
 bp = Blueprint('guilds', __name__)
-
-
-async def guild_check(user_id: int, guild_id: int):
-    """Check if a user is in a guild."""
-    joined_at = await app.db.execute("""
-    SELECT joined_at
-    FROM members
-    WHERE user_id = $1 AND guild_id = $2
-    """, user_id, guild_id)
-
-    if not joined_at:
-        raise GuildNotFound('guild not found')
 
 
 async def guild_owner_check(user_id: int, guild_id: int):
@@ -469,3 +459,16 @@ async def search_messages(guild_id):
         'messages': [],
         'analytics_id': 'ass',
     })
+
+
+@bp.route('/<int:guild_id>/ack', methods=['POST'])
+async def ack_guild(guild_id):
+    user_id = await token_check()
+    await guild_check(user_id, guild_id)
+
+    chan_ids = await app.storage.get_channel_ids(guild_id)
+
+    for chan_id in chan_ids:
+        await channel_ack(user_id, guild_id, chan_id)
+
+    return '', 204

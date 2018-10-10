@@ -225,7 +225,7 @@ class Storage:
         members = await self.get_member_multi(guild_id, mids)
         return members
 
-    async def _chan_last_message(self, channel_id: int):
+    async def chan_last_message(self, channel_id: int):
         return await self.db.fetchval("""
         SELECT MAX(id)
         FROM messages
@@ -247,7 +247,7 @@ class Storage:
             return {**row, **{
                 'topic': topic,
                 'last_message_id': str(
-                    await self._chan_last_message(row['id']))
+                    await self.chan_last_message(row['id']))
             }}
         elif chan_type == ChannelType.GUILD_VOICE:
             vrow = await self.db.fetchval("""
@@ -329,7 +329,7 @@ class Storage:
             drow['type'] = chan_type
 
             drow['last_message_id'] = str(
-                await self._chan_last_message(channel_id))
+                await self.chan_last_message(channel_id))
 
             # dms have just two recipients.
             drow['recipients'] = [
@@ -346,6 +346,15 @@ class Storage:
             pass
 
         return None
+
+    async def get_channel_ids(self, guild_id: int) -> List[int]:
+        rows = await self.db.fetch("""
+        SELECT id
+        FROM guild_channels
+        WHERE guild_id = $1
+        """, guild_id)
+
+        return [r['id'] for r in rows]
 
     async def get_channel_data(self, guild_id) -> List[Dict]:
         """Get channel information on a guild"""
@@ -753,7 +762,7 @@ class Storage:
         which is different than the whole list of DM channels.
         """
         dm_ids = await self.db.fetch("""
-        SELECT id
+        SELECT dm_id
         FROM dm_channel_state
         WHERE user_id = $1
         """, user_id)
@@ -779,5 +788,27 @@ class Storage:
         for dm_id in dm_ids:
             dm_chan = await self.get_dm(dm_id, user_id)
             res.append(dm_chan)
+
+        return res
+
+    async def get_read_state(self, user_id: int) -> List[Dict[str, Any]]:
+        """Get the read state for a user."""
+        rows = await self.db.fetch("""
+        SELECT channel_id, last_message_id, mention_count
+        FROM user_read_state
+        WHERE user_id = $1
+        """, user_id)
+
+        res = []
+
+        for row in rows:
+            drow = dict(row)
+
+            drow['id'] = str(drow['channel_id'])
+            drow.pop('channel_id')
+
+            drow['last_message_id'] = str(drow['last_message_id'])
+
+            res.append(drow)
 
         return res

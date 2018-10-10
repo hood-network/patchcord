@@ -6,45 +6,13 @@ from logbook import Logger
 from ..auth import token_check
 from ..snowflake import get_snowflake, snowflake_datetime
 from ..enums import ChannelType, MessageType, GUILD_CHANS
-from ..errors import Forbidden, BadRequest, ChannelNotFound, MessageNotFound
+from ..errors import Forbidden, ChannelNotFound, MessageNotFound
 from ..schemas import validate, MESSAGE_CREATE
 
-from .guilds import guild_check
+from .checks import channel_check, guild_check
 
 log = Logger(__name__)
 bp = Blueprint('channels', __name__)
-
-
-async def channel_check(user_id, channel_id):
-    """Check if the current user is authorized
-    to read the channel's information."""
-    chan_type = await app.storage.get_chan_type(channel_id)
-
-    if chan_type is None:
-        raise ChannelNotFound(f'channel type not found')
-
-    ctype = ChannelType(chan_type)
-
-    if ctype in GUILD_CHANS:
-        guild_id = await app.db.fetchval("""
-        SELECT guild_id
-        FROM guild_channels
-        WHERE guild_channels.id = $1
-        """, channel_id)
-
-        await guild_check(user_id, guild_id)
-        return guild_id
-
-    if ctype == ChannelType.DM:
-        parties = await app.db.fetchval("""
-        SELECT party1_id, party2_id
-        FROM dm_channels
-        WHERE id = $1 AND (party1_id = $2 OR party2_id = $2)
-        """, channel_id, user_id)
-
-        # get the id of the other party
-        parties.remove(user_id)
-        return parties[0]
 
 
 @bp.route('/<int:channel_id>', methods=['GET'])
@@ -263,6 +231,17 @@ async def create_message(channel_id):
     payload = await app.storage.get_message(message_id)
     await app.dispatcher.dispatch_guild(guild_id, 'MESSAGE_CREATE', payload)
 
+    # TODO: dispatch the MESSAGE_CREATE to any mentioning user.
+
+    for str_uid in payload['mentions']:
+        uid = int(str_uid)
+
+        await app.db.execute("""
+        UPDATE user_read_state
+        SET mention_count += 1
+        WHERE user_id = $1 AND channel_id = $2
+        """, uid, channel_id)
+
     return jsonify(payload)
 
 
@@ -431,3 +410,55 @@ async def trigger_typing(channel_id):
     })
 
     return '', 204
+
+
+async def channel_ack(user_id, guild_id, channel_id, message_id: int = None):
+    """ACK a channel."""
+
+    if not message_id:
+        message_id = await app.storage.chan_last_message(channel_id)
+
+    res = await app.db.execute("""
+    UPDATE user_read_state
+
+    SET last_message_id = $1,
+        mention_count = 0
+
+    WHERE user_id = $2 AND channel_id = $3
+    """, message_id, user_id, channel_id)
+
+    if res == 'UPDATE 0':
+        await app.db.execute("""
+        INSERT INTO user_read_state
+            (user_id, channel_id, last_message_id, mention_count)
+        VALUES ($1, $2, $3, $4)
+        """, user_id, channel_id, message_id, 0)
+
+    if guild_id:
+        await app.dispatcher.dispatch_user_guild(
+            user_id, guild_id, 'MESSAGE_ACK', {
+                'message_id': str(message_id),
+                'channel_id': str(channel_id)
+            })
+    else:
+        # TODO: use ChannelDispatcher
+        await app.dispatcher.dispatch_user(
+            user_id, 'MESSAGE_ACK', {
+                'message_id': str(message_id),
+                'channel_id': str(channel_id)
+            })
+
+
+@bp.route('/<int:channel_id>/messages/<int:message_id>/ack', methods=['POST'])
+async def ack_channel(channel_id, message_id):
+    user_id = await token_check()
+    guild_id = await channel_check(user_id, channel_id)
+
+    await channel_ack(user_id, guild_id, channel_id, message_id)
+
+    return jsonify({
+        # token seems to be used for
+        # data collection activities,
+        # so we never use it.
+        'token': None
+    })
