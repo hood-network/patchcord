@@ -20,5 +20,8 @@ class OP:
     # request member / presence information
     GUILD_SYNC = 12
 
+    # request to sync up call dm / group dm
+    CALL_SYNC = 13
+
     # request for lazy guilds
     LAZY_REQUEST = 14

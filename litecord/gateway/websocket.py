@@ -583,6 +583,20 @@ class GatewayWebsocket:
 
             await self._guild_sync(guild_id)
 
+    async def handle_13(self, payload: Dict[str, Any]):
+        """Handle CALL_SYNC request.
+
+        There isn't any need to actually finish the implementation
+        since we don't have voice. Discord doesn't seem to send anything
+        on text-only DMs, so I'll keep that behavior and do nothing.
+
+        CALL_SYNC structure (for now, we don't know if there is anything else):
+        {
+            channel_id: snowflake
+        }
+        """
+        pass
+
     async def handle_14(self, payload: Dict[str, Any]):
         """Lazy guilds handler.
 
