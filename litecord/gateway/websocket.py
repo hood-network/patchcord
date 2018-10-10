@@ -747,6 +747,7 @@ class GatewayWebsocket:
         try:
             handler = getattr(self, f'handle_{op_code}')
         except AttributeError:
+            log.warning('Payload with bad op: {}', pprint.pformat(payload))
             raise UnknownOPCode(f'Bad OP code: {op_code}')
 
         await handler(payload)

@@ -218,6 +218,11 @@ async def put_note(target_id: int):
         WHERE user_id = $1 AND target_id = $2
         """, user_id, target_id, note)
 
+    await app.dispatcher.dispatch_user(user_id, 'USER_NOTE_UPDATE', {
+        'id': str(target_id),
+        'note': note,
+    })
+
     return '', 204
 
 
