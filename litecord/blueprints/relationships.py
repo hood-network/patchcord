@@ -2,7 +2,7 @@ from quart import Blueprint, jsonify, request, current_app as app
 from asyncpg import UniqueViolationError
 
 from ..auth import token_check
-from ..schemas import validate, RELATIONSHIP
+from ..schemas import validate, RELATIONSHIP, SPECIFIC_FRIEND
 from ..enums import RelationshipType
 
 
@@ -15,12 +15,8 @@ async def get_me_relationships():
     return jsonify(await app.storage.get_relationships(user_id))
 
 
-@bp.route('/@me/relationships/<int:peer_id>', methods=['PUT'])
-async def add_relationship(peer_id: int):
-    """Add a relationship to the peer."""
-    user_id = await token_check()
-    payload = validate(await request.get_json(), RELATIONSHIP)
-    rel_type = payload['type']
+async def make_friend(user_id: int, peer_id: int,
+                      rel_type=RelationshipType.FRIEND.value):
     _friend = RelationshipType.FRIEND.value
 
     await app.db.execute("""
@@ -76,7 +72,44 @@ async def add_relationship(peer_id: int):
 
         return '', 204
 
-    # its a block.
+    return
+
+
+@bp.route('/@me/relationships', methods=['POST'])
+async def post_relationship():
+    user_id = await token_check()
+    j = validate(await request.get_json(), SPECIFIC_FRIEND)
+
+    uid = await app.storage.search_user(j['username'],
+                                        str(j['discriminator']))
+
+    if not uid:
+        return '', 404
+
+    res = await make_friend(user_id, uid)
+
+    # NOTE: don't know what status code should I send
+    if res is None:
+        return '', 500
+
+    return '', 204
+
+
+@bp.route('/@me/relationships/<int:peer_id>', methods=['PUT'])
+async def add_relationship(peer_id: int):
+    """Add a relationship to the peer."""
+    user_id = await token_check()
+    payload = validate(await request.get_json(), RELATIONSHIP)
+    rel_type = payload['type']
+
+    res = await make_friend(user_id, peer_id, rel_type)
+
+    if res is not None:
+        return res
+
+    # make_friend did not succeed, so we
+    # assume it is a block and dispatch
+    # the respective RELATIONSHIP_ADD.
     await app.dispatcher.dispatch_user(user_id, 'RELATIONSHIP_ADD', {
         'id': str(peer_id),
         'type': RelationshipType.BLOCK.value,

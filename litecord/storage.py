@@ -91,6 +91,17 @@ class Storage:
 
         return duser
 
+    async def search_user(self, username: str, discriminator: str) -> int:
+        """Search a user"""
+        if len(discriminator) < 4:
+            # how do we do this in f-strings again..?
+            discriminator = '%04d' % discriminator
+
+        return await self.db.fetchval("""
+        SELECT id FROM users
+        WHERE username = $1 AND discriminator = $2
+        """, username, discriminator)
+
     async def get_guild(self, guild_id: int, user_id=None) -> Dict:
         """Get gulid payload."""
         row = await self.db.fetchrow("""
@@ -232,6 +243,10 @@ class Storage:
         WHERE channel_id = $1
         """, channel_id)
 
+    async def chan_last_message_str(self, channel_id: int) -> int:
+        last_msg = await self.chan_last_message(channel_id)
+        return str(last_msg) if last_msg is not None else None
+
     async def _channels_extra(self, row) -> Dict:
         """Fill in more information about a channel."""
         channel_type = row['type']
@@ -244,10 +259,11 @@ class Storage:
             WHERE id = $1
             """, row['id'])
 
+            last_msg = await self.chan_last_message_str(row['id'])
+
             return {**row, **{
                 'topic': topic,
-                'last_message_id': str(
-                    await self.chan_last_message(row['id']))
+                'last_message_id': last_msg,
             }}
         elif chan_type == ChannelType.GUILD_VOICE:
             vrow = await self.db.fetchval("""
@@ -328,8 +344,8 @@ class Storage:
             drow = dict(dm_row)
             drow['type'] = chan_type
 
-            drow['last_message_id'] = str(
-                await self.chan_last_message(channel_id))
+            drow['last_message_id'] = await self.chan_last_message_str(
+                channel_id)
 
             # dms have just two recipients.
             drow['recipients'] = [

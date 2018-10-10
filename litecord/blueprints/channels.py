@@ -99,6 +99,40 @@ async def _update_guild_chan_cat(guild_id: int, channel_id: int):
         )
 
 
+async def delete_messages(channel_id):
+    await app.db.execute("""
+    DELETE FROM channel_pins
+    WHERE channel_id = $1
+    """, channel_id)
+
+    await app.db.execute("""
+    DELETE FROM user_read_state
+    WHERE channel_id = $1
+    """, channel_id)
+
+    await app.db.execute("""
+    DELETE FROM messages
+    WHERE channel_id = $1
+    """, channel_id)
+
+
+async def guild_cleanup(channel_id):
+    await app.db.execute("""
+    DELETE FROM channel_overwrites
+    WHERE channel_id = $1
+    """, channel_id)
+
+    await app.db.execute("""
+    DELETE FROM invites
+    WHERE channel_id = $1
+    """, channel_id)
+
+    await app.db.execute("""
+    DELETE FROM webhooks
+    WHERE channel_id = $1
+    """, channel_id)
+
+
 @bp.route('/<int:channel_id>', methods=['DELETE'])
 async def close_channel(channel_id):
     user_id = await token_check()
@@ -118,12 +152,34 @@ async def close_channel(channel_id):
             ChannelType.GUILD_CATEGORY: _update_guild_chan_cat,
         }[ctype]
 
+        main_tbl = {
+            ChannelType.GUILD_TEXT: 'guild_text_channels',
+            ChannelType.GUILD_VOICE: 'guild_voice_channels',
+
+            # TODO: categories?
+        }[ctype]
+
         await _update_func(guild_id, channel_id)
 
-        # this should take care of deleting all messages as well
-        # (if any)
+        # for some reason ON DELETE CASCADE
+        # didn't work on my setup, so I delete
+        # everything before moving to the main
+        # channel table deletes
+        await delete_messages(channel_id)
+        await guild_cleanup(channel_id)
+
+        await app.db.execute(f"""
+        DELETE FROM {main_tbl}
+        WHERE id = $1
+        """, channel_id)
+
         await app.db.execute("""
         DELETE FROM guild_channels
+        WHERE id = $1
+        """, channel_id)
+
+        await app.db.execute("""
+        DELETE FROM channels
         WHERE id = $1
         """, channel_id)
 

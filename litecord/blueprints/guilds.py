@@ -209,21 +209,11 @@ async def create_channel(guild_id):
     VALUES ($1, $2)
     """, new_channel_id, channel_type.value)
 
-    max_pos = await app.db.fetch("""
+    max_pos = await app.db.fetchval("""
     SELECT MAX(position)
     FROM guild_channels
     WHERE guild_id = $1
     """, guild_id)
-
-    channel = {
-        'id': str(new_channel_id),
-        'type': channel_type,
-        'guild_id': str(guild_id),
-        'position': max_pos + 1,
-        'permission_overwrites': [],
-        'nsfw': False,
-        'name': j['name'],
-    }
 
     if channel_type == ChannelType.GUILD_TEXT:
         await app.db.execute("""
@@ -236,15 +226,12 @@ async def create_channel(guild_id):
         VALUES ($1)
         """, new_channel_id)
 
-        channel['topic'] = None
     elif channel_type == ChannelType.GUILD_VOICE:
-        channel['user_limit'] = 0
-        channel['bitrate'] = 64
-
         raise NotImplementedError()
 
-    await app.dispatcher.dispatch_guild(guild_id, 'CHANNEL_CREATE', channel)
-    return jsonify(channel)
+    chan = await app.storage.get_channel(new_channel_id)
+    await app.dispatcher.dispatch_guild(guild_id, 'CHANNEL_CREATE', chan)
+    return jsonify(chan)
 
 
 @bp.route('/<int:guild_id>/channels', methods=['PATCH'])

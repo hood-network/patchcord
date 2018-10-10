@@ -292,3 +292,8 @@ CREATE_GROUP_DM = {
     'required': True,
     'schema': {'type': 'snowflake'}
 }
+
+SPECIFIC_FRIEND = {
+    'username': {'type': 'username'},
+    'discriminator': {'type': 'number'}
+}

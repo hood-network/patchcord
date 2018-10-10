@@ -298,7 +298,7 @@ CREATE TABLE IF NOT EXISTS group_dm_members (
 
 
 CREATE TABLE IF NOT EXISTS channel_overwrites (
-    channel_id bigint REFERENCES channels (id),
+    channel_id bigint REFERENCES channels (id) ON DELETE CASCADE,
 
     -- target_type = 0 -> use target_user
     -- target_type = 1 -> user target_role
