@@ -397,8 +397,6 @@ CREATE TABLE IF NOT EXISTS webhooks (
 );
 
 
-
-
 CREATE TABLE IF NOT EXISTS members (
     user_id bigint REFERENCES users (id) ON DELETE CASCADE,
     guild_id bigint REFERENCES guilds (id) ON DELETE CASCADE,

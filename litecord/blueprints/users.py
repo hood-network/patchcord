@@ -5,7 +5,7 @@ from ..auth import token_check
 from ..snowflake import get_snowflake
 from ..errors import Forbidden, BadRequest
 from ..schemas import validate, USER_SETTINGS, CREATE_DM, CREATE_GROUP_DM
-from ..enums import ChannelType
+from ..enums import ChannelType, RelationshipType
 
 from .guilds import guild_check
 
@@ -285,3 +285,85 @@ async def get_stats_applications():
 async def get_library():
     """Probably related to Discord Store?"""
     return jsonify([])
+
+
+@bp.route('/<int:peer_id>/profile', methods=['GET'])
+async def get_profile(peer_id: int):
+    user_id = await token_check()
+
+    peer = await app.storage.get_user(peer_id)
+
+    if not peer:
+        return '', 404
+
+    # actual premium status is determined by that
+    # column being NULL or not
+    peer_premium = await app.db.fetchval("""
+    SELECT premium_since
+    FROM users
+    WHERE id = $1
+    """, peer_id)
+
+    # this is a rad sql query
+    mutual_guilds = await app.db.fetch("""
+    SELECT guild_id FROM members WHERE user_id = $1
+    INTERSECT
+    SELECT guild_id FROM members WHERE user_id = $2
+    """, user_id, peer_id)
+
+    mutual_guilds = [r['guild_id'] for r in mutual_guilds]
+    mutual_res = []
+
+    # ascending sorting
+    for guild_id in sorted(mutual_guilds):
+
+        nick = await app.db.fetchval("""
+        SELECT nickname
+        FROM members
+        WHERE guild_id = $1 AND user_id = $2
+        """, guild_id, peer_id)
+
+        mutual_res.append({
+            'id': str(guild_id),
+            'nick': nick,
+        })
+
+    return jsonify({
+        'user': peer,
+        'connected_accounts': [],
+        'premium_since': peer_premium,
+        'mutual_guilds': mutual_res,
+    })
+
+
+@bp.route('/<int:peer_id>/relationships', methods=['GET'])
+async def get_mutual_friends(peer_id: int):
+    user_id = await token_check()
+    _friend = RelationshipType.FRIEND.value
+
+    peer = await app.storage.get_user(peer_id)
+
+    if not peer:
+        return '', 204
+
+    # NOTE: maybe this could be better with pure SQL calculations
+    # but it would be beyond my current SQL knowledge, so...
+    user_rels = await app.storage.get_relationships(user_id)
+    peer_rels = await app.storage.get_relationships(peer_id)
+
+    user_friends = {rel['user']['id']
+                    for rel in user_rels if rel['type'] == _friend}
+    peer_friends = {rel['user']['id']
+                    for rel in peer_rels if rel['type'] == _friend}
+
+    # get the intersection, then map them to Storage.get_user() calls
+    mutual_ids = user_friends | peer_friends
+
+    mutual_friends = []
+
+    for friend_id in mutual_ids:
+        mutual_friends.append(
+            await app.storage.get_user(int(friend_id))
+        )
+
+    return jsonify(mutual_friends)
