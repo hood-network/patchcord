@@ -69,7 +69,7 @@ CREATE TABLE IF NOT EXISTS users (
     flags int DEFAULT 0,
 
     -- nitro status encoded in here
-    premium bool DEFAULT false,
+    premium_since timestamp without time zone default NULL,
 
     -- private info
     phone varchar(60) DEFAULT '',
@@ -77,6 +77,7 @@ CREATE TABLE IF NOT EXISTS users (
 
     PRIMARY KEY (id, username, discriminator)
 );
+
 
 -- main user settings
 CREATE TABLE IF NOT EXISTS user_settings (
