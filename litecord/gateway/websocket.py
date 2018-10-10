@@ -97,13 +97,15 @@ class GatewayWebsocket:
         if not isinstance(encoded, bytes):
             encoded = encoded.encode()
 
+        # handle zlib-stream, pure zlib or plain
         if self.wsp.compress == 'zlib-stream':
             data1 = self.wsp.zctx.compress(encoded)
             data2 = self.wsp.zctx.flush(zlib.Z_FULL_FLUSH)
 
             await self.ws.send(data1 + data2)
+        elif self.state and self.state.compress:
+            await self.ws.send(zlib.compress(encoded))
         else:
-            # TODO: pure zlib
             await self.ws.send(encoded.decode())
 
     async def _hb_wait(self, interval: int):

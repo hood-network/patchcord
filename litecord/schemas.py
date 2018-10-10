@@ -288,9 +288,11 @@ CREATE_DM = {
 }
 
 CREATE_GROUP_DM = {
-    'type': 'list',
-    'required': True,
-    'schema': {'type': 'snowflake'}
+    'recipients': {
+        'type': 'list',
+        'required': True,
+        'schema': {'type': 'snowflake'}
+    },
 }
 
 SPECIFIC_FRIEND = {

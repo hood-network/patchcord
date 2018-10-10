@@ -5,6 +5,7 @@ from ..auth import token_check
 from ..snowflake import get_snowflake
 from ..errors import Forbidden, BadRequest
 from ..schemas import validate, USER_SETTINGS, CREATE_DM, CREATE_GROUP_DM
+from ..enums import ChannelType
 
 from .guilds import guild_check
 
@@ -133,7 +134,7 @@ async def try_dm_state(user_id, dm_id):
     for the given DM."""
     try:
         await app.db.execute("""
-        INSERT INTO dm_channel_state (id, dm_id)
+        INSERT INTO dm_channel_state (user_id, dm_id)
         VALUES ($1, $2)
         """, user_id, dm_id)
     except UniqueViolationError:
@@ -145,6 +146,11 @@ async def create_dm(user_id, recipient_id):
     dm_id = get_snowflake()
 
     try:
+        await app.db.execute("""
+        INSERT INTO channels (id, channel_type)
+        VALUES ($1, $2)
+        """, dm_id, ChannelType.DM.value)
+
         await app.db.execute("""
         INSERT INTO dm_channels (id, party1_id, party2_id)
         VALUES ($1, $2, $3)
@@ -175,7 +181,7 @@ async def start_dm():
     return await create_dm(user_id, recipient_id)
 
 
-@bp.route('/<int:user_id>/channels', methods=['POST'])
+@bp.route('/<int:p_user_id>/channels', methods=['POST'])
 async def create_group_dm(p_user_id: int):
     """Create a DM or a Group DM with user(s)."""
     user_id = await token_check()
@@ -184,12 +190,12 @@ async def create_group_dm(p_user_id: int):
     j = validate(await request.get_json(), CREATE_GROUP_DM)
     recipients = j['recipients']
 
-    if list(recipients) == 1:
+    if len(recipients) == 1:
         # its a group dm with 1 user... a dm!
         return await create_dm(user_id, int(recipients[0]))
 
     # TODO: group dms
-    return '', 500
+    return 'group dms not implemented', 500
 
 
 @bp.route('/@me/notes/<int:target_id>', methods=['PUT'])

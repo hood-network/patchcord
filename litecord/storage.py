@@ -41,9 +41,9 @@ def _filter_recipients(recipients: List[Dict[str, Any]], user_id: int):
     the one that is reundant (ourselves)."""
     user_id = str(user_id)
 
-    return filter(
+    return list(filter(
         lambda recipient: recipient['id'] != user_id,
-        recipients)
+        recipients))
 
 
 class Storage:
@@ -336,7 +336,7 @@ class Storage:
             return res
         elif ctype == ChannelType.DM:
             dm_row = await self.db.fetchrow("""
-            SELECT party1_id, party2_id
+            SELECT id, party1_id, party2_id
             FROM dm_channels
             WHERE id = $1
             """, channel_id)
@@ -782,6 +782,8 @@ class Storage:
         FROM dm_channel_state
         WHERE user_id = $1
         """, user_id)
+
+        dm_ids = [r['dm_id'] for r in dm_ids]
 
         res = []
 
