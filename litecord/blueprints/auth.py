@@ -8,6 +8,7 @@ from quart import Blueprint, jsonify, request, current_app as app
 
 from litecord.snowflake import get_snowflake
 from litecord.errors import BadRequest
+from litecord.auth import token_check
 
 
 bp = Blueprint('auth', __name__)
@@ -94,3 +95,15 @@ async def consent_required():
     return jsonify({
         'required': True,
     })
+
+
+@bp.route('/verify/resend', methods=['POST'])
+async def verify_user():
+    user_id = await token_check()
+
+    await app.db.execute("""
+    UPDATE users
+    SET verified = true
+    """, user_id)
+
+    return '', 204
