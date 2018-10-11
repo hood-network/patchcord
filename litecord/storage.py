@@ -240,6 +240,7 @@ class Storage:
         return members
 
     async def chan_last_message(self, channel_id: int):
+        """Get the last message ID in a channel."""
         return await self.db.fetchval("""
         SELECT MAX(id)
         FROM messages
@@ -247,6 +248,11 @@ class Storage:
         """, channel_id)
 
     async def chan_last_message_str(self, channel_id: int) -> int:
+        """Get the last message ID but in a string.
+
+        Converts to None (not the string "None") when
+        no last message ID is found.
+        """
         last_msg = await self.chan_last_message(channel_id)
         return str(last_msg) if last_msg is not None else None
 
@@ -268,7 +274,8 @@ class Storage:
                 'topic': topic,
                 'last_message_id': last_msg,
             }}
-        elif chan_type == ChannelType.GUILD_VOICE:
+
+        if chan_type == ChannelType.GUILD_VOICE:
             vrow = await self.db.fetchval("""
             SELECT bitrate, user_limit FROM guild_voice_channels
             WHERE id = $1

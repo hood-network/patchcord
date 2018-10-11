@@ -5,8 +5,8 @@ log = Logger(__name__)
 
 class Dispatcher:
     """Main dispatcher class."""
-    KEY_TYPE = lambda x: x
-    VAL_TYPE = lambda x: x
+    KEY_TYPE = lambda _, x: x
+    VAL_TYPE = lambda _, x: x
 
     def __init__(self, main):
         self.main_dispatcher = main

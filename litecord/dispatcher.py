@@ -4,7 +4,7 @@ from typing import Any
 from logbook import Logger
 
 from .pubsub import GuildDispatcher, MemberDispatcher, \
-    UserDispatcher
+    UserDispatcher, ChannelDispatcher
 
 log = Logger(__name__)
 
@@ -18,6 +18,7 @@ class EventDispatcher:
         self.backends = {
             'guild': GuildDispatcher(self),
             'member': MemberDispatcher(self),
+            'channel': ChannelDispatcher(self),
             'user': UserDispatcher(self),
 
             # TODO: channel, friends
@@ -35,10 +36,14 @@ class EventDispatcher:
 
     async def subscribe(self, backend: str, key: Any, identifier: Any):
         """Subscribe a single element to the given backend."""
+        log.debug('SUB bacjend={} key={} <= id={}',
+                  backend, key, identifier, backend)
         return await self.action(backend, 'sub', key, identifier)
 
     async def unsubscribe(self, backend: str, key: Any, identifier: Any):
         """Unsubscribe an element from the given backend."""
+        log.debug('UNSUB bacjend={} key={} => id={}',
+                  backend, key, identifier, backend)
         return await self.action(backend, 'unsub', key, identifier)
 
     async def dispatch(self, backend_str: str, key: Any, *args, **kwargs):
