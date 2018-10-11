@@ -11,6 +11,7 @@ class Dispatcher:
     def __init__(self, main):
         self.main_dispatcher = main
         self.sm = main.state_manager
+        self.app = main.app
 
     async def sub(self, _key, _id):
         raise NotImplementedError

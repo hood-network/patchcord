@@ -93,9 +93,9 @@ async def app_before_serving():
     g.loop = asyncio.get_event_loop()
 
     app.state_manager = StateManager()
-    app.dispatcher = EventDispatcher(app.state_manager)
-
     app.storage = Storage(app.db)
+
+    app.dispatcher = EventDispatcher(app)
     app.presence = PresenceManager(app.storage,
                                    app.state_manager, app.dispatcher)
     app.storage.presence = app.presence

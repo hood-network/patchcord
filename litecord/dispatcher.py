@@ -11,8 +11,9 @@ log = Logger(__name__)
 
 class EventDispatcher:
     """Pub/Sub routines for litecord."""
-    def __init__(self, sm):
-        self.state_manager = sm
+    def __init__(self, app):
+        self.state_manager = app.state_manager
+        self.app = app
 
         self.backends = {
             'guild': GuildDispatcher(self),
