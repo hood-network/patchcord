@@ -6,7 +6,7 @@ from ..enums import ChannelType
 from ..errors import Forbidden, GuildNotFound, BadRequest
 from ..schemas import validate, GUILD_UPDATE
 from .channels import channel_ack
-from .checks import guild_check, channel_check
+from .checks import guild_check
 
 bp = Blueprint('guilds', __name__)
 

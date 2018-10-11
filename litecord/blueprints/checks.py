@@ -34,7 +34,7 @@ async def channel_check(user_id, channel_id):
         """, channel_id)
 
         await guild_check(user_id, guild_id)
-        return guild_id
+        return ctype, guild_id
 
     if ctype == ChannelType.DM:
         parties = await app.db.fetchrow("""
@@ -47,4 +47,4 @@ async def channel_check(user_id, channel_id):
 
         # get the id of the other party
         parties.remove(user_id)
-        return parties[0]
+        return ctype, parties[0]

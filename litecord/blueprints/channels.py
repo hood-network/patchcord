@@ -141,7 +141,7 @@ async def close_channel(channel_id):
     ctype = ChannelType(chan_type)
 
     if ctype in GUILD_CHANS:
-        guild_id = await channel_check(user_id, channel_id)
+        _, guild_id = await channel_check(user_id, channel_id)
         chan = await app.storage.get_channel(channel_id)
 
         # the selected function will take care of checking
@@ -256,7 +256,7 @@ async def get_single_message(channel_id, message_id):
 @bp.route('/<int:channel_id>/messages', methods=['POST'])
 async def create_message(channel_id):
     user_id = await token_check()
-    guild_id = await channel_check(user_id, channel_id)
+    _ctype, guild_id = await channel_check(user_id, channel_id)
 
     j = validate(await request.get_json(), MESSAGE_CREATE)
     message_id = get_snowflake()
@@ -304,7 +304,7 @@ async def create_message(channel_id):
 @bp.route('/<int:channel_id>/messages/<int:message_id>', methods=['PATCH'])
 async def edit_message(channel_id, message_id):
     user_id = await token_check()
-    guild_id = await channel_check(user_id, channel_id)
+    _ctype, guild_id = await channel_check(user_id, channel_id)
 
     author_id = await app.db.fetchval("""
     SELECT author_id FROM messages
@@ -339,7 +339,7 @@ async def edit_message(channel_id, message_id):
 @bp.route('/<int:channel_id>/messages/<int:message_id>', methods=['DELETE'])
 async def delete_message(channel_id, message_id):
     user_id = await token_check()
-    guild_id = await channel_check(user_id, channel_id)
+    _ctype, guild_id = await channel_check(user_id, channel_id)
 
     author_id = await app.db.fetchval("""
     SELECT author_id FROM messages
@@ -392,7 +392,7 @@ async def get_pins(channel_id):
 @bp.route('/<int:channel_id>/pins/<int:message_id>', methods=['PUT'])
 async def add_pin(channel_id, message_id):
     user_id = await token_check()
-    guild_id = await channel_check(user_id, channel_id)
+    _ctype, guild_id = await channel_check(user_id, channel_id)
 
     # TODO: check MANAGE_MESSAGES permission
 
@@ -422,7 +422,7 @@ async def add_pin(channel_id, message_id):
 @bp.route('/<int:channel_id>/pins/<int:message_id>', methods=['DELETE'])
 async def delete_pin(channel_id, message_id):
     user_id = await token_check()
-    guild_id = await channel_check(user_id, channel_id)
+    _ctype, guild_id = await channel_check(user_id, channel_id)
 
     # TODO: check MANAGE_MESSAGES permission
 
@@ -453,7 +453,7 @@ async def delete_pin(channel_id, message_id):
 @bp.route('/<int:channel_id>/typing', methods=['POST'])
 async def trigger_typing(channel_id):
     user_id = await token_check()
-    guild_id = await channel_check(user_id, channel_id)
+    _ctype, guild_id = await channel_check(user_id, channel_id)
 
     # TODO: dispatch_channel
     await app.dispatcher.dispatch_guild(guild_id, 'TYPING_START', {
@@ -508,7 +508,10 @@ async def channel_ack(user_id, guild_id, channel_id, message_id: int = None):
 @bp.route('/<int:channel_id>/messages/<int:message_id>/ack', methods=['POST'])
 async def ack_channel(channel_id, message_id):
     user_id = await token_check()
-    guild_id = await channel_check(user_id, channel_id)
+    ctype, guild_id = await channel_check(user_id, channel_id)
+
+    if ctype == ChannelType.DM:
+        guild_id = None
 
     await channel_ack(user_id, guild_id, channel_id, message_id)
 
@@ -518,3 +521,16 @@ async def ack_channel(channel_id, message_id):
         # so we never use it.
         'token': None
     })
+
+
+@bp.route('/<int:channel_id>/messages/ack', methods=['DELETE'])
+async def delete_read_state(channel_id):
+    user_id = await token_check()
+    await channel_check(user_id, channel_id)
+
+    await app.db.execute("""
+    DELETE FROM user_read_state
+    WHERE user_id = $1 AND channel_id = $2
+    """, user_id, channel_id)
+
+    return '', 204
