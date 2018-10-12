@@ -96,9 +96,6 @@ class PresenceManager:
         """Dispatch a Presence update to an entire guild."""
         state = dict(new_state)
 
-        if state['status'] == 'invisible':
-            state['status'] = 'offline'
-
         member = await self.storage.get_member_data_one(guild_id, user_id)
 
         game = state['game']
@@ -117,13 +114,32 @@ class PresenceManager:
             }
         )
 
-    async def dispatch_pres(self, user_id: int, state):
-        """Dispatch a new presence to all guilds the user is in."""
-        # TODO: account for sharding
+    async def dispatch_pres(self, user_id: int, state: dict):
+        """Dispatch a new presence to all guilds the user is in.
+
+        Also dispatches the presence to all the users' friends
+        """
+        if state['status'] == 'invisible':
+            state['status'] = 'offline'
+
         guild_ids = await self.storage.get_user_guilds(user_id)
 
         for guild_id in guild_ids:
             await self.dispatch_guild_pres(guild_id, user_id, state)
+
+        # dispatch to all friends that are subscribed to them
+        user = await self.storage.get_user(user_id)
+        game = state['game']
+
+        await self.dispatcher.dispatch(
+            'friend', user_id, 'PRESENCE_UPDATE', {
+                'user': user,
+                'status': state['status'],
+
+                # rich presence stuff
+                'game': game,
+                'activities': [game] if game else []
+            })
 
     async def friend_presences(self, friend_ids: int) -> List[Dict[str, Any]]:
         """Fetch presences for a group of users.

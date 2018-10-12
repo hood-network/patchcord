@@ -4,7 +4,7 @@ from typing import Any
 from logbook import Logger
 
 from .pubsub import GuildDispatcher, MemberDispatcher, \
-    UserDispatcher, ChannelDispatcher
+    UserDispatcher, ChannelDispatcher, FriendDispatcher
 
 log = Logger(__name__)
 
@@ -20,8 +20,7 @@ class EventDispatcher:
             'member': MemberDispatcher(self),
             'channel': ChannelDispatcher(self),
             'user': UserDispatcher(self),
-
-            # TODO: channel, friends
+            'friend': FriendDispatcher(self),
         }
 
     async def action(self, backend_str: str, action: str, key, identifier):

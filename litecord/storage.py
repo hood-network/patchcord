@@ -771,6 +771,14 @@ class Storage:
 
         return res
 
+    async def get_friend_ids(self, user_id: int) -> List[int]:
+        """Get all friend IDs for a user."""
+        rels = await self.get_relationships(user_id)
+
+        return [int(r['user']['id'])
+                for r in rels
+                if r['type'] == RelationshipType.FRIEND.value]
+
     async def get_dm(self, dm_id: int, user_id: int = None):
         dm_chan = await self.get_channel(dm_id)
 
