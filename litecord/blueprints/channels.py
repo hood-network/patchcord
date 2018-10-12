@@ -195,12 +195,16 @@ async def close_channel(channel_id):
         # the request via removing the link between them and
         # the channel on dm_channel_state
         await app.db.execute("""
-        DELETE FROM dm_channel_state (user_id, dm_id)
-        VALUES ($1, $2)
+        DELETE FROM dm_channel_state
+        WHERE user_id = $1 AND dm_id = $2
         """, user_id, channel_id)
 
+        # unsubscribe
+        await app.dispatcher.unsub('channel', channel_id, user_id)
+
         # nothing happens to the other party of the dm channel
-        await app.dispacher.dispatch_user(user_id, 'CHANNEL_DELETE', chan)
+        await app.dispatcher.dispatch_user(user_id, 'CHANNEL_DELETE', chan)
+
         return jsonify(chan)
 
     if ctype == ChannelType.GROUP_DM:

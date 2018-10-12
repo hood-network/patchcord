@@ -46,6 +46,12 @@ class EventDispatcher:
                   backend, key, identifier, backend)
         return await self.action(backend, 'unsub', key, identifier)
 
+    async def sub(self, backend, key, identifier):
+        return await self.subscribe(backend, key, identifier)
+
+    async def unsub(self, backend, key, identifier):
+        return await self.unsubscribe(backend, key, identifier)
+
     async def dispatch(self, backend_str: str, key: Any, *args, **kwargs):
         """Dispatch an event to the backend.
 
