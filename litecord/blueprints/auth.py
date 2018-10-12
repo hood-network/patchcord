@@ -108,4 +108,8 @@ async def verify_user():
     WHERE id = $1
     """, user_id)
 
+    new_user = await app.storage.get_user(user_id, True)
+    await app.dispatcher.dispatch_user(
+        user_id, 'USER_UPDATE', new_user)
+
     return '', 204
