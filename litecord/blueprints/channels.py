@@ -488,11 +488,11 @@ async def delete_pin(channel_id, message_id):
 
     timestamp = snowflake_datetime(row['message_id'])
 
-    # TODO: dispatch_channel
-    await app.dispatcher.dispatch_guild(guild_id, 'CHANNEL_PINS_UPDATE', {
-        'channel_id': str(channel_id),
-        'last_pin_timestamp': timestamp.isoformat()
-    })
+    await app.dispatcher.dispatch(
+        'channel', channel_id, 'CHANNEL_PINS_UPDATE', {
+            'channel_id': str(channel_id),
+            'last_pin_timestamp': timestamp.isoformat()
+        })
 
     return '', 204
 
@@ -500,16 +500,15 @@ async def delete_pin(channel_id, message_id):
 @bp.route('/<int:channel_id>/typing', methods=['POST'])
 async def trigger_typing(channel_id):
     user_id = await token_check()
-    _ctype, guild_id = await channel_check(user_id, channel_id)
+    ctype, guild_id = await channel_check(user_id, channel_id)
 
-    # TODO: dispatch_channel
-    await app.dispatcher.dispatch_guild(guild_id, 'TYPING_START', {
+    await app.dispatcher.dispatch('channel', channel_id, 'TYPING_START', {
         'channel_id': str(channel_id),
         'user_id': str(user_id),
         'timestamp': int(time.time()),
 
         # guild_id for lazy guilds
-        'guild_id': str(guild_id),
+        'guild_id': str(guild_id) if ctype == ChannelType.GUILD_TEXT else None,
     })
 
     return '', 204
