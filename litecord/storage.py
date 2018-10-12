@@ -840,3 +840,10 @@ class Storage:
             res.append(drow)
 
         return res
+
+    async def guild_from_channel(self, channel_id: int):
+        return await self.db.fetchval("""
+        SELECT guild_id
+        FROM guild_channels
+        WHERE id = $1
+        """, channel_id)

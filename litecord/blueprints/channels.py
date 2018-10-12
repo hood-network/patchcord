@@ -285,7 +285,9 @@ async def create_message(channel_id):
     # we really need dispatch_channel to make dm messages work,
     # since they aren't part of any existing guild.
     payload = await app.storage.get_message(message_id)
-    await app.dispatcher.dispatch_guild(guild_id, 'MESSAGE_CREATE', payload)
+
+    await app.dispatcher.dispatch('channel', channel_id,
+                                  'MESSAGE_CREATE', payload)
 
     # TODO: dispatch the MESSAGE_CREATE to any mentioning user.
 
@@ -330,8 +332,8 @@ async def edit_message(channel_id, message_id):
 
     # only dispatch MESSAGE_UPDATE if we actually had any update to start with
     if updated:
-        await app.dispatcher.dispatch_guild(guild_id,
-                                            'MESSAGE_UPDATE', message)
+        await app.dispatcher.dispatch('channel', channel_id,
+                                      'MESSAGE_UPDATE', message)
 
     return jsonify(message)
 
@@ -355,13 +357,15 @@ async def delete_message(channel_id, message_id):
     WHERE messages.id = $1
     """, message_id)
 
-    await app.dispatcher.dispatch_guild(guild_id, 'MESSAGE_DELETE', {
-        'id': str(message_id),
-        'channel_id': str(channel_id),
+    await app.dispatcher.dispatch(
+        'channel', channel_id,
+        'MESSAGE_DELETE', {
+            'id': str(message_id),
+            'channel_id': str(channel_id),
 
-        # for lazy guilds
-        'guild_id': str(guild_id),
-    })
+            # for lazy guilds
+            'guild_id': str(guild_id),
+        })
 
     return '', 204
 
