@@ -847,3 +847,18 @@ class Storage:
         FROM guild_channels
         WHERE id = $1
         """, channel_id)
+
+    async def get_dm_peer(self, channel_id: int, user_id: int) -> int:
+        """Get the peer id on a dm"""
+        parties = await self.db.fetchrow("""
+        SELECT party1_id, party2_id
+        FROM dm_channels
+        WHERE id = $1 AND (party1_id = $2 OR party2_id = $2)
+        """, channel_id, user_id)
+
+        parties = [parties['party1_id'], parties['party2_id']]
+
+        # get the id of the other party
+        parties.remove(user_id)
+
+        return parties[0]

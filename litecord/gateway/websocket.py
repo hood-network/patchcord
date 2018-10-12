@@ -278,20 +278,28 @@ class GatewayWebsocket:
 
     async def _guild_ids(self):
         # TODO: account for sharding
-        guild_ids = await self.ext.db.fetch("""
-        SELECT guild_id
-        FROM members
-        WHERE user_id = $1
-        """, self.state.user_id)
-
-        return [r['guild_id'] for r in guild_ids]
+        return await self.storage.get_user_guilds(
+            self.state.user_id
+        )
 
     async def subscribe_guilds(self):
-        """Subscribe to all available guilds"""
+        """Subscribe to all available guilds and DM channels.
+
+        Subscribing to channels is already handled
+        by GuildDispatcher.sub
+        """
+        user_id = self.state.user_id
+
         guild_ids = await self._guild_ids()
         log.info('subscribing to {} guilds', len(guild_ids))
-        await self.ext.dispatcher.sub_many('guild',
-                                           self.state.user_id, guild_ids)
+        await self.ext.dispatcher.sub_many('guild', user_id, guild_ids)
+
+        # subscribe the user to all dms they have OPENED.
+        dms = await self.storage.get_dms(user_id)
+        dm_ids = [int(dm['id']) for dm in dms]
+
+        log.info('subscribing to {} dms', len(dm_ids))
+        await self.ext.dispatcher.sub_many('channel', user_id, dm_ids)
 
     async def update_status(self, status: dict):
         """Update the status of the current websocket connection."""

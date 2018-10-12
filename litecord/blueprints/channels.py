@@ -253,16 +253,49 @@ async def get_single_message(channel_id, message_id):
     return jsonify(message)
 
 
+async def _dm_pre_dispatch(channel_id, peer_id):
+    """Doo some checks pre-MESSAGE_CREATE so we
+    make sure the receiving party will handle everything."""
+
+    # check the other party's dm_channel_state
+
+    dm_state = await app.db.fetchval("""
+    SELECT dm_id
+    FROM dm_channel_state
+    WHERE user_id = $1 AND dm_id = $2
+    """, peer_id, channel_id)
+
+    if dm_state:
+        # the peer already has the channel
+        # opened, so we don't need to do anything
+        return
+
+    dm_chan = await app.storage.get_channel(channel_id)
+
+    # dispatch CHANNEL_CREATE so the client knows which
+    # channel the future event is about
+    await app.dispatcher.dispatch_user(peer_id, 'CHANNEL_CREATE', dm_chan)
+
+    # subscribe the peer to the channel
+    await app.dispatcher.sub('channel', channel_id, peer_id)
+
+    # insert it on dm_channel_state so the client
+    # is subscribed on the future
+    await app.db.execute("""
+    INSERT INTO dm_channel_state(user_id, dm_id)
+    VALUES ($1, $2)
+    """, peer_id, channel_id)
+
+
 @bp.route('/<int:channel_id>/messages', methods=['POST'])
 async def create_message(channel_id):
     user_id = await token_check()
-    _ctype, guild_id = await channel_check(user_id, channel_id)
+    ctype, guild_id = await channel_check(user_id, channel_id)
 
     j = validate(await request.get_json(), MESSAGE_CREATE)
     message_id = get_snowflake()
 
     # TODO: check SEND_MESSAGES permission
-    # TODO: check SEND_TTS_MESSAGES
     # TODO: check connection to the gateway
 
     await app.db.execute(
@@ -275,30 +308,36 @@ async def create_message(channel_id):
         channel_id,
         user_id,
         j['content'],
+
+        # TODO: check SEND_TTS_MESSAGES
         j.get('tts', False),
+
+        # TODO: check MENTION_EVERYONE permissions
         '@everyone' in j['content'],
         int(j.get('nonce', 0)),
         MessageType.DEFAULT.value
     )
 
-    # TODO: dispatch_channel
-    # we really need dispatch_channel to make dm messages work,
-    # since they aren't part of any existing guild.
     payload = await app.storage.get_message(message_id)
+    
+    if ctype == ChannelType.DM:
+        # guild id here is the peer's ID.
+        await _dm_pre_dispatch(channel_id, guild_id)
 
     await app.dispatcher.dispatch('channel', channel_id,
                                   'MESSAGE_CREATE', payload)
 
     # TODO: dispatch the MESSAGE_CREATE to any mentioning user.
 
-    for str_uid in payload['mentions']:
-        uid = int(str_uid)
+    if ctype == ChannelType.GUILD_TEXT:
+        for str_uid in payload['mentions']:
+            uid = int(str_uid)
 
-        await app.db.execute("""
-        UPDATE user_read_state
-        SET mention_count += 1
-        WHERE user_id = $1 AND channel_id = $2
-        """, uid, channel_id)
+            await app.db.execute("""
+            UPDATE user_read_state
+            SET mention_count += 1
+            WHERE user_id = $1 AND channel_id = $2
+            """, uid, channel_id)
 
     return jsonify(payload)
 

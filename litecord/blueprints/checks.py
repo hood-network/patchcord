@@ -37,14 +37,5 @@ async def channel_check(user_id, channel_id):
         return ctype, guild_id
 
     if ctype == ChannelType.DM:
-        parties = await app.db.fetchrow("""
-        SELECT party1_id, party2_id
-        FROM dm_channels
-        WHERE id = $1 AND (party1_id = $2 OR party2_id = $2)
-        """, channel_id, user_id)
-
-        parties = [parties['party1_id'], parties['party2_id']]
-
-        # get the id of the other party
-        parties.remove(user_id)
-        return ctype, parties[0]
+        peer_id = await app.storage.get_dm_peer(channel_id, user_id)
+        return ctype, peer_id
