@@ -3,19 +3,15 @@ from typing import Any
 
 from logbook import Logger
 
-from .dispatcher import Dispatcher
+from .dispatcher import DispatcherWithState
 
 log = Logger(__name__)
 
 
-class GuildDispatcher(Dispatcher):
+class GuildDispatcher(DispatcherWithState):
     """Guild backend for Pub/Sub"""
     KEY_TYPE = int
     VAL_TYPE = int
-
-    def __init__(self, main):
-        super().__init__(main)
-        self.guild_buckets = defaultdict(set)
 
     async def _chan_action(self, action: str, guild_id: int, user_id: int):
         chan_ids = await self.app.storage.get_channel_ids(guild_id)
@@ -41,7 +37,8 @@ class GuildDispatcher(Dispatcher):
             await method(chan_id, *args)
 
     async def sub(self, guild_id: int, user_id: int):
-        self.guild_buckets[guild_id].add(user_id)
+        """Subscribe a user to the guild."""
+        await super().sub(guild_id, user_id)
 
         # when subbing a user to the guild, we should sub them
         # to every channel they have access to, in the guild.
@@ -49,24 +46,14 @@ class GuildDispatcher(Dispatcher):
         await self._chan_action('sub', guild_id, user_id)
 
     async def unsub(self, guild_id: int, user_id: int):
-        self.guild_buckets[guild_id].discard(user_id)
+        """Unsubscribe a user from the guild."""
+        await super().unsub(guild_id, user_id)
         await self._chan_action('unsub', guild_id, user_id)
 
-    async def reset(self, guild_id: int):
-        self.guild_buckets[guild_id] = set()
-        await self._chan_call(guild_id, 'reset')
-
-    async def remove(self, guild_id: int):
-        try:
-            self.guild_buckets.pop(guild_id)
-        except KeyError:
-            pass
-
-        await self._chan_call(guild_id, 'remove')
-
     async def dispatch(self, guild_id: int,
-                       event_name: str, event_payload: Any):
-        user_ids = self.guild_buckets[guild_id]
+                       event: str, data: Any):
+        """Dispatch an event to all subscribers of the guild."""
+        user_ids = self.state[guild_id]
         dispatched = 0
 
         # acquire a copy since we will be modifying
@@ -83,7 +70,7 @@ class GuildDispatcher(Dispatcher):
                 continue
 
             dispatched += await self._dispatch_states(
-                states, event_name, event_payload)
+                states, event, data)
 
         log.info('Dispatched {} {!r} to {} states',
-                 guild_id, event_name, dispatched)
+                 guild_id, event, dispatched)

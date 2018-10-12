@@ -101,9 +101,11 @@ async def consent_required():
 async def verify_user():
     user_id = await token_check()
 
+    # TODO: actually verify a user by sending an email
     await app.db.execute("""
     UPDATE users
     SET verified = true
+    WHERE id = $1
     """, user_id)
 
     return '', 204

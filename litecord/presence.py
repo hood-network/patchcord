@@ -1,4 +1,58 @@
 from typing import List, Dict, Any
+from random import choice
+
+from quart import current_app as app
+
+
+def status_cmp(status: str, other_status: str) -> bool:
+    """Compare if `status` is better than the `other_status`
+    in the status hierarchy.
+    """
+
+    hierarchy = {
+        'online': 3,
+        'idle': 2,
+        'dnd': 1,
+        'offline': 0,
+        None: -1,
+    }
+
+    return hierarchy[status] > hierarchy[other_status]
+
+
+def _best_presence(shards):
+    """Find the 'best' presence given a list of GatewayState."""
+    best = {'status': None, 'game': None}
+
+    for state in shards:
+        presence = state.presence
+
+        status = presence['status']
+
+        if not presence:
+            continue
+
+        # shards with a better status
+        # in the hierarchy are treated as best
+        if status_cmp(status, best['status']):
+            best['status'] = status
+
+        # if we have any game, use it
+        if presence['game'] is not None:
+            best['game'] = presence['game']
+
+    # best['status'] is None when no
+    # status was good enough.
+    return None if not best['status'] else best
+
+
+async def _pres(storage, user_id: int, status_obj: dict) -> dict:
+    ext = {
+        'user': await storage.get_user(user_id),
+        'activities': [],
+    }
+
+    return {**status_obj, **ext}
 
 
 class PresenceManager:
@@ -70,3 +124,47 @@ class PresenceManager:
 
         for guild_id in guild_ids:
             await self.dispatch_guild_pres(guild_id, user_id, state)
+
+    async def friend_presences(self, friend_ids: int) -> List[Dict[str, Any]]:
+        """Fetch presences for a group of users.
+
+        This assumes the users are friends and so
+        only gets states that are single or have ID 0.
+        """
+        storage = self.storage
+        res = []
+
+        for friend_id in friend_ids:
+            friend_states = self.state_manager.user_states(friend_id)
+
+            if not friend_states:
+                # append offline
+                res.append(await _pres(storage, friend_id, {
+                    'afk': False,
+                    'status': 'offline',
+                    'game': None,
+                    'since': 0
+                }))
+
+                continue
+
+            # filter the best shards:
+            #  - all with id 0 (are the first shards in the collection) or
+            #  - all shards with count = 1 (single shards)
+            good_shards = list(filter(
+                lambda state: state.shard[0] == 0 or state.shard[1] == 1,
+                friend_states
+            ))
+
+            if good_shards:
+                best_pres = _best_presence(good_shards)
+                best_pres = await _pres(storage, friend_id, best_pres)
+                res.append(best_pres)
+                continue
+
+            # if there aren't any shards with id 0
+            # AND none that are single, just go with a random
+            shard = choice(friend_states)
+            res.append(await _pres(storage, friend_id, shard.presence))
+
+        return res

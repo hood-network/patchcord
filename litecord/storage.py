@@ -737,12 +737,12 @@ class Storage:
 
         for drow in friends:
             drow['type'] = drow['rel_type']
+            drow['id'] = str(drow['peer_id'])
             drow.pop('rel_type')
 
             # check if the receiver is a mutual
             # if it isnt, its still on a friend request stage
             if drow['peer_id'] not in mutuals:
-                drow['id'] = str(drow['peer_id'])
                 drow['type'] = _outgoing
 
             drow['user'] = await self.get_user(drow['peer_id'])

@@ -36,14 +36,16 @@ class EventDispatcher:
 
     async def subscribe(self, backend: str, key: Any, identifier: Any):
         """Subscribe a single element to the given backend."""
-        log.debug('SUB bacjend={} key={} <= id={}',
+        log.debug('SUB backend={} key={} <= id={}',
                   backend, key, identifier, backend)
+
         return await self.action(backend, 'sub', key, identifier)
 
     async def unsubscribe(self, backend: str, key: Any, identifier: Any):
         """Unsubscribe an element from the given backend."""
-        log.debug('UNSUB bacjend={} key={} => id={}',
+        log.debug('UNSUB backend={} key={} => id={}',
                   backend, key, identifier, backend)
+
         return await self.action(backend, 'unsub', key, identifier)
 
     async def sub(self, backend, key, identifier):

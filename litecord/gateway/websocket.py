@@ -10,16 +10,16 @@ import earl
 import websockets
 from logbook import Logger
 
-from litecord.errors import WebsocketClose, Unauthorized, Forbidden
+from litecord.errors import WebsocketClose, Unauthorized, Forbidden, BadRequest
 from litecord.auth import raw_token_check
+from litecord.enums import RelationshipType
+from litecord.schemas import validate, GW_STATUS_UPDATE
+from litecord.utils import task_wrapper
+
 from .errors import DecodeError, UnknownOPCode, \
     InvalidShard, ShardingRequired
 from .opcodes import OP
 from .state import GatewayState
-from ..errors import BadRequest
-
-from ..schemas import validate, GW_STATUS_UPDATE
-from ..utils import task_wrapper
 
 
 log = Logger(__name__)
@@ -205,10 +205,18 @@ class GatewayWebsocket:
 
         user_id = self.state.user_id
 
+        relationships = await self.storage.get_relationships(user_id)
+
+        friend_ids = [int(r['user']['id']) for r in relationships
+                      if r['type'] == RelationshipType.FRIEND.value]
+
+        friend_presences = await self.ext.presence.friend_presences(friend_ids)
+
         return {
             'user_settings': await self.storage.get_user_settings(user_id),
             'notes': await self.storage.fetch_notes(user_id),
-            'relationships': await self.storage.get_relationships(user_id),
+            'relationships': relationships,
+            'presences': friend_presences,
             'read_state': await self.storage.get_read_state(user_id),
 
             'friend_suggestion_count': 0,
@@ -216,12 +224,7 @@ class GatewayWebsocket:
             # TODO
             'user_guild_settings': [],
 
-            # TODO
-            'presences': [],
-
-            # TODO
             'connected_accounts': [],
-
             'experiments': [],
             'guild_experiments': [],
             'analytics_token': 'transbian',
