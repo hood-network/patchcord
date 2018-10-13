@@ -14,6 +14,7 @@ class GuildDispatcher(DispatcherWithState):
     VAL_TYPE = int
 
     async def _chan_action(self, action: str, guild_id: int, user_id: int):
+        """Send an action to all channels of the guild."""
         chan_ids = await self.app.storage.get_channel_ids(guild_id)
 
         # TODO: check READ_MESSAGE permissions for the user
@@ -27,7 +28,10 @@ class GuildDispatcher(DispatcherWithState):
             )
 
     async def _chan_call(self, meth: str, guild_id: int, *args):
+        """Call a method on the ChannelDispatcher, for all channels
+        in the guild."""
         chan_ids = await self.app.storage.get_channel_ids(guild_id)
+
         chan_dispatcher = self.main_dispatcher.backends['channel']
         method = getattr(chan_dispatcher, meth)
 
@@ -48,6 +52,8 @@ class GuildDispatcher(DispatcherWithState):
     async def unsub(self, guild_id: int, user_id: int):
         """Unsubscribe a user from the guild."""
         await super().unsub(guild_id, user_id)
+
+        # same thing happening from sub() happens on unsub()
         await self._chan_action('unsub', guild_id, user_id)
 
     async def dispatch(self, guild_id: int,
@@ -56,11 +62,11 @@ class GuildDispatcher(DispatcherWithState):
         user_ids = self.state[guild_id]
         dispatched = 0
 
-        # acquire a copy since we will be modifying
+        # acquire a copy since we may be modifying
         # the original user_ids
         for user_id in set(user_ids):
 
-            # fetch all states related to the user id and guild id.
+            # fetch all states / shards that are tied to the guild.
             states = self.sm.fetch_states(user_id, guild_id)
 
             if not states:

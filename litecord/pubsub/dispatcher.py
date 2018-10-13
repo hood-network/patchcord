@@ -1,19 +1,32 @@
+"""
+litecord.pubsub.dispatcher: main dispatcher class
+"""
 from collections import defaultdict
+
 from logbook import Logger
 
 log = Logger(__name__)
 
 
 class Dispatcher:
-    """Pub/Sub backend dispatcher."""
+    """Pub/Sub backend dispatcher.
+    
+    This just declares functions all Dispatcher subclasses
+    can implement. This does not mean all Dispatcher
+    subclasses have them implemented.
+    """
 
     # the _ parameter is for (self)
     KEY_TYPE = lambda _, x: x
     VAL_TYPE = lambda _, x: x
 
     def __init__(self, main):
+        #: main EventDispatcher
         self.main_dispatcher = main
+
+        #: gateway state storage
         self.sm = main.state_manager
+
         self.app = main.app
 
     async def sub(self, _key, _id):
@@ -66,6 +79,10 @@ class DispatcherWithState(Dispatcher):
     def __init__(self, main):
         super().__init__(main)
 
+        #: the default dict is to a set
+        #  so we make sure someone calling sub()
+        #  twice won't get 2x the events for the
+        #  same channel.
         self.state = defaultdict(set)
 
     async def sub(self, key, identifier):
