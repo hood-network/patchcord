@@ -189,9 +189,22 @@ async def patch_me():
         WHERE id = $2
         """, new_hash, user_id)
 
-    # TODO: dispatch USER_UPDATE to guilds and users
+    user.pop('password_hash')
     await app.dispatcher.dispatch_user(
         user_id, 'USER_UPDATE', user)
+
+    public_user = await app.storage.get_user(user_id)
+
+    guild_ids = await app.storage.get_user_guilds(user_id)
+    friend_ids = await app.storage.get_friend_ids(user_id)
+
+    await app.dispatcher.dispatch_many(
+        'guild', guild_ids, 'USER_UPDATE', public_user
+    )
+
+    await app.dispatcher.dispatch_many(
+        'friend', friend_ids, 'USER_UPDATE', public_user
+    )
 
     return jsonify(user)
 

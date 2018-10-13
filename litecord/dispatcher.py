@@ -1,5 +1,5 @@
 import collections
-from typing import Any
+from typing import List, Any
 
 from logbook import Logger
 
@@ -61,6 +61,14 @@ class EventDispatcher:
         backend = self.backends[backend_str]
         key = backend.KEY_TYPE(key)
         return await backend.dispatch(key, *args, **kwargs)
+
+    async def dispatch_many(self, backend_str: str,
+                            keys: List[Any], *args, **kwargs):
+        """Dispatch to multiple keys in a single backend."""
+        log.info('MULTI DISPATCH: {!r}, {} keys',
+                 backend_str, len(keys))
+        for key in keys:
+            await self.dispatch(backend_str, key, *args, **kwargs)
 
     async def reset(self, backend_str: str, key: Any):
         """Reset the bucket in the given backend."""
