@@ -103,7 +103,7 @@ class GatewayWebsocket:
             data2 = self.wsp.zctx.flush(zlib.Z_FULL_FLUSH)
 
             await self.ws.send(data1 + data2)
-        elif self.state and self.state.compress:
+        elif self.state and self.state.compress and len(encoded) > 1024:
             await self.ws.send(zlib.compress(encoded))
         else:
             await self.ws.send(encoded.decode())
