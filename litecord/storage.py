@@ -96,9 +96,6 @@ class Storage:
 
         duser = dict(user_row)
 
-        duser['mobile'] = False
-        duser['phone'] = None
-
         duser['premium'] = duser['premium_since'] is not None
         duser.pop('premium_since')
 
@@ -106,6 +103,9 @@ class Storage:
             duser.pop('email')
             duser.pop('verified')
             duser.pop('mfa_enabled')
+        else:
+            duser['mobile'] = False
+            duser['phone'] = None
 
         return duser
 
