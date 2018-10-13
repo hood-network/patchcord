@@ -1,10 +1,54 @@
-from enum import Enum
+import inspect
+from enum import Enum, IntEnum
 
 
 class EasyEnum(Enum):
     @classmethod
     def values(cls):
         return [v.value for v in cls.__members__.values()]
+
+
+class Flags:
+    """Construct a class that represents a bitfield.
+    
+    You can use it like this:
+        >>> class MyField(Flags):
+                field_1 = 1
+                field_2 = 2
+                field_3 = 4
+        >>> i1 = MyField.from_int(1)
+        >>> i1.is_field_1
+        True
+        >>> i1.is_field_2
+        False
+        >>> i2 = MyField.from_int(3)
+        >>> i2.is_field_1
+        True
+        >>> i2.is_field_2
+        True
+        >>> i2.is_field_3
+        False
+    """
+    def __init_subclass__(cls, **_kwargs):
+        attrs = inspect.getmembers(cls, lambda x: not inspect.isroutine(x))
+
+        def _make_int(value):
+            res = Flags()
+
+            for attr, val in attrs:
+                # get only the ones that represent a field in the
+                # number's bits
+                if not isinstance(val, int):
+                    continue
+
+                has_attr = (value & val) == val
+
+                # set each attribute
+                setattr(res, f'is_{attr}', has_attr)
+
+            return res
+
+        cls.from_int = _make_int
 
 
 class ChannelType(EasyEnum):
@@ -44,7 +88,12 @@ class MessageActivityType(EasyEnum):
     JOIN_REQUEST = 5
 
 
-class ActivityFlags:
+class ActivityFlags(Flags):
+    """Activity flags. Make up the ActivityType
+    in a message.
+
+    Only related to rich presence.
+    """
     instance = 1
     join = 2
     spectate = 4
@@ -53,7 +102,11 @@ class ActivityFlags:
     play = 32
 
 
-class UserFlags:
+class UserFlags(Flags):
+    """User flags.
+
+    Used by the client to show badges.
+    """
     staff = 1
     partner = 2
     hypesquad = 4
@@ -69,6 +122,7 @@ class UserFlags:
 
 
 class StatusType(EasyEnum):
+    """All statuses there can be in a presence."""
     ONLINE = 'online'
     DND = 'dnd'
     IDLE = 'idle'
@@ -77,12 +131,28 @@ class StatusType(EasyEnum):
 
 
 class ExplicitFilter(EasyEnum):
+    """Explicit filter for users' messages.
+
+    Also applies to guilds.
+    """
     EDGE = 0
     FRIENDS = 1
     SAFE = 2
 
 
+class VerificationLevel(IntEnum):
+    """Verification level for guilds."""
+    NONE = 0
+    LOW = 1
+    MEDIUM = 2
+    HIGH = 3
+
+    # require phone check
+    EXTREME = 4
+
+
 class RelationshipType(EasyEnum):
+    """Relationship types between users."""
     FRIEND = 1
     BLOCK = 2
     INCOMING = 3
