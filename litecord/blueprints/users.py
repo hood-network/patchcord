@@ -1,13 +1,17 @@
+import random
+
 from quart import Blueprint, jsonify, request, current_app as app
 from asyncpg import UniqueViolationError
 
 from ..auth import token_check
 from ..snowflake import get_snowflake
-from ..errors import Forbidden, BadRequest
-from ..schemas import validate, USER_SETTINGS, CREATE_DM, CREATE_GROUP_DM
+from ..errors import Forbidden, BadRequest, Unauthorized
+from ..schemas import validate, USER_SETTINGS, \
+    CREATE_DM, CREATE_GROUP_DM, USER_UPDATE
 from ..enums import ChannelType, RelationshipType
 
 from .guilds import guild_check
+from .auth import hash_data, check_password, check_username_usage
 
 bp = Blueprint('user', __name__)
 
@@ -37,28 +41,157 @@ async def get_other(target_id):
     return jsonify(other)
 
 
+async def _try_reroll(user_id, preferred_username: str = None):
+    for _ in range(10):
+        reroll = str(random.randint(1, 9999))
+
+        if preferred_username:
+            existing_uid = await app.db.fetchrow("""
+            SELECT user_id
+            FROM users
+            WHERE preferred_username = $1 AND discriminator = $2
+            """, preferred_username, reroll)
+
+            if not existing_uid:
+                return reroll
+
+            continue
+
+        try:
+            await app.db.execute("""
+            UPDATE users
+            SET discriminator = $1
+            WHERE users.id = $2
+            """, reroll, user_id)
+
+            return reroll
+        except UniqueViolationError:
+            continue
+
+    return
+
+
+async def _try_username_patch(user_id, new_username: str) -> str:
+    await check_username_usage(new_username)
+    discrim = None
+
+    try:
+        await app.db.execute("""
+        UPDATE users
+        SET username = $1
+        WHERE users.id = $2
+        """, new_username, user_id)
+
+        return await app.db.fetchval("""
+        SELECT discriminator
+        FROM users
+        WHERE users.id = $1
+        """, user_id)
+    except UniqueViolationError:
+        discrim = await _try_reroll(user_id, new_username)
+
+        if not discrim:
+            raise BadRequest('Unable to change username', {
+                'username': 'Too many people are with this username.'
+            })
+
+        await app.db.execute("""
+        UPDATE users
+        SET username = $1, discriminator = $2
+        WHERE users.id = $3
+        """, new_username, discrim, user_id)
+
+    return discrim
+
+
+async def _try_discrim_patch(user_id, new_discrim: str):
+    try:
+        await app.db.execute("""
+        UPDATE users
+        SET discriminator = $1
+        WHERE id = $2
+        """, new_discrim, user_id)
+    except UniqueViolationError:
+        raise BadRequest('Invalid discriminator', {
+            'discriminator': 'Someone already used this discriminator.'
+        })
+
+
+def to_update(j: dict, user: dict, field: str):
+    return field in j and j[field] and j[field] != user[field]
+
+
+async def _check_pass(j, user):
+    if not j['password']:
+        raise BadRequest('password required', {
+            'password': 'password required'
+        })
+
+    phash = user['password_hash']
+
+    if not await check_password(phash, j['password']):
+        raise BadRequest('password incorrect', {
+            'password': 'password does not match.'
+        })
+
+
 @bp.route('/@me', methods=['PATCH'])
 async def patch_me():
     """Patch the current user's information."""
     user_id = await token_check()
-    j = await request.get_json()
 
-    if not isinstance(j, dict):
-        raise BadRequest('Invalid payload')
-
+    j = validate(await request.get_json(), USER_UPDATE)
     user = await app.storage.get_user(user_id, True)
 
-    if 'username' in j:
-        try:
-            await app.db.execute("""
-            UPDATE users
-            SET username = $1
-            WHERE users.id = $2
-            """, j['username'], user_id)
-        except UniqueViolationError:
-            raise BadRequest('Username already used.')
+    user['password_hash'] = await app.db.fetchval("""
+    SELECT password_hash
+    FROM users
+    WHERE id = $1
+    """, user_id)
 
+    if to_update(j, user, 'username'):
+        # this will take care of regenning a new discriminator
+        discrim = await _try_username_patch(user_id, j['username'])
         user['username'] = j['username']
+        user['discriminator'] = discrim
+
+    if to_update(j, user, 'discriminator'):
+        # the API treats discriminators as integers,
+        # but I work with strings on the database.
+        new_discrim = str(j['discriminator'])
+
+        await _try_discrim_patch(user_id, new_discrim)
+        user['discriminator'] = new_discrim
+
+    if to_update(j, user, 'email'):
+        await _check_pass(j, user)
+
+        # TODO: reverify the new email?
+        await app.db.execute("""
+        UPDATE users
+        SET email = $1
+        WHERE id = $2
+        """, j['email'], user_id)
+        user['email'] = j['email']
+
+    if 'avatar' in j:
+        # TODO: update icon
+        pass
+
+    if 'new_password' in j and j['new_password']:
+        await _check_pass(j, user)
+
+        new_hash = await hash_data(j['new_password'])
+
+        await app.db.execute("""
+        UPDATE users
+        SET password_hash = $1
+        WHERE id = $2
+        """, new_hash, user_id)
+
+    # TODO: dispatch USER_UPDATE to guilds and users
+    await app.dispatcher.dispatch_user(
+        user_id, 'USER_UPDATE', user)
 
     return jsonify(user)
 

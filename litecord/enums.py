@@ -1,5 +1,3 @@
-import ctypes
-
 from enum import Enum
 
 
@@ -46,28 +44,28 @@ class MessageActivityType(EasyEnum):
     JOIN_REQUEST = 5
 
 
-uint8 = ctypes.c_uint8
+class ActivityFlags:
+    instance = 1
+    join = 2
+    spectate = 4
+    join_request = 8
+    sync = 16
+    play = 32
 
 
-# use ctypes to interpret the bits in activity flags
-class ActivityFlagsBits(ctypes.LittleEndianStructure):
-    _fields_ = [
-        ('instance', uint8, 1),
-        ('join', uint8, 1),
-        ('spectate', uint8, 1),
-        ('join_request', uint8, 1),
-        ('sync', uint8, 1),
-        ('play', uint8, 1),
-    ]
+class UserFlags:
+    staff = 1
+    partner = 2
+    hypesquad = 4
+    bug_hunter = 8
+    mfa_sms = 16
+    premium_dismissed = 32
 
+    hsquad_house_1 = 64
+    hsquad_house_2 = 128
+    hsquad_house_3 = 256
 
-class ActivityFlags(ctypes.Union):
-    _anonymous_ = ('bit',)
-
-    _fields_ = [
-        ('bit', ActivityFlagsBits),
-        ('as_byte', uint8),
-    ]
+    premium_early = 512
 
 
 class StatusType(EasyEnum):

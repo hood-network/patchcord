@@ -43,14 +43,34 @@ def make_token(user_id, user_pwd_hash) -> str:
     return signer.sign(user_id).decode()
 
 
+async def check_username_usage(username: str):
+    """Raise an error if too many people are with the same username."""
+    same_username = await app.db.fetchval("""
+    SELECT COUNT(*)
+    FROM users
+    WHERE username = $1
+    """, username)
+
+    if same_username > 8000:
+        raise BadRequest('Too many people.', {
+            'username': 'Too many people used the same username. '
+                        'Please choose another'
+        })
+
+
 @bp.route('/register', methods=['POST'])
 async def register():
     j = await request.get_json()
     email, password, username = j['email'], j['password'], j['username']
 
     new_id = get_snowflake()
+
     new_discrim = str(random.randint(1, 9999))
+    new_discrim = '%04d' % new_discrim
+
     pwd_hash = await hash_data(password)
+
+    await check_username_usage(username)
 
     try:
         await app.db.execute("""

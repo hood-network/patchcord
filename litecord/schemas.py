@@ -12,6 +12,7 @@ log = Logger(__name__)
 USERNAME_REGEX = re.compile(r'^[a-zA-Z0-9_]{2,19}$', re.A)
 EMAIL_REGEX = re.compile(r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$',
                          re.A)
+DATA_REGEX = re.compile(r'data\:image/(png|jpeg|gif);base64,(.+)', re.A)
 
 
 # collection of regexes
@@ -26,6 +27,24 @@ class LitecordValidator(Validator):
     def _validate_type_username(self, value: str) -> bool:
         """Validate against the username regex."""
         return bool(USERNAME_REGEX.match(value))
+
+    def _validate_type_email(self, value: str) -> bool:
+        """Validate against the username regex."""
+        return bool(EMAIL_REGEX.match(value))
+
+    def _validate_type_b64_icon(self, value: str) -> bool:
+        return bool(DATA_REGEX.match(value))
+
+    def _validate_type_discriminator(self, value: str) -> bool:
+        """Discriminators are numbers in the API
+        that can go from 0 to 9999.
+        """
+        try:
+            discrim = int(value)
+        except (TypeError, ValueError):
+            return False
+
+        return 0 < discrim <= 9999
 
     def _validate_type_snowflake(self, value: str) -> bool:
         try:
@@ -80,6 +99,43 @@ def validate(reqjson, schema, raise_err: bool = True):
         return None
 
     return validator.document
+
+
+USER_UPDATE = {
+    'username': {
+        'type': 'username', 'minlength': 2,
+        'maxlength': 30, 'required': False},
+
+    'discriminator': {
+        'type': 'discriminator',
+        'required': False,
+        'nullable': True,
+    },
+
+    'password': {
+        'type': 'string', 'minlength': 0,
+        'maxlength': 100, 'required': False,
+    },
+
+    'new_password': {
+        'type': 'string', 'minlength': 5,
+        'maxlength': 100, 'required': False,
+        'dependencies': 'password',
+        'nullable': True
+    },
+
+    'email': {
+        'type': 'string', 'minlength': 2,
+        'maxlength': 30, 'required': False,
+        'dependencies': 'password',
+    },
+
+    'avatar': {
+        'type': 'b64_icon', 'required': False,
+        'nullable': True
+    },
+
+}
 
 
 GUILD_UPDATE = {
@@ -297,5 +353,5 @@ CREATE_GROUP_DM = {
 
 SPECIFIC_FRIEND = {
     'username': {'type': 'username'},
-    'discriminator': {'type': 'number'}
+    'discriminator': {'type': 'discriminator'}
 }

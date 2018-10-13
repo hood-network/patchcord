@@ -96,6 +96,9 @@ class Storage:
 
         duser = dict(user_row)
 
+        duser['mobile'] = False
+        duser['phone'] = None
+
         duser['premium'] = duser['premium_since'] is not None
         duser.pop('premium_since')
 
