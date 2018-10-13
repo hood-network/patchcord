@@ -256,15 +256,14 @@ class GatewayWebsocket:
         # async dispatch of guilds
         self.ext.loop.create_task(self.guild_dispatch(guilds))
 
-    async def _check_shards(self):
-        shard = self.state.shard
+    async def _check_shards(self, shard, user_id):
         current_shard, shard_count = shard
 
         guilds = await self.ext.db.fetchval("""
         SELECT COUNT(*)
         FROM members
         WHERE user_id = $1
-        """, self.state.user_id)
+        """, user_id)
 
         recommended = max(int(guilds / 1200), 1)
 
@@ -390,6 +389,9 @@ class GatewayWebsocket:
         WHERE id = $1
         """, user_id)
 
+        await self._check_shards(shard, user_id)
+
+        # only create a state after checking everything
         self.state = GatewayState(
             user_id=user_id,
             bot=bot,
@@ -401,9 +403,9 @@ class GatewayWebsocket:
             ws=self
         )
 
-        await self._check_shards()
-
+        # link the state to the user
         self.ext.state_manager.insert(self.state)
+
         await self.update_status(presence)
         await self.subscribe_all()
         await self.dispatch_ready()
@@ -419,15 +421,13 @@ class GatewayWebsocket:
     async def handle_4(self, payload: Dict[str, Any]):
         """Handle OP 4 Voice Status Update."""
         data = payload['d']
+        # for now, ignore
         log.debug('got VSU cid={} gid={} deaf={} mute={} video={}',
                   data.get('channel_id'),
                   data.get('guild_id'),
                   data.get('self_deaf'),
                   data.get('self_mute'),
                   data.get('self_video'))
-
-        # for now, do nothing
-        pass
 
     async def _handle_5(self, payload: Dict[str, Any]):
         """Handle OP 5 Voice Server Ping.
@@ -452,6 +452,9 @@ class GatewayWebsocket:
         })
 
         if not resumable and self.state:
+            # since the state will be removed from
+            # the manager, it will become unreachable
+            # when trying to resume.
             self.ext.state_manager.remove(self.state)
 
     async def _resume(self, replay_seqs: iter):
@@ -476,11 +479,13 @@ class GatewayWebsocket:
                 await self.send(payload)
         except Exception:
             log.exception('error while resuming')
-            await self.invalidate_session()
+            await self.invalidate_session(False)
             return
 
         if presences:
             await self.dispatch('PRESENCE_REPLACE', presences)
+
+        await self.dispatch('RESUMED', {})
 
     async def handle_6(self, payload: Dict[str, Any]):
         """Handle OP 6 Resume."""
@@ -515,7 +520,6 @@ class GatewayWebsocket:
         state.ws = self
 
         await self._resume(range(seq, state.seq))
-        await self.dispatch('RESUMED', {})
 
     async def _req_guild_members(self, guild_id: str, user_ids: List[int],
                                  query: str, limit: int):

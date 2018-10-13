@@ -8,7 +8,11 @@ def gen_session_id() -> str:
 
 
 class PayloadStore:
-    """Store manager for payloads."""
+    """Store manager for payloads.
+
+    This will only store a maximum of MAX_STORE_SIZE,
+    dropping the older payloads when adding new ones.
+    """
     MAX_STORE_SIZE = 250
 
     def __init__(self):
@@ -30,14 +34,6 @@ class PayloadStore:
         self.store[opcode] = payload
 
 
-class Presence:
-    def __init__(self, raw: dict):
-        self.afk = raw.get('afk', False)
-        self.status = raw.get('status', 'online')
-        self.game = raw.get('game', None)
-        self.since = raw.get('since', 0)
-
-
 class GatewayState:
     """Main websocket state.
 
@@ -46,13 +42,28 @@ class GatewayState:
 
     def __init__(self, **kwargs):
         self.session_id = kwargs.get('session_id', gen_session_id())
+
+        #: event sequence number
         self.seq = kwargs.get('seq', 0)
+
+        #: last seq sent by us, the backend
         self.last_seq = 0
+
+        #: shard information about the state,
+        #  its id and shard count
         self.shard = kwargs.get('shard', [0, 1])
+
         self.user_id = kwargs.get('user_id')
         self.bot = kwargs.get('bot', False)
+
+        #: set by the gateway connection
+        #  on OP STATUS_UPDATE
         self.presence = {}
+
+        #: set by the backend once identify happens
         self.ws = None
+
+        #: store (kind of) all payloads sent by us
         self.store = PayloadStore()
 
         for key in kwargs:

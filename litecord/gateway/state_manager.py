@@ -13,6 +13,13 @@ class StateManager:
     """Manager for gateway state information."""
 
     def __init__(self):
+        # {
+        #  user_id: {
+        #   session_id: GatewayState,
+        #   session_id_2: GatewayState, ...
+        #  },
+        #  user_id_2: {}, ...
+        # }
         self.states = defaultdict(dict)
 
     def insert(self, state: GatewayState):
@@ -23,7 +30,14 @@ class StateManager:
         user_states[state.session_id] = state
 
     def fetch(self, user_id: int, session_id: str) -> GatewayState:
-        """Fetch a state object from the registry."""
+        """Fetch a state object from the manager.
+
+        Raises
+        ------
+        KeyError
+            When the user_id or session_id
+            aren't found in the store.
+        """
         return self.states[user_id][session_id]
 
     def remove(self, state):
