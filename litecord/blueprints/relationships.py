@@ -15,6 +15,17 @@ async def get_me_relationships():
     return jsonify(await app.storage.get_relationships(user_id))
 
 
+async def _unsub_friend(user_id, peer_id):
+    await app.dispatcher.unsub('friend', user_id, peer_id)
+    await app.dispatcher.unsub('friend', peer_id, user_id)
+
+
+async def _sub_friend(user_id, peer_id):
+    await app.dispatcher.sub('friend', user_id, peer_id)
+    await app.dispatcher.sub('friend', peer_id, user_id)
+
+
+
 async def make_friend(user_id: int, peer_id: int,
                       rel_type=RelationshipType.FRIEND.value):
     _friend = RelationshipType.FRIEND.value
@@ -54,6 +65,8 @@ async def make_friend(user_id: int, peer_id: int,
             'user': await app.storage.get_user(user_id)
         })
 
+        await _sub_friend(user_id, peer_id)
+
         return '', 204
 
     # check if friend AND not acceptance of fr
@@ -69,6 +82,9 @@ async def make_friend(user_id: int, peer_id: int,
             'type': RelationshipType.INCOMING.value,
             'user': await app.storage.get_user(user_id)
         })
+
+        # we don't make the pubsub link
+        # until the peer accepts the friend request
 
         return '', 204
 
@@ -115,6 +131,8 @@ async def add_relationship(peer_id: int):
         'type': RelationshipType.BLOCK.value,
         'user': await app.storage.get_user(peer_id)
     })
+
+    await _unsub_friend(user_id, peer_id)
 
     return '', 204
 
@@ -169,6 +187,8 @@ async def remove_relationship(peer_id: int):
             'type': peer_del_type,
         })
 
+        await _unsub_friend(user_id, peer_id)
+
         return '', 204
 
     # was a block!
@@ -181,5 +201,7 @@ async def remove_relationship(peer_id: int):
         'id': str(peer_id),
         'type': _block,
     })
+
+    await _unsub_friend(user_id, peer_id)
 
     return '', 204
