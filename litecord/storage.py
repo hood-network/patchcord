@@ -780,7 +780,7 @@ class Storage:
         # only fetch blocks we did,
         # not fetching the ones people did to us
         blocks = await self.db.fetch("""
-        SELECT user_id, peer_id
+        SELECT user_id, peer_id, rel_type
         FROM relationships
         WHERE user_id = $1 AND rel_type = $2
         """, user_id, _block)

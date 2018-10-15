@@ -29,11 +29,46 @@ async def _sub_friend(user_id, peer_id):
 async def make_friend(user_id: int, peer_id: int,
                       rel_type=RelationshipType.FRIEND.value):
     _friend = RelationshipType.FRIEND.value
+    _block = RelationshipType.BLOCK.value
 
-    await app.db.execute("""
-    INSERT INTO relationships (user_id, peer_id, rel_type)
-    VALUES ($1, $2, $3)
-    """, user_id, peer_id, rel_type)
+    try:
+        await app.db.execute("""
+        INSERT INTO relationships (user_id, peer_id, rel_type)
+        VALUES ($1, $2, $3)
+        """, user_id, peer_id, rel_type)
+    except UniqueViolationError:
+        # try to update rel_type
+        old_rel_type = await app.db.fetchval("""
+        SELECT rel_type
+        FROM relationships
+        WHERE user_id = $1 AND peer_id = $2
+        """, user_id, peer_id)
+
+        if old_rel_type == _friend and rel_type == _block:
+            await app.db.execute("""
+            UPDATE relationships
+            SET rel_type = $1
+            WHERE user_id = $2 AND peer_id = $3
+            """, rel_type, user_id, peer_id)
+
+            # remove any existing friendship before the block
+            await app.db.execute("""
+            DELETE FROM relationships
+            WHERE peer_id = $1 AND user_id = $2 AND rel_type = $3
+            """, peer_id, user_id, _friend)
+
+            await app.dispatcher.dispatch_user(
+                peer_id, 'RELATIONSHIP_REMOVE', {
+                    'type': _friend,
+                    'id': str(user_id)
+                }
+            )
+
+            await _unsub_friend(user_id, peer_id)
+
+            # returning none will make sure
+            # to dispatch a RELATIONSHIP_ADD to the user
+            return
 
     # check if this is an acceptance
     # of a friend request
