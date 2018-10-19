@@ -35,6 +35,18 @@ async def create_guild_settings(guild_id: int, user_id: int):
     VALUES ($1, $2)
     """, user_id, guild_id)
 
+    m_notifs = await app.db.fetchval("""
+    SELECT default_message_notifications
+    FROM guilds
+    WHERE id = $1
+    """, guild_id)
+
+    await app.db.execute("""
+    UPDATE guild_settings
+    SET message_notifications = $1
+    WHERE user_id = $2 AND guild_id = $3
+    """, m_notifs, user_id, guild_id)
+
 
 @bp.route('', methods=['POST'])
 async def create_guild():
