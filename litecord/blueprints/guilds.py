@@ -26,6 +26,16 @@ async def guild_owner_check(user_id: int, guild_id: int):
         raise Forbidden('You are not the owner of the guild')
 
 
+async def create_guild_settings(guild_id: int, user_id: int):
+    """Create guild settings for the user
+    joining the guild."""
+
+    await app.db.execute("""
+    INSERT INTO guild_settings (user_id, guild_id)
+    VALUES ($1, $2)
+    """, user_id, guild_id)
+
+
 @bp.route('', methods=['POST'])
 async def create_guild():
     user_id = await token_check()
@@ -48,6 +58,8 @@ async def create_guild():
     INSERT INTO members (user_id, guild_id)
     VALUES ($1, $2)
     """, user_id, guild_id)
+
+    await create_guild_settings(guild_id, user_id)
 
     await app.db.execute("""
     INSERT INTO roles (id, guild_id, name, position, permissions)
