@@ -289,6 +289,8 @@ async def try_dm_state(user_id, dm_id):
 
 
 async def create_dm(user_id, recipient_id):
+    """Create a new dm with a user,
+    or get the existing DM id if it already exists."""
     dm_id = get_snowflake()
 
     try:
@@ -302,6 +304,12 @@ async def create_dm(user_id, recipient_id):
         VALUES ($1, $2, $3)
         """, dm_id, user_id, recipient_id)
 
+        # the dm state is something we use
+        # to give the currently "open dms"
+        # on the client.
+
+        # we don't open a dm for the peer/recipient
+        # until the user sends a message.
         await try_dm_state(user_id, dm_id)
 
     except UniqueViolationError:

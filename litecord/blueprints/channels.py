@@ -10,6 +10,7 @@ from ..errors import Forbidden, ChannelNotFound, MessageNotFound
 from ..schemas import validate, MESSAGE_CREATE
 
 from .checks import channel_check, guild_check
+from .users import try_dm_state
 
 log = Logger(__name__)
 bp = Blueprint('channels', __name__)
@@ -258,7 +259,7 @@ async def get_single_message(channel_id, message_id):
 
 
 async def _dm_pre_dispatch(channel_id, peer_id):
-    """Doo some checks pre-MESSAGE_CREATE so we
+    """Do some checks pre-MESSAGE_CREATE so we
     make sure the receiving party will handle everything."""
 
     # check the other party's dm_channel_state
@@ -285,10 +286,7 @@ async def _dm_pre_dispatch(channel_id, peer_id):
 
     # insert it on dm_channel_state so the client
     # is subscribed on the future
-    await app.db.execute("""
-    INSERT INTO dm_channel_state(user_id, dm_id)
-    VALUES ($1, $2)
-    """, peer_id, channel_id)
+    await try_dm_state(peer_id, channel_id)
 
 
 @bp.route('/<int:channel_id>/messages', methods=['POST'])
