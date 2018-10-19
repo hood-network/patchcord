@@ -8,3 +8,4 @@ from .science import bp as science
 from .voice import bp as voice
 from .invites import bp as invites
 from .relationships import bp as relationships
+from .dms import bp as dms

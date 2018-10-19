@@ -913,7 +913,7 @@ class Storage:
         """Get the specific User Guild Settings,
         for all guilds a user is on."""
 
-        res = {}
+        res = []
 
         settings = await self.db.fetch("""
         SELECT guild_id, suppress_everyone, muted
@@ -925,7 +925,6 @@ class Storage:
         for row in settings:
             gid = row['guild_id']
             drow = dict(row)
-            drow.pop('guild_id')
 
             chan_ids = await self.get_channel_ids(gid)
 
@@ -943,9 +942,9 @@ class Storage:
 
                 chan_overrides[str(chan_id)] = dict(chan_row)
 
-            res[str(gid)] = {**drow, **{
+            res.append({**drow, **{
                 'channel_overrides': chan_overrides
-            }}
+            }})
 
         return res
 

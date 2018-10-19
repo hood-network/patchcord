@@ -10,7 +10,7 @@ from ..errors import Forbidden, ChannelNotFound, MessageNotFound
 from ..schemas import validate, MESSAGE_CREATE
 
 from .checks import channel_check, guild_check
-from .users import try_dm_state
+from .dms import try_dm_state
 
 log = Logger(__name__)
 bp = Blueprint('channels', __name__)

@@ -283,11 +283,11 @@ CREATE TABLE IF NOT EXISTS guild_settings (
 
 CREATE TABLE IF NOT EXISTS guild_settings_channel_overrides (
     user_id bigint REFERENCES users (id) ON DELETE CASCADE,
-    guild_id bigint REFERENCES guilds (id) ON DELETE CASCADE
+    guild_id bigint REFERENCES guilds (id) ON DELETE CASCADE,
     channel_id bigint REFERENCES channels (id) ON DELETE CASCADE,
 
     muted bool DEFAULT false,
-    message_notifications bool DEFAULT 0,
+    message_notifications int DEFAULT 0,
 
     PRIMARY KEY (user_id, guild_id, channel_id)
 );
