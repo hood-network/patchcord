@@ -9,7 +9,7 @@ from ..schemas import validate, INVITE
 from ..enums import ChannelType
 from ..errors import BadRequest, Forbidden
 from .channels import channel_check
-from .guilds import guild_check
+from .guilds import guild_check, create_guild_settings
 from ..utils import async_map
 
 log = Logger(__name__)
@@ -166,6 +166,8 @@ async def use_invite(invite_code):
     INSERT INTO members (user_id, guild_id)
     VALUES ($1, $2)
     """, user_id, guild_id)
+
+    await create_guild_settings(guild_id, user_id)
 
     # add the @everyone role to the invited member
     await app.db.execute("""
