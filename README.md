@@ -7,8 +7,16 @@ This project is a rewrite of [litecord-reference].
 
 [litecord-reference]: https://gitlab.com/luna/litecord-reference
 
+## Notes
+
+ - There are no testing being run on the current codebase. Which means the code is definitely unstable.
+ - No voice is planned to be developed, for now.
+ - You must figure out connecting to the server yourself. Litecord will not distribute
+    Discord's official client code nor provide ways to modify the client.
+
 ## Install
 
+Requirements:
 - Python 3.6 or higher
 - PostgreSQL
 - [Pipenv]
