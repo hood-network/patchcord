@@ -422,6 +422,10 @@ async def patch_guild_settings(guild_id: int):
 
     j = validate(await request.get_json(), GUILD_SETTINGS)
 
+    # querying the guild settings information before modifying
+    # will make sure they exist in the table.
+    await app.storage.get_guild_settings_one(user_id, guild_id)
+
     for field in (k for k in j.keys() if k != 'channel_overrides'):
         await app.db.execute(f"""
         UPDATE guild_settings
@@ -440,7 +444,7 @@ async def patch_guild_settings(guild_id: int):
             continue
 
         for field in chan_overrides:
-            await app.db.execute(f"""
+            res = await app.db.execute(f"""
             UPDATE guild_settings_channel_overrides
             SET {field} = $1
             WHERE user_id = $2
@@ -448,11 +452,16 @@ async def patch_guild_settings(guild_id: int):
             AND   channel_id = $4
             """, chan_overrides[field], user_id, guild_id, chan_id)
 
+            if res == 'UPDATE 0':
+                await app.db.execute(f"""
+                INSERT INTO guild_settings_channel_overrides
+                    (user_id, guild_id, channel_id, {field})
+                VALUES ($1, $2, $3, $4)
+                """, user_id, guild_id, chan_id, chan_overrides[field])
+
     settings = await app.storage.get_guild_settings_one(user_id, guild_id)
 
-    await app.dispatcher.dispatch_user(user_id, 'USER_GUILD_SETTINGS_UPDATE', {
-        **settings,
-        **{'guild_id': guild_id}
-    })
+    await app.dispatcher.dispatch_user(
+        user_id, 'USER_GUILD_SETTINGS_UPDATE', settings)
 
     return jsonify(settings)

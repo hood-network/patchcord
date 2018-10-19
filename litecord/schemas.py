@@ -180,8 +180,8 @@ MEMBER_UPDATE = {
         'required': False,
     },
     'roles': {'type': 'list', 'required': False},
-    'mute': {'type': 'bool', 'required': False},
-    'deaf': {'type': 'bool', 'required': False},
+    'mute': {'type': 'boolean', 'required': False},
+    'deaf': {'type': 'boolean', 'required': False},
     'channel_id': {'type': 'snowflake', 'required': False},
 }
 
@@ -366,27 +366,30 @@ SPECIFIC_FRIEND = {
 }
 
 GUILD_SETTINGS_CHAN_OVERRIDE = {
-    'muted': {
-        'type': 'bool', 'required': False},
-    'message_notifications': {
-        'type': 'msg_notifications',
-        'required': False,
+    'type': 'dict',
+    'schema': {
+        'muted': {
+            'type': 'boolean', 'required': False},
+        'message_notifications': {
+            'type': 'msg_notifications',
+            'required': False,
+        }
     }
 }
 
 GUILD_SETTINGS = {
     'channel_overrides': {
         'type': 'dict',
-        'schema': GUILD_SETTINGS_CHAN_OVERRIDE,
+        'valueschema': GUILD_SETTINGS_CHAN_OVERRIDE,
         'keyschema': {'type': 'snowflake'},
         'required': False,
     },
-    'supress_everyone': {
-        'type': 'bool', 'required': False},
+    'suppress_everyone': {
+        'type': 'boolean', 'required': False},
     'muted': {
-        'type': 'bool', 'required': False},
+        'type': 'boolean', 'required': False},
     'mobile_push': {
-        'type': 'bool', 'required': False},
+        'type': 'boolean', 'required': False},
     'message_notifications': {
         'type': 'msg_notifications',
         'required': False,

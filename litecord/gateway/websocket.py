@@ -86,7 +86,7 @@ class GatewayWebsocket:
         encoded = self.encoder(payload)
 
         if len(encoded) < 1024:
-            log.debug('sending {}', pprint.pformat(payload))
+            log.debug('sending\n{}', pprint.pformat(payload))
         else:
             log.debug('sending {}', pprint.pformat(payload))
             log.debug('sending op={} s={} t={} (too big)',

@@ -909,6 +909,49 @@ class Storage:
 
         return parties[0]
 
+    async def get_guild_settings_one(self, user_id: int,
+                                     guild_id: int) -> dict:
+        """Get guild settings information for a single guild."""
+        row = await self.db.fetchrow("""
+        SELECT guild_id::text, suppress_everyone, muted,
+               message_notifications, mobile_push
+        FROM guild_settings
+        WHERE user_id = $1 AND guild_id = $2
+        """, user_id, guild_id)
+
+        if not row:
+            await self.db.execute("""
+            INSERT INTO guild_settings (user_id, guild_id)
+            VALUES ($1, $2)
+            """, user_id, guild_id)
+
+            return await self.get_guild_settings_one(user_id, guild_id)
+
+        gid = int(row['guild_id'])
+        drow = dict(row)
+
+        chan_overrides = {}
+
+        overrides = await self.db.fetch("""
+        SELECT channel_id::text, muted, message_notifications
+        FROM guild_settings_channel_overrides
+        WHERE
+            user_id = $1
+        AND guild_id = $2
+        """, user_id, gid)
+
+        for chan_row in overrides:
+            dcrow = dict(chan_row)
+
+            chan_id = dcrow['channel_id']
+            dcrow.pop('channel_id')
+
+            chan_overrides[chan_id] = dcrow
+
+        return {**drow, **{
+            'channel_overrides': chan_overrides
+        }}
+
     async def get_guild_settings(self, user_id: int):
         """Get the specific User Guild Settings,
         for all guilds a user is on."""
@@ -916,31 +959,37 @@ class Storage:
         res = []
 
         settings = await self.db.fetch("""
-        SELECT guild_id, suppress_everyone, muted
+        SELECT guild_id::text, suppress_everyone, muted,
                message_notifications, mobile_push
         FROM guild_settings
         WHERE user_id = $1
         """, user_id)
 
         for row in settings:
-            gid = row['guild_id']
+            print(dict(row))
+            gid = int(row['guild_id'])
             drow = dict(row)
-
-            chan_ids = await self.get_channel_ids(gid)
 
             chan_overrides = {}
 
-            for chan_id in chan_ids:
-                chan_row = await self.db.fetchrow("""
-                SELECT muted, message_notifications
-                FROM guild_setting_channel_overrides
-                WHERE
-                    guild_id = $1
-                AND user_id = $2
-                AND channel_id = $3
-                """, gid, user_id, chan_id)
+            overrides = await self.db.fetch("""
+            SELECT channel_id::text, muted, message_notifications
+            FROM guild_settings_channel_overrides
+            WHERE
+                user_id = $1
+            AND guild_id = $2
+            """, user_id, gid)
 
-                chan_overrides[str(chan_id)] = dict(chan_row)
+            for chan_row in overrides:
+                dcrow = dict(chan_row)
+
+                # channel_id isn't on the value of the dict
+                # so we query it (for the key) then pop
+                # from the value
+                chan_id = dcrow['channel_id']
+                dcrow.pop('channel_id')
+
+                chan_overrides[chan_id] = dcrow
 
             res.append({**drow, **{
                 'channel_overrides': chan_overrides
