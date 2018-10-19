@@ -7,7 +7,7 @@ from ..auth import token_check
 from ..snowflake import get_snowflake
 from ..errors import Forbidden, BadRequest, Unauthorized
 from ..schemas import validate, USER_SETTINGS, \
-    CREATE_DM, CREATE_GROUP_DM, USER_UPDATE
+    CREATE_DM, CREATE_GROUP_DM, USER_UPDATE, GUILD_SETTINGS
 from ..enums import ChannelType, RelationshipType
 
 from .guilds import guild_check
@@ -516,3 +516,50 @@ async def get_mutual_friends(peer_id: int):
         )
 
     return jsonify(mutual_friends)
+
+
+@bp.route('/@me/guilds/<int:guild_id>/settings', methods=['PATCH'])
+async def patch_guild_settings(guild_id: int):
+    """Update the users' guild settings for a given guild.
+
+    Guild settings are usually related to notifications.
+    """
+    user_id = await token_check()
+    await guild_check(user_id, guild_id)
+
+    j = validate(await request.get_json(), GUILD_SETTINGS)
+
+    for field in (k for k in j.keys() if k != 'channel_overrides'):
+        await app.db.execute(f"""
+        UPDATE guild_settings
+        SET {field} = $1
+        WHERE user_id = $2 AND guild_id = $3
+        """, j[field], user_id, guild_id)
+
+    chan_ids = await app.storage.get_channel_ids(guild_id)
+
+    for chandata in j.get('channel_overrides', {}).items():
+        chan_id, chan_overrides = chandata
+        chan_id = int(chan_id)
+
+        # ignore channels that aren't in the guild.
+        if chan_id not in chan_ids:
+            continue
+
+        for field in chan_overrides:
+            await app.db.execute(f"""
+            UPDATE guild_settings_channel_overrides
+            SET {field} = $1
+            WHERE user_id = $2
+            AND   guild_id = $3
+            AND   channel_id = $4
+            """, chan_overrides[field], user_id, guild_id, chan_id)
+
+    settings = await app.storage.get_guild_settings_one(user_id, guild_id)
+
+    await app.dispatcher.dispatch_user(user_id, 'GUILD_SETTINGS_UPDATE', {
+        **settings,
+        **{'guild_id': guild_id}
+    })
+
+    return jsonify(settings)
