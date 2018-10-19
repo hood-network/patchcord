@@ -235,6 +235,8 @@ CREATE TABLE IF NOT EXISTS guilds (
 );
 
 
+
+
 CREATE TABLE IF NOT EXISTS guild_channels (
     id bigint REFERENCES channels (id) PRIMARY KEY,
     guild_id bigint REFERENCES guilds (id) ON DELETE CASCADE,
@@ -265,6 +267,30 @@ CREATE TABLE IF NOT EXISTS guild_voice_channels (
     PRIMARY KEY (id)
 );
 
+
+CREATE TABLE IF NOT EXISTS guild_settings (
+    user_id bigint REFERENCES users (id) ON DELETE CASCADE,
+    guild_id bigint REFERENCES guilds (id) ON DELETE CASCADE,
+
+    suppress_everyone bool DEFAULT false,
+    muted bool DEFAULT false,
+    message_notifications int DEFAULT 3,
+    mobile_push bool DEFAULT true,
+
+    PRIMARY KEY (user_id, guild_id)
+);
+
+
+CREATE TABLE IF NOT EXISTS guild_settings_channel_overrides (
+    user_id bigint REFERENCES users (id) ON DELETE CASCADE,
+    guild_id bigint REFERENCES guilds (id) ON DELETE CASCADE
+    channel_id bigint REFERENCES channels (id) ON DELETE CASCADE,
+
+    muted bool DEFAULT false,
+    message_notifications bool DEFAULT 3, -- ??
+
+    PRIMARY KEY (user_id, guild_id, channel_id)
+);
 
 CREATE TABLE IF NOT EXISTS dm_channels (
     id bigint REFERENCES channels (id) ON DELETE CASCADE UNIQUE,
