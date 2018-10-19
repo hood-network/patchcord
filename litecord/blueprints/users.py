@@ -352,17 +352,16 @@ async def put_note(target_id: int):
     j = await request.get_json()
     note = str(j['note'])
 
-    try:
-        await app.db.execute("""
-        INSERT INTO notes (user_id, target_id, note)
-        VALUES ($1, $2, $3)
-        """, user_id, target_id, note)
-    except UniqueViolationError:
-        await app.db.execute("""
-        UPDATE notes
-        SET note = $3
-        WHERE user_id = $1 AND target_id = $2
-        """, user_id, target_id, note)
+    # UPSERTs are beautiful
+    await app.db.execute("""
+    INSERT INTO notes (user_id, target_id, note)
+    VALUES ($1, $2, $3)
+
+    ON CONFLICT DO UPDATE SET
+        note = $3
+    WHERE
+        user_id = $1 AND target_id = $2
+    """, user_id, target_id, note)
 
     await app.dispatcher.dispatch_user(user_id, 'USER_NOTE_UPDATE', {
         'id': str(target_id),
@@ -382,6 +381,11 @@ async def get_user_settings():
 
 @bp.route('/@me/settings', methods=['PATCH'])
 async def patch_current_settings():
+    """Patch the users' current settings.
+
+    More information on what settings exist
+    is at Storage.get_user_settings and the schema.sql file.
+    """
     user_id = await token_check()
     j = validate(await request.get_json(), USER_SETTINGS)
 
@@ -483,39 +487,6 @@ async def get_profile(peer_id: int):
         'premium_since': peer_premium,
         'mutual_guilds': mutual_res,
     })
-
-
-@bp.route('/<int:peer_id>/relationships', methods=['GET'])
-async def get_mutual_friends(peer_id: int):
-    user_id = await token_check()
-    _friend = RelationshipType.FRIEND.value
-
-    peer = await app.storage.get_user(peer_id)
-
-    if not peer:
-        return '', 204
-
-    # NOTE: maybe this could be better with pure SQL calculations
-    # but it would be beyond my current SQL knowledge, so...
-    user_rels = await app.storage.get_relationships(user_id)
-    peer_rels = await app.storage.get_relationships(peer_id)
-
-    user_friends = {rel['user']['id']
-                    for rel in user_rels if rel['type'] == _friend}
-    peer_friends = {rel['user']['id']
-                    for rel in peer_rels if rel['type'] == _friend}
-
-    # get the intersection, then map them to Storage.get_user() calls
-    mutual_ids = user_friends | peer_friends
-
-    mutual_friends = []
-
-    for friend_id in mutual_ids:
-        mutual_friends.append(
-            await app.storage.get_user(int(friend_id))
-        )
-
-    return jsonify(mutual_friends)
 
 
 @bp.route('/@me/guilds/<int:guild_id>/settings', methods=['PATCH'])

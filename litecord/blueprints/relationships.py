@@ -25,7 +25,6 @@ async def _sub_friend(user_id, peer_id):
     await app.dispatcher.sub('friend', peer_id, user_id)
 
 
-
 async def make_friend(user_id: int, peer_id: int,
                       rel_type=RelationshipType.FRIEND.value):
     _friend = RelationshipType.FRIEND.value
@@ -240,3 +239,37 @@ async def remove_relationship(peer_id: int):
     await _unsub_friend(user_id, peer_id)
 
     return '', 204
+
+
+@bp.route('/<int:peer_id>/relationships', methods=['GET'])
+async def get_mutual_friends(peer_id: int):
+    """Fetch a users' mutual friends with the current user."""
+    user_id = await token_check()
+    _friend = RelationshipType.FRIEND.value
+
+    peer = await app.storage.get_user(peer_id)
+
+    if not peer:
+        return '', 204
+
+    # NOTE: maybe this could be better with pure SQL calculations
+    # but it would be beyond my current SQL knowledge, so...
+    user_rels = await app.storage.get_relationships(user_id)
+    peer_rels = await app.storage.get_relationships(peer_id)
+
+    user_friends = {rel['user']['id']
+                    for rel in user_rels if rel['type'] == _friend}
+    peer_friends = {rel['user']['id']
+                    for rel in peer_rels if rel['type'] == _friend}
+
+    # get the intersection, then map them to Storage.get_user() calls
+    mutual_ids = user_friends | peer_friends
+
+    mutual_friends = []
+
+    for friend_id in mutual_ids:
+        mutual_friends.append(
+            await app.storage.get_user(int(friend_id))
+        )
+
+    return jsonify(mutual_friends)
