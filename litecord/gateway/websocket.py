@@ -218,11 +218,11 @@ class GatewayWebsocket:
             'relationships': relationships,
             'presences': friend_presences,
             'read_state': await self.storage.get_read_state(user_id),
+            'user_guild_settings': await self.storage.get_guild_settings(
+                user_id),
 
             'friend_suggestion_count': 0,
 
-            # TODO
-            'user_guild_settings': [],
 
             'connected_accounts': [],
             'experiments': [],

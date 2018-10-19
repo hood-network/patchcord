@@ -908,3 +908,44 @@ class Storage:
         parties.remove(user_id)
 
         return parties[0]
+
+    async def get_guild_settings(self, user_id: int):
+        """Get the specific User Guild Settings,
+        for all guilds a user is on."""
+
+        res = {}
+
+        settings = await self.db.fetch("""
+        SELECT guild_id, suppress_everyone, muted
+               message_notifications, mobile_push
+        FROM guild_settings
+        WHERE user_id = $1
+        """, user_id)
+
+        for row in settings:
+            gid = row['guild_id']
+            drow = dict(row)
+            drow.pop('guild_id')
+
+            chan_ids = await self.get_channel_ids(gid)
+
+            chan_overrides = {}
+
+            for chan_id in chan_ids:
+                chan_row = await self.db.fetchrow("""
+                SELECT muted, message_notifications
+                FROM guild_setting_channel_overrides
+                WHERE
+                    guild_id = $1
+                AND user_id = $2
+                AND channel_id = $3
+                """, gid, user_id, chan_id)
+
+                chan_overrides[str(chan_id)] = dict(chan_row)
+
+            res[str(gid)] = {**drow, **{
+                'channel_overrides': chan_overrides
+            }}
+
+        return res
+
