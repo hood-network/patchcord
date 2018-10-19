@@ -157,3 +157,9 @@ class RelationshipType(EasyEnum):
     BLOCK = 2
     INCOMING = 3
     OUTGOING = 4
+
+
+class MessageNotifications(EasyEnum):
+    ALL = 0
+    MENTIONS = 1
+    NOTHING = 2

@@ -4,7 +4,8 @@ from cerberus import Validator
 from logbook import Logger
 
 from .errors import BadRequest
-from .enums import ActivityType, StatusType, ExplicitFilter, RelationshipType
+from .enums import ActivityType, StatusType, ExplicitFilter, \
+    RelationshipType, MessageNotifications
 
 
 log = Logger(__name__)
@@ -84,6 +85,14 @@ class LitecordValidator(Validator):
 
         return val in (RelationshipType.FRIEND.value,
                        RelationshipType.BLOCK.value)
+
+    def _validate_type_msg_notifications(self, value: str):
+        try:
+            val = int(value)
+        except (TypeError, ValueError):
+            return False
+
+        return val in MessageNotifications.values()
 
 
 def validate(reqjson, schema, raise_err: bool = True):
@@ -354,4 +363,32 @@ CREATE_GROUP_DM = {
 SPECIFIC_FRIEND = {
     'username': {'type': 'username'},
     'discriminator': {'type': 'discriminator'}
+}
+
+GUILD_SETTINGS_CHAN_OVERRIDE = {
+    'muted': {
+        'type': 'bool', 'required': False},
+    'message_notifications': {
+        'type': 'msg_notifications',
+        'required': False,
+    }
+}
+
+GUILD_SETTINGS = {
+    'channel_overrides': {
+        'type': 'dict',
+        'schema': GUILD_SETTINGS_CHAN_OVERRIDE,
+        'keyschema': {'type': 'snowflake'},
+        'required': False,
+    },
+    'supress_everyone': {
+        'type': 'bool', 'required': False},
+    'muted': {
+        'type': 'bool', 'required': False},
+    'mobile_push': {
+        'type': 'bool', 'required': False},
+    'message_notifications': {
+        'type': 'msg_notifications',
+        'required': False,
+    }
 }
