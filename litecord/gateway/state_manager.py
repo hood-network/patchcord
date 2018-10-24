@@ -22,12 +22,16 @@ class StateManager:
         # }
         self.states = defaultdict(dict)
 
+        #: raw mapping from session ids to GatewayState
+        self.states_raw = {}
+
     def insert(self, state: GatewayState):
         """Insert a new state object."""
         user_states = self.states[state.user_id]
 
         log.debug('inserting state: {!r}', state)
         user_states[state.session_id] = state
+        self.states_raw[state.session_id] = state
 
     def fetch(self, user_id: int, session_id: str) -> GatewayState:
         """Fetch a state object from the manager.
@@ -40,10 +44,19 @@ class StateManager:
         """
         return self.states[user_id][session_id]
 
+    def fetch_raw(self, session_id: str) -> GatewayState:
+        """Fetch a single state given the Session ID."""
+        return self.states_raw[session_id]
+
     def remove(self, state):
         """Remove a state from the registry"""
         if not state:
             return
+
+        try:
+            self.states_raw.pop(state.session_id)
+        except KeyError:
+            pass
 
         try:
             log.debug('removing state: {!r}', state)

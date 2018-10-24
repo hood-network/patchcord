@@ -440,6 +440,7 @@ class Storage:
                permissions, managed, mentionable
         FROM roles
         WHERE guild_id = $1
+        ORDER BY position ASC
         """, guild_id)
 
         return list(map(dict, roledata))
@@ -966,7 +967,6 @@ class Storage:
         """, user_id)
 
         for row in settings:
-            print(dict(row))
             gid = int(row['guild_id'])
             drow = dict(row)
 

@@ -4,7 +4,8 @@ from typing import List, Any
 from logbook import Logger
 
 from .pubsub import GuildDispatcher, MemberDispatcher, \
-    UserDispatcher, ChannelDispatcher, FriendDispatcher
+    UserDispatcher, ChannelDispatcher, FriendDispatcher, \
+    LazyGuildDispatcher
 
 log = Logger(__name__)
 
@@ -35,6 +36,7 @@ class EventDispatcher:
             'channel': ChannelDispatcher(self),
             'user': UserDispatcher(self),
             'friend': FriendDispatcher(self),
+            'lazy_guild': LazyGuildDispatcher(self),
         }
 
     async def action(self, backend_str: str, action: str, key, identifier):

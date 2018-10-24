@@ -641,9 +641,11 @@ class GatewayWebsocket:
 
         This is the known structure of GUILD_MEMBER_LIST_UPDATE:
 
+        group_id = 'online' | 'offline' | role_id (string)
+
         sync_item = {
             'group': {
-                'id': string, // 'online' | 'offline' | any role id
+                'id': group_id,
                 'count': num
             }
         } | {
@@ -678,7 +680,7 @@ class GatewayWebsocket:
             // separately from the online list?
             'groups': [
                 {
-                    'id': string // 'online' | 'offline' | any role id
+                    'id': group_id
                     'count': num
                 }, ...
             ]
@@ -713,65 +715,16 @@ class GatewayWebsocket:
         if guild_id not in gids:
             return
 
-        member_ids = await self.storage.get_member_ids(guild_id)
-        log.debug('lazy: loading {} members', len(member_ids))
+        # make shard query
+        lazy_guilds = self.ext.dispatcher.backends['lazy_guild']
 
-        # the current implementation is rudimentary and only
-        # generates two groups: online and offline, using
-        # PresenceManager.guild_presences to fill list_data.
+        for chan_id, ranges in data['channels'].items():
+            chan_id = int(chan_id)
+            member_list = await lazy_guilds.get_gml(chan_id)
 
-        # this also doesn't take account the channels in lazy_request.
-
-        guild_presences = await self.presence.guild_presences(member_ids,
-                                                              guild_id)
-
-        online = [{'member': p}
-                  for p in guild_presences
-                  if p['status'] == 'online']
-        offline = [{'member': p}
-                   for p in guild_presences
-                   if p['status'] == 'offline']
-
-        log.debug('lazy: {} presences, online={}, offline={}',
-                  len(guild_presences),
-                  len(online),
-                  len(offline))
-
-        # construct items in the WORST WAY POSSIBLE.
-        items = [{
-            'group': {
-                'id': 'online',
-                'count': len(online),
-            }
-        }] + online + [{
-            'group': {
-                'id': 'offline',
-                'count': len(offline),
-            }
-        }] + offline
-
-        await self.dispatch('GUILD_MEMBER_LIST_UPDATE', {
-            'id': 'everyone',
-            'guild_id': data['guild_id'],
-            'groups': [
-                {
-                    'id': 'online',
-                    'count': len(online),
-                },
-                {
-                    'id': 'offline',
-                    'count': len(offline),
-                }
-            ],
-
-            'ops': [
-                {
-                    'range': [0, 99],
-                    'op': 'SYNC',
-                    'items': items
-                }
-            ]
-        })
+            await member_list.shard_query(
+                self.state.session_id, ranges
+            )
 
     async def process_message(self, payload):
         """Process a single message coming in from the client."""
