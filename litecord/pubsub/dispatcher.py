@@ -37,6 +37,14 @@ class Dispatcher:
         """Unsubscribe an elemtnt from the channel/key."""
         raise NotImplementedError
 
+    async def dispatch_filter(self, _key, _func, *_args):
+        """Selectively dispatch to the list of subscribed users.
+
+        The selection logic is completly arbitraty and up to the
+        Pub/Sub backend.
+        """
+        raise NotImplementedError
+
     async def dispatch(self, _key, *_args):
         """Dispatch an event to the given channel/key."""
         raise NotImplementedError

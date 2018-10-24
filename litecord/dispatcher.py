@@ -106,6 +106,15 @@ class EventDispatcher:
         for key in keys:
             await self.dispatch(backend_str, key, *args, **kwargs)
 
+    async def dispatch_filter(self, backend_str: str,
+                              key: Any, func, *args):
+        """Dispatch to a backend that only accepts
+        (event, data) arguments with an optional filter
+        function."""
+        backend = self.backends[backend_str]
+        key = backend.KEY_TYPE(key)
+        return await backend.dispatch_filter(key, func, *args)
+
     async def reset(self, backend_str: str, key: Any):
         """Reset the bucket in the given backend."""
         backend = self.backends[backend_str]

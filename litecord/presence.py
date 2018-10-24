@@ -1,7 +1,10 @@
 from typing import List, Dict, Any
 from random import choice
 
+from logbook import Logger
 from quart import current_app as app
+
+log = Logger(__name__)
 
 
 def status_cmp(status: str, other_status: str) -> bool:
@@ -100,19 +103,49 @@ class PresenceManager:
 
         game = state['game']
 
-        await self.dispatcher.dispatch_guild(
-            guild_id, 'PRESENCE_UPDATE', {
-                'user': member['user'],
-                'roles': member['roles'],
-                'guild_id': guild_id,
+        lazy_guild_store = self.dispatcher.backends['lazy_guild']
+        lists = lazy_guild_store.get_gml_guild(guild_id)
 
-                'status': state['status'],
+        # shards that are in lazy guilds with 'everyone'
+        # enabled
+        in_lazy = []
 
-                # rich presence stuff
-                'game': game,
-                'activities': [game] if game else []
-            }
+        for member_list in lists:
+            session_ids = await member_list.pres_update(
+                int(member['user']['id']),
+                member['roles'],
+                state['status'],
+                game
+            )
+
+            log.debug('Lazy Dispatch to {}',
+                      len(session_ids))
+
+            if member_list.channel_id == 'everyone':
+                in_lazy.extend(session_ids)
+
+        pres_update_payload = {
+            'user': member['user'],
+            'roles': member['roles'],
+            'guild_id': str(guild_id),
+
+            'status': state['status'],
+
+            # rich presence stuff
+            'game': game,
+            'activities': [game] if game else []
+        }
+
+        # everyone not in lazy guild mode
+        # gets a PRESENCE_UPDATE
+        await self.dispatcher.dispatch_filter(
+            'guild', guild_id,
+            lambda session_id: session_id not in in_lazy,
+
+            'PRESENCE_UPDATE', pres_update_payload
         )
+
+        return in_lazy
 
     async def dispatch_pres(self, user_id: int, state: dict):
         """Dispatch a new presence to all guilds the user is in.
@@ -122,10 +155,12 @@ class PresenceManager:
         if state['status'] == 'invisible':
             state['status'] = 'offline'
 
+        # TODO: shard-aware
         guild_ids = await self.storage.get_user_guilds(user_id)
 
         for guild_id in guild_ids:
-            await self.dispatch_guild_pres(guild_id, user_id, state)
+            await self.dispatch_guild_pres(
+                guild_id, user_id, state)
 
         # dispatch to all friends that are subscribed to them
         user = await self.storage.get_user(user_id)

@@ -685,26 +685,6 @@ class GatewayWebsocket:
                 }, ...
             ]
         }
-
-        # Implementation defails.
-
-        Lazy guilds are complicated to deal with in the backend level
-        as there are a lot of computation to be done for each request.
-
-        The current implementation is rudimentary and does not account
-        for any roles inside the guild.
-
-        A correct implementation would take account of roles and make
-        the correct groups on list_data:
-
-        For each channel in lazy_request['channels']:
-         - get all roles that have Read Messages on the channel:
-           - Also fetch their member counts, as it'll be important
-         - with the role list, order them like you normally would
-            (by their role priority)
-         - based on the channel's range's min and max and the ordered
-            role list, you can get the roles wanted for your list_data reply.
-         - make new groups ONLY when the role is hoisted.
         """
         data = payload['d']
 

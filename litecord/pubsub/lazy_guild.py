@@ -256,6 +256,9 @@ class GuildMemberList:
         # subscribe the state to this list
         await self.sub(session_id)
 
+        # TODO: subscribe shard to 'everyone'
+        #       and forward the query to that list
+
         reply = {
             'guild_id': str(self.guild_id),
 
@@ -290,7 +293,13 @@ class GuildMemberList:
                 'items': items[start:end],
             })
 
+        # the first GUILD_MEMBER_LIST_UPDATE for a shard
+        # is dispatched here.
         await state.ws.dispatch('GUILD_MEMBER_LIST_UPDATE', reply)
+
+    async def pres_update(self, user_id: int, roles: List[str],
+                          status: str, game: dict) -> List[str]:
+        return list(self.state)
 
     async def dispatch(self, event: str, data: Any):
         """The dispatch() method here, instead of being
@@ -328,7 +337,14 @@ class LazyGuildDispatcher(Dispatcher):
         # {chan_id: gml, ...}
         self.state = {}
 
+        #: store which guilds have their
+        #  respective GMLs
+        # {guild_id: [chan_id, ...], ...}
+        self.guild_map = defaultdict(list)
+
     async def get_gml(self, channel_id: int):
+        """Get a guild list for a channel ID,
+        generating it if it doesn't exist."""
         try:
             return self.state[channel_id]
         except KeyError:
@@ -338,7 +354,15 @@ class LazyGuildDispatcher(Dispatcher):
 
             gml = GuildMemberList(guild_id, channel_id, self)
             self.state[channel_id] = gml
+            self.guild_map[guild_id].append(channel_id)
             return gml
+
+    def get_gml_guild(self, guild_id: int) -> List[GuildMemberList]:
+        """Get all member lists for a given guild."""
+        return list(map(
+            self.state.get,
+            self.guild_map[guild_id]
+        ))
 
     async def sub(self, chan_id, session_id):
         gml = await self.get_gml(chan_id)
