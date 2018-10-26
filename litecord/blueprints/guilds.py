@@ -18,7 +18,7 @@ async def guild_owner_check(user_id: int, guild_id: int):
     owner_id = await app.db.fetchval("""
     SELECT owner_id
     FROM guilds
-    WHERE guild_id = $1
+    WHERE guilds.id = $1
     """, guild_id)
 
     if not owner_id:
@@ -73,8 +73,6 @@ async def create_role(guild_id, name: str, **kwargs):
     WHERE guild_id = $1
     """, guild_id)
 
-    max_pos = max_pos or 0
-
     await app.db.execute(
         """
         INSERT INTO roles (id, guild_id, name, color,
@@ -86,7 +84,11 @@ async def create_role(guild_id, name: str, **kwargs):
         name,
         dict_get(kwargs, 'color', 0),
         dict_get(kwargs, 'hoist', False),
-        max_pos + 1,
+
+        # set position = 0 when there isn't any
+        # other role (when we're creating the
+        # @everyone role)
+        max_pos + 1 if max_pos else 0,
         dict_get(kwargs, 'permissions', default_perms),
         False,
         dict_get(kwargs, 'mentionable', False)
@@ -95,7 +97,7 @@ async def create_role(guild_id, name: str, **kwargs):
     role = await app.storage.get_role(new_role_id, guild_id)
     await app.dispatcher.dispatch_guild(
         guild_id, 'GUILD_ROLE_CREATE', {
-            'guild_id': guild_id,
+            'guild_id': str(guild_id),
             'role': role,
         })
 
@@ -384,9 +386,13 @@ async def create_guild_role(guild_id: int):
     # TODO: use check_guild and MANAGE_ROLES permission
     await guild_owner_check(user_id, guild_id)
 
-    j = validate(await request.get_json(), ROLE_CREATE)
+    # client can just send null
+    j = validate(await request.get_json() or {}, ROLE_CREATE)
 
-    role = await create_role(guild_id, j.get('name', 'new role'), **j)
+    role_name = j['name']
+    j.pop('name')
+
+    role = await create_role(guild_id, role_name, **j)
 
     return jsonify(role)
 
@@ -513,7 +519,7 @@ async def remove_member(guild_id: int, member_id: int):
     await app.dispatcher.unsub('guild', guild_id, member_id)
 
     await app.dispatcher.dispatch_guild(guild_id, 'GUILD_MEMBER_REMOVE', {
-        'guild': guild_id,
+        'guild_id': str(guild_id),
         'user': await app.storage.get_user(member_id),
     })
 
@@ -569,9 +575,10 @@ async def create_ban(guild_id, member_id):
 
     await remove_member(guild_id, member_id)
 
-    await app.dispatcher.dispatch_guild(guild_id, 'GUILD_BAN_ADD', {**{
-        'guild': guild_id,
-    }, **(await app.storage.get_user(member_id))})
+    await app.dispatcher.dispatch_guild(guild_id, 'GUILD_BAN_ADD', {
+        'guild_id': str(guild_id),
+        'user': await app.storage.get_user(member_id)
+    })
 
     return '', 204
 
