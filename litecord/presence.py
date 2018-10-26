@@ -136,11 +136,23 @@ class PresenceManager:
             'activities': [game] if game else []
         }
 
+        def _sane_session(session_id):
+            state = self.state_manager.fetch_raw(session_id)
+            uid = int(member['user']['id'])
+
+            if not state:
+                return False
+
+            # we don't want to send a presence update
+            # to the same user
+            return (state.user_id != uid and
+                    session_id not in in_lazy)
+
         # everyone not in lazy guild mode
         # gets a PRESENCE_UPDATE
         await self.dispatcher.dispatch_filter(
             'guild', guild_id,
-            lambda session_id: session_id not in in_lazy,
+            _sane_session,
 
             'PRESENCE_UPDATE', pres_update_payload
         )
