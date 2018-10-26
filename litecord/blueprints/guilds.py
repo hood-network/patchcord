@@ -104,7 +104,7 @@ async def _specific_chan_create(channel_id, ctype, **kwargs):
     if ctype == ChannelType.GUILD_TEXT:
         await app.db.execute("""
         INSERT INTO guild_text_channels (id, topic)
-        VALUES ($1)
+        VALUES ($1, $2)
         """, channel_id, kwargs.get('topic', ''))
     elif ctype == ChannelType.GUILD_VOICE:
         await app.db.execute(
@@ -132,6 +132,9 @@ async def create_guild_channel(guild_id: int, channel_id: int,
     FROM guild_channels
     WHERE guild_id = $1
     """, guild_id)
+
+    # account for the first channel in a guild too
+    max_pos = max_pos or 0
 
     # all channels go to guild_channels
     await app.db.execute("""
