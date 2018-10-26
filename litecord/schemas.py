@@ -6,8 +6,10 @@ from logbook import Logger
 
 from .errors import BadRequest
 from .permissions import Permissions
-from .enums import ActivityType, StatusType, ExplicitFilter, \
-    RelationshipType, MessageNotifications, ChannelType
+from .enums import (
+    ActivityType, StatusType, ExplicitFilter, RelationshipType,
+    MessageNotifications, ChannelType, VerificationLevel
+)
 
 
 log = Logger(__name__)
@@ -24,6 +26,14 @@ CHAN_MENTION = re.compile(r'<#(\d+)>', re.A | re.M)
 ROLE_MENTION = re.compile(r'<@&(\d+)>', re.A | re.M)
 EMOJO_MENTION = re.compile(r'<:(\.+):(\d+)>', re.A | re.M)
 ANIMOJI_MENTION = re.compile(r'<a:(\.+):(\d+)>', re.A | re.M)
+
+
+def _in_enum(enum, value: int):
+    try:
+        enum(value)
+        return True
+    except ValueError:
+        return False
 
 
 class LitecordValidator(Validator):
@@ -58,7 +68,10 @@ class LitecordValidator(Validator):
 
     def _validate_type_voice_region(self, value: str) -> bool:
         # TODO: complete this list
-        return value in ('brazil', 'us-east', 'us-west', 'us-south', 'russia')
+        return value.lower() in ('brazil', 'us-east', 'us-west', 'us-south', 'russia')
+
+    def _validate_type_verification_level(self, value: int) -> bool:
+        return _in_enum(VerificationLevel, value)
 
     def _validate_type_activity_type(self, value: int) -> bool:
         return value in ActivityType.values()
@@ -101,6 +114,9 @@ class LitecordValidator(Validator):
 
     def _validate_type_guild_name(self, value: str) -> bool:
         return 2 <= len(value) <= 100
+
+    def _validate_type_role_name(self, value: str) -> bool:
+        return 1 <= len(value) <= 100
 
     def _validate_type_channel_name(self, value: str) -> bool:
         # for now, we'll use the same validation for guild_name
@@ -193,7 +209,7 @@ PARTIAL_CHANNEL_GUILD_CREATE = {
 GUILD_CREATE = {
     'name': {'type': 'guild_name'},
     'region': {'type': 'voice_region'},
-    'icon': {'type': 'icon', 'required': False, 'nullable': True},
+    'icon': {'type': 'b64_icon', 'required': False, 'nullable': True},
 
     'verification_level': {
         'type': 'verification_level', 'default': 0},
@@ -215,7 +231,7 @@ GUILD_UPDATE = {
         'required': False
     },
     'region': {'type': 'voice_region', 'required': False},
-    'icon': {'type': 'icon', 'required': False},
+    'icon': {'type': 'b64_icon', 'required': False},
 
     'verification_level': {'type': 'verification_level', 'required': False},
     'default_message_notifications': {
