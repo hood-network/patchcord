@@ -9,6 +9,7 @@ from .channels import channel_ack
 from .checks import guild_check
 
 bp = Blueprint('guilds', __name__)
+DEFAULT_EVERYONE_PERMS = 104324161
 
 
 async def guild_owner_check(user_id: int, guild_id: int):
@@ -48,8 +49,116 @@ async def create_guild_settings(guild_id: int, user_id: int):
     """, m_notifs, user_id, guild_id)
 
 
+async def add_member(guild_id: int, user_id: int):
+    """Add a user to a guild."""
+    await app.db.execute("""
+    INSERT INTO members (user_id, guild_id)
+    VALUES ($1, $2)
+    """, user_id, guild_id)
+
+    await create_guild_settings(guild_id, user_id)
+
+
+async def guild_create_roles_prep(guild_id: int, roles: list):
+    """Create roles in preparation in guild create."""
+    # by reaching this point in the code that means
+    # roles is not nullable, which means
+    # roles has at least one element, so we can access safely.
+
+    # the first member in the roles array
+    # are patches to the @everyone role
+    everyone_patches = roles[0]
+    for field in everyone_patches:
+        await app.db.execute(f"""
+        UPDATE roles
+        SET {field}={everyone_patches[field]}
+        WHERE roles.id = $1
+        """, guild_id)
+
+    default_perms = (everyone_patches.get('permissions')
+                     or DEFAULT_EVERYONE_PERMS)
+
+    # from the 2nd and forward,
+    # should be treated as new roles
+    for role in roles[1:]:
+        new_role_id = get_snowflake()
+
+        await app.db.execute(
+            """
+            INSERT INTO roles (id, guild_id, name, color,
+                hoist, position, permissions, managed, mentionable)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            """,
+            new_role_id,
+            guild_id,
+            role['name'],
+            role.get('color', 0),
+            role.get('hoist', False),
+            role.get('permissions', default_perms),
+            False,
+            role.get('mentionable', False)
+        )
+
+
+async def _specific_chan_create(channel_id, ctype, **kwargs):
+    if ctype == ChannelType.GUILD_TEXT:
+        await app.db.execute("""
+        INSERT INTO guild_text_channels (id, topic)
+        VALUES ($1)
+        """, channel_id, kwargs.get('topic', ''))
+    elif ctype == ChannelType.GUILD_VOICE:
+        await app.db.execute(
+            """
+            INSERT INTO guild_voice_channels (id, bitrate, user_limit)
+            VALUES ($1, $2, $3)
+            """,
+            channel_id,
+            kwargs.get('bitrate', 64),
+            kwargs.get('user_limit', 0)
+        )
+
+
+async def create_guild_channel(guild_id: int, channel_id: int,
+                               ctype: ChannelType, **kwargs):
+    """Create a channel in a guild."""
+    await app.db.execute("""
+    INSERT INTO channels (id, channel_type)
+    VALUES ($1, $2)
+    """, channel_id, ctype.value)
+
+    # calc new pos
+    max_pos = await app.db.fetchval("""
+    SELECT MAX(position)
+    FROM guild_channels
+    WHERE guild_id = $1
+    """, guild_id)
+
+    # all channels go to guild_channels
+    await app.db.execute("""
+    INSERT INTO guild_channels (id, guild_id, name, position)
+    VALUES ($1, $2, $3, $4)
+    """, channel_id, guild_id, kwargs['name'], max_pos + 1)
+
+    # the rest of sql magic is dependant on the channel
+    # we're creating (a text or voice or category),
+    # so we use this function.
+    await _specific_chan_create(channel_id, ctype, **kwargs)
+
+
+async def guild_create_channels_prep(guild_id: int, channels: list):
+    """Create channels pre-guild create"""
+    for channel_raw in channels:
+        channel_id = get_snowflake()
+        ctype = ChannelType(channel_raw['type'])
+
+        await create_guild_channel(guild_id, channel_id, ctype)
+
+
 @bp.route('', methods=['POST'])
 async def create_guild():
+    """Create a new guild, assigning
+    the user creating it as the owner and
+    making them join."""
     user_id = await token_check()
     j = await request.get_json()
 
@@ -66,36 +175,27 @@ async def create_guild():
         j.get('default_message_notifications', 0),
         j.get('explicit_content_filter', 0))
 
-    await app.db.execute("""
-    INSERT INTO members (user_id, guild_id)
-    VALUES ($1, $2)
-    """, user_id, guild_id)
+    await add_member(guild_id, user_id)
 
-    await create_guild_settings(guild_id, user_id)
-
+    # create the default @everyone role (everyone has it by default,
+    # so we don't insert that in the table)
     await app.db.execute("""
     INSERT INTO roles (id, guild_id, name, position, permissions)
     VALUES ($1, $2, $3, $4, $5)
-    """, guild_id, guild_id, '@everyone', 0, 104324161)
+    """, guild_id, guild_id, '@everyone', 0, DEFAULT_EVERYONE_PERMS)
 
+    # create a single #general channel.
     general_id = get_snowflake()
 
-    await app.db.execute("""
-    INSERT INTO channels (id, channel_type)
-    VALUES ($1, $2)
-    """, general_id, ChannelType.GUILD_TEXT.value)
+    await create_guild_channel(
+        guild_id, general_id, ChannelType.GUILD_TEXT,
+        name='general')
 
-    await app.db.execute("""
-    INSERT INTO guild_channels (id, guild_id, name, position)
-    VALUES ($1, $2, $3, $4)
-    """, general_id, guild_id, 'general', 0)
+    if j.get('roles'):
+        await guild_create_roles_prep(guild_id, j['roles'])
 
-    await app.db.execute("""
-    INSERT INTO guild_text_channels (id)
-    VALUES ($1)
-    """, general_id)
-
-    # TODO: j['roles'] and j['channels']
+    if j.get('channels'):
+        await guild_create_channels_prep(guild_id, j['channels'])
 
     guild_total = await app.storage.get_guild_full(guild_id, user_id, 250)
 
@@ -106,12 +206,13 @@ async def create_guild():
 
 @bp.route('/<int:guild_id>', methods=['GET'])
 async def get_guild(guild_id):
+    """Get a single guilds' information."""
     user_id = await token_check()
+    await guild_check(user_id, guild_id)
 
-    gj = await app.storage.get_guild(guild_id, user_id)
-    gj_extra = await app.storage.get_guild_extra(guild_id, user_id, 250)
-
-    return jsonify({**gj, **gj_extra})
+    return jsonify(
+        await app.storage.get_guild_full(guild_id, user_id, 250)
+    )
 
 
 @bp.route('/<int:guild_id>', methods=['UPDATE'])
@@ -139,8 +240,6 @@ async def update_guild(guild_id):
         """, j['name'], guild_id)
 
     if 'region' in j:
-        # TODO: check region value
-
         await app.db.execute("""
         UPDATE guilds
         SET region = $1
@@ -167,15 +266,14 @@ async def update_guild(guild_id):
         WHERE guild_id = $2
         """, j[field], guild_id)
 
-    # return guild object
-    gj = await app.storage.get_guild(guild_id, user_id)
-    gj_extra = await app.storage.get_guild_extra(guild_id, user_id, 250)
+    guild = await app.storage.get_guild_full(
+        guild_id, user_id
+    )
 
-    gj_total = {**gj, **gj_extra}
+    await app.dispatcher.dispatch_guild(
+        guild_id, 'GUILD_UPDATE', guild)
 
-    await app.dispatcher.dispatch_guild(guild_id, 'GUILD_UPDATE', gj_total)
-
-    return jsonify({**gj, **gj_extra})
+    return jsonify(guild)
 
 
 @bp.route('/<int:guild_id>', methods=['DELETE'])
@@ -185,7 +283,7 @@ async def delete_guild(guild_id):
     await guild_owner_check(user_id, guild_id)
 
     await app.db.execute("""
-    DELETE FROM guild
+    DELETE FROM guilds
     WHERE guilds.id = $1
     """, guild_id)
 
@@ -219,42 +317,19 @@ async def create_channel(guild_id):
     # TODO: check permissions for MANAGE_CHANNELS
     await guild_check(user_id, guild_id)
 
-    new_channel_id = get_snowflake()
     channel_type = j.get('type', ChannelType.GUILD_TEXT)
-
     channel_type = ChannelType(channel_type)
 
     if channel_type not in (ChannelType.GUILD_TEXT,
                             ChannelType.GUILD_VOICE):
         raise BadRequest('Invalid channel type')
 
-    await app.db.execute("""
-    INSERT INTO channels (id, channel_type)
-    VALUES ($1, $2)
-    """, new_channel_id, channel_type.value)
-
-    max_pos = await app.db.fetchval("""
-    SELECT MAX(position)
-    FROM guild_channels
-    WHERE guild_id = $1
-    """, guild_id)
-
-    if channel_type == ChannelType.GUILD_TEXT:
-        await app.db.execute("""
-        INSERT INTO guild_channels (id, guild_id, name, position)
-        VALUES ($1, $2, $3, $4)
-        """, new_channel_id, guild_id, j['name'], max_pos + 1)
-
-        await app.db.execute("""
-        INSERT INTO guild_text_channels (id)
-        VALUES ($1)
-        """, new_channel_id)
-
-    elif channel_type == ChannelType.GUILD_VOICE:
-        raise NotImplementedError()
+    new_channel_id = get_snowflake()
+    await create_guild_channel(guild_id, new_channel_id, channel_type,)
 
     chan = await app.storage.get_channel(new_channel_id)
-    await app.dispatcher.dispatch_guild(guild_id, 'CHANNEL_CREATE', chan)
+    await app.dispatcher.dispatch_guild(
+        guild_id, 'CHANNEL_CREATE', chan)
     return jsonify(chan)
 
 
@@ -271,15 +346,16 @@ async def modify_channel_pos(guild_id):
 
 @bp.route('/<int:guild_id>/members/<int:member_id>', methods=['GET'])
 async def get_guild_member(guild_id, member_id):
+    """Get a member's information in a guild."""
     user_id = await token_check()
     await guild_check(user_id, guild_id)
-
     member = await app.storage.get_single_member(guild_id, member_id)
     return jsonify(member)
 
 
 @bp.route('/<int:guild_id>/members', methods=['GET'])
 async def get_members(guild_id):
+    """Get members inside a guild."""
     user_id = await token_check()
     await guild_check(user_id, guild_id)
 
@@ -304,6 +380,7 @@ async def get_members(guild_id):
 
 @bp.route('/<int:guild_id>/members/<int:member_id>', methods=['PATCH'])
 async def modify_guild_member(guild_id, member_id):
+    """Modify a members' information in a guild."""
     j = await request.get_json()
 
     if 'nick' in j:
@@ -350,6 +427,7 @@ async def modify_guild_member(guild_id, member_id):
 
 @bp.route('/<int:guild_id>/members/@me/nick', methods=['PATCH'])
 async def update_nickname(guild_id):
+    """Update a member's nickname in a guild."""
     user_id = await token_check()
     await guild_check(user_id, guild_id)
 
@@ -371,28 +449,36 @@ async def update_nickname(guild_id):
     return j['nick']
 
 
-@bp.route('/<int:guild_id>/members/<int:member_id>', methods=['DELETE'])
-async def kick_member(guild_id, member_id):
-    user_id = await token_check()
-
-    # TODO: check KICK_MEMBERS permission
-    await guild_owner_check(user_id, guild_id)
+async def remove_member(guild_id: int, member_id: int):
+    """Do common tasks related to deleting a member from the guild,
+    such as dispatching GUILD_DELETE and GUILD_MEMBER_REMOVE."""
 
     await app.db.execute("""
     DELETE FROM members
     WHERE guild_id = $1 AND user_id = $2
     """, guild_id, member_id)
 
-    await app.dispatcher.dispatch_user(user_id, 'GUILD_DELETE', {
+    await app.dispatcher.dispatch_user(member_id, 'GUILD_DELETE', {
         'guild_id': guild_id,
         'unavailable': False,
     })
+
+    await app.dispatcher.unsub('guild', guild_id, member_id)
 
     await app.dispatcher.dispatch_guild(guild_id, 'GUILD_MEMBER_REMOVE', {
         'guild': guild_id,
         'user': await app.storage.get_user(member_id),
     })
 
+
+@bp.route('/<int:guild_id>/members/<int:member_id>', methods=['DELETE'])
+async def kick_member(guild_id, member_id):
+    """Remove a member from a guild."""
+    user_id = await token_check()
+
+    # TODO: check KICK_MEMBERS permission
+    await guild_owner_check(user_id, guild_id)
+    await remove_member(guild_id, member_id)
     return '', 204
 
 
@@ -434,22 +520,7 @@ async def create_ban(guild_id, member_id):
     VALUES ($1, $2, $3)
     """, guild_id, member_id, j.get('reason', ''))
 
-    await app.db.execute("""
-    DELETE FROM members
-    WHERE guild_id = $1 AND user_id = $2
-    """, guild_id, user_id)
-
-    await app.dispatcher.dispatch_user(member_id, 'GUILD_DELETE', {
-        'guild_id': guild_id,
-        'unavailable': False,
-    })
-
-    await app.dispatcher.unsub('guild', guild_id, member_id)
-
-    await app.dispatcher.dispatch_guild(guild_id, 'GUILD_MEMBER_REMOVE', {
-        'guild': guild_id,
-        'user': await app.storage.get_user(member_id),
-    })
+    await remove_member(guild_id, member_id)
 
     await app.dispatcher.dispatch_guild(guild_id, 'GUILD_BAN_ADD', {**{
         'guild': guild_id,
@@ -460,6 +531,10 @@ async def create_ban(guild_id, member_id):
 
 @bp.route('/<int:guild_id>/messages/search')
 async def search_messages(guild_id):
+    """Search messages in a guild.
+
+    This is an undocumented route.
+    """
     user_id = await token_check()
     await guild_check(user_id, guild_id)
 
@@ -474,6 +549,7 @@ async def search_messages(guild_id):
 
 @bp.route('/<int:guild_id>/ack', methods=['POST'])
 async def ack_guild(guild_id):
+    """ACKnowledge all messages in the guild."""
     user_id = await token_check()
     await guild_check(user_id, guild_id)
 

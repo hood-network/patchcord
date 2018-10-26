@@ -1,11 +1,13 @@
 import re
+from typing import Union, Dict, List, Any
 
 from cerberus import Validator
 from logbook import Logger
 
 from .errors import BadRequest
+from .permissions import Permissions
 from .enums import ActivityType, StatusType, ExplicitFilter, \
-    RelationshipType, MessageNotifications
+    RelationshipType, MessageNotifications, ChannelType
 
 
 log = Logger(__name__)
@@ -61,6 +63,9 @@ class LitecordValidator(Validator):
     def _validate_type_activity_type(self, value: int) -> bool:
         return value in ActivityType.values()
 
+    def _validate_type_channel_type(self, value: int) -> bool:
+        return value in ChannelType.values()
+
     def _validate_type_status_external(self, value: str) -> bool:
         statuses = StatusType.values()
 
@@ -94,8 +99,19 @@ class LitecordValidator(Validator):
 
         return val in MessageNotifications.values()
 
+    def _validate_type_guild_name(self, value: str) -> bool:
+        return 2 <= len(value) <= 100
 
-def validate(reqjson, schema, raise_err: bool = True):
+    def _validate_type_channel_name(self, value: str) -> bool:
+        # for now, we'll use the same validation for guild_name
+        return self._validate_type_guild_name(value)
+
+
+def validate(reqjson: Union[Dict, List], schema: Dict,
+             raise_err: bool = True) -> Union[Dict, List]:
+    """Validate a given document (user-input) and give
+    the correct document as a result.
+    """
     validator = LitecordValidator(schema)
 
     if not validator.validate(reqjson):
@@ -146,12 +162,44 @@ USER_UPDATE = {
 
 }
 
+PARTIAL_ROLE_GUILD_CREATE = {
+    'name': {'type': 'role_name'},
+    'color': {'type': 'number', 'default': 0},
+    'hoist': {'type': 'boolean', 'default': False},
+
+    # NOTE: no position on partial role (on guild create)
+
+    'permissions': {'coerce': Permissions, 'required': False},
+    'mentionable': {'type': 'boolean', 'default': False},
+}
+
+PARTIAL_CHANNEL_GUILD_CREATE = {
+    'name': {'type': 'channel_name'},
+    'type': {'type': 'channel_type'}
+}
+
+GUILD_CREATE = {
+    'name': {'type': 'guild_name'},
+    'region': {'type': 'voice_region'},
+    'icon': {'type': 'icon', 'required': False, 'nullable': True},
+
+    'verification_level': {
+        'type': 'verification_level', 'default': 0},
+    'default_message_notifications': {
+        'type': 'msg_notifications', 'default': 0},
+    'explicit_content_filter': {
+        'type': 'explicit', 'default': 0},
+
+    'roles': {
+        'type': 'list', 'required': False,
+        'schema': PARTIAL_ROLE_GUILD_CREATE},
+    'channels': {
+        'type': 'list', 'default': [], 'schema': PARTIAL_CHANNEL_GUILD_CREATE},
+}
 
 GUILD_UPDATE = {
     'name': {
-        'type': 'string',
-        'minlength': 2,
-        'maxlength': 100,
+        'type': 'guild_name',
         'required': False
     },
     'region': {'type': 'voice_region', 'required': False},
