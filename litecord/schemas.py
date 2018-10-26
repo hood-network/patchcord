@@ -32,7 +32,7 @@ class LitecordValidator(Validator):
         return bool(USERNAME_REGEX.match(value))
 
     def _validate_type_email(self, value: str) -> bool:
-        """Validate against the username regex."""
+        """Validate against the email regex."""
         return bool(EMAIL_REGEX.match(value))
 
     def _validate_type_b64_icon(self, value: str) -> bool:
@@ -114,7 +114,13 @@ def validate(reqjson: Union[Dict, List], schema: Dict,
     """
     validator = LitecordValidator(schema)
 
-    if not validator.validate(reqjson):
+    try:
+        valid = validator.validate(reqjson)
+    except Exception:
+        log.exception('Error while validating')
+        raise Exception(f'Error while validating: {reqjson}')
+
+    if not valid:
         errs = validator.errors
         log.warning('Error validating doc {!r}: {!r}', reqjson, errs)
 
@@ -163,19 +169,25 @@ USER_UPDATE = {
 }
 
 PARTIAL_ROLE_GUILD_CREATE = {
-    'name': {'type': 'role_name'},
-    'color': {'type': 'number', 'default': 0},
-    'hoist': {'type': 'boolean', 'default': False},
+    'type': 'dict',
+    'schema': {
+        'name': {'type': 'role_name'},
+        'color': {'type': 'number', 'default': 0},
+        'hoist': {'type': 'boolean', 'default': False},
 
-    # NOTE: no position on partial role (on guild create)
+        # NOTE: no position on partial role (on guild create)
 
-    'permissions': {'coerce': Permissions, 'required': False},
-    'mentionable': {'type': 'boolean', 'default': False},
+        'permissions': {'coerce': Permissions, 'required': False},
+        'mentionable': {'type': 'boolean', 'default': False},
+    }
 }
 
 PARTIAL_CHANNEL_GUILD_CREATE = {
-    'name': {'type': 'channel_name'},
-    'type': {'type': 'channel_type'}
+    'type': 'dict',
+    'schema': {
+        'name': {'type': 'channel_name'},
+        'type': {'type': 'channel_type'},
+    }
 }
 
 GUILD_CREATE = {
@@ -244,57 +256,60 @@ MESSAGE_CREATE = {
 
 
 GW_ACTIVITY = {
-    'name': {'type': 'string', 'required': True},
-    'type': {'type': 'activity_type', 'required': True},
+    'type': 'dict',
+    'schema': {
+        'name': {'type': 'string', 'required': True},
+        'type': {'type': 'activity_type', 'required': True},
 
-    'url': {'type': 'string', 'required': False, 'nullable': True},
+        'url': {'type': 'string', 'required': False, 'nullable': True},
 
-    'timestamps': {
-        'type': 'dict',
-        'required': False,
-        'schema': {
-            'start': {'type': 'number', 'required': True},
-            'end': {'type': 'number', 'required': True},
+        'timestamps': {
+            'type': 'dict',
+            'required': False,
+            'schema': {
+                'start': {'type': 'number', 'required': True},
+                'end': {'type': 'number', 'required': False},
+            },
         },
-    },
 
-    'application_id': {'type': 'snowflake', 'required': False,
-                       'nullable': False},
-    'details': {'type': 'string', 'required': False, 'nullable': True},
-    'state': {'type': 'string', 'required': False, 'nullable': True},
+        'application_id': {'type': 'snowflake', 'required': False,
+                           'nullable': False},
+        'details': {'type': 'string', 'required': False, 'nullable': True},
+        'state': {'type': 'string', 'required': False, 'nullable': True},
 
-    'party': {
-        'type': 'dict',
-        'required': False,
-        'schema': {
-            'id': {'type': 'snowflake', 'required': False},
-            'size': {'type': 'list', 'required': False},
-        }
-    },
+        'party': {
+            'type': 'dict',
+            'required': False,
+            'schema': {
+                'id': {'type': 'snowflake', 'required': False},
+                'size': {'type': 'list', 'required': False},
+            }
+        },
 
-    'assets': {
-        'type': 'dict',
-        'required': False,
-        'schema': {
-            'large_image': {'type': 'snowflake', 'required': False},
-            'large_text': {'type': 'string', 'required': False},
-            'small_image': {'type': 'snowflake', 'required': False},
-            'small_text': {'type': 'string', 'required': False},
-        }
-    },
+        'assets': {
+            'type': 'dict',
+            'required': False,
+            'schema': {
+                'large_image': {'type': 'snowflake', 'required': False},
+                'large_text': {'type': 'string', 'required': False},
+                'small_image': {'type': 'snowflake', 'required': False},
+                'small_text': {'type': 'string', 'required': False},
+            }
+        },
 
-    'secrets': {
-        'type': 'dict',
-        'required': False,
-        'schema': {
-            'join': {'type': 'string', 'required': False},
-            'spectate': {'type': 'string', 'required': False},
-            'match': {'type': 'string', 'required': False},
-        }
-    },
+        'secrets': {
+            'type': 'dict',
+            'required': False,
+            'schema': {
+                'join': {'type': 'string', 'required': False},
+                'spectate': {'type': 'string', 'required': False},
+                'match': {'type': 'string', 'required': False},
+            }
+        },
 
-    'instance': {'type': 'boolean', 'required': False},
-    'flags': {'type': 'number', 'required': False},
+        'instance': {'type': 'boolean', 'required': False},
+        'flags': {'type': 'number', 'required': False},
+    }
 }
 
 GW_STATUS_UPDATE = {

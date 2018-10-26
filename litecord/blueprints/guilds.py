@@ -4,7 +4,7 @@ from ..auth import token_check
 from ..snowflake import get_snowflake
 from ..enums import ChannelType
 from ..errors import Forbidden, GuildNotFound, BadRequest
-from ..schemas import validate, GUILD_UPDATE
+from ..schemas import validate, GUILD_CREATE, GUILD_UPDATE
 from .channels import channel_ack
 from .checks import guild_check
 
@@ -160,7 +160,7 @@ async def create_guild():
     the user creating it as the owner and
     making them join."""
     user_id = await token_check()
-    j = await request.get_json()
+    j = validate(await request.get_json(), GUILD_CREATE)
 
     guild_id = get_snowflake()
 
