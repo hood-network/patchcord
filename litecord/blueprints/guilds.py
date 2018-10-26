@@ -4,7 +4,7 @@ from ..auth import token_check
 from ..snowflake import get_snowflake
 from ..enums import ChannelType
 from ..errors import Forbidden, GuildNotFound, BadRequest
-from ..schemas import validate, GUILD_CREATE, GUILD_UPDATE
+from ..schemas import validate, GUILD_CREATE, GUILD_UPDATE, ROLE_CREATE
 from ..utils import dict_get
 from .channels import channel_ack
 from .checks import guild_check
@@ -67,6 +67,14 @@ async def create_role(guild_id, name: str, **kwargs):
     # TODO: use @everyone's perm number
     default_perms = dict_get(kwargs, 'default_perms', DEFAULT_EVERYONE_PERMS)
 
+    max_pos = await app.db.fetchval("""
+    SELECT MAX(position)
+    FROM roles
+    WHERE guild_id = $1
+    """, guild_id)
+
+    max_pos = max_pos or 0
+
     await app.db.execute(
         """
         INSERT INTO roles (id, guild_id, name, color,
@@ -78,6 +86,7 @@ async def create_role(guild_id, name: str, **kwargs):
         name,
         dict_get(kwargs, 'color', 0),
         dict_get(kwargs, 'hoist', False),
+        max_pos + 1,
         dict_get(kwargs, 'permissions', default_perms),
         False,
         dict_get(kwargs, 'mentionable', False)
@@ -89,6 +98,8 @@ async def create_role(guild_id, name: str, **kwargs):
             'guild_id': guild_id,
             'role': role,
         })
+
+    return role
 
 
 async def guild_create_roles_prep(guild_id: int, roles: list):
@@ -363,6 +374,21 @@ async def modify_channel_pos(guild_id):
     # TODO: this route
 
     raise NotImplementedError
+
+
+@bp.route('/<int:guild_id>/roles', methods=['POST'])
+async def create_guild_role(guild_id: int):
+    """Add a role to a guild"""
+    user_id = await token_check()
+
+    # TODO: use check_guild and MANAGE_ROLES permission
+    await guild_owner_check(user_id, guild_id)
+
+    j = validate(await request.get_json(), ROLE_CREATE)
+
+    role = await create_role(guild_id, j.get('name', 'new role'), **j)
+
+    return jsonify(role)
 
 
 @bp.route('/<int:guild_id>/members/<int:member_id>', methods=['GET'])

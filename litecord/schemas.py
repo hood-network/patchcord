@@ -6,6 +6,7 @@ from logbook import Logger
 
 from .errors import BadRequest
 from .permissions import Permissions
+from .types import Color
 from .enums import (
     ActivityType, StatusType, ExplicitFilter, RelationshipType,
     MessageNotifications, ChannelType, VerificationLevel
@@ -225,6 +226,7 @@ GUILD_CREATE = {
         'type': 'list', 'default': [], 'schema': PARTIAL_CHANNEL_GUILD_CREATE},
 }
 
+
 GUILD_UPDATE = {
     'name': {
         'type': 'guild_name',
@@ -249,13 +251,23 @@ GUILD_UPDATE = {
 }
 
 
+ROLE_CREATE = {
+    'name': {'type': 'string', 'default': 'new role'},
+    'permissions': {'coerce': Permissions, 'nullable': True},
+    'color': {'coerce': Color, 'default': 0},
+    'hoist': {'type': 'boolean', 'default': False},
+    'mentionable': {'type': 'boolean', 'default': False},
+}
+
+
 MEMBER_UPDATE = {
     'nick': {
         'type': 'nickname',
         'minlength': 1, 'maxlength': 100,
         'required': False,
     },
-    'roles': {'type': 'list', 'required': False},
+    'roles': {'type': 'list', 'required': False,
+              'schema': {'coerce': int}},
     'mute': {'type': 'boolean', 'required': False},
     'deaf': {'type': 'boolean', 'required': False},
     'channel_id': {'type': 'snowflake', 'required': False},
