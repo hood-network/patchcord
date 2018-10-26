@@ -5,6 +5,7 @@ from ..snowflake import get_snowflake
 from ..enums import ChannelType
 from ..errors import Forbidden, GuildNotFound, BadRequest
 from ..schemas import validate, GUILD_CREATE, GUILD_UPDATE
+from ..utils import dict_get
 from .channels import channel_ack
 from .checks import guild_check
 
@@ -59,6 +60,37 @@ async def add_member(guild_id: int, user_id: int):
     await create_guild_settings(guild_id, user_id)
 
 
+async def create_role(guild_id, name: str, **kwargs):
+    """Create a role in a guild."""
+    new_role_id = get_snowflake()
+
+    # TODO: use @everyone's perm number
+    default_perms = dict_get(kwargs, 'default_perms', DEFAULT_EVERYONE_PERMS)
+
+    await app.db.execute(
+        """
+        INSERT INTO roles (id, guild_id, name, color,
+            hoist, position, permissions, managed, mentionable)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        """,
+        new_role_id,
+        guild_id,
+        name,
+        dict_get(kwargs, 'color', 0),
+        dict_get(kwargs, 'hoist', False),
+        dict_get(kwargs, 'permissions', default_perms),
+        False,
+        dict_get(kwargs, 'mentionable', False)
+    )
+
+    role = await app.storage.get_role(new_role_id, guild_id)
+    await app.dispatcher.dispatch_guild(
+        guild_id, 'GUILD_ROLE_CREATE', {
+            'guild_id': guild_id,
+            'role': role,
+        })
+
+
 async def guild_create_roles_prep(guild_id: int, roles: list):
     """Create roles in preparation in guild create."""
     # by reaching this point in the code that means
@@ -81,22 +113,8 @@ async def guild_create_roles_prep(guild_id: int, roles: list):
     # from the 2nd and forward,
     # should be treated as new roles
     for role in roles[1:]:
-        new_role_id = get_snowflake()
-
-        await app.db.execute(
-            """
-            INSERT INTO roles (id, guild_id, name, color,
-                hoist, position, permissions, managed, mentionable)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-            """,
-            new_role_id,
-            guild_id,
-            role['name'],
-            role.get('color', 0),
-            role.get('hoist', False),
-            role.get('permissions', default_perms),
-            False,
-            role.get('mentionable', False)
+        await create_role(
+            guild_id, role['name'], default_perms=default_perms, **role
         )
 
 

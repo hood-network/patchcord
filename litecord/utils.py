@@ -22,3 +22,8 @@ async def task_wrapper(name: str, coro):
         pass
     except:
         log.exception('{} task error', name)
+
+
+def dict_get(mapping, key, default):
+    """Return `default` even when mapping[key] is None."""
+    return mapping.get(key) or default
