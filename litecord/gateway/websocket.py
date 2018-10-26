@@ -698,7 +698,7 @@ class GatewayWebsocket:
         # make shard query
         lazy_guilds = self.ext.dispatcher.backends['lazy_guild']
 
-        for chan_id, ranges in data['channels'].items():
+        for chan_id, ranges in data.get('channels', {}).items():
             chan_id = int(chan_id)
             member_list = await lazy_guilds.get_gml(chan_id)
 
