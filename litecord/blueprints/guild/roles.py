@@ -1,3 +1,5 @@
+from typing import List, Dict, Any, Union
+
 from quart import Blueprint, request, current_app as app, jsonify
 
 from litecord.auth import token_check
@@ -124,6 +126,91 @@ async def _role_pairs_update(guild_id: int, pairs: list):
         await _role_update_dispatch(role_2, guild_id)
 
 
+def gen_pairs(list_of_changes: List[Dict[str, int]],
+              current_state: Dict[int, int],
+              blacklist: List[int] = None) -> List[tuple]:
+    """Generate a list of pairs that, when applied to the database,
+    will generate the desired state given in list_of_changes.
+
+    We must check if the given list_of_changes isn't overwriting an
+    element's (such as a role or a channel) position to an existing one,
+    without there having an already existing change for the other one.
+
+    Here's a pratical explanation with roles:
+
+    R1 (in position RP1) wants to be in the same position
+    as R2 (currently in position RP2).
+
+    So, if we did the simpler approach, list_of_changes
+    would just contain the preferred change: (R1, RP2).
+
+    With gen_pairs, there MUST be a (R2, RP1) in list_of_changes,
+    if there is, the given result in gen_pairs will be a pair
+    ((R1, RP2), (R2, RP1)) which is then used to actually
+    update the roles' positions in a transaction.
+
+    Parameters
+    ----------
+    list_of_changes:
+        A list of dictionaries with ``id`` and ``position``
+        fields, describing the preferred changes.
+    current_state:
+        Dictionary containing the current state of the list
+        of elements (roles or channels). Points position
+        to element ID.
+    blacklist:
+        List of IDs that shouldn't be moved.
+
+    Returns
+    -------
+    list
+        List of swaps to do to achieve the preferred
+        state given by ``list_of_changes``.
+    """
+    pairs = []
+    blacklist = blacklist or []
+
+    preferred_state = {element['id']: element['position']
+                       for element in list_of_changes}
+
+    for blacklisted_id in blacklist:
+        preferred_state.pop(blacklisted_id)
+
+    # for each change, we must find a matching change
+    # in the same list, so we can make a swap pair
+    for change in list_of_changes:
+        element_1, new_pos_1 = change['id'], change['position']
+
+        # check current pairs
+        # so we don't repeat an element
+        flag = False
+
+        for pair in pairs:
+            if (element_1, new_pos_1) in pair:
+                flag = True
+
+        # skip if found
+        if flag:
+            continue
+
+        # search if there is a role/channel in the
+        # position we want to change to
+        element_2 = current_state.get(new_pos_1)
+
+        # if there is, is that existing channel being
+        # swapped to another position?
+        new_pos_2 = preferred_state.get(element_2)
+
+        # if its being swapped to leave space, add it
+        # to the pairs list
+        if new_pos_2:
+            pairs.append(
+                ((element_1, new_pos_1), (element_2, new_pos_2))
+            )
+
+    return pairs
+
+
 @bp.route('/<int:guild_id>/roles', methods=['PATCH'])
 async def update_guild_role_positions(guild_id):
     """Update the positions for a bunch of roles."""
@@ -140,57 +227,24 @@ async def update_guild_role_positions(guild_id):
 
     # extract the list out
     j = j['roles']
-    print(j)
 
     all_roles = await app.storage.get_role_data(guild_id)
 
     # we'll have to calculate pairs of changing roles,
     # then do the changes, etc.
     roles_pos = {role['position']: int(role['id']) for role in all_roles}
-    new_positions = {role['id']: role['position'] for role in j}
 
-    # always ignore people trying to change the @everyone role
     # TODO: check if the user can even change the roles in the first place,
     #       preferrably when we have a proper perms system.
-    try:
-        new_positions.pop(guild_id)
-    except KeyError:
-        pass
 
-    pairs = []
+    pairs = gen_pairs(
+        j,
+        roles_pos,
 
-    # we want to find pairs of (role_1, new_position_1)
-    # where new_position_1 is actually pointing to position_2 (for a role 2)
-    # AND we have (role_2, new_position_2) in the list of new_positions.
-
-    # I hope the explanation went through.
-
-    for change in j:
-        role_1, new_pos_1 = change['id'], change['position']
-
-        # check current pairs
-        # so we don't repeat a role
-        flag = False
-
-        for pair in pairs:
-            if (role_1, new_pos_1) in pair:
-                flag = True
-
-        # skip if found
-        if flag:
-            continue
-
-        # find a role that is in that new position
-        role_2 = roles_pos.get(new_pos_1)
-
-        # search role_2 in the new_positions list
-        new_pos_2 = new_positions.get(role_2)
-
-        # if we found it, add it to the pairs array.
-        if new_pos_2:
-            pairs.append(
-                ((role_1, new_pos_1), (role_2, new_pos_2))
-            )
+        # always ignore people trying to change
+        # the @everyone's role position
+        [guild_id]
+    )
 
     await _role_pairs_update(guild_id, pairs)
 
