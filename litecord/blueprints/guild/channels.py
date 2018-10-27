@@ -5,9 +5,10 @@ from litecord.blueprints.checks import guild_check, guild_owner_check
 from litecord.snowflake import get_snowflake
 from litecord.errors import BadRequest
 from litecord.enums import ChannelType
-# from litecord.schemas import (
-#     validate, CHAN_UPDATE_POSITION
-# )
+from litecord.schemas import (
+    validate, ROLE_UPDATE_POSITION
+)
+from litecord.blueprints.guild.roles import gen_pairs
 
 
 bp = Blueprint('guild_channels', __name__)
@@ -108,15 +109,70 @@ async def create_channel(guild_id):
     return jsonify(chan)
 
 
+async def _chan_update_dispatch(guild_id: int, channel_id: int):
+    """Fetch new information about the channel and dispatch
+    a single CHANNEL_UPDATE event to the guild."""
+    chan = await app.storage.get_channel(channel_id)
+    await app.dispatcher.dispatch_guild(guild_id, 'CHANNEL_UPDATE', chan)
+
+
+async def _do_single_swap(guild_id: int, pair: tuple):
+    """Do a single channel swap, dispatching
+    the CHANNEL_UPDATE events for after the swap"""
+    pair1, pair2 = pair
+    channel_1, new_pos_1 = pair1
+    channel_2, new_pos_2 = pair2
+
+    # do the swap in a transaction.
+    conn = await app.db.acquire()
+
+    async with conn.transaction():
+        await conn.executemany("""
+        UPDATE guild_channels
+        SET position = $1
+        WHERE id = $2 AND guild_id = $3
+        """, [
+            (new_pos_1, channel_1, guild_id),
+            (new_pos_2, channel_2, guild_id)])
+
+    await _chan_update_dispatch(guild_id, channel_1)
+    await _chan_update_dispatch(guild_id, channel_2)
+
+
+async def _do_channel_swaps(guild_id: int, swap_pairs: list):
+    """Swap channel pairs' positions, given the list
+    of pairs to do.
+
+    Dispatches CHANNEL_UPDATEs to the guild.
+    """
+    for pair in swap_pairs:
+        await _do_single_swap(guild_id, pair)
+
+
 @bp.route('/<int:guild_id>/channels', methods=['PATCH'])
 async def modify_channel_pos(guild_id):
+    """Change positions of channels in a guild."""
     user_id = await token_check()
 
     # TODO: check MANAGE_CHANNELS
     await guild_owner_check(user_id, guild_id)
 
-    # TODO: this route
-    # raw_j = await request.get_json()
-    # j = validate({'channels': raw_j}, CHAN_UPDATE_POSITION)
+    # same thing as guild.roles, so we use
+    # the same schema and all.
+    raw_j = await request.get_json()
+    j = validate({'roles': raw_j}, ROLE_UPDATE_POSITION)
+    j = j['roles']
 
-    raise NotImplementedError
+    channels = await app.storage.get_channel_data(guild_id)
+
+    channel_positions = {chan['position']: int(chan['id'])
+                         for chan in channels}
+
+    swap_pairs = gen_pairs(
+        j,
+        channel_positions
+    )
+
+    await _do_channel_swaps(guild_id, swap_pairs)
+
+    return '', 204
