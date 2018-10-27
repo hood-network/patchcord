@@ -259,6 +259,28 @@ ROLE_CREATE = {
     'mentionable': {'type': 'boolean', 'default': False},
 }
 
+ROLE_UPDATE = {
+    'name': {'type': 'string', 'required': False},
+    'permissions': {'coerce': Permissions, 'required': False},
+    'color': {'coerce': Color, 'required': False},
+    'hoist': {'type': 'boolean', 'required': False},
+    'mentionable': {'type': 'boolean', 'required': False},
+}
+
+
+ROLE_UPDATE_POSITION = {
+    'roles': {
+        'type': 'list',
+        'schema': {
+            'type': 'dict',
+            'schema': {
+                'id': {'coerce': int},
+                'position': {'coerce': int},
+            },
+        }
+    }
+}
+
 
 MEMBER_UPDATE = {
     'nick': {

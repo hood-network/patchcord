@@ -50,5 +50,8 @@ class Permissions(ctypes.Union):
     def __init__(self, val: int):
         self.binary = val
 
+    def __int__(self):
+        return self.binary
+
     def numby(self):
         return self.binary
