@@ -135,6 +135,8 @@ async def _do_single_swap(guild_id: int, pair: tuple):
             (new_pos_1, channel_1, guild_id),
             (new_pos_2, channel_2, guild_id)])
 
+    await app.db.release(conn)
+
     await _chan_update_dispatch(guild_id, channel_1)
     await _chan_update_dispatch(guild_id, channel_2)
 
