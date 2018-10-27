@@ -46,6 +46,8 @@ class GuildDispatcher(DispatcherWithState):
         # when subbing a user to the guild, we should sub them
         # to every channel they have access to, in the guild.
 
+        # TODO: check for permissions
+
         await self._chan_action('sub', guild_id, user_id)
 
     async def unsub(self, guild_id: int, user_id: int):

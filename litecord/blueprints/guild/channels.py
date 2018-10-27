@@ -91,6 +91,17 @@ async def create_channel(guild_id):
     await create_guild_channel(
         guild_id, new_channel_id, channel_type, **j)
 
+    # TODO: do a better method
+    # subscribe the currently subscribed users to the new channel
+    # by getting all user ids and subscribing each one by one.
+
+    # since GuildDispatcher calls Storage.get_channel_ids,
+    # it will subscribe all users to the newly created channel.
+    guild_pubsub = app.dispatcher.backends['guild']
+    user_ids = guild_pubsub.state[guild_id]
+    for uid in user_ids:
+        await app.dispatcher.sub('guild', guild_id, uid)
+
     chan = await app.storage.get_channel(new_channel_id)
     await app.dispatcher.dispatch_guild(
         guild_id, 'CHANNEL_CREATE', chan)
