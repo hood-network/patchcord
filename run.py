@@ -10,8 +10,18 @@ from logbook import StreamHandler, Logger
 from logbook.compat import redirect_logging
 
 import config
-from litecord.blueprints import gateway, auth, users, guilds, channels, \
-    webhooks, science, voice, invites, relationships, dms
+from litecord.blueprints import (
+    gateway, auth, users, guilds, channels, webhooks, science,
+    voice, invites, relationships, dms
+)
+
+# those blueprints are separated from the "main" ones
+# for code readability if people want to dig through
+# the codebase.
+from litecord.blueprints.guild import (
+    guild_roles, guild_members, guild_channels
+)
+
 from litecord.gateway import websocket_handler
 from litecord.errors import LitecordError
 from litecord.gateway.state_manager import StateManager
@@ -50,7 +60,12 @@ bps = {
     auth: '/auth',
     users: '/users',
     relationships: '/users',
+
     guilds: '/guilds',
+    guild_roles: '/guilds',
+    guild_members: '/guilds',
+    guild_channels: '/guilds',
+
     channels: '/channels',
     webhooks: None,
     science: None,

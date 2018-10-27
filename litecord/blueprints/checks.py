@@ -1,7 +1,7 @@
 from quart import current_app as app
 
 from ..enums import ChannelType, GUILD_CHANS
-from ..errors import GuildNotFound, ChannelNotFound
+from ..errors import GuildNotFound, ChannelNotFound, Forbidden
 
 
 async def guild_check(user_id: int, guild_id: int):
@@ -14,6 +14,21 @@ async def guild_check(user_id: int, guild_id: int):
 
     if not joined_at:
         raise GuildNotFound('guild not found')
+
+
+async def guild_owner_check(user_id: int, guild_id: int):
+    """Check if a user is the owner of the guild."""
+    owner_id = await app.db.fetchval("""
+    SELECT owner_id
+    FROM guilds
+    WHERE guilds.id = $1
+    """, guild_id)
+
+    if not owner_id:
+        raise GuildNotFound()
+
+    if user_id != owner_id:
+        raise Forbidden('You are not the owner of the guild')
 
 
 async def channel_check(user_id, channel_id):
