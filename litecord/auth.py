@@ -35,6 +35,17 @@ async def raw_token_check(token, db=None):
     try:
         signer.unsign(token)
         log.debug('login for uid {} successful', user_id)
+
+        # update the user's last_session field
+        # so that we can keep an exact track of activity,
+        # even on long-lived single sessions (that can happen
+        # with people leaving their clients open forever)
+        await db.execute("""
+        UPDATE users
+        SET last_session = (now() at time zone 'utc')
+        WHERE id = $1
+        """, user_id)
+
         return user_id
     except BadSignature:
         log.warning('token failed for uid {}', user_id)

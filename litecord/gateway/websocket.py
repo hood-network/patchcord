@@ -406,13 +406,6 @@ class GatewayWebsocket:
         # link the state to the user
         self.ext.state_manager.insert(self.state)
 
-        # update last_session
-        await self.ext.db.execute("""
-        UPDATE users
-        SET last_session = (now() at time zone 'utc')
-        WHERE id = $1
-        """, user_id)
-
         await self.update_status(presence)
         await self.subscribe_all()
         await self.dispatch_ready()
