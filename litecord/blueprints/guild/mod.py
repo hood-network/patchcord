@@ -121,11 +121,11 @@ async def get_prune(guild_id: int, days: int) -> list:
      - don't have any roles.
     """
     # a good solution would be in pure sql.
-    member_ids = await app.storage.fetch(f"""
+    member_ids = await app.db.fetch(f"""
     SELECT id
     FROM users
     JOIN members
-    ON member.guild_id = $1 AND member.user_id = users.id
+    ON members.guild_id = $1 AND members.user_id = users.id
     WHERE users.last_session < (now() - (interval '{days} days'))
     """, guild_id)
 
