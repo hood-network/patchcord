@@ -30,8 +30,14 @@ async def remove_member(guild_id: int, member_id: int):
     })
 
 
+async def remove_member_multi(guild_id: int, members: list):
+    """Remove multiple members."""
+    for member_id in members:
+        await remove_member(guild_id, member_id)
+
+
 @bp.route('/<int:guild_id>/members/<int:member_id>', methods=['DELETE'])
-async def kick_member(guild_id, member_id):
+async def kick_guild_member(guild_id, member_id):
     """Remove a member from a guild."""
     user_id = await token_check()
 
@@ -159,3 +165,22 @@ async def get_guild_prune_count(guild_id):
     return jsonify({
         'pruned': len(member_ids),
     })
+
+
+@bp.route('/<int:guild_id>/prune', methods=['POST'])
+async def begin_guild_prune(guild_id):
+    user_id = await token_check()
+
+    # TODO: check KICK_MEMBERS
+    await guild_owner_check(user_id, guild_id)
+
+    j = validate(await request.get_json(), GUILD_PRUNE)
+    days = j['days']
+    member_ids = await get_prune(guild_id, days)
+
+    app.loop.create_task(remove_member_multi(guild_id, member_ids))
+
+    return jsonify({
+        'pruned': len(member_ids)
+    })
+
