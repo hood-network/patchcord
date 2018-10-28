@@ -183,4 +183,3 @@ async def begin_guild_prune(guild_id):
     return jsonify({
         'pruned': len(member_ids)
     })
-

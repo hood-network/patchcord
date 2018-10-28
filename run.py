@@ -22,6 +22,10 @@ from litecord.blueprints.guild import (
     guild_roles, guild_members, guild_channels, guild_mod
 )
 
+from litecord.blueprints.channel import (
+    channel_messages
+)
+
 from litecord.gateway import websocket_handler
 from litecord.errors import LitecordError
 from litecord.gateway.state_manager import StateManager
@@ -68,6 +72,8 @@ bps = {
     guild_mod: '/guilds',
 
     channels: '/channels',
+    channel_messages: '/channels',
+
     webhooks: None,
     science: None,
     voice: '/voice',
