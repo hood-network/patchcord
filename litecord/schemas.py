@@ -508,3 +508,7 @@ GUILD_SETTINGS = {
         'required': False,
     }
 }
+
+GUILD_PRUNE = {
+    'days': {'type': 'number', 'coerce': int, 'min': 1}
+}

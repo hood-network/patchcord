@@ -3,6 +3,8 @@ from quart import Blueprint, request, current_app as app, jsonify
 from litecord.blueprints.auth import token_check
 from litecord.blueprints.checks import guild_owner_check
 
+from litecord.schemas import validate, GUILD_PRUNE
+
 bp = Blueprint('guild_moderation', __name__)
 
 
@@ -110,3 +112,50 @@ async def remove_ban(guild_id, banned_id):
     })
 
     return '', 204
+
+
+async def get_prune(guild_id: int, days: int) -> list:
+    """Get all members in a guild that:
+
+     - did not login in ``days`` days.
+     - don't have any roles.
+    """
+    # a good solution would be in pure sql.
+    member_ids = await app.storage.fetch(f"""
+    SELECT id
+    FROM users
+    JOIN members
+    ON member.guild_id = $1 AND member.user_id = users.id
+    WHERE users.last_session < (now() - (interval '{days} days'))
+    """, guild_id)
+
+    member_ids = [r['id'] for r in member_ids]
+    members = []
+
+    for member_id in member_ids:
+        role_count = await app.db.fetchval("""
+        SELECT COUNT(*)
+        FROM member_roles
+        WHERE guild_id = $1 AND user_id = $2
+        """, guild_id, member_id)
+
+        if role_count == 0:
+            members.append(member_id)
+
+    return members
+
+
+@bp.route('/<int:guild_id>/prune', methods=['GET'])
+async def get_guild_prune_count(guild_id):
+    user_id = await token_check()
+
+    # TODO: check KICK_MEMBERS
+    await guild_owner_check(user_id, guild_id)
+
+    j = validate(await request.get_json(), GUILD_PRUNE)
+    days = j['days']
+    member_ids = await get_prune(guild_id, days)
+
+    return jsonify({
+        'pruned': len(member_ids),
+    })

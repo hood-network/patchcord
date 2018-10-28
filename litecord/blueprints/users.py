@@ -219,8 +219,10 @@ async def get_me_guilds():
         partial = await app.db.fetchrow("""
         SELECT id::text, name, icon, owner_id
         FROM guilds
-        WHERE guild_id = $1
+        WHERE guilds.id = $1
         """, guild_id)
+
+        partial = dict(partial)
 
         # TODO: partial['permissions']
         partial['owner'] = partial['owner_id'] == user_id
