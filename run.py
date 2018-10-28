@@ -19,7 +19,7 @@ from litecord.blueprints import (
 # for code readability if people want to dig through
 # the codebase.
 from litecord.blueprints.guild import (
-    guild_roles, guild_members, guild_channels
+    guild_roles, guild_members, guild_channels, mod
 )
 
 from litecord.gateway import websocket_handler
@@ -65,6 +65,8 @@ bps = {
     guild_roles: '/guilds',
     guild_members: '/guilds',
     guild_channels: '/guilds',
+    # mod for moderation
+    mod: '/guilds',
 
     channels: '/channels',
     webhooks: None,
