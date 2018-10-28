@@ -286,3 +286,30 @@ async def update_guild_role(guild_id, role_id):
 
     role = await _role_update_dispatch(role_id, guild_id)
     return jsonify(role)
+
+
+@bp.route('/<int:guild_id>/roles/<int:role_id>', methods=['DELETE'])
+async def delete_guild_role(guild_id, role_id):
+    """Delete a role.
+
+    Dispatches GUILD_ROLE_DELETE.
+    """
+    user_id = await token_check()
+
+    # TODO: check MANAGE_ROLES
+    await guild_owner_check(user_id, guild_id)
+
+    res = await app.db.execute("""
+    DELETE FROM roles
+    WHERE guild_id = $1 AND id = $2
+    """, guild_id, role_id)
+
+    if res == 'DELETE 0':
+        return '', 204
+
+    await app.dispatcher.dispatch_guild(guild_id, 'GUILD_ROLE_DELETE', {
+        'guild_id': str(guild_id),
+        'role_id': str(role_id),
+    })
+
+    return '', 204
