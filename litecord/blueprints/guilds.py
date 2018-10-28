@@ -112,6 +112,10 @@ async def create_guild():
 
     # create the default @everyone role (everyone has it by default,
     # so we don't insert that in the table)
+
+    # we also don't use create_role because the id of the role
+    # is the same as the id of the guild, and create_role
+    # generates a new snowflake.
     await app.db.execute("""
     INSERT INTO roles (id, guild_id, name, position, permissions)
     VALUES ($1, $2, $3, $4, $5)
@@ -309,6 +313,31 @@ async def create_ban(guild_id, member_id):
     await app.dispatcher.dispatch_guild(guild_id, 'GUILD_BAN_ADD', {
         'guild_id': str(guild_id),
         'user': await app.storage.get_user(member_id)
+    })
+
+    return '', 204
+
+
+@bp.route('/<int:guild_id>/bans/<int:banned_id>', methods=['DELETE'])
+async def remove_ban(guild_id, banned_id):
+    user_id = await token_check()
+
+    # TODO: check BAN_MEMBERS permission
+    await guild_owner_check(guild_id, user_id)
+
+    res = await app.db.execute("""
+    DELETE FROM bans
+    WHERE guild_id = $1 AND user_id = $@
+    """, guild_id, banned_id)
+
+    # we don't really need to dispatch GUILD_BAN_REMOVE
+    # when no bans were actually removed.
+    if res == 'DELETE 0':
+        return '', 204
+
+    await app.dispatcher.dispatch_guild(guild_id, 'GUILD_BAN_REMOVE', {
+        'guild_id': str(guild_id),
+        'user': await app.storage.get_user(banned_id)
     })
 
     return '', 204

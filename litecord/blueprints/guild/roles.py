@@ -4,17 +4,29 @@ from quart import Blueprint, request, current_app as app, jsonify
 
 from litecord.auth import token_check
 
-# from litecord.blueprints.checks import guild_check
-from litecord.blueprints.checks import guild_owner_check
-from litecord.snowflake import get_snowflake
-from litecord.utils import dict_get
-
+from litecord.blueprints.checks import (
+    guild_check, guild_owner_check
+)
 from litecord.schemas import (
     validate, ROLE_CREATE, ROLE_UPDATE, ROLE_UPDATE_POSITION
 )
 
+from litecord.snowflake import get_snowflake
+from litecord.utils import dict_get
+
 DEFAULT_EVERYONE_PERMS = 104324161
 bp = Blueprint('guild_roles', __name__)
+
+
+@bp.route('/<int:guild_id>/roles', methods=['GET'])
+async def get_guild_roles(guild_id):
+    """Get all roles in a guild."""
+    user_id = await token_check()
+    await guild_check(user_id, guild_id)
+
+    return jsonify(
+        await app.storage.get_role_data(guild_id)
+    )
 
 
 async def create_role(guild_id, name: str, **kwargs):
