@@ -151,7 +151,10 @@ class GuildMemberList:
 
             # this user has a best_role that isn't the
             # @everyone role, so we'll put them in the respective group
-            group_data[best_role_id].append(presence)
+            try:
+                group_data[best_role_id].append(presence)
+            except KeyError:
+                group_data[simple_group].append(presence)
 
         # go through each group and sort the resulting members by display name
 

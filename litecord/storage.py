@@ -164,7 +164,7 @@ class Storage:
         """, guild_id, member_id)
 
     async def _member_dict(self, row, guild_id, member_id) -> Dict[str, Any]:
-        members_roles = await self.db.fetch("""
+        roles = await self.db.fetch("""
         SELECT role_id::text
         FROM member_roles
         WHERE guild_id = $1 AND user_id = $2
@@ -173,7 +173,7 @@ class Storage:
         return {
             'user': await self.get_user(member_id),
             'nick': row['nickname'],
-            'roles': [row[0] for row in members_roles],
+            'roles': [r['role_id'] for r in roles],
             'joined_at': row['joined_at'].isoformat(),
             'deaf': row['deafened'],
             'mute': row['muted'],

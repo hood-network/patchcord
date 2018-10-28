@@ -284,7 +284,7 @@ ROLE_UPDATE_POSITION = {
 
 MEMBER_UPDATE = {
     'nick': {
-        'type': 'nickname',
+        'type': 'username',
         'minlength': 1, 'maxlength': 100,
         'required': False,
     },
