@@ -75,6 +75,9 @@ CREATE TABLE IF NOT EXISTS users (
     phone varchar(60) DEFAULT '',
     password_hash text NOT NULL,
 
+    -- store the last time the user logged in via the gateway
+    last_session timestamp without time zone default (now() at time zone 'utc'),
+
     PRIMARY KEY (id, username, discriminator)
 );
 
