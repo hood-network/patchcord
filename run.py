@@ -23,7 +23,7 @@ from litecord.blueprints.guild import (
 )
 
 from litecord.blueprints.channel import (
-    channel_messages
+    channel_messages, channel_reactions
 )
 
 from litecord.gateway import websocket_handler
@@ -73,6 +73,7 @@ bps = {
 
     channels: '/channels',
     channel_messages: '/channels',
+    channel_reactions: '/channels',
 
     webhooks: None,
     science: None,
