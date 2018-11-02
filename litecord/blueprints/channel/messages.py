@@ -6,7 +6,7 @@ from logbook import Logger
 from litecord.blueprints.auth import token_check
 from litecord.blueprints.checks import channel_check
 from litecord.blueprints.dms import try_dm_state
-from litecord.errors import MessageNotFound, Forbidden
+from litecord.errors import MessageNotFound, Forbidden, BadRequest
 from litecord.enums import MessageType, ChannelType, GUILD_CHANS
 from litecord.snowflake import get_snowflake
 from litecord.schemas import validate, MESSAGE_CREATE
@@ -16,19 +16,54 @@ log = Logger(__name__)
 bp = Blueprint('channel_messages', __name__)
 
 
+def query_tuple_from_args(args: dict, limit: int) -> tuple:
+    before, after = None, None
+
+    if 'around' in request.args:
+        average = int(limit / 2)
+        around = int(request.args['around'])
+
+        after = around - average
+        before = around + average
+
+    elif 'before' in request.args:
+        before = int(request.args['before'])
+    elif 'after' in request.args:
+        before = int(request.args['after'])
+
+    return before, after
+
+
 @bp.route('/<int:channel_id>/messages', methods=['GET'])
 async def get_messages(channel_id):
     user_id = await token_check()
+
+    # TODO: check READ_MESSAGE_HISTORY permission
     await channel_check(user_id, channel_id)
 
-    # TODO: before, after, around keys
+    try:
+        limit = int(request.args.get('limit', 50))
+
+        if limit not in range(0, 100):
+            raise ValueError()
+    except (TypeError, ValueError):
+        raise BadRequest('limit not int')
+
+    where_clause = ''
+    before, after = query_tuple_from_args(request.args, limit)
+
+    if before:
+        where_clause += f'AND id < {before}'
+
+    if after:
+        where_clause += f'AND id > {after}'
 
     message_ids = await app.db.fetch(f"""
     SELECT id
     FROM messages
-    WHERE channel_id = $1
+    WHERE channel_id = $1 {where_clause}
     ORDER BY id DESC
-    LIMIT 100
+    LIMIT {limit}
     """, channel_id)
 
     result = []
