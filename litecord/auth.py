@@ -13,7 +13,11 @@ log = Logger(__name__)
 
 async def raw_token_check(token, db=None):
     db = db or app.db
-    user_id, _hmac = token.split('.')
+
+    # just try by fragments instead of
+    # unpacking
+    fragments = token.split('.')
+    user_id = fragments[0]
 
     try:
         user_id = base64.b64decode(user_id.encode())

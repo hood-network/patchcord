@@ -233,7 +233,7 @@ async def get_pins(channel_id):
         if message is not None:
             res.append(message)
 
-    return jsonify(message)
+    return jsonify(res)
 
 
 @bp.route('/<int:channel_id>/pins/<int:message_id>', methods=['PUT'])

@@ -173,6 +173,10 @@ class Storage:
         return {
             'user': await self.get_user(member_id),
             'nick': row['nickname'],
+
+            # we don't send the @everyone role's id to
+            # the user since it is known that everyone has
+            # that role.
             'roles': [r['role_id'] for r in roles],
             'joined_at': row['joined_at'].isoformat(),
             'deaf': row['deafened'],

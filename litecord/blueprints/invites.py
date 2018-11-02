@@ -185,7 +185,7 @@ async def use_invite(invite_code):
     })
 
     # subscribe new member to guild, so they get events n stuff
-    app.dispatcher.sub_guild(guild_id, user_id)
+    await app.dispatcher.sub('guild', guild_id, user_id)
 
     # tell the new member that theres the guild it just joined.
     # we use dispatch_user_guild so that we send the GUILD_CREATE

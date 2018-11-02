@@ -44,8 +44,38 @@ def encode_etf(payload) -> str:
     return earl.pack(payload)
 
 
+def _etf_decode_dict(data):
+    # NOTE: this is a very slow implementation to
+    # decode the dictionary.
+
+    if isinstance(data, bytes):
+        return data.decode()
+
+    if not isinstance(data, dict):
+        return data
+
+    _copy = dict(data)
+    result = {}
+
+    for key in _copy.keys():
+        # assuming key is bytes rn.
+        new_k = key.decode()
+
+        # maybe nested dicts, so...
+        result[new_k] = _etf_decode_dict(data[key])
+
+    return result
+
 def decode_etf(data: bytes):
-    return earl.unpack(data)
+    res = earl.unpack(data)
+
+    if isinstance(res, bytes):
+        return data.decode()
+
+    if isinstance(res, dict):
+        return _etf_decode_dict(res)
+
+    return res
 
 
 class GatewayWebsocket:

@@ -51,7 +51,13 @@ async def get_messages(channel_id):
     user_id = await token_check()
 
     # TODO: check READ_MESSAGE_HISTORY permission
-    await channel_check(user_id, channel_id)
+    ctype, peer_id = await channel_check(user_id, channel_id)
+
+    if ctype == ChannelType.DM:
+        # make sure both parties will be subbed
+        # to a dm
+        await _dm_pre_dispatch(channel_id, user_id)
+        await _dm_pre_dispatch(channel_id, peer_id)
 
     limit = extract_limit(request, 50)
 
@@ -166,6 +172,7 @@ async def create_message(channel_id):
     
     if ctype == ChannelType.DM:
         # guild id here is the peer's ID.
+        await _dm_pre_dispatch(channel_id, user_id)
         await _dm_pre_dispatch(channel_id, guild_id)
 
     await app.dispatcher.dispatch('channel', channel_id,

@@ -120,6 +120,12 @@ async def create_guild():
     VALUES ($1, $2, $3, $4, $5)
     """, guild_id, guild_id, '@everyone', 0, DEFAULT_EVERYONE_PERMS)
 
+    # add the @everyone role to the guild creator
+    await app.db.execute("""
+    INSERT INTO member_roles (user_id, guild_id, role_id)
+    VALUES ($1, $2, $3)
+    """, user_id, guild_id, guild_id)
+
     # create a single #general channel.
     general_id = get_snowflake()
 
