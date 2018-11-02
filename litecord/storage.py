@@ -170,6 +170,19 @@ class Storage:
         WHERE guild_id = $1 AND user_id = $2
         """, guild_id, member_id)
 
+        roles = [r['role_id'] for r in roles]
+
+        try:
+            roles.remove(str(guild_id))
+        except ValueError:
+            # if the @everyone role isn't in, we add it
+            # to member_roles automatically (it won't
+            # be shown on the API, though).
+            await self.db.execute("""
+            INSERT INTO member_roles (user_id, guild_id, role_id)
+            VALUES ($1, $2, $3)
+            """, member_id, guild_id, guild_id)
+
         return {
             'user': await self.get_user(member_id),
             'nick': row['nickname'],
@@ -177,7 +190,7 @@ class Storage:
             # we don't send the @everyone role's id to
             # the user since it is known that everyone has
             # that role.
-            'roles': [r['role_id'] for r in roles],
+            'roles': roles,
             'joined_at': row['joined_at'].isoformat(),
             'deaf': row['deafened'],
             'mute': row['muted'],
