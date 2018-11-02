@@ -528,9 +528,12 @@ CREATE TABLE IF NOT EXISTS message_reactions (
     message_id bigint REFERENCES messages (id),
     user_id bigint REFERENCES users (id),
 
-    -- since it can be a custom emote, or unicode emoji
+    -- emoji_type = 0 -> custom emoji
+    -- emoji_type = 1 -> unicode emoji
+    emoji_type int DEFAULT 0,
     emoji_id bigint REFERENCES guild_emoji (id),
-    emoji_text text NOT NULL,
+    emoji_text text,
+
     PRIMARY KEY (message_id, user_id, emoji_id, emoji_text)
 );
 

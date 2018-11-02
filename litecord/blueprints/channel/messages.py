@@ -16,6 +16,18 @@ log = Logger(__name__)
 bp = Blueprint('channel_messages', __name__)
 
 
+def extract_limit(request, default: int = 50):
+    try:
+        limit = int(request.args.get('limit', 50))
+
+        if limit not in range(0, 100):
+            raise ValueError()
+    except (TypeError, ValueError):
+        raise BadRequest('limit not int')
+
+    return limit
+
+
 def query_tuple_from_args(args: dict, limit: int) -> tuple:
     before, after = None, None
 
@@ -41,13 +53,7 @@ async def get_messages(channel_id):
     # TODO: check READ_MESSAGE_HISTORY permission
     await channel_check(user_id, channel_id)
 
-    try:
-        limit = int(request.args.get('limit', 50))
-
-        if limit not in range(0, 100):
-            raise ValueError()
-    except (TypeError, ValueError):
-        raise BadRequest('limit not int')
+    limit = extract_limit(request, 50)
 
     where_clause = ''
     before, after = query_tuple_from_args(request.args, limit)
