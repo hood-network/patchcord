@@ -528,14 +528,17 @@ CREATE TABLE IF NOT EXISTS message_reactions (
     message_id bigint REFERENCES messages (id),
     user_id bigint REFERENCES users (id),
 
+    react_ts timestamp without time zone default (now() at time zone 'utc'),
+
     -- emoji_type = 0 -> custom emoji
     -- emoji_type = 1 -> unicode emoji
     emoji_type int DEFAULT 0,
     emoji_id bigint REFERENCES guild_emoji (id),
-    emoji_text text,
-
-    PRIMARY KEY (message_id, user_id, emoji_id, emoji_text)
+    emoji_text text
 );
+
+ALTER TABLE message_reactions ADD CONSTRAINT message_reactions_main_uniq
+    UNIQUE (message_id, user_id, emoji_id, emoji_text);
 
 CREATE TABLE IF NOT EXISTS channel_pins (
     channel_id bigint REFERENCES channels (id) ON DELETE CASCADE,

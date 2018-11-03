@@ -47,10 +47,11 @@ def emoji_info_from_str(emoji: str) -> tuple:
     return emoji_type, emoji_id, emoji_name
 
 
-def _partial_emoji(emoji_type, emoji_id, emoji_name) -> dict:
+def partial_emoji(emoji_type, emoji_id, emoji_name) -> dict:
+    print(emoji_type, emoji_id, emoji_name)
     return {
-        'id': None if emoji_type.UNICODE else emoji_id,
-        'name': emoji_id if emoji_type.UNICODE else emoji_name
+        'id': None if emoji_type == EmojiType.UNICODE else emoji_id,
+        'name': emoji_name if emoji_type == EmojiType.UNICODE else emoji_id
     }
 
 
@@ -88,7 +89,7 @@ async def add_reaction(channel_id: int, message_id: int, emoji: str):
         emoji_id if emoji_type == EmojiType.UNICODE else None
     )
 
-    partial = _partial_emoji(emoji_type, emoji_id, emoji_name)
+    partial = partial_emoji(emoji_type, emoji_id, emoji_name)
     payload = _make_payload(user_id, channel_id, message_id, partial)
 
     if ctype in GUILD_CHANS:
@@ -100,7 +101,7 @@ async def add_reaction(channel_id: int, message_id: int, emoji: str):
     return '', 204
 
 
-def _emoji_sql(emoji_type, emoji_id, emoji_name, param=4):
+def emoji_sql(emoji_type, emoji_id, emoji_name, param=4):
     """Extract SQL clauses to search for specific emoji
     in the message_reactions table."""
     param = f'${param}'
@@ -120,7 +121,7 @@ def _emoji_sql_simple(emoji: str, param=4):
     """Simpler version of _emoji_sql for functions that
     don't need the results from emoji_info_from_str."""
     emoji_type, emoji_id, emoji_name = emoji_info_from_str(emoji)
-    return _emoji_sql(emoji_type, emoji_id, emoji_name, param)
+    return emoji_sql(emoji_type, emoji_id, emoji_name, param)
 
 
 async def remove_reaction(channel_id: int, message_id: int,
@@ -128,7 +129,7 @@ async def remove_reaction(channel_id: int, message_id: int,
     ctype, guild_id = await channel_check(user_id, channel_id)
 
     emoji_type, emoji_id, emoji_name = emoji_info_from_str(emoji)
-    where_ext, main_emoji = _emoji_sql(emoji_type, emoji_id, emoji_name)
+    where_ext, main_emoji = emoji_sql(emoji_type, emoji_id, emoji_name)
 
     await app.db.execute(
         f"""
@@ -139,7 +140,7 @@ async def remove_reaction(channel_id: int, message_id: int,
           {where_ext}
         """, message_id, user_id, emoji_type, main_emoji)
 
-    partial = _partial_emoji(emoji_type, emoji_id, emoji_name)
+    partial = partial_emoji(emoji_type, emoji_id, emoji_name)
     payload = _make_payload(user_id, channel_id, message_id, partial)
 
     if ctype in GUILD_CHANS:

@@ -81,7 +81,7 @@ async def get_messages(channel_id):
     result = []
 
     for message_id in message_ids:
-        msg = await app.storage.get_message(message_id['id'])
+        msg = await app.storage.get_message(message_id['id'], user_id)
 
         if msg is None:
             continue
@@ -98,7 +98,7 @@ async def get_single_message(channel_id, message_id):
     await channel_check(user_id, channel_id)
 
     # TODO: check READ_MESSAGE_HISTORY permissions
-    message = await app.storage.get_message(message_id)
+    message = await app.storage.get_message(message_id, user_id)
 
     if not message:
         raise MessageNotFound()
@@ -168,7 +168,7 @@ async def create_message(channel_id):
         MessageType.DEFAULT.value
     )
 
-    payload = await app.storage.get_message(message_id)
+    payload = await app.storage.get_message(message_id, user_id)
     
     if ctype == ChannelType.DM:
         # guild id here is the peer's ID.
@@ -218,7 +218,7 @@ async def edit_message(channel_id, message_id):
 
     # TODO: update embed
 
-    message = await app.storage.get_message(message_id)
+    message = await app.storage.get_message(message_id, user_id)
 
     # only dispatch MESSAGE_UPDATE if we actually had any update to start with
     if updated:

@@ -5,6 +5,9 @@ from logbook import Logger
 
 from .enums import ChannelType, RelationshipType
 from .schemas import USER_MENTION, ROLE_MENTION
+from litecord.blueprints.channel.reactions import (
+    emoji_info_from_str, EmojiType, emoji_sql, partial_emoji
+)
 
 
 log = Logger(__name__)
@@ -553,7 +556,72 @@ class Storage:
 
         return res
 
-    async def get_message(self, message_id: int) -> Dict:
+    async def get_reactions(self, message_id: int, user_id=None) -> List:
+        """Get all reactions in a message."""
+        reactions = await self.db.fetch("""
+        SELECT user_id, emoji_type, emoji_id, emoji_text
+        FROM message_reactions
+        ORDER BY react_ts
+        """)
+
+        # ordered list of emoji
+        emoji = []
+
+        # the current state of emoji info
+        react_stats = {}
+
+        # to generate the list, we pass through all
+        # all reactions and insert them all.
+
+        # we can't use a set() because that
+        # doesn't guarantee any order.
+        for row in reactions:
+            etype = EmojiType(row['emoji_type'])
+            eid, etext = row['emoji_id'], row['emoji_text']
+
+            # get the main key to use, given
+            # the emoji information
+            _, main_emoji = emoji_sql(etype, eid, etext)
+
+            if main_emoji in emoji:
+                continue
+
+            # maintain order (first reacted comes first
+            # on the reaction list)
+            emoji.append(main_emoji)
+
+            react_stats[main_emoji] = {
+                'count': 0,
+                'me': False,
+                'emoji': partial_emoji(etype, eid, etext)
+            }
+
+        # then the 2nd pass, where we insert
+        # the info for each reaction in the react_stats
+        # dictionary
+        for row in reactions:
+            etype = EmojiType(row['emoji_type'])
+            eid, etext = row['emoji_id'], row['emoji_text']
+
+            # same thing as the last loop,
+            # extracting main key
+            _, main_emoji = emoji_sql(etype, eid, etext)
+
+            stats = react_stats[main_emoji]
+            stats['count'] += 1
+
+            print(row['user_id'], user_id)
+            if row['user_id'] == user_id:
+                stats['me'] = True
+
+        # after processing reaction counts,
+        # we get them in the same order
+        # they were defined in the first loop.
+        print(emoji)
+        print(react_stats)
+        return list(map(react_stats.get, emoji))
+
+    async def get_message(self, message_id: int, user_id=None) -> Dict:
         """Get a single message's payload."""
         row = await self.db.fetchrow("""
         SELECT id::text, channel_id::text, author_id, content,
@@ -614,6 +682,8 @@ class Storage:
         res['mention_roles'] = await self._msg_regex(
             ROLE_MENTION, _get_role_mention, content)
 
+        res['reactions'] = await self.get_reactions(message_id, user_id)
+
         # TODO: handle webhook authors
         res['author'] = await self.get_user(res['author_id'])
         res.pop('author_id')
@@ -623,9 +693,6 @@ class Storage:
 
         # TODO: res['embeds']
         res['embeds'] = []
-
-        # TODO: res['reactions']
-        res['reactions'] = []
 
         # TODO: res['pinned']
         res['pinned'] = False
