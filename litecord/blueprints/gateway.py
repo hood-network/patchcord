@@ -6,12 +6,14 @@ bp = Blueprint('gateway', __name__)
 
 
 def get_gw():
+    """Get the gateway's web"""
     proto = 'wss://' if app.config['IS_SSL'] else 'ws://'
     return f'{proto}{app.config["WEBSOCKET_URL"]}/ws'
 
 
 @bp.route('/gateway')
 def api_gateway():
+    """Get the raw URL."""
     return jsonify({
         'url': get_gw()
     })
@@ -27,8 +29,9 @@ async def api_gateway_bot():
     WHERE user_id = $1
     """, user_id)
 
-    shards = max(int(guild_count / 1200), 1)
+    shards = max(int(guild_count / 1000), 1)
 
+    # TODO: session_start_limit (depends on ratelimits)
     return jsonify({
         'url': get_gw(),
         'shards': shards,
