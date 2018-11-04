@@ -15,6 +15,8 @@ from litecord.blueprints import (
     voice, invites, relationships, dms
 )
 
+from litecord.ratelimits.main import ratelimit_handler
+
 # those blueprints are separated from the "main" ones
 # for code readability if people want to dig through
 # the codebase.
@@ -85,6 +87,11 @@ bps = {
 for bp, suffix in bps.items():
     suffix = suffix or ''
     app.register_blueprint(bp, url_prefix=f'/api/v6{suffix}')
+
+
+@app.before_request
+async def app_before_request():
+    await ratelimit_handler()
 
 
 @app.after_request
