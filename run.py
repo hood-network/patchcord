@@ -122,9 +122,20 @@ async def app_set_ratelimit_headers(resp):
     """Set the specific ratelimit headers."""
     try:
         bucket = request.bucket
+
+        if bucket is None:
+            raise AttributeError()
+
         resp.headers['X-RateLimit-Limit'] = str(bucket.requests)
         resp.headers['X-RateLimit-Remaining'] = str(bucket._tokens)
         resp.headers['X-RateLimit-Reset'] = str(bucket._window + bucket.second)
+
+        resp.headers['X-RateLimit-Global'] = str(request.bucket_global).lower()
+
+        # only add Retry-After if we actually hit a ratelimit
+        retry_after = request.retry_after
+        if request.retry_after:
+            resp.headers['Retry-After'] = str(retry_after)
     except AttributeError:
         pass
 

@@ -10,8 +10,11 @@ async def _check_bucket(bucket):
     request.bucket = bucket
 
     if retry_after:
-        raise Ratelimited('You are being ratelimited.', {
-            'retry_after': retry_after
+        request.retry_after = retry_after
+
+        raise Ratelimited('You are being rate limited.', {
+            'retry_after': int(retry_after * 1000),
+            'global': request.bucket_global,
         })
 
 
@@ -22,6 +25,7 @@ async def _handle_global(ratelimit):
     except Unauthorized:
         user_id = request.remote_addr
 
+    request.bucket_global = True
     bucket = ratelimit.get_bucket(user_id)
     await _check_bucket(bucket)
 
@@ -58,6 +62,12 @@ async def ratelimit_handler():
     # and so we can use that to make routes with different
     # methods have different ratelimits
     rule_path = rule.endpoint
+
+    # some request ratelimit context.
+    # TODO: maybe put those in a namedtuple or contextvar of sorts?
+    request.bucket = None
+    request.retry_after = None
+    request.bucket_global = False
 
     try:
         ratelimit = app.ratelimiter.get_ratelimit(rule_path)
