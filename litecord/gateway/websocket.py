@@ -753,6 +753,15 @@ class GatewayWebsocket:
 
     async def listen_messages(self):
         """Listen for messages coming in from the websocket."""
+
+        # close anyone trying to login while the
+        # server is shutting down
+        if self.ext.state_manager.closed:
+            raise WebsocketClose(4000, 'state manager closed')
+
+        if not self.ext.state_manager.accept_new:
+            raise WebsocketClose(4000, 'state manager closed for new')
+
         while True:
             message = await self.ws.recv()
             if len(message) > 4096:
@@ -762,6 +771,9 @@ class GatewayWebsocket:
             await self.process_message(payload)
 
     def _cleanup(self):
+        for task in self.wsp.tasks.values():
+            task.cancel()
+
         if self.state:
             self.ext.state_manager.remove(self.state)
             self.state.ws = None

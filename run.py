@@ -131,6 +131,8 @@ async def app_before_serving():
     async def _wrapper(ws, url):
         # We wrap the main websocket_handler
         # so we can pass quart's app object.
+
+        # TODO: pass just the app object
         await websocket_handler((app.db, app.state_manager, app.storage,
                                  app.loop, app.dispatcher, app.presence),
                                 ws, url)
@@ -142,6 +144,15 @@ async def app_before_serving():
 
 @app.after_serving
 async def app_after_serving():
+    """Shutdown tasks for the server."""
+
+    # first close all clients, then close db
+    tasks = app.state_manager.gen_close_tasks()
+    if tasks:
+        await asyncio.wait(tasks, loop=app.loop)
+
+    app.state_manager.close()
+
     log.info('closing db')
     await app.db.close()
 
