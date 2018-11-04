@@ -41,7 +41,7 @@ class RatelimitManager:
     """Manager for the bucket managers"""
     def __init__(self):
         self._ratelimiters = {}
-        self.global_bucket = Ratelimit(1, 1)
+        self.global_bucket = Ratelimit(50, 1)
         self._fill_rtl()
 
     def _fill_rtl(self):
