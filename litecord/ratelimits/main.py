@@ -35,6 +35,9 @@ RATELIMITS = {
     '_ws.connect': Ratelimit(1, 5),
     '_ws.presence': Ratelimit(5, 60),
     '_ws.messages': Ratelimit(120, 60),
+
+    # 1000 / 4h for new session issuing
+    '_ws.session': Ratelimit(1000, 14400)
 }
 
 class RatelimitManager:

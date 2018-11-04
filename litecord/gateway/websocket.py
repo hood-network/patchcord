@@ -414,6 +414,10 @@ class GatewayWebsocket:
             await self.invalidate_session(False)
             raise WebsocketClose(4009, 'You are being ratelimited.')
 
+        if self._check_ratelimit('session', user_id):
+            await self.invalidate_session(False)
+            raise WebsocketClose(4004, 'Websocket Session Ratelimit reached.')
+
     async def handle_2(self, payload: Dict[str, Any]):
         """Handle the OP 2 Identify packet."""
         try:
