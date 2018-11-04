@@ -9,13 +9,13 @@ from quart import Quart, g, jsonify, request
 from logbook import StreamHandler, Logger
 from logbook.compat import redirect_logging
 
+# import the config set by instance owner
 import config
+
 from litecord.blueprints import (
     gateway, auth, users, guilds, channels, webhooks, science,
     voice, invites, relationships, dms
 )
-
-from litecord.ratelimits.main import ratelimit_handler
 
 # those blueprints are separated from the "main" ones
 # for code readability if people want to dig through
@@ -27,6 +27,9 @@ from litecord.blueprints.guild import (
 from litecord.blueprints.channel import (
     channel_messages, channel_reactions
 )
+
+from litecord.ratelimits.handler import ratelimit_handler
+from litecord.ratelimits.main import RatelimitManager
 
 from litecord.gateway import websocket_handler
 from litecord.errors import LitecordError
@@ -110,6 +113,21 @@ async def app_after_request(resp):
     # resp.headers['Access-Control-Allow-Methods'] = '*'
     resp.headers['Access-Control-Allow-Methods'] = \
         resp.headers.get('allow', '*')
+
+    return resp
+
+
+@app.after_request
+async def app_set_ratelimit_headers(resp):
+    """Set the specific ratelimit headers."""
+    try:
+        bucket = request.bucket
+        resp.headers['X-RateLimit-Limit'] = str(bucket.requests)
+        resp.headers['X-RateLimit-Remaining'] = str(bucket._tokens)
+        resp.headers['X-RateLimit-Reset'] = str(bucket._window + bucket.second)
+    except AttributeError:
+        pass
+
     return resp
 
 
@@ -123,6 +141,7 @@ async def app_before_serving():
     app.loop = asyncio.get_event_loop()
     g.loop = asyncio.get_event_loop()
 
+    app.ratelimiter = RatelimitManager()
     app.state_manager = StateManager()
     app.storage = Storage(app.db)
 
@@ -141,7 +160,8 @@ async def app_before_serving():
 
         # TODO: pass just the app object
         await websocket_handler((app.db, app.state_manager, app.storage,
-                                 app.loop, app.dispatcher, app.presence),
+                                 app.loop, app.dispatcher, app.presence,
+                                 app.ratelimiter),
                                 ws, url)
 
     ws_future = websockets.serve(_wrapper, host, port)

@@ -41,6 +41,10 @@ class MessageNotFound(LitecordError):
     status_code = 404
 
 
+class Ratelimited(LitecordError):
+    status_code = 429
+
+
 class WebsocketClose(Exception):
     @property
     def code(self):

@@ -28,7 +28,8 @@ WebsocketProperties = collections.namedtuple(
 )
 
 WebsocketObjects = collections.namedtuple(
-    'WebsocketObjects', 'db state_manager storage loop dispatcher presence'
+    'WebsocketObjects', ('db', 'state_manager', 'storage',
+                         'loop', 'dispatcher', 'presence', 'ratelimiter')
 )
 
 
@@ -137,6 +138,11 @@ class GatewayWebsocket:
             await self.ws.send(zlib.compress(encoded))
         else:
             await self.ws.send(encoded.decode())
+
+    def _check_ratelimit(self, key: str, ratelimit_key: str):
+        ratelimit = self.ext.ratelimiter.get_ratelimit(f'_ws.{key}')
+        bucket = ratelimit.get_bucket(ratelimit_key)
+        return bucket.update_rate_limit()
 
     async def _hb_wait(self, interval: int):
         """Wait heartbeat"""
@@ -342,6 +348,14 @@ class GatewayWebsocket:
 
     async def update_status(self, status: dict):
         """Update the status of the current websocket connection."""
+        if not self.state:
+            return
+
+        if self._check_ratelimit('presence', self.state.session_id):
+            # Presence Updates beyond the ratelimit
+            # are just silently dropped.
+            return
+
         if status is None:
             status = {
                 'afk': False,
@@ -395,6 +409,11 @@ class GatewayWebsocket:
             'op': OP.HEARTBEAT_ACK,
         })
 
+    async def _connect_ratelimit(self, user_id: int):
+        if self._check_ratelimit('connect', user_id):
+            await self.invalidate_session(False)
+            raise WebsocketClose(4009, 'You are being ratelimited.')
+
     async def handle_2(self, payload: Dict[str, Any]):
         """Handle the OP 2 Identify packet."""
         try:
@@ -413,6 +432,8 @@ class GatewayWebsocket:
             user_id = await raw_token_check(token, self.ext.db)
         except (Unauthorized, Forbidden):
             raise WebsocketClose(4004, 'Authentication failed')
+
+        await self._connect_ratelimit(user_id)
 
         bot = await self.ext.db.fetchval("""
         SELECT bot FROM users
@@ -751,6 +772,10 @@ class GatewayWebsocket:
 
         await handler(payload)
 
+    async def _msg_ratelimit(self):
+        if self._check_ratelimit('messages', self.state.session_id):
+            raise WebsocketClose(4008, 'You are being ratelimited.')
+
     async def listen_messages(self):
         """Listen for messages coming in from the websocket."""
 
@@ -766,6 +791,9 @@ class GatewayWebsocket:
             message = await self.ws.recv()
             if len(message) > 4096:
                 raise DecodeError('Payload length exceeded')
+
+            if self.state:
+                await self._msg_ratelimit()
 
             payload = self.decoder(message)
             await self.process_message(payload)
