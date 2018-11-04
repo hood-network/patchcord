@@ -52,6 +52,9 @@ class Permissions(ctypes.Union):
     def __init__(self, val: int):
         self.binary = val
 
+    def __repr__(self):
+        return f'<Permissions binary={self.binary}>'
+
     def __int__(self):
         return self.binary
 
@@ -88,13 +91,24 @@ async def base_permissions(member_id, guild_id) -> Permissions:
     WHERE guild_id = $1
     """, guild_id)
 
-    permissions = everyone_perms
+    permissions = Permissions(everyone_perms)
 
-    role_perms = await app.db.fetch("""
-    SELECT permissions
-    FROM roles
+    role_ids = await app.db.fetch("""
+    SELECT role_id
+    FROM member_roles
     WHERE guild_id = $1 AND user_id = $2
     """, guild_id, member_id)
+
+    role_perms = []
+
+    for row in role_ids:
+        rperm = await app.db.fetchval("""
+        SELECT permissions
+        FROM roles
+        WHERE id = $1
+        """, row['role_id'])
+
+        role_perms.append(rperm)
 
     for perm_num in role_perms:
         permissions.binary |= perm_num
@@ -180,6 +194,11 @@ async def compute_overwrites(base_perms, user_id, channel_id: int,
 async def get_permissions(member_id, channel_id):
     """Get all the permissions for a user in a channel."""
     guild_id = await app.storage.guild_from_channel(channel_id)
+
+    # for non guild channels
+    if not guild_id:
+        return ALL_PERMISSIONS
+
     base_perms = await base_permissions(member_id, guild_id)
 
     return await compute_overwrites(base_perms, member_id,

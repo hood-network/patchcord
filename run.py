@@ -202,9 +202,13 @@ async def handle_litecord_err(err):
     except IndexError:
         ejson = {}
 
+    try:
+        ejson['code'] = err.error_code
+    except AttributeError:
+        pass
+
     return jsonify({
         'error': True,
-        # 'code': err.code,
         'status': err.status_code,
         'message': err.message,
         **ejson

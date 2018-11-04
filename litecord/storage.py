@@ -567,8 +567,9 @@ class Storage:
         reactions = await self.db.fetch("""
         SELECT user_id, emoji_type, emoji_id, emoji_text
         FROM message_reactions
+        WHERE message_id = $1
         ORDER BY react_ts
-        """)
+        """, message_id)
 
         # ordered list of emoji
         emoji = []
@@ -616,15 +617,12 @@ class Storage:
             stats = react_stats[main_emoji]
             stats['count'] += 1
 
-            print(row['user_id'], user_id)
             if row['user_id'] == user_id:
                 stats['me'] = True
 
         # after processing reaction counts,
         # we get them in the same order
         # they were defined in the first loop.
-        print(emoji)
-        print(react_stats)
         return list(map(react_stats.get, emoji))
 
     async def get_message(self, message_id: int, user_id=None) -> Dict:

@@ -4,7 +4,7 @@ from logbook import Logger
 
 
 from litecord.blueprints.auth import token_check
-from litecord.blueprints.checks import channel_check
+from litecord.blueprints.checks import channel_check, channel_perm_check
 from litecord.blueprints.dms import try_dm_state
 from litecord.errors import MessageNotFound, Forbidden, BadRequest
 from litecord.enums import MessageType, ChannelType, GUILD_CHANS
@@ -18,7 +18,7 @@ bp = Blueprint('channel_messages', __name__)
 
 def extract_limit(request, default: int = 50):
     try:
-        limit = int(request.args.get('limit', 50))
+        limit = int(request.args.get('limit', default))
 
         if limit not in range(0, 100):
             raise ValueError()
@@ -142,11 +142,24 @@ async def create_message(channel_id):
     user_id = await token_check()
     ctype, guild_id = await channel_check(user_id, channel_id)
 
+    if ctype in GUILD_CHANS:
+        await channel_perm_check(user_id, channel_id, 'send_messages')
+
     j = validate(await request.get_json(), MESSAGE_CREATE)
     message_id = get_snowflake()
 
-    # TODO: check SEND_MESSAGES permission
     # TODO: check connection to the gateway
+
+    mentions_everyone = ('@everyone' in j['content'] and
+                         await channel_perm_check(
+                             user_id, channel_id, 'mention_everyone', False
+                         )
+                         )
+
+    is_tts = (j.get('tts', False) and
+              await channel_perm_check(
+                  user_id, channel_id, 'send_tts_messages', False
+              ))
 
     await app.db.execute(
         """
@@ -159,11 +172,9 @@ async def create_message(channel_id):
         user_id,
         j['content'],
 
-        # TODO: check SEND_TTS_MESSAGES
-        j.get('tts', False),
+        is_tts,
+        mentions_everyone,
 
-        # TODO: check MENTION_EVERYONE permissions
-        '@everyone' in j['content'],
         int(j.get('nonce', 0)),
         MessageType.DEFAULT.value
     )
@@ -238,8 +249,13 @@ async def delete_message(channel_id, message_id):
     WHERE messages.id = $1
     """, message_id)
 
-    # TODO: MANAGE_MESSAGES permission check
-    if author_id != user_id:
+    by_perm = await channel_perm_check(
+        user_id, channel_id, 'manage_messages', False
+    )
+
+    by_ownership = author_id == user_id
+
+    if not by_perm and not by_ownership:
         raise Forbidden('You can not delete this message')
 
     await app.db.execute("""
