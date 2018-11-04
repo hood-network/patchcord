@@ -166,7 +166,9 @@ class Storage:
         WHERE guild_id = $1 and user_id = $2
         """, guild_id, member_id)
 
-    async def _member_dict(self, row, guild_id, member_id) -> Dict[str, Any]:
+    async def get_member_role_ids(self, guild_id: int,
+                                  member_id: int) -> List[int]:
+        """Get a list of role IDs that are on a member."""
         roles = await self.db.fetch("""
         SELECT role_id::text
         FROM member_roles
@@ -186,6 +188,10 @@ class Storage:
             VALUES ($1, $2, $3)
             """, member_id, guild_id, guild_id)
 
+        return list(map(str, roles))
+
+    async def _member_dict(self, row, guild_id, member_id) -> Dict[str, Any]:
+        roles = await self.get_member_role_ids(guild_id, member_id)
         return {
             'user': await self.get_user(member_id),
             'nick': row['nickname'],
@@ -309,7 +315,7 @@ class Storage:
         WHERE channels.id = $1
         """, channel_id)
 
-    async def _chan_overwrites(self, channel_id: int) -> List[Dict[str, Any]]:
+    async def chan_overwrites(self, channel_id: int) -> List[Dict[str, Any]]:
         overwrite_rows = await self.db.fetch("""
         SELECT target_type, target_role, target_user, allow, deny
         FROM channel_overwrites
@@ -355,8 +361,8 @@ class Storage:
             dbase['type'] = chan_type
 
             res = await self._channels_extra(dbase)
-            res['permission_overwrites'] = \
-                list(await self._chan_overwrites(channel_id))
+            res['permission_overwrites'] = await self.chan_overwrites(
+                channel_id)
 
             res['id'] = str(res['id'])
             return res
@@ -421,8 +427,8 @@ class Storage:
 
             res = await self._channels_extra(drow)
 
-            res['permission_overwrites'] = \
-                list(await self._chan_overwrites(row['id']))
+            res['permission_overwrites'] = await self.chan_overwrites(
+                row['id'])
 
             # Making sure.
             res['id'] = str(res['id'])

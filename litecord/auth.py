@@ -58,6 +58,12 @@ async def raw_token_check(token, db=None):
 
 async def token_check():
     """Check token information."""
+    # first, check if the request info already has a uid
+    try:
+        return request.user_id
+    except AttributeError:
+        pass
+
     try:
         token = request.headers['Authorization']
     except KeyError:
@@ -66,4 +72,6 @@ async def token_check():
     if token.startswith('Bot '):
         token = token.replace('Bot ', '')
 
-    return await raw_token_check(token)
+    user_id = await raw_token_check(token)
+    request.user_id = user_id
+    return user_id
