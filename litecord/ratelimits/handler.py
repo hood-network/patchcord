@@ -58,6 +58,11 @@ async def ratelimit_handler():
     """
     rule = request.url_rule
 
+    if rule is None:
+        return await _handle_global(
+            app.ratelimiter.global_bucket
+        )
+
     # rule.endpoint is composed of '<blueprint>.<function>'
     # and so we can use that to make routes with different
     # methods have different ratelimits
@@ -73,5 +78,6 @@ async def ratelimit_handler():
         ratelimit = app.ratelimiter.get_ratelimit(rule_path)
         await _handle_specific(ratelimit)
     except KeyError:
-        ratelimit = app.ratelimiter.global_bucket
-        await _handle_global(ratelimit)
+        await _handle_global(
+            app.ratelimiter.global_bucket
+        )
