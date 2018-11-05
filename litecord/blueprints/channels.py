@@ -7,7 +7,7 @@ from litecord.auth import token_check
 from litecord.enums import ChannelType, GUILD_CHANS
 from litecord.errors import ChannelNotFound
 from litecord.schemas import (
-    validate, CHAN_UPDATE
+    validate, CHAN_UPDATE, CHAN_OVERWRITE
 )
 
 from litecord.blueprints.checks import channel_check, channel_perm_check
@@ -231,6 +231,63 @@ async def _mass_chan_update(guild_id, channel_ids: int):
             'guild', guild_id, 'CHANNEL_UPDATE', chan)
 
 
+async def _process_overwrites(channel_id: int, overwrites: list):
+    for overwrite in overwrites:
+
+        # 0 for user overwrite, 1 for role overwrite
+        target_type = 0 if overwrite['type'] == 'user' else 1
+        target_role = None if target_type == 0 else overwrite['id']
+        target_user = overwrite['id'] if target_type == 0 else None
+
+        await app.db.execute(
+            """
+            INSERT INTO channel_overwrites
+                (channel_id, target_type, target_role,
+                target_user, allow, deny)
+            VALUES
+                ($1, $2, $3, $4, $5, $6)
+            ON CONFLICT ON CONSTRAINT channel_overwrites_uniq
+            DO
+            UPDATE
+                SET allow = $5, deny = $6
+                WHERE channel_overwrites.channel_id = $1
+                  AND channel_overwrites.target_type = $2
+                  AND channel_overwrites.target_role = $3
+                  AND channel_overwrites.target_user = $4
+            """,
+            channel_id, target_type,
+            target_role, target_user,
+            overwrite['allow'], overwrite['deny'])
+
+
+@bp.route('/<int:channel_id>/permissions/<int:overwrite_id>', methods=['PUT'])
+async def put_channel_overwrite(channel_id: int, overwrite_id: int):
+    """Insert or modify a channel overwrite."""
+    user_id = await token_check()
+    ctype, guild_id = await channel_check(user_id, channel_id)
+
+    if ctype not in GUILD_CHANS:
+        raise ChannelNotFound('Only usable for guild channels.')
+
+    await channel_perm_check(user_id, guild_id, 'manage_roles')
+
+    j = validate(
+        # inserting a fake id on the payload so validation passes through
+        {**await request.get_json(), **{'id': -1}},
+        CHAN_OVERWRITE
+    )
+
+    await _process_overwrites(channel_id, [{
+        'allow': j['allow'],
+        'deny': j['deny'],
+        'type': j['type'],
+        'id': overwrite_id
+    }])
+
+    await _mass_chan_update(guild_id, [channel_id])
+    return '', 204
+
+
 async def _update_channel_common(channel_id, guild_id: int, j: dict):
     if 'name' in j:
         await app.db.execute("""
@@ -282,13 +339,47 @@ async def _update_channel_common(channel_id, guild_id: int, j: dict):
         # since theres now an empty slot, move current channel to it
         await _update_pos(channel_id, new_pos)
 
+    if 'channel_overwrites' in j:
+        overwrites = j['channel_overwrites']
+        await _process_overwrites(channel_id, overwrites)
+
+
+async def _common_guild_chan(channel_id, j: dict):
+    # common updates to the guild_channels table
+    for field in [field for field in j.keys()
+                  if field in ('nsfw', 'parent_id')]:
+        await app.db.execute(f"""
+        UPDATE guild_channels
+        SET {field} = $1
+        WHERE id = $2
+        """, j[field], channel_id)
+
 
 async def _update_text_channel(channel_id: int, j: dict):
-    pass
+    # first do the specific ones related to guild_text_channels
+    for field in [field for field in j.keys()
+                  if field in ('topic', 'rate_limit_per_user')]:
+        await app.db.execute(f"""
+        UPDATE guild_text_channels
+        SET {field} = $1
+        WHERE id = $2
+        """, j[field], channel_id)
+
+    await _common_guild_chan(channel_id, j)
 
 
 async def _update_voice_channel(channel_id: int, j: dict):
-    pass
+    # first do the specific ones in guild_voice_channels
+    for field in [field for field in j.keys()
+                  if field in ('bitrate', 'user_limit')]:
+        await app.db.execute(f"""
+        UPDATE guild_voice_channels
+        SET {field} = $1
+        WHERE id = $2
+        """, j[field], channel_id)
+
+    # yes, i'm letting voice channels have nsfw, you cant stop me
+    await _common_guild_chan(channel_id, j)
 
 
 @bp.route('/<int:channel_id>', methods=['PUT', 'PATCH'])

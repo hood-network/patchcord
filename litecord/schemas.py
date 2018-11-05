@@ -252,13 +252,10 @@ GUILD_UPDATE = {
 
 
 CHAN_OVERWRITE = {
-    'type': 'dict',
-    'schema': {
-        'id': {'coerce': int},
-        'type': {'type': 'string', 'allowed': ['role', 'member']},
-        'allow': {'coerce': Permissions},
-        'deny': {'coerce': Permissions}
-    }
+    'id': {'coerce': int},
+    'type': {'type': 'string', 'allowed': ['role', 'member']},
+    'allow': {'coerce': Permissions},
+    'deny': {'coerce': Permissions}
 }
 
 
@@ -292,7 +289,7 @@ CHAN_UPDATE = {
 
     'permission_overwrites': {
         'type': 'list',
-        'schema': CHAN_OVERWRITE,
+        'schema': {'type': 'dict', 'schema': CHAN_OVERWRITE},
         'required': False
     },
 

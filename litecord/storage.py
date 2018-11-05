@@ -324,18 +324,20 @@ class Storage:
 
         def _overwrite_convert(row):
             drow = dict(row)
-            drow['type'] = drow['target_type']
+
+            target_type = drow['target_type']
+            drow['type'] = 'user' if target_type == 0 else 'role'
 
             # if type is 0, the overwrite is for a user
             # if type is 1, the overwrite is for a role
             drow['id'] = {
                 0: drow['target_user'],
                 1: drow['target_role'],
-            }[drow['type']]
+            }[target_type]
 
             drow['id'] = str(drow['id'])
 
-            drow.pop('overwrite_type')
+            drow.pop('target_type')
             drow.pop('target_user')
             drow.pop('target_role')
 

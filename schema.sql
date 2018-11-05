@@ -347,10 +347,14 @@ CREATE TABLE IF NOT EXISTS channel_overwrites (
     -- they're bigints (64bits), discord,
     -- for now, only needs 53.
     allow bigint DEFAULT 0,
-    deny bigint DEFAULT 0,
-
-    PRIMARY KEY (channel_id, target_role, target_user)
+    deny bigint DEFAULT 0
 );
+
+-- columns in private keys can't have NULL values,
+-- so instead we use a custom constraint with UNIQUE
+
+ALTER TABLE channel_overwrites ADD CONSTRAINT channel_overwrites_uniq
+    UNIQUE (channel_id, target_role, target_user);
 
 
 CREATE TABLE IF NOT EXISTS features (
