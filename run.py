@@ -25,7 +25,7 @@ from litecord.blueprints.guild import (
 )
 
 from litecord.blueprints.channel import (
-    channel_messages, channel_reactions
+    channel_messages, channel_reactions, channel_pins
 )
 
 from litecord.ratelimits.handler import ratelimit_handler
@@ -79,6 +79,7 @@ bps = {
     channels: '/channels',
     channel_messages: '/channels',
     channel_reactions: '/channels',
+    channel_pins: '/channels',
 
     webhooks: None,
     science: None,

@@ -251,6 +251,57 @@ GUILD_UPDATE = {
 }
 
 
+CHAN_OVERWRITE = {
+    'type': 'dict',
+    'schema': {
+        'id': {'coerce': int},
+        'type': {'type': 'string', 'allowed': ['role', 'member']},
+        'allow': {'coerce': Permissions},
+        'deny': {'coerce': Permissions}
+    }
+}
+
+
+CHAN_UPDATE = {
+    'name': {
+        'type': 'string', 'minlength': 2,
+        'maxlength': 100, 'required': False},
+
+    'position': {'coerce': int, 'required': False},
+
+    'topic': {
+        'type': 'string', 'minlength': 0,
+        'maxlength': 1024, 'required': False},
+
+    'nsfw': {'type': 'boolean', 'required': False},
+    'rate_limit_per_user': {
+        'coerce': int, 'min': 0,
+        'max': 120, 'required': False},
+
+    'bitrate': {
+        'coerce': int, 'min': 8000,
+
+        # NOTE: 'max' is 96000 for non-vip guilds
+        'max': 128000, 'required': False},
+
+    'user_limit': {
+        # user_limit being 0 means infinite.
+        'coerce': int, 'min': 0,
+        'max': 99, 'required': False
+    },
+
+    'permission_overwrites': {
+        'type': 'list',
+        'schema': CHAN_OVERWRITE,
+        'required': False
+    },
+
+    'parent_id': {'coerce': int, 'required': False, 'nullable': True}
+
+
+}
+
+
 ROLE_CREATE = {
     'name': {'type': 'string', 'default': 'new role'},
     'permissions': {'coerce': Permissions, 'nullable': True},
