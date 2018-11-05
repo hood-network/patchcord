@@ -3,11 +3,14 @@ import time
 from quart import Blueprint, request, current_app as app, jsonify
 from logbook import Logger
 
-from ..auth import token_check
-from ..enums import ChannelType, GUILD_CHANS
-from ..errors import ChannelNotFound
+from litecord.auth import token_check
+from litecord.enums import ChannelType, GUILD_CHANS
+from litecord.errors import ChannelNotFound
+from litecord.schemas import (
+    validate, CHAN_UPDATE
+)
 
-from .checks import channel_check
+from litecord.blueprints.checks import channel_check, channel_perm_check
 
 log = Logger(__name__)
 bp = Blueprint('channels', __name__)
@@ -213,6 +216,107 @@ async def close_channel(channel_id):
     raise ChannelNotFound()
 
 
+async def _update_pos(channel_id, pos: int):
+    await app.db.execute("""
+    UPDATE guild_channels
+    SET position = $1
+    WHERE id = $2
+    """, pos, channel_id)
+
+
+async def _mass_chan_update(guild_id, channel_ids: int):
+    for channel_id in channel_ids:
+        chan = await app.storage.get_channel(channel_id)
+        await app.dispatcher.dispatch(
+            'guild', guild_id, 'CHANNEL_UPDATE', chan)
+
+
+async def _update_channel_common(channel_id, guild_id: int, j: dict):
+    if 'name' in j:
+        await app.db.execute("""
+        UPDATE guild_channels
+        SET name = $1
+        WHERE id = $2
+        """, j['name'], channel_id)
+
+    if 'position' in j:
+        channel_data = await app.storage.get_channel_data(guild_id)
+
+        chans = [None * len(channel_data)]
+        for chandata in channel_data:
+            chans.insert(chandata['position'], int(chandata['id']))
+
+        # are we changing to the left or to the right?
+
+        # left: [channel1, channel2, ..., channelN-1, channelN]
+        #       becomes
+        #       [channel1, channelN-1, channel2, ..., channelN]
+        #       so we can say that the "main change" is
+        #       channelN-1 going to the position channel2
+        #       was occupying.
+        current_pos = chans.index(channel_id)
+        new_pos = j['position']
+
+        # if the new position is bigger than the current one,
+        # we're making a left shift of all the channels that are
+        # beyond the current one, to make space
+        left_shift = new_pos > current_pos
+
+        # find all channels that we'll have to shift
+        shift_block = (chans[current_pos:new_pos]
+                       if left_shift else
+                       chans[new_pos:current_pos]
+                       )
+
+        shift = -1 if left_shift else 1
+
+        # do the shift (to the left or to the right)
+        await app.db.executemany("""
+        UPDATE guild_channels
+        SET position = position + $1
+        WHERE id = $2
+        """, [(shift, chan_id) for chan_id in shift_block])
+
+        await _mass_chan_update(guild_id, shift_block)
+
+        # since theres now an empty slot, move current channel to it
+        await _update_pos(channel_id, new_pos)
+
+
+async def _update_text_channel(channel_id: int, j: dict):
+    pass
+
+
+async def _update_voice_channel(channel_id: int, j: dict):
+    pass
+
+
+@bp.route('/<int:channel_id>', methods=['PUT', 'PATCH'])
+async def update_channel(channel_id):
+    """Update a channel's information"""
+    user_id = await token_check()
+    ctype, guild_id = await channel_check(user_id, channel_id)
+
+    if ctype not in GUILD_CHANS:
+        raise ChannelNotFound('Can not edit non-guild channels.')
+
+    await channel_perm_check(user_id, channel_id, 'manage_channels')
+    j = validate(await request.get_json(), CHAN_UPDATE)
+
+    # TODO: categories?
+    update_handler = {
+        ChannelType.GUILD_TEXT: _update_text_channel,
+        ChannelType.GUILD_VOICE: _update_voice_channel,
+    }[ctype]
+
+    await _update_channel_common(channel_id, guild_id, j)
+    await update_handler(channel_id, j)
+
+    chan = await app.storage.get_channel(channel_id)
+    await app.dispatcher.dispatch('guild', guild_id, 'CHANNEL_UPDATE', chan)
+    return jsonify(chan)
+
+
 @bp.route('/<int:channel_id>/typing', methods=['POST'])
 async def trigger_typing(channel_id):
     user_id = await token_check()
@@ -241,9 +345,12 @@ async def channel_ack(user_id, guild_id, channel_id, message_id: int = None):
         (user_id, channel_id, last_message_id, mention_count)
     VALUES
         ($1, $2, $3, 0)
-    ON CONFLICT DO UPDATE
+    ON CONFLICT ON CONSTRAINT user_read_state_pkey
+    DO
+      UPDATE
         SET last_message_id = $3, mention_count = 0
-        WHERE user_id = $1 AND channel_id = $2
+        WHERE user_read_state.user_id = $1
+          AND user_read_state.channel_id = $2
     """, user_id, channel_id, message_id)
 
     if guild_id:

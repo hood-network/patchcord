@@ -281,10 +281,11 @@ async def put_note(target_id: int):
     INSERT INTO notes (user_id, target_id, note)
     VALUES ($1, $2, $3)
 
-    ON CONFLICT DO UPDATE SET
+    ON CONFLICT ON CONSTRAINT notes_pkey
+    DO UPDATE SET
         note = $3
-    WHERE
-        user_id = $1 AND target_id = $2
+    WHERE notes.user_id = $1
+      AND notes.target_id = $2
     """, user_id, target_id, note)
 
     await app.dispatcher.dispatch_user(user_id, 'USER_NOTE_UPDATE', {
@@ -451,11 +452,14 @@ async def patch_guild_settings(guild_id: int):
                 (user_id, guild_id, channel_id, {field})
             VALUES
                 ($1, $2, $3, $4)
-            ON CONFLICT DO UPDATE
+            ON CONFLICT
+                ON CONSTRAINT guild_settings_channel_overrides_pkey
+            DO
+              UPDATE
                 SET {field} = $4
-                WHERE user_id = $1
-                  AND guild_id = $2
-                  AND channel_id = $3
+                WHERE guild_settings_channel_overrides.user_id = $1
+                  AND guild_settings_channel_overrides.guild_id = $2
+                  AND guild_settings_channel_overrides.channel_id = $3
             """, user_id, guild_id, chan_id, chan_overrides[field])
 
     settings = await app.storage.get_guild_settings_one(user_id, guild_id)
