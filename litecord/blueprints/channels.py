@@ -326,8 +326,7 @@ async def channel_ack(user_id, guild_id, channel_id, message_id: int = None):
         (user_id, channel_id, last_message_id, mention_count)
     VALUES
         ($1, $2, $3, 0)
-    ON CONFLICT
-        DO UPDATE user_read_state
+    ON CONFLICT DO UPDATE
         SET last_message_id = $3, mention_count = 0
         WHERE user_id = $1 AND channel_id = $2
     """, user_id, channel_id, message_id)

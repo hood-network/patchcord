@@ -446,20 +446,17 @@ async def patch_guild_settings(guild_id: int):
             continue
 
         for field in chan_overrides:
-            res = await app.db.execute(f"""
-            UPDATE guild_settings_channel_overrides
-            SET {field} = $1
-            WHERE user_id = $2
-            AND   guild_id = $3
-            AND   channel_id = $4
-            """, chan_overrides[field], user_id, guild_id, chan_id)
-
-            if res == 'UPDATE 0':
-                await app.db.execute(f"""
-                INSERT INTO guild_settings_channel_overrides
-                    (user_id, guild_id, channel_id, {field})
-                VALUES ($1, $2, $3, $4)
-                """, user_id, guild_id, chan_id, chan_overrides[field])
+            await app.db.execute(f"""
+            INSERT INTO guild_settings_channel_overrides
+                (user_id, guild_id, channel_id, {field})
+            VALUES
+                ($1, $2, $3, $4)
+            ON CONFLICT DO UPDATE
+                SET {field} = $4
+                WHERE user_id = $1
+                  AND guild_id = $2
+                  AND channel_id = $3
+            """, user_id, guild_id, chan_id, chan_overrides[field])
 
     settings = await app.storage.get_guild_settings_one(user_id, guild_id)
 
