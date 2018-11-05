@@ -134,6 +134,7 @@ async def guild_cleanup(channel_id):
 
 @bp.route('/<int:channel_id>', methods=['DELETE'])
 async def close_channel(channel_id):
+    """Close or delete a channel."""
     user_id = await token_check()
 
     chan_type = await app.storage.get_chan_type(channel_id)
@@ -210,7 +211,7 @@ async def close_channel(channel_id):
         # TODO: group dm
         pass
 
-    return '', 404
+    raise ChannelNotFound()
 
 
 @bp.route('/<int:channel_id>/pins', methods=['GET'])
@@ -320,21 +321,16 @@ async def channel_ack(user_id, guild_id, channel_id, message_id: int = None):
     if not message_id:
         message_id = await app.storage.chan_last_message(channel_id)
 
-    res = await app.db.execute("""
-    UPDATE user_read_state
-
-    SET last_message_id = $1,
-        mention_count = 0
-
-    WHERE user_id = $2 AND channel_id = $3
-    """, message_id, user_id, channel_id)
-
-    if res == 'UPDATE 0':
-        await app.db.execute("""
-        INSERT INTO user_read_state
-            (user_id, channel_id, last_message_id, mention_count)
-        VALUES ($1, $2, $3, $4)
-        """, user_id, channel_id, message_id, 0)
+    await app.db.execute("""
+    INSERT INTO user_read_state
+        (user_id, channel_id, last_message_id, mention_count)
+    VALUES
+        ($1, $2, $3, 0)
+    ON CONFLICT
+        DO UPDATE user_read_state
+        SET last_message_id = $3, mention_count = 0
+        WHERE user_id = $1 AND channel_id = $2
+    """, user_id, channel_id, message_id)
 
     if guild_id:
         await app.dispatcher.dispatch_user_guild(
@@ -353,6 +349,7 @@ async def channel_ack(user_id, guild_id, channel_id, message_id: int = None):
 
 @bp.route('/<int:channel_id>/messages/<int:message_id>/ack', methods=['POST'])
 async def ack_channel(channel_id, message_id):
+    """Acknowledge a channel."""
     user_id = await token_check()
     ctype, guild_id = await channel_check(user_id, channel_id)
 
@@ -371,6 +368,7 @@ async def ack_channel(channel_id, message_id):
 
 @bp.route('/<int:channel_id>/messages/ack', methods=['DELETE'])
 async def delete_read_state(channel_id):
+    """Delete the read state of a channel."""
     user_id = await token_check()
     await channel_check(user_id, channel_id)
 
