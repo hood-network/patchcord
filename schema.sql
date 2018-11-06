@@ -486,11 +486,6 @@ CREATE TABLE IF NOT EXISTS bans (
 );
 
 
-CREATE TABLE IF NOT EXISTS embeds (
-    -- TODO: this table
-    id bigint PRIMARY KEY
-);
-
 CREATE TABLE IF NOT EXISTS messages (
     id bigint PRIMARY KEY,
     channel_id bigint REFERENCES channels (id) ON DELETE CASCADE,
@@ -511,6 +506,8 @@ CREATE TABLE IF NOT EXISTS messages (
     tts bool default false,
     mention_everyone bool default false,
 
+    embeds jsonb DEFAULT '[]',
+
     nonce bigint default 0,
 
     message_type int NOT NULL
@@ -520,12 +517,6 @@ CREATE TABLE IF NOT EXISTS message_attachments (
     message_id bigint REFERENCES messages (id),
     attachment bigint REFERENCES files (id),
     PRIMARY KEY (message_id, attachment)
-);
-
-CREATE TABLE IF NOT EXISTS message_embeds (
-    message_id bigint REFERENCES messages (id) UNIQUE,
-    embed_id bigint REFERENCES embeds (id),
-    PRIMARY KEY (message_id, embed_id)
 );
 
 CREATE TABLE IF NOT EXISTS message_reactions (
