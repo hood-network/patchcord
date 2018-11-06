@@ -1,8 +1,14 @@
 import asyncio
+import argparse
+from sys import argv
 from dataclasses import dataclass
 
+from logbook import Logger
 
 from run import init_app_managers, init_app_db
+from manage.cmd.migration import migration
+
+log = Logger(__name__)
 
 
 @dataclass
@@ -18,6 +24,15 @@ class FakeApp:
     presence = None
 
 
+def init_parser():
+    parser = argparse.ArgumentParser()
+    subparser = parser.add_subparsers(help='operations')
+
+    migration(subparser)
+
+    return parser
+
+
 def main(config):
     """Start the script"""
     loop = asyncio.get_event_loop()
@@ -27,4 +42,17 @@ def main(config):
     loop.run_until_complete(init_app_db(app))
     init_app_managers(app)
 
-    print(app)
+    # initialize argparser
+    parser = init_parser()
+
+    try:
+        if len(argv) < 2:
+            parser.print_help()
+            return
+
+        args = parser.parse_args()
+        loop.run_until_complete(args.func(app, args))
+    except Exception:
+        log.exception('error while running command')
+    finally:
+        loop.run_until_complete(app.db.close())
