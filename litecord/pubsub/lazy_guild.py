@@ -21,6 +21,7 @@ Presence = Dict[str, Any]
 
 @dataclass
 class GroupInfo:
+    """Store information about a specific group."""
     gid: GroupID
     name: str
     position: int
@@ -29,6 +30,7 @@ class GroupInfo:
 
 @dataclass
 class MemberList:
+    """Total information on the guild's member list."""
     groups: List[GroupInfo] = None
     group_info: Dict[GroupID, GroupInfo] = None
     data: Dict[GroupID, Presence] = None

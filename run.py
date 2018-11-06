@@ -143,16 +143,14 @@ async def app_set_ratelimit_headers(resp):
     return resp
 
 
-@app.before_serving
-async def app_before_serving():
-    log.info('opening db')
+async def init_app_db(app):
+    """Connect to databases"""
     app.db = await asyncpg.create_pool(**app.config['POSTGRES'])
 
-    g.app = app
 
+def init_app_managers(app):
+    """Initialize singleton classes."""
     app.loop = asyncio.get_event_loop()
-    g.loop = asyncio.get_event_loop()
-
     app.ratelimiter = RatelimitManager()
     app.state_manager = StateManager()
     app.storage = Storage(app.db)
@@ -161,6 +159,17 @@ async def app_before_serving():
     app.presence = PresenceManager(app.storage,
                                    app.state_manager, app.dispatcher)
     app.storage.presence = app.presence
+
+
+@app.before_serving
+async def app_before_serving():
+    log.info('opening db')
+    await init_app_db(app)
+
+    g.app = app
+    g.loop = asyncio.get_event_loop()
+
+    init_app_managers(app)
 
     # start the websocket, etc
     host, port = app.config['WS_HOST'], app.config['WS_PORT']
