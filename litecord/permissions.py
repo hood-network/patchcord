@@ -65,7 +65,7 @@ class Permissions(ctypes.Union):
 ALL_PERMISSIONS = Permissions(0b01111111111101111111110111111111)
 
 
-async def base_permissions(member_id, guild_id) -> Permissions:
+async def base_permissions(member_id, guild_id, storage=None) -> Permissions:
     """Compute the base permissions for a given user.
 
     Base permissions are
@@ -75,7 +75,11 @@ async def base_permissions(member_id, guild_id) -> Permissions:
     This will give ALL_PERMISSIONS if base permissions
     has the Administrator bit set.
     """
-    owner_id = await app.db.fetchval("""
+
+    if not storage:
+        storage = app.storage
+
+    owner_id = await storage.db.fetchval("""
     SELECT owner_id
     FROM guilds
     WHERE id = $1
@@ -85,7 +89,7 @@ async def base_permissions(member_id, guild_id) -> Permissions:
         return ALL_PERMISSIONS
 
     # get permissions for @everyone
-    everyone_perms = await app.db.fetchval("""
+    everyone_perms = await storage.db.fetchval("""
     SELECT permissions
     FROM roles
     WHERE guild_id = $1
@@ -93,7 +97,7 @@ async def base_permissions(member_id, guild_id) -> Permissions:
 
     permissions = Permissions(everyone_perms)
 
-    role_ids = await app.db.fetch("""
+    role_ids = await storage.db.fetch("""
     SELECT role_id
     FROM member_roles
     WHERE guild_id = $1 AND user_id = $2
@@ -102,7 +106,7 @@ async def base_permissions(member_id, guild_id) -> Permissions:
     role_perms = []
 
     for row in role_ids:
-        rperm = await app.db.fetchval("""
+        rperm = await storage.db.fetchval("""
         SELECT permissions
         FROM roles
         WHERE id = $1
@@ -119,7 +123,7 @@ async def base_permissions(member_id, guild_id) -> Permissions:
     return permissions
 
 
-def _mix(perms: Permissions, overwrite: dict) -> Permissions:
+def overwrite_mix(perms: Permissions, overwrite: dict) -> Permissions:
     # we make a copy of the binary representation
     # so we don't modify the old perms in-place
     # which could be an unwanted side-effect
@@ -134,20 +138,22 @@ def _mix(perms: Permissions, overwrite: dict) -> Permissions:
     return Permissions(result)
 
 
-def _overwrite_mix(perms: Permissions, overwrites: dict,
-                   target_id: int) -> Permissions:
+def overwrite_find_mix(perms: Permissions, overwrites: dict,
+                       target_id: int) -> Permissions:
     overwrite = overwrites.get(target_id)
 
     if overwrite:
         # only mix if overwrite found
-        return _mix(perms, overwrite)
+        return overwrite_mix(perms, overwrite)
 
     return perms
 
 
 async def compute_overwrites(base_perms, user_id, channel_id: int,
-                             guild_id: int = None):
+                             guild_id: int = None, storage=None):
     """Compute the permissions in the context of a channel."""
+    if not storage:
+        storage = app.storage
 
     if base_perms.bits.administrator:
         return ALL_PERMISSIONS
@@ -155,21 +161,21 @@ async def compute_overwrites(base_perms, user_id, channel_id: int,
     perms = base_perms
 
     # list of overwrites
-    overwrites = await app.storage.chan_overwrites(channel_id)
+    overwrites = await storage.chan_overwrites(channel_id)
 
     if not guild_id:
-        guild_id = await app.storage.guild_from_channel(channel_id)
+        guild_id = await storage.guild_from_channel(channel_id)
 
     # make it a map for better usage
     overwrites = {o['id']: o for o in overwrites}
 
-    perms = _overwrite_mix(perms, overwrites, guild_id)
+    perms = overwrite_find_mix(perms, overwrites, guild_id)
 
     # apply role specific overwrites
     allow, deny = 0, 0
 
     # fetch roles from user and convert to int
-    role_ids = await app.storage.get_member_role_ids(guild_id, user_id)
+    role_ids = await storage.get_member_role_ids(guild_id, user_id)
     role_ids = map(int, role_ids)
 
     # make the allow and deny binaries
@@ -180,26 +186,29 @@ async def compute_overwrites(base_perms, user_id, channel_id: int,
             deny |= overwrite['deny']
 
     # final step for roles: mix
-    perms = _mix(perms, {
+    perms = overwrite_mix(perms, {
         'allow': allow,
         'deny': deny
     })
 
     # apply member specific overwrites
-    perms = _overwrite_mix(perms, overwrites, user_id)
+    perms = overwrite_find_mix(perms, overwrites, user_id)
 
     return perms
 
 
-async def get_permissions(member_id, channel_id):
+async def get_permissions(member_id, channel_id, *, storage=None):
     """Get all the permissions for a user in a channel."""
-    guild_id = await app.storage.guild_from_channel(channel_id)
+    if not storage:
+        storage = app.storage
+
+    guild_id = await storage.guild_from_channel(channel_id)
 
     # for non guild channels
     if not guild_id:
         return ALL_PERMISSIONS
 
-    base_perms = await base_permissions(member_id, guild_id)
+    base_perms = await base_permissions(member_id, guild_id, storage)
 
     return await compute_overwrites(base_perms, member_id,
-                                    channel_id, guild_id)
+                                    channel_id, guild_id, storage)
