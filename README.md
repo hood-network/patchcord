@@ -36,6 +36,10 @@ $ psql -f schema.sql litecord
 # edit config.py as you wish
 $ cp config.example.py config.py
 
+# run database migrations (this is a
+# required step in setup)
+$ pipenv run ./manage.py migrate
+
 # Install all packages:
 $ pipenv install --dev
 ```
@@ -49,4 +53,11 @@ Use `--access-log -` to output access logs to stdout.
 
 ```sh
 $ pipenv run hypercorn run:app
+```
+
+## Updating
+
+```sh
+$ git pull
+$ pipenv run ./manage.py migrate
 ```
