@@ -113,9 +113,11 @@ class PresenceManager:
         for member_list in lists:
             session_ids = await member_list.pres_update(
                 int(member['user']['id']),
-                member['roles'],
-                state['status'],
-                game
+                {
+                    'roles': member['roles'],
+                    'status': state['status'],
+                    'game': game
+                }
             )
 
             log.debug('Lazy Dispatch to {}',

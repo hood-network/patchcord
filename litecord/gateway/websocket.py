@@ -710,7 +710,7 @@ class GatewayWebsocket:
         list_op = 'SYNC' | 'INVALIDATE' | 'INSERT' | 'UPDATE' | 'DELETE'
 
         list_data = {
-            'id': "everyone" // ??
+            'id': channel_id | 'everyone',
             'guild_id': guild_id,
 
             'ops': [
@@ -723,10 +723,10 @@ class GatewayWebsocket:
                     // exists if op = 'SYNC'
                     'items': sync_item[],
 
-                    // exists if op = 'INSERT' or 'DELETE'
+                    // exists if op == 'INSERT' | 'DELETE' | 'UPDATE'
                     'index': num,
 
-                    // exists if op = 'INSERT'
+                    // exists if op == 'INSERT' | 'UPDATE'
                     'item': sync_item,
                 }
             ],

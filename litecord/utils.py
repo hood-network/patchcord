@@ -32,7 +32,7 @@ def dict_get(mapping, key, default):
 def index_by_func(function, indexable: iter) -> int:
     """Search in an idexable and return the index number
     for an iterm that has func(item) = True."""
-    for index, item in indexable:
+    for index, item in enumerate(indexable):
         if function(item):
             return index
 
