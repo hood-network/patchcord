@@ -496,6 +496,8 @@ USER_SETTINGS = {
     'show_current_game': {'type': 'boolean', 'required': False},
 
     'timezone_offset': {'type': 'number', 'required': False},
+
+    'status': {'type': 'status_external', 'required': False}
 }
 
 RELATIONSHIP = {

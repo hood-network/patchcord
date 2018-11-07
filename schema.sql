@@ -134,6 +134,10 @@ CREATE TABLE IF NOT EXISTS user_settings (
 
     -- appearance
     message_display_compact bool DEFAULT false,
+
+    -- for now we store status but don't
+    -- actively use it, since the official client
+    -- sends its own presence on IDENTIFY
     status text DEFAULT 'online' NOT NULL,
     theme text DEFAULT 'dark' NOT NULL,
     developer_mode bool DEFAULT true,
