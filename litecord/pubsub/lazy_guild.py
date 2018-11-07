@@ -380,7 +380,7 @@ class GuildMemberList:
             if itemcount < 0:
                 continue
 
-            # TODO: subscribe user to the slice
+            self.state[session_id].add((start, end))
 
             reply['ops'].append({
                 'op': 'SYNC',
