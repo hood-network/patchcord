@@ -393,9 +393,11 @@ class GuildMemberList:
         }
 
         states = map(self.get_state, session_ids)
+        states = filter(lambda state: state is not None, states)
+
         dispatched = []
 
-        for state in (s for s in states if s is not None):
+        for state in states:
             await state.ws.dispatch(
                 'GUILD_MEMBER_LIST_UPDATE', payload)
 
