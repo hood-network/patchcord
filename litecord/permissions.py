@@ -65,6 +65,20 @@ class Permissions(ctypes.Union):
 ALL_PERMISSIONS = Permissions(0b01111111111101111111110111111111)
 
 
+async def get_role_perms(guild_id, role_id, storage=None) -> Permissions:
+    """Get the raw :class:`Permissions` object for a role."""
+    if not storage:
+        storage = app.storage
+
+    perms = await storage.db.fetchval("""
+    SELECT permissions
+    FROM roles
+    WHERE guild_id = $1 AND id = $2
+    """, guild_id, role_id)
+
+    return Permissions(perms)
+
+
 async def base_permissions(member_id, guild_id, storage=None) -> Permissions:
     """Compute the base permissions for a given user.
 
@@ -89,13 +103,7 @@ async def base_permissions(member_id, guild_id, storage=None) -> Permissions:
         return ALL_PERMISSIONS
 
     # get permissions for @everyone
-    everyone_perms = await storage.db.fetchval("""
-    SELECT permissions
-    FROM roles
-    WHERE guild_id = $1
-    """, guild_id)
-
-    permissions = Permissions(everyone_perms)
+    permissions = await get_role_perms(guild_id, guild_id, storage)
 
     role_ids = await storage.db.fetch("""
     SELECT role_id
@@ -145,6 +153,26 @@ def overwrite_find_mix(perms: Permissions, overwrites: dict,
     if overwrite:
         # only mix if overwrite found
         return overwrite_mix(perms, overwrite)
+
+    return perms
+
+
+async def role_permissions(guild_id: int, role_id: int,
+                           channel_id: int, storage=None) -> Permissions:
+    """Get the permissions for a role, in relation to a channel"""
+    if not storage:
+        storage = app.storage
+
+    perms = await get_role_perms(guild_id, role_id, storage)
+
+    overwrite = await storage.db.fetchrow("""
+    SELECT allow, deny
+    FROM channel_overwrites
+    WHERE channel_id = $1 AND target_type = $2 AND target_role = $3
+    """, channel_id, 1, role_id)
+
+    if overwrite:
+        perms = overwrite_mix(perms, overwrite)
 
     return perms
 

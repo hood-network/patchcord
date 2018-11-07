@@ -331,7 +331,7 @@ CREATE TABLE IF NOT EXISTS channel_overwrites (
     channel_id bigint REFERENCES channels (id) ON DELETE CASCADE,
 
     -- target_type = 0 -> use target_user
-    -- target_type = 1 -> user target_role
+    -- target_type = 1 -> use target_role
     -- discord already has overwrite.type = 'role' | 'member'
     -- so this allows us to be more compliant with the API
     target_type integer default null,

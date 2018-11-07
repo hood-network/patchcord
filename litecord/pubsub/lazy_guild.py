@@ -10,7 +10,7 @@ from logbook import Logger
 
 from litecord.pubsub.dispatcher import Dispatcher
 from litecord.permissions import (
-    Permissions, overwrite_find_mix, get_permissions
+    Permissions, overwrite_find_mix, get_permissions, role_permissions
 )
 
 log = Logger(__name__)
@@ -90,16 +90,15 @@ class GuildMemberList:
 
         # a really long chain of classes to get
         # to the storage instance...
-        main = main_lg.main_dispatcher
-        self.storage = main.app.storage
-        self.presence = main.app.presence
-        self.state_man = main.app.state_manager
+        self.main = main_lg
+        self.storage = self.main.app.storage
+        self.presence = self.main.app.presence
+        self.state_man = self.main.app.state_manager
 
         self.list = MemberList(None, None, None, None)
 
-        #: holds the state of subscribed shards
-        #  to this channels' member list
-        self.state = set()
+        #: {session_id: set[list]}
+        self.state = defaultdict(set)
 
     def _set_empty_list(self):
         self.list = MemberList(None, None, None, None)
@@ -296,14 +295,16 @@ class GuildMemberList:
 
         return res
 
-    async def sub(self, session_id: str):
+    async def sub(self, _session_id: str):
         """Subscribe a shard to the member list."""
         await self._init_check()
-        self.state.add(session_id)
 
     async def unsub(self, session_id: str):
         """Unsubscribe a shard from the member list"""
-        self.state.discard(session_id)
+        try:
+            self.state.pop(session_id)
+        except KeyError:
+            pass
 
         # once we reach 0 subscribers,
         # we drop the current member list we have (for memory)
@@ -327,6 +328,29 @@ class GuildMemberList:
             ranges of the list that we want.
         """
 
+        # a guild list with a channel id of the guild
+        # represents the 'everyone' global list.
+        list_id = ('everyone'
+                   if self.channel_id == self.guild_id
+                   else str(self.channel_id))
+
+        # if everyone can read the channel,
+        # we direct the request to the 'everyone' gml instance
+        # instead of the current one.
+        everyone_perms = await role_permissions(
+            self.guild_id,
+            self.guild_id,
+            self.channel_id,
+            storage=self.storage
+        )
+
+        if everyone_perms.bits.read_messages and list_id != 'everyone':
+            everyone_gml = await self.main.get_gml(self.guild_id)
+
+            return await everyone_gml.shard_query(
+                session_id, ranges
+            )
+
         await self._init_check()
 
         # make sure this is a sane state
@@ -335,22 +359,9 @@ class GuildMemberList:
             await self.unsub(session_id)
             return
 
-        # since this is a sane state AND
-        # trying to query, we automatically
-        # subscribe the state to this list
-        await self.sub(session_id)
-
-        # TODO: subscribe shard to the 'everyone' member list
-        #       and forward the query to that list
-
         reply = {
             'guild_id': str(self.guild_id),
-
-            # TODO: everyone for channels without overrides
-            # channel_id for channels WITH overrides.
-
-            'id': 'everyone',
-            # 'id': str(self.channel_id),
+            'id': list_id,
 
             'groups': [
                 {
@@ -386,22 +397,17 @@ class GuildMemberList:
         return list(self.state)
 
     async def dispatch(self, event: str, data: Any):
-        """The dispatch() method here, instead of being
-        about dispatching a single event to the subscribed
-        users and forgetting about it, is about storing
-        the actual member list information so that we
-        can generate the respective events to the users.
+        """Modify the member list and dispatch the respective
+        events to subscribed shards.
 
         GuildMemberList stores the current guilds' list
-        in its :attr:`GuildMemberList.member_list` attribute,
+        in its :attr:`GuildMemberList.list` attribute,
         with that attribute being modified via different
         calls to :meth:`GuildMemberList.dispatch`
         """
 
-        if self.member_list is None:
-            # if the list is currently uninitialized,
-            # no subscribers actually happened, so
-            # we can safely drop the incoming event.
+        # if no subscribers, drop event
+        if not self.list:
             return
 
 
@@ -435,6 +441,11 @@ class LazyGuildDispatcher(Dispatcher):
             guild_id = await self.storage.guild_from_channel(
                 channel_id
             )
+
+            # if we don't find a guild, we just
+            # set it the same as the channel.
+            if not guild_id:
+                guild_id = channel_id
 
             gml = GuildMemberList(guild_id, channel_id, self)
             self.state[channel_id] = gml
