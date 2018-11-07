@@ -459,10 +459,6 @@ class LazyGuildDispatcher(Dispatcher):
             self.guild_map[guild_id]
         ))
 
-    async def sub(self, chan_id, session_id):
-        gml = await self.get_gml(chan_id)
-        await gml.sub(session_id)
-
     async def unsub(self, chan_id, session_id):
         gml = await self.get_gml(chan_id)
         await gml.unsub(session_id)
