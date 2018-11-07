@@ -364,13 +364,12 @@ class GuildMemberList:
             self._set_empty_list()
 
     def get_state(self, session_id: str):
-        state = self.state_man.fetch_raw(session_id)
-
-        if not state:
+        try:
+            state = self.state_man.fetch_raw(session_id)
+            return state
+        except KeyError:
             self.unsub(session_id)
             return
-
-        return state
 
     async def _dispatch_sess(self, session_ids: List[str],
                              operations: List[Operation]):
@@ -394,9 +393,15 @@ class GuildMemberList:
         }
 
         states = map(self.get_state, session_ids)
+        dispatched = []
+
         for state in (s for s in states if s is not None):
             await state.ws.dispatch(
                 'GUILD_MEMBER_LIST_UPDATE', payload)
+
+            dispatched.append(state.session_id)
+
+        return dispatched
 
     async def shard_query(self, session_id: str, ranges: list):
         """Send a GUILD_MEMBER_LIST_UPDATE event
@@ -468,12 +473,13 @@ class GuildMemberList:
 
             presences[p_idx].update(partial_presence)
 
+        def _get_id(p):
+            return p.get('member', {}).get('user', {}).get('id')
+
         item_index = index_by_func(
-            lambda p: p.get('user', {}).get('id') == str(user_id),
+            lambda p: _get_id(p) == str(user_id),
             self.items
         )
-
-        pprint.pprint(self.items)
 
         if not item_index:
             log.warning('lazy guild got invalid pres update uid={}',
@@ -493,7 +499,7 @@ class GuildMemberList:
 
         session_ids = filter(_is_in, self.state.keys())
 
-        await self._dispatch_sess(
+        return await self._dispatch_sess(
             session_ids,
             [
                 Operation('UPDATE', {
@@ -502,8 +508,6 @@ class GuildMemberList:
                 })
             ]
         )
-
-        return list(session_ids)
 
     async def dispatch(self, event: str, data: Any):
         """Modify the member list and dispatch the respective
