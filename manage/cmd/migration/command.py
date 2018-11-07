@@ -117,6 +117,8 @@ async def migrate_cmd(app, _args):
     local_change = local_change or 0
     latest_change = ctx.latest
 
+    log.debug('local: {}, latest: {}', local_change, latest_change)
+
     if local_change == latest_change:
         print('no changes to do, exiting')
         return
