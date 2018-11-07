@@ -12,6 +12,7 @@ from litecord.pubsub.dispatcher import Dispatcher
 from litecord.permissions import (
     Permissions, overwrite_find_mix, get_permissions, role_permissions
 )
+from litecord.utils import index_by_func
 
 log = Logger(__name__)
 
@@ -88,19 +89,30 @@ class GuildMemberList:
         self.guild_id = guild_id
         self.channel_id = channel_id
 
-        # a really long chain of classes to get
-        # to the storage instance...
         self.main = main_lg
-        self.storage = self.main.app.storage
-        self.presence = self.main.app.presence
-        self.state_man = self.main.app.state_manager
-
         self.list = MemberList(None, None, None, None)
 
-        #: {session_id: set[list]}
+        #: store the states that are subscribed to the list
+        #  type is{session_id: set[list]}
         self.state = defaultdict(set)
 
+    @property
+    def storage(self):
+        """Get the global :class:`Storage` instance."""
+        return self.main.app.storage
+
+    @property
+    def presence(self):
+        """Get the global :class:`PresenceManager` instance."""
+        return self.main.app.presence
+
+    @property
+    def state_man(self):
+        """Get the global :class:`StateManager` instance."""
+        return self.main.app.state_manager
+
     def _set_empty_list(self):
+        """Set the member list as being empty."""
         self.list = MemberList(None, None, None, None)
 
     async def _init_check(self):

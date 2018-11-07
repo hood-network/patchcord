@@ -27,3 +27,13 @@ async def task_wrapper(name: str, coro):
 def dict_get(mapping, key, default):
     """Return `default` even when mapping[key] is None."""
     return mapping.get(key) or default
+
+
+def index_by_func(function, indexable: iter) -> int:
+    """Search in an idexable and return the index number
+    for an iterm that has func(item) = True."""
+    for index, item in indexable:
+        if function(item):
+            return index
+
+    return None
