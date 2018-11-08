@@ -245,6 +245,27 @@ class GuildMemberList:
         ]
         self.list.group_info = {g.gid: g for g in role_groups}
 
+    async def get_group(self, member_id: int,
+                        roles: List[Union[str, int]],
+                        status: str) -> int:
+        """Return a fitting group ID for the user."""
+        member_roles = list(map(int, roles))
+
+        # get the member's permissions relative to the channel
+        # (accounting for channel overwrites)
+        member_perms = await get_permissions(
+            member_id, self.channel_id, storage=self.storage)
+
+        if not member_perms.bits.read_messages:
+            return None
+
+        # if the member is offline, we
+        # default give them the offline group.
+        group_id = ('offline' if status == 'offline'
+                    else self._calc_member_group(member_roles, status))
+
+        return group_id
+
     async def _pass_1(self, guild_presences: List[Presence]):
         """First pass on generating the member list.
 
@@ -253,22 +274,9 @@ class GuildMemberList:
         for presence in guild_presences:
             member_id = int(presence['user']['id'])
 
-            # list of roles for the member
-            member_roles = list(map(int, presence['roles']))
-
-            # get the member's permissions relative to the channel
-            # (accounting for channel overwrites)
-            member_perms = await get_permissions(
-                member_id, self.channel_id, storage=self.storage)
-
-            if not member_perms.bits.read_messages:
-                continue
-
-            # if the member is offline, we
-            # default give them the offline group.
-            status = presence['status']
-            group_id = ('offline' if status == 'offline'
-                        else self._calc_member_group(member_roles, status))
+            group_id = await self.get_group(
+                member_id, presence['roles'], presence['status']
+            )
 
             self.list.data[group_id].append(presence)
 
@@ -460,24 +468,12 @@ class GuildMemberList:
 
         await self._dispatch_sess([session_id], ops)
 
-    async def pres_update(self, user_id: int,
-                          partial_presence: Dict[str, Any]):
-        """Update a presence inside the member listlist."""
-        await self._init_check()
+    async def _pres_update_simple(self, user_id: int):
+        def _get_id(item):
+            # item can be a group item or a member item
+            return item.get('member', {}).get('user', {}).get('id')
 
-        for _group, presences in self.list:
-            p_idx = index_by_func(
-                lambda p: p['user']['id'] == str(user_id),
-                presences)
-
-            if not p_idx:
-                continue
-
-            presences[p_idx].update(partial_presence)
-
-        def _get_id(p):
-            return p.get('member', {}).get('user', {}).get('id')
-
+        # get the updated item's index
         item_index = index_by_func(
             lambda p: _get_id(p) == str(user_id),
             self.items
@@ -490,6 +486,8 @@ class GuildMemberList:
 
         item = self.items[item_index]
 
+        # only dispatch to sessions
+        # that are subscribed to the given item's index
         def _is_in(sess_id):
             ranges = self.state[sess_id]
 
@@ -501,6 +499,8 @@ class GuildMemberList:
 
         session_ids = filter(_is_in, self.state.keys())
 
+        # simple update means we just give an UPDATE
+        # operation
         return await self._dispatch_sess(
             session_ids,
             [
@@ -510,6 +510,70 @@ class GuildMemberList:
                 })
             ]
         )
+
+    async def _pres_update_complex(self, user_id: int,
+                                   old_group: str, new_group: str):
+        raise NotImplementedError
+
+    async def pres_update(self, user_id: int,
+                          partial_presence: Dict[str, Any]):
+        """Update a presence inside the member list.
+
+        There are 4 types of updates that can happen for a user in a group:
+         - from 'offline' to any
+         - from any to 'offline'
+         - from any to any
+         - from G to G (with G being any group)
+
+        any: 'online' | role_id
+
+        All first, second, and third updates are 'complex' updates,
+        which means we'll have to change the group the user is on
+        to account for them.
+
+        The fourth is a 'simple' change, since we're not changing
+        the group a user is on, and so there's less overhead
+        involved.
+        """
+        await self._init_check()
+
+        old_group, old_presence = None, None
+
+        for group, presences in self.list:
+            p_idx = index_by_func(
+                lambda p: p['user']['id'] == str(user_id),
+                presences)
+
+            if not p_idx:
+                continue
+
+            # make a copy since we're modifying in-place
+            old_group = group.gid
+            old_presence = dict(presences[p_idx])
+
+            # be ready if it is a simple update
+            presences[p_idx].update(partial_presence)
+            break
+
+        if not old_group:
+            log.warning('pres update with unknown old group uid={}',
+                        user_id)
+            return []
+
+        roles = partial_presence.get('roles', old_presence['roles'])
+        new_status = partial_presence.get('status', old_presence['status'])
+
+        new_group = await self.get_group(user_id, roles, new_status)
+
+        log.debug('pres update: gid={} cid={} old_g={} new_g={}',
+                  self.guild_id, self.channel_id, old_group, new_group)
+
+        # if we're going to the same group,
+        # treat this as a simple update
+        if old_group == new_group:
+            return await self._pres_update_simple(user_id)
+
+        return await self._pres_update_complex(user_id, old_group, new_group)
 
     async def dispatch(self, event: str, data: Any):
         """Modify the member list and dispatch the respective
