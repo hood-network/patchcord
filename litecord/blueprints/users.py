@@ -318,7 +318,8 @@ async def patch_current_settings():
         await app.db.execute(f"""
         UPDATE user_settings
         SET {key}=$1
-        """, j[key])
+        WHERE id = $2
+        """, j[key], user_id)
 
     settings = await app.storage.get_user_settings(user_id)
     await app.dispatcher.dispatch_user(

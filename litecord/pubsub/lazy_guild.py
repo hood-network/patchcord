@@ -496,7 +496,7 @@ class GuildMemberList:
         """Return if a state's ranges include the given
         item index."""
 
-        ranges = self.state[sess_id]
+        ranges = self.state[session_id]
 
         for range_start, range_end in ranges:
             if range_start <= item_index <= range_end:
