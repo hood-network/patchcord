@@ -87,6 +87,19 @@ def _to_simple_group(presence: dict) -> str:
     return 'offline' if presence['status'] == 'offline' else 'online'
 
 
+def display_name(member_nicks: Dict[str, str], presence: Presence) -> str:
+    """Return the display name of a presence.
+
+    Used to sort groups.
+    """
+    uid = presence['user']['id']
+
+    uname = presence['user']['username']
+    nick = member_nicks.get(uid)
+
+    return nick or uname
+
+
 class GuildMemberList:
     """This class stores the current member list information
     for a guild (by channel).
@@ -280,7 +293,8 @@ class GuildMemberList:
 
             self.list.data[group_id].append(presence)
 
-    async def _sort_groups(self):
+    async def get_member_nicks_dict(self) -> dict:
+        """Get a dictionary with nickname information."""
         members = await self.storage.get_member_data(self.guild_id)
 
         # make a dictionary of member ids to nicknames
@@ -289,17 +303,16 @@ class GuildMemberList:
         member_nicks = {m['user']['id']: m.get('nick')
                         for m in members}
 
+        return member_nicks
+
+    async def _sort_groups(self):
+        member_nicks = await self.get_member_nicks_dict()
+
         for group_members in self.list.data.values():
-            def display_name(presence: Presence) -> str:
-                uid = presence['user']['id']
-
-                uname = presence['user']['username']
-                nick = member_nicks.get(uid)
-
-                return nick or uname
 
             # this should update the list in-place
-            group_members.sort(key=display_name)
+            group_members.sort(
+                key=lambda p: display_name(member_nicks, p))
 
     async def _init_member_list(self):
         """Generate the main member list with groups."""
@@ -468,16 +481,38 @@ class GuildMemberList:
 
         await self._dispatch_sess([session_id], ops)
 
-    async def _pres_update_simple(self, user_id: int):
+    def get_item_index(self, user_id: Union[str, int]):
         def _get_id(item):
             # item can be a group item or a member item
             return item.get('member', {}).get('user', {}).get('id')
 
         # get the updated item's index
-        item_index = index_by_func(
+        return index_by_func(
             lambda p: _get_id(p) == str(user_id),
             self.items
         )
+
+    def state_is_subbed(self, item_index, session_id: str) -> bool:
+        """Return if a state's ranges include the given
+        item index."""
+
+        ranges = self.state[sess_id]
+
+        for range_start, range_end in ranges:
+            if range_start <= item_index <= range_end:
+                return True
+
+        return False
+
+    def get_subs(self, item_index: int) -> filter:
+        """Get the list of subscribed states to a given item."""
+        return filter(
+            lambda sess_id: self.state_is_subbed(item_index, sess_id),
+            self.state.keys()
+        )
+
+    async def _pres_update_simple(self, user_id: int):
+        item_index = self.get_item_index(user_id)
 
         if not item_index:
             log.warning('lazy guild got invalid pres update uid={}',
@@ -485,19 +520,7 @@ class GuildMemberList:
             return []
 
         item = self.items[item_index]
-
-        # only dispatch to sessions
-        # that are subscribed to the given item's index
-        def _is_in(sess_id):
-            ranges = self.state[sess_id]
-
-            for range_start, range_end in ranges:
-                if range_start <= item_index <= range_end:
-                    return True
-
-            return False
-
-        session_ids = filter(_is_in, self.state.keys())
+        session_ids = self.get_subs(item_index)
 
         # simple update means we just give an UPDATE
         # operation
@@ -512,8 +535,69 @@ class GuildMemberList:
         )
 
     async def _pres_update_complex(self, user_id: int,
-                                   old_group: str, new_group: str):
-        raise NotImplementedError
+                                   old_group: str, old_index: int,
+                                   new_group: str):
+        """Move a member between groups."""
+        log.debug('complex update: uid={} old={} old_idx={} new={}',
+                  user_id, old_group, old_index, new_group)
+        old_group_presences = self.list.data[old_group]
+        old_item_index = self.get_item_index(user_id)
+
+        # make a copy of current presence to insert in the new group
+        current_presence = dict(old_group_presences[old_index])
+
+        # step 1: remove the old presence (old_index is relative
+        # to the group, and not the items list)
+        del old_group_presences[old_index]
+
+        # we need to insert current_presence to the new group
+        # but we also need to calculate its index to insert on.
+        presences = self.list.data[new_group]
+
+        best_index = 0
+        member_nicks = await self.get_member_nicks_dict()
+        current_name = display_name(member_nicks, current_presence)
+
+        # go through each one until we find the best placement
+        for presence in presences:
+            name = display_name(member_nicks, presence)
+
+            print(name, current_name, name < current_name)
+
+            # TODO: check if this works
+            if name < current_name:
+                break
+
+            best_index += 1
+
+        # insert the presence at the index
+        presences.insert(best_index + 1, current_presence)
+
+        new_item_index = self.get_item_index(user_id)
+
+        log.debug('assigned new item index {} to uid {}',
+                  new_item_index, user_id)
+
+        session_ids_old = self.get_subs(old_item_index)
+        session_ids_new = self.get_subs(new_item_index)
+
+        # dispatch events to both the old states and
+        # new states.
+        return await self._dispatch_sess(
+            session_ids_old + session_ids_new,
+            [
+                Operation('DELETE', {
+                    'index': old_item_index,
+                }),
+
+                Operation('INSERT', {
+                    'index': new_item_index,
+                    'item': {
+                        'member': current_presence
+                    }
+                })
+            ]
+        )
 
     async def pres_update(self, user_id: int,
                           partial_presence: Dict[str, Any]):
@@ -537,7 +621,7 @@ class GuildMemberList:
         """
         await self._init_check()
 
-        old_group, old_presence = None, None
+        old_group, old_index, old_presence = None, None, None
 
         for group, presences in self.list:
             p_idx = index_by_func(
@@ -549,6 +633,7 @@ class GuildMemberList:
 
             # make a copy since we're modifying in-place
             old_group = group.gid
+            old_index = p_idx
             old_presence = dict(presences[p_idx])
 
             # be ready if it is a simple update
@@ -573,7 +658,8 @@ class GuildMemberList:
         if old_group == new_group:
             return await self._pres_update_simple(user_id)
 
-        return await self._pres_update_complex(user_id, old_group, new_group)
+        return await self._pres_update_complex(
+            user_id, old_group, old_index, new_group)
 
     async def dispatch(self, event: str, data: Any):
         """Modify the member list and dispatch the respective
