@@ -482,6 +482,7 @@ class GuildMemberList:
         await self._dispatch_sess([session_id], ops)
 
     def get_item_index(self, user_id: Union[str, int]):
+        """Get the item index a user is on."""
         def _get_id(item):
             # item can be a group item or a member item
             return item.get('member', {}).get('user', {}).get('id')
@@ -514,7 +515,7 @@ class GuildMemberList:
     async def _pres_update_simple(self, user_id: int):
         item_index = self.get_item_index(user_id)
 
-        if not item_index:
+        if item_index is None:
             log.warning('lazy guild got invalid pres update uid={}',
                         user_id)
             return []
@@ -584,7 +585,9 @@ class GuildMemberList:
         # dispatch events to both the old states and
         # new states.
         return await self._dispatch_sess(
-            session_ids_old + session_ids_new,
+            # inefficient, but necessary since we
+            # want to merge both session ids.
+            list(session_ids_old) + list(session_ids_new),
             [
                 Operation('DELETE', {
                     'index': old_item_index,
@@ -628,7 +631,11 @@ class GuildMemberList:
                 lambda p: p['user']['id'] == str(user_id),
                 presences)
 
-            if not p_idx:
+            log.debug('p_idx for group {!r} = {}',
+                      group.gid, p_idx)
+
+            if p_idx is None:
+                log.debug('skipping group {}', group)
                 continue
 
             # make a copy since we're modifying in-place
