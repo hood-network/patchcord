@@ -65,7 +65,7 @@ async def register():
 
     new_id = get_snowflake()
 
-    new_discrim = str(random.randint(1, 9999))
+    new_discrim = random.randint(1, 9999)
     new_discrim = '%04d' % new_discrim
 
     pwd_hash = await hash_data(password)

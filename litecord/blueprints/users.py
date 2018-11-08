@@ -219,8 +219,10 @@ async def get_me_guilds():
         partial = await app.db.fetchrow("""
         SELECT id::text, name, icon, owner_id
         FROM guilds
-        WHERE guild_id = $1
+        WHERE guilds.id = $1
         """, guild_id)
+
+        partial = dict(partial)
 
         # TODO: partial['permissions']
         partial['owner'] = partial['owner_id'] == user_id
@@ -279,10 +281,11 @@ async def put_note(target_id: int):
     INSERT INTO notes (user_id, target_id, note)
     VALUES ($1, $2, $3)
 
-    ON CONFLICT DO UPDATE SET
+    ON CONFLICT ON CONSTRAINT notes_pkey
+    DO UPDATE SET
         note = $3
-    WHERE
-        user_id = $1 AND target_id = $2
+    WHERE notes.user_id = $1
+      AND notes.target_id = $2
     """, user_id, target_id, note)
 
     await app.dispatcher.dispatch_user(user_id, 'USER_NOTE_UPDATE', {
@@ -315,7 +318,8 @@ async def patch_current_settings():
         await app.db.execute(f"""
         UPDATE user_settings
         SET {key}=$1
-        """, j[key])
+        WHERE id = $2
+        """, j[key], user_id)
 
     settings = await app.storage.get_user_settings(user_id)
     await app.dispatcher.dispatch_user(
@@ -444,20 +448,20 @@ async def patch_guild_settings(guild_id: int):
             continue
 
         for field in chan_overrides:
-            res = await app.db.execute(f"""
-            UPDATE guild_settings_channel_overrides
-            SET {field} = $1
-            WHERE user_id = $2
-            AND   guild_id = $3
-            AND   channel_id = $4
-            """, chan_overrides[field], user_id, guild_id, chan_id)
-
-            if res == 'UPDATE 0':
-                await app.db.execute(f"""
-                INSERT INTO guild_settings_channel_overrides
-                    (user_id, guild_id, channel_id, {field})
-                VALUES ($1, $2, $3, $4)
-                """, user_id, guild_id, chan_id, chan_overrides[field])
+            await app.db.execute(f"""
+            INSERT INTO guild_settings_channel_overrides
+                (user_id, guild_id, channel_id, {field})
+            VALUES
+                ($1, $2, $3, $4)
+            ON CONFLICT
+                ON CONSTRAINT guild_settings_channel_overrides_pkey
+            DO
+              UPDATE
+                SET {field} = $4
+                WHERE guild_settings_channel_overrides.user_id = $1
+                  AND guild_settings_channel_overrides.guild_id = $2
+                  AND guild_settings_channel_overrides.channel_id = $3
+            """, user_id, guild_id, chan_id, chan_overrides[field])
 
     settings = await app.storage.get_guild_settings_one(user_id, guild_id)
 

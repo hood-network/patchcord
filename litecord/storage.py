@@ -5,6 +5,9 @@ from logbook import Logger
 
 from .enums import ChannelType, RelationshipType
 from .schemas import USER_MENTION, ROLE_MENTION
+from litecord.blueprints.channel.reactions import (
+    emoji_info_from_str, EmojiType, emoji_sql, partial_emoji
+)
 
 
 log = Logger(__name__)
@@ -163,17 +166,40 @@ class Storage:
         WHERE guild_id = $1 and user_id = $2
         """, guild_id, member_id)
 
-    async def _member_dict(self, row, guild_id, member_id) -> Dict[str, Any]:
-        members_roles = await self.db.fetch("""
+    async def get_member_role_ids(self, guild_id: int,
+                                  member_id: int) -> List[int]:
+        """Get a list of role IDs that are on a member."""
+        roles = await self.db.fetch("""
         SELECT role_id::text
         FROM member_roles
         WHERE guild_id = $1 AND user_id = $2
         """, guild_id, member_id)
 
+        roles = [r['role_id'] for r in roles]
+
+        try:
+            roles.remove(str(guild_id))
+        except ValueError:
+            # if the @everyone role isn't in, we add it
+            # to member_roles automatically (it won't
+            # be shown on the API, though).
+            await self.db.execute("""
+            INSERT INTO member_roles (user_id, guild_id, role_id)
+            VALUES ($1, $2, $3)
+            """, member_id, guild_id, guild_id)
+
+        return list(map(str, roles))
+
+    async def _member_dict(self, row, guild_id, member_id) -> Dict[str, Any]:
+        roles = await self.get_member_role_ids(guild_id, member_id)
         return {
             'user': await self.get_user(member_id),
             'nick': row['nickname'],
-            'roles': [row[0] for row in members_roles],
+
+            # we don't send the @everyone role's id to
+            # the user since it is known that everyone has
+            # that role.
+            'roles': roles,
             'joined_at': row['joined_at'].isoformat(),
             'deaf': row['deafened'],
             'mute': row['muted'],
@@ -289,7 +315,7 @@ class Storage:
         WHERE channels.id = $1
         """, channel_id)
 
-    async def _chan_overwrites(self, channel_id: int) -> List[Dict[str, Any]]:
+    async def chan_overwrites(self, channel_id: int) -> List[Dict[str, Any]]:
         overwrite_rows = await self.db.fetch("""
         SELECT target_type, target_role, target_user, allow, deny
         FROM channel_overwrites
@@ -298,18 +324,20 @@ class Storage:
 
         def _overwrite_convert(row):
             drow = dict(row)
-            drow['type'] = drow['target_type']
+
+            target_type = drow['target_type']
+            drow['type'] = 'user' if target_type == 0 else 'role'
 
             # if type is 0, the overwrite is for a user
             # if type is 1, the overwrite is for a role
             drow['id'] = {
                 0: drow['target_user'],
                 1: drow['target_role'],
-            }[drow['type']]
+            }[target_type]
 
             drow['id'] = str(drow['id'])
 
-            drow.pop('overwrite_type')
+            drow.pop('target_type')
             drow.pop('target_user')
             drow.pop('target_role')
 
@@ -335,8 +363,8 @@ class Storage:
             dbase['type'] = chan_type
 
             res = await self._channels_extra(dbase)
-            res['permission_overwrites'] = \
-                list(await self._chan_overwrites(channel_id))
+            res['permission_overwrites'] = await self.chan_overwrites(
+                channel_id)
 
             res['id'] = str(res['id'])
             return res
@@ -401,8 +429,8 @@ class Storage:
 
             res = await self._channels_extra(drow)
 
-            res['permission_overwrites'] = \
-                list(await self._chan_overwrites(row['id']))
+            res['permission_overwrites'] = await self.chan_overwrites(
+                row['id'])
 
             # Making sure.
             res['id'] = str(res['id'])
@@ -440,6 +468,7 @@ class Storage:
                permissions, managed, mentionable
         FROM roles
         WHERE guild_id = $1
+        ORDER BY position ASC
         """, guild_id)
 
         return list(map(dict, roledata))
@@ -535,7 +564,70 @@ class Storage:
 
         return res
 
-    async def get_message(self, message_id: int) -> Dict:
+    async def get_reactions(self, message_id: int, user_id=None) -> List:
+        """Get all reactions in a message."""
+        reactions = await self.db.fetch("""
+        SELECT user_id, emoji_type, emoji_id, emoji_text
+        FROM message_reactions
+        WHERE message_id = $1
+        ORDER BY react_ts
+        """, message_id)
+
+        # ordered list of emoji
+        emoji = []
+
+        # the current state of emoji info
+        react_stats = {}
+
+        # to generate the list, we pass through all
+        # all reactions and insert them all.
+
+        # we can't use a set() because that
+        # doesn't guarantee any order.
+        for row in reactions:
+            etype = EmojiType(row['emoji_type'])
+            eid, etext = row['emoji_id'], row['emoji_text']
+
+            # get the main key to use, given
+            # the emoji information
+            _, main_emoji = emoji_sql(etype, eid, etext)
+
+            if main_emoji in emoji:
+                continue
+
+            # maintain order (first reacted comes first
+            # on the reaction list)
+            emoji.append(main_emoji)
+
+            react_stats[main_emoji] = {
+                'count': 0,
+                'me': False,
+                'emoji': partial_emoji(etype, eid, etext)
+            }
+
+        # then the 2nd pass, where we insert
+        # the info for each reaction in the react_stats
+        # dictionary
+        for row in reactions:
+            etype = EmojiType(row['emoji_type'])
+            eid, etext = row['emoji_id'], row['emoji_text']
+
+            # same thing as the last loop,
+            # extracting main key
+            _, main_emoji = emoji_sql(etype, eid, etext)
+
+            stats = react_stats[main_emoji]
+            stats['count'] += 1
+
+            if row['user_id'] == user_id:
+                stats['me'] = True
+
+        # after processing reaction counts,
+        # we get them in the same order
+        # they were defined in the first loop.
+        return list(map(react_stats.get, emoji))
+
+    async def get_message(self, message_id: int, user_id=None) -> Dict:
         """Get a single message's payload."""
         row = await self.db.fetchrow("""
         SELECT id::text, channel_id::text, author_id, content,
@@ -596,6 +688,8 @@ class Storage:
         res['mention_roles'] = await self._msg_regex(
             ROLE_MENTION, _get_role_mention, content)
 
+        res['reactions'] = await self.get_reactions(message_id, user_id)
+
         # TODO: handle webhook authors
         res['author'] = await self.get_user(res['author_id'])
         res.pop('author_id')
@@ -605,9 +699,6 @@ class Storage:
 
         # TODO: res['embeds']
         res['embeds'] = []
-
-        # TODO: res['reactions']
-        res['reactions'] = []
 
         # TODO: res['pinned']
         res['pinned'] = False
@@ -966,7 +1057,6 @@ class Storage:
         """, user_id)
 
         for row in settings:
-            print(dict(row))
             gid = int(row['guild_id'])
             drow = dict(row)
 

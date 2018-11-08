@@ -7,8 +7,16 @@ This project is a rewrite of [litecord-reference].
 
 [litecord-reference]: https://gitlab.com/luna/litecord-reference
 
+## Notes
+
+ - There are no testing being run on the current codebase. Which means the code is definitely unstable.
+ - No voice is planned to be developed, for now.
+ - You must figure out connecting to the server yourself. Litecord will not distribute
+    Discord's official client code nor provide ways to modify the client.
+
 ## Install
 
+Requirements:
 - Python 3.6 or higher
 - PostgreSQL
 - [Pipenv]
@@ -28,6 +36,10 @@ $ psql -f schema.sql litecord
 # edit config.py as you wish
 $ cp config.example.py config.py
 
+# run database migrations (this is a
+# required step in setup)
+$ pipenv run ./manage.py migrate
+
 # Install all packages:
 $ pipenv install --dev
 ```
@@ -41,4 +53,11 @@ Use `--access-log -` to output access logs to stdout.
 
 ```sh
 $ pipenv run hypercorn run:app
+```
+
+## Updating
+
+```sh
+$ git pull
+$ pipenv run ./manage.py migrate
 ```

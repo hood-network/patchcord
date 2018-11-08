@@ -1,11 +1,16 @@
 import re
+from typing import Union, Dict, List, Any
 
 from cerberus import Validator
 from logbook import Logger
 
 from .errors import BadRequest
-from .enums import ActivityType, StatusType, ExplicitFilter, \
-    RelationshipType, MessageNotifications
+from .permissions import Permissions
+from .types import Color
+from .enums import (
+    ActivityType, StatusType, ExplicitFilter, RelationshipType,
+    MessageNotifications, ChannelType, VerificationLevel
+)
 
 
 log = Logger(__name__)
@@ -24,13 +29,21 @@ EMOJO_MENTION = re.compile(r'<:(\.+):(\d+)>', re.A | re.M)
 ANIMOJI_MENTION = re.compile(r'<a:(\.+):(\d+)>', re.A | re.M)
 
 
+def _in_enum(enum, value: int):
+    try:
+        enum(value)
+        return True
+    except ValueError:
+        return False
+
+
 class LitecordValidator(Validator):
     def _validate_type_username(self, value: str) -> bool:
         """Validate against the username regex."""
         return bool(USERNAME_REGEX.match(value))
 
     def _validate_type_email(self, value: str) -> bool:
-        """Validate against the username regex."""
+        """Validate against the email regex."""
         return bool(EMAIL_REGEX.match(value))
 
     def _validate_type_b64_icon(self, value: str) -> bool:
@@ -56,10 +69,16 @@ class LitecordValidator(Validator):
 
     def _validate_type_voice_region(self, value: str) -> bool:
         # TODO: complete this list
-        return value in ('brazil', 'us-east', 'us-west', 'us-south', 'russia')
+        return value.lower() in ('brazil', 'us-east', 'us-west', 'us-south', 'russia')
+
+    def _validate_type_verification_level(self, value: int) -> bool:
+        return _in_enum(VerificationLevel, value)
 
     def _validate_type_activity_type(self, value: int) -> bool:
         return value in ActivityType.values()
+
+    def _validate_type_channel_type(self, value: int) -> bool:
+        return value in ChannelType.values()
 
     def _validate_type_status_external(self, value: str) -> bool:
         statuses = StatusType.values()
@@ -94,11 +113,31 @@ class LitecordValidator(Validator):
 
         return val in MessageNotifications.values()
 
+    def _validate_type_guild_name(self, value: str) -> bool:
+        return 2 <= len(value) <= 100
 
-def validate(reqjson, schema, raise_err: bool = True):
+    def _validate_type_role_name(self, value: str) -> bool:
+        return 1 <= len(value) <= 100
+
+    def _validate_type_channel_name(self, value: str) -> bool:
+        # for now, we'll use the same validation for guild_name
+        return self._validate_type_guild_name(value)
+
+
+def validate(reqjson: Union[Dict, List], schema: Dict,
+             raise_err: bool = True) -> Union[Dict, List]:
+    """Validate a given document (user-input) and give
+    the correct document as a result.
+    """
     validator = LitecordValidator(schema)
 
-    if not validator.validate(reqjson):
+    try:
+        valid = validator.validate(reqjson)
+    except Exception:
+        log.exception('Error while validating')
+        raise Exception(f'Error while validating: {reqjson}')
+
+    if not valid:
         errs = validator.errors
         log.warning('Error validating doc {!r}: {!r}', reqjson, errs)
 
@@ -146,16 +185,55 @@ USER_UPDATE = {
 
 }
 
+PARTIAL_ROLE_GUILD_CREATE = {
+    'type': 'dict',
+    'schema': {
+        'name': {'type': 'role_name'},
+        'color': {'type': 'number', 'default': 0},
+        'hoist': {'type': 'boolean', 'default': False},
+
+        # NOTE: no position on partial role (on guild create)
+
+        'permissions': {'coerce': Permissions, 'required': False},
+        'mentionable': {'type': 'boolean', 'default': False},
+    }
+}
+
+PARTIAL_CHANNEL_GUILD_CREATE = {
+    'type': 'dict',
+    'schema': {
+        'name': {'type': 'channel_name'},
+        'type': {'type': 'channel_type'},
+    }
+}
+
+GUILD_CREATE = {
+    'name': {'type': 'guild_name'},
+    'region': {'type': 'voice_region'},
+    'icon': {'type': 'b64_icon', 'required': False, 'nullable': True},
+
+    'verification_level': {
+        'type': 'verification_level', 'default': 0},
+    'default_message_notifications': {
+        'type': 'msg_notifications', 'default': 0},
+    'explicit_content_filter': {
+        'type': 'explicit', 'default': 0},
+
+    'roles': {
+        'type': 'list', 'required': False,
+        'schema': PARTIAL_ROLE_GUILD_CREATE},
+    'channels': {
+        'type': 'list', 'default': [], 'schema': PARTIAL_CHANNEL_GUILD_CREATE},
+}
+
 
 GUILD_UPDATE = {
     'name': {
-        'type': 'string',
-        'minlength': 2,
-        'maxlength': 100,
+        'type': 'guild_name',
         'required': False
     },
     'region': {'type': 'voice_region', 'required': False},
-    'icon': {'type': 'icon', 'required': False},
+    'icon': {'type': 'b64_icon', 'required': False},
 
     'verification_level': {'type': 'verification_level', 'required': False},
     'default_message_notifications': {
@@ -173,13 +251,93 @@ GUILD_UPDATE = {
 }
 
 
+CHAN_OVERWRITE = {
+    'id': {'coerce': int},
+    'type': {'type': 'string', 'allowed': ['role', 'member']},
+    'allow': {'coerce': Permissions},
+    'deny': {'coerce': Permissions}
+}
+
+
+CHAN_UPDATE = {
+    'name': {
+        'type': 'string', 'minlength': 2,
+        'maxlength': 100, 'required': False},
+
+    'position': {'coerce': int, 'required': False},
+
+    'topic': {
+        'type': 'string', 'minlength': 0,
+        'maxlength': 1024, 'required': False},
+
+    'nsfw': {'type': 'boolean', 'required': False},
+    'rate_limit_per_user': {
+        'coerce': int, 'min': 0,
+        'max': 120, 'required': False},
+
+    'bitrate': {
+        'coerce': int, 'min': 8000,
+
+        # NOTE: 'max' is 96000 for non-vip guilds
+        'max': 128000, 'required': False},
+
+    'user_limit': {
+        # user_limit being 0 means infinite.
+        'coerce': int, 'min': 0,
+        'max': 99, 'required': False
+    },
+
+    'permission_overwrites': {
+        'type': 'list',
+        'schema': {'type': 'dict', 'schema': CHAN_OVERWRITE},
+        'required': False
+    },
+
+    'parent_id': {'coerce': int, 'required': False, 'nullable': True}
+
+
+}
+
+
+ROLE_CREATE = {
+    'name': {'type': 'string', 'default': 'new role'},
+    'permissions': {'coerce': Permissions, 'nullable': True},
+    'color': {'coerce': Color, 'default': 0},
+    'hoist': {'type': 'boolean', 'default': False},
+    'mentionable': {'type': 'boolean', 'default': False},
+}
+
+ROLE_UPDATE = {
+    'name': {'type': 'string', 'required': False},
+    'permissions': {'coerce': Permissions, 'required': False},
+    'color': {'coerce': Color, 'required': False},
+    'hoist': {'type': 'boolean', 'required': False},
+    'mentionable': {'type': 'boolean', 'required': False},
+}
+
+
+ROLE_UPDATE_POSITION = {
+    'roles': {
+        'type': 'list',
+        'schema': {
+            'type': 'dict',
+            'schema': {
+                'id': {'coerce': int},
+                'position': {'coerce': int},
+            },
+        }
+    }
+}
+
+
 MEMBER_UPDATE = {
     'nick': {
-        'type': 'nickname',
+        'type': 'username',
         'minlength': 1, 'maxlength': 100,
         'required': False,
     },
-    'roles': {'type': 'list', 'required': False},
+    'roles': {'type': 'list', 'required': False,
+              'schema': {'coerce': int}},
     'mute': {'type': 'boolean', 'required': False},
     'deaf': {'type': 'boolean', 'required': False},
     'channel_id': {'type': 'snowflake', 'required': False},
@@ -196,57 +354,60 @@ MESSAGE_CREATE = {
 
 
 GW_ACTIVITY = {
-    'name': {'type': 'string', 'required': True},
-    'type': {'type': 'activity_type', 'required': True},
+    'type': 'dict',
+    'schema': {
+        'name': {'type': 'string', 'required': True},
+        'type': {'type': 'activity_type', 'required': True},
 
-    'url': {'type': 'string', 'required': False, 'nullable': True},
+        'url': {'type': 'string', 'required': False, 'nullable': True},
 
-    'timestamps': {
-        'type': 'dict',
-        'required': False,
-        'schema': {
-            'start': {'type': 'number', 'required': True},
-            'end': {'type': 'number', 'required': True},
+        'timestamps': {
+            'type': 'dict',
+            'required': False,
+            'schema': {
+                'start': {'type': 'number', 'required': True},
+                'end': {'type': 'number', 'required': False},
+            },
         },
-    },
 
-    'application_id': {'type': 'snowflake', 'required': False,
-                       'nullable': False},
-    'details': {'type': 'string', 'required': False, 'nullable': True},
-    'state': {'type': 'string', 'required': False, 'nullable': True},
+        'application_id': {'type': 'snowflake', 'required': False,
+                           'nullable': False},
+        'details': {'type': 'string', 'required': False, 'nullable': True},
+        'state': {'type': 'string', 'required': False, 'nullable': True},
 
-    'party': {
-        'type': 'dict',
-        'required': False,
-        'schema': {
-            'id': {'type': 'snowflake', 'required': False},
-            'size': {'type': 'list', 'required': False},
-        }
-    },
+        'party': {
+            'type': 'dict',
+            'required': False,
+            'schema': {
+                'id': {'type': 'snowflake', 'required': False},
+                'size': {'type': 'list', 'required': False},
+            }
+        },
 
-    'assets': {
-        'type': 'dict',
-        'required': False,
-        'schema': {
-            'large_image': {'type': 'snowflake', 'required': False},
-            'large_text': {'type': 'string', 'required': False},
-            'small_image': {'type': 'snowflake', 'required': False},
-            'small_text': {'type': 'string', 'required': False},
-        }
-    },
+        'assets': {
+            'type': 'dict',
+            'required': False,
+            'schema': {
+                'large_image': {'type': 'snowflake', 'required': False},
+                'large_text': {'type': 'string', 'required': False},
+                'small_image': {'type': 'snowflake', 'required': False},
+                'small_text': {'type': 'string', 'required': False},
+            }
+        },
 
-    'secrets': {
-        'type': 'dict',
-        'required': False,
-        'schema': {
-            'join': {'type': 'string', 'required': False},
-            'spectate': {'type': 'string', 'required': False},
-            'match': {'type': 'string', 'required': False},
-        }
-    },
+        'secrets': {
+            'type': 'dict',
+            'required': False,
+            'schema': {
+                'join': {'type': 'string', 'required': False},
+                'spectate': {'type': 'string', 'required': False},
+                'match': {'type': 'string', 'required': False},
+            }
+        },
 
-    'instance': {'type': 'boolean', 'required': False},
-    'flags': {'type': 'number', 'required': False},
+        'instance': {'type': 'boolean', 'required': False},
+        'flags': {'type': 'number', 'required': False},
+    }
 }
 
 GW_STATUS_UPDATE = {
@@ -335,6 +496,8 @@ USER_SETTINGS = {
     'show_current_game': {'type': 'boolean', 'required': False},
 
     'timezone_offset': {'type': 'number', 'required': False},
+
+    'status': {'type': 'status_external', 'required': False}
 }
 
 RELATIONSHIP = {
@@ -394,4 +557,8 @@ GUILD_SETTINGS = {
         'type': 'msg_notifications',
         'required': False,
     }
+}
+
+GUILD_PRUNE = {
+    'days': {'type': 'number', 'coerce': int, 'min': 1}
 }

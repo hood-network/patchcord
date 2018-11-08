@@ -29,16 +29,24 @@ class NotFound(LitecordError):
     status_code = 404
 
 
-class GuildNotFound(LitecordError):
-    status_code = 404
+class GuildNotFound(NotFound):
+    error_code = 10004
 
 
-class ChannelNotFound(LitecordError):
-    status_code = 404
+class ChannelNotFound(NotFound):
+    error_code = 10003
 
 
-class MessageNotFound(LitecordError):
-    status_code = 404
+class MessageNotFound(NotFound):
+    error_code = 10008
+
+
+class Ratelimited(LitecordError):
+    status_code = 429
+
+
+class MissingPermissions(Forbidden):
+    error_code = 50013
 
 
 class WebsocketClose(Exception):

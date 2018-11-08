@@ -4,7 +4,8 @@ from typing import List, Any
 from logbook import Logger
 
 from .pubsub import GuildDispatcher, MemberDispatcher, \
-    UserDispatcher, ChannelDispatcher, FriendDispatcher
+    UserDispatcher, ChannelDispatcher, FriendDispatcher, \
+    LazyGuildDispatcher
 
 log = Logger(__name__)
 
@@ -35,6 +36,7 @@ class EventDispatcher:
             'channel': ChannelDispatcher(self),
             'user': UserDispatcher(self),
             'friend': FriendDispatcher(self),
+            'lazy_guild': LazyGuildDispatcher(self),
         }
 
     async def action(self, backend_str: str, action: str, key, identifier):
@@ -103,6 +105,15 @@ class EventDispatcher:
 
         for key in keys:
             await self.dispatch(backend_str, key, *args, **kwargs)
+
+    async def dispatch_filter(self, backend_str: str,
+                              key: Any, func, *args):
+        """Dispatch to a backend that only accepts
+        (event, data) arguments with an optional filter
+        function."""
+        backend = self.backends[backend_str]
+        key = backend.KEY_TYPE(key)
+        return await backend.dispatch_filter(key, func, *args)
 
     async def reset(self, backend_str: str, key: Any):
         """Reset the bucket in the given backend."""

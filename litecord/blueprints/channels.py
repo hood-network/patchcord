@@ -3,14 +3,14 @@ import time
 from quart import Blueprint, request, current_app as app, jsonify
 from logbook import Logger
 
-from ..auth import token_check
-from ..snowflake import get_snowflake, snowflake_datetime
-from ..enums import ChannelType, MessageType, GUILD_CHANS
-from ..errors import Forbidden, ChannelNotFound, MessageNotFound
-from ..schemas import validate, MESSAGE_CREATE
+from litecord.auth import token_check
+from litecord.enums import ChannelType, GUILD_CHANS
+from litecord.errors import ChannelNotFound
+from litecord.schemas import (
+    validate, CHAN_UPDATE, CHAN_OVERWRITE
+)
 
-from .checks import channel_check, guild_check
-from .dms import try_dm_state
+from litecord.blueprints.checks import channel_check, channel_perm_check
 
 log = Logger(__name__)
 bp = Blueprint('channels', __name__)
@@ -136,6 +136,7 @@ async def guild_cleanup(channel_id):
 
 @bp.route('/<int:channel_id>', methods=['DELETE'])
 async def close_channel(channel_id):
+    """Close or delete a channel."""
     user_id = await token_check()
 
     chan_type = await app.storage.get_chan_type(channel_id)
@@ -212,287 +213,199 @@ async def close_channel(channel_id):
         # TODO: group dm
         pass
 
-    return '', 404
+    raise ChannelNotFound()
 
 
-@bp.route('/<int:channel_id>/messages', methods=['GET'])
-async def get_messages(channel_id):
-    user_id = await token_check()
-    await channel_check(user_id, channel_id)
-
-    # TODO: before, after, around keys
-
-    message_ids = await app.db.fetch(f"""
-    SELECT id
-    FROM messages
-    WHERE channel_id = $1
-    ORDER BY id DESC
-    LIMIT 100
-    """, channel_id)
-
-    result = []
-
-    for message_id in message_ids:
-        msg = await app.storage.get_message(message_id['id'])
-
-        if msg is None:
-            continue
-
-        result.append(msg)
-
-    log.info('Fetched {} messages', len(result))
-    return jsonify(result)
+async def _update_pos(channel_id, pos: int):
+    await app.db.execute("""
+    UPDATE guild_channels
+    SET position = $1
+    WHERE id = $2
+    """, pos, channel_id)
 
 
-@bp.route('/<int:channel_id>/messages/<int:message_id>', methods=['GET'])
-async def get_single_message(channel_id, message_id):
-    user_id = await token_check()
-    await channel_check(user_id, channel_id)
-
-    # TODO: check READ_MESSAGE_HISTORY permissions
-    message = await app.storage.get_message(message_id)
-
-    if not message:
-        raise MessageNotFound()
-
-    return jsonify(message)
+async def _mass_chan_update(guild_id, channel_ids: int):
+    for channel_id in channel_ids:
+        chan = await app.storage.get_channel(channel_id)
+        await app.dispatcher.dispatch(
+            'guild', guild_id, 'CHANNEL_UPDATE', chan)
 
 
-async def _dm_pre_dispatch(channel_id, peer_id):
-    """Do some checks pre-MESSAGE_CREATE so we
-    make sure the receiving party will handle everything."""
+async def _process_overwrites(channel_id: int, overwrites: list):
+    for overwrite in overwrites:
 
-    # check the other party's dm_channel_state
+        # 0 for user overwrite, 1 for role overwrite
+        target_type = 0 if overwrite['type'] == 'user' else 1
+        target_role = None if target_type == 0 else overwrite['id']
+        target_user = overwrite['id'] if target_type == 0 else None
 
-    dm_state = await app.db.fetchval("""
-    SELECT dm_id
-    FROM dm_channel_state
-    WHERE user_id = $1 AND dm_id = $2
-    """, peer_id, channel_id)
-
-    if dm_state:
-        # the peer already has the channel
-        # opened, so we don't need to do anything
-        return
-
-    dm_chan = await app.storage.get_channel(channel_id)
-
-    # dispatch CHANNEL_CREATE so the client knows which
-    # channel the future event is about
-    await app.dispatcher.dispatch_user(peer_id, 'CHANNEL_CREATE', dm_chan)
-
-    # subscribe the peer to the channel
-    await app.dispatcher.sub('channel', channel_id, peer_id)
-
-    # insert it on dm_channel_state so the client
-    # is subscribed on the future
-    await try_dm_state(peer_id, channel_id)
+        await app.db.execute(
+            """
+            INSERT INTO channel_overwrites
+                (channel_id, target_type, target_role,
+                target_user, allow, deny)
+            VALUES
+                ($1, $2, $3, $4, $5, $6)
+            ON CONFLICT ON CONSTRAINT channel_overwrites_uniq
+            DO
+            UPDATE
+                SET allow = $5, deny = $6
+                WHERE channel_overwrites.channel_id = $1
+                  AND channel_overwrites.target_type = $2
+                  AND channel_overwrites.target_role = $3
+                  AND channel_overwrites.target_user = $4
+            """,
+            channel_id, target_type,
+            target_role, target_user,
+            overwrite['allow'], overwrite['deny'])
 
 
-@bp.route('/<int:channel_id>/messages', methods=['POST'])
-async def create_message(channel_id):
+@bp.route('/<int:channel_id>/permissions/<int:overwrite_id>', methods=['PUT'])
+async def put_channel_overwrite(channel_id: int, overwrite_id: int):
+    """Insert or modify a channel overwrite."""
     user_id = await token_check()
     ctype, guild_id = await channel_check(user_id, channel_id)
 
-    j = validate(await request.get_json(), MESSAGE_CREATE)
-    message_id = get_snowflake()
+    if ctype not in GUILD_CHANS:
+        raise ChannelNotFound('Only usable for guild channels.')
 
-    # TODO: check SEND_MESSAGES permission
-    # TODO: check connection to the gateway
+    await channel_perm_check(user_id, guild_id, 'manage_roles')
 
-    await app.db.execute(
-        """
-        INSERT INTO messages (id, channel_id, author_id, content, tts,
-            mention_everyone, nonce, message_type)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-    """,
-        message_id,
-        channel_id,
-        user_id,
-        j['content'],
-
-        # TODO: check SEND_TTS_MESSAGES
-        j.get('tts', False),
-
-        # TODO: check MENTION_EVERYONE permissions
-        '@everyone' in j['content'],
-        int(j.get('nonce', 0)),
-        MessageType.DEFAULT.value
+    j = validate(
+        # inserting a fake id on the payload so validation passes through
+        {**await request.get_json(), **{'id': -1}},
+        CHAN_OVERWRITE
     )
 
-    payload = await app.storage.get_message(message_id)
-    
-    if ctype == ChannelType.DM:
-        # guild id here is the peer's ID.
-        await _dm_pre_dispatch(channel_id, guild_id)
+    await _process_overwrites(channel_id, [{
+        'allow': j['allow'],
+        'deny': j['deny'],
+        'type': j['type'],
+        'id': overwrite_id
+    }])
 
-    await app.dispatcher.dispatch('channel', channel_id,
-                                  'MESSAGE_CREATE', payload)
-
-    # TODO: dispatch the MESSAGE_CREATE to any mentioning user.
-
-    if ctype == ChannelType.GUILD_TEXT:
-        for str_uid in payload['mentions']:
-            uid = int(str_uid)
-
-            await app.db.execute("""
-            UPDATE user_read_state
-            SET mention_count += 1
-            WHERE user_id = $1 AND channel_id = $2
-            """, uid, channel_id)
-
-    return jsonify(payload)
+    await _mass_chan_update(guild_id, [channel_id])
+    return '', 204
 
 
-@bp.route('/<int:channel_id>/messages/<int:message_id>', methods=['PATCH'])
-async def edit_message(channel_id, message_id):
-    user_id = await token_check()
-    _ctype, guild_id = await channel_check(user_id, channel_id)
-
-    author_id = await app.db.fetchval("""
-    SELECT author_id FROM messages
-    WHERE messages.id = $1
-    """, message_id)
-
-    if not author_id == user_id:
-        raise Forbidden('You can not edit this message')
-
-    j = await request.get_json()
-    updated = 'content' in j or 'embed' in j
-
-    if 'content' in j:
+async def _update_channel_common(channel_id, guild_id: int, j: dict):
+    if 'name' in j:
         await app.db.execute("""
-        UPDATE messages
-        SET content=$1
-        WHERE messages.id = $2
-        """, j['content'], message_id)
+        UPDATE guild_channels
+        SET name = $1
+        WHERE id = $2
+        """, j['name'], channel_id)
 
-    # TODO: update embed
+    if 'position' in j:
+        channel_data = await app.storage.get_channel_data(guild_id)
 
-    message = await app.storage.get_message(message_id)
+        chans = [None * len(channel_data)]
+        for chandata in channel_data:
+            chans.insert(chandata['position'], int(chandata['id']))
 
-    # only dispatch MESSAGE_UPDATE if we actually had any update to start with
-    if updated:
-        await app.dispatcher.dispatch('channel', channel_id,
-                                      'MESSAGE_UPDATE', message)
+        # are we changing to the left or to the right?
 
-    return jsonify(message)
+        # left: [channel1, channel2, ..., channelN-1, channelN]
+        #       becomes
+        #       [channel1, channelN-1, channel2, ..., channelN]
+        #       so we can say that the "main change" is
+        #       channelN-1 going to the position channel2
+        #       was occupying.
+        current_pos = chans.index(channel_id)
+        new_pos = j['position']
+
+        # if the new position is bigger than the current one,
+        # we're making a left shift of all the channels that are
+        # beyond the current one, to make space
+        left_shift = new_pos > current_pos
+
+        # find all channels that we'll have to shift
+        shift_block = (chans[current_pos:new_pos]
+                       if left_shift else
+                       chans[new_pos:current_pos]
+                       )
+
+        shift = -1 if left_shift else 1
+
+        # do the shift (to the left or to the right)
+        await app.db.executemany("""
+        UPDATE guild_channels
+        SET position = position + $1
+        WHERE id = $2
+        """, [(shift, chan_id) for chan_id in shift_block])
+
+        await _mass_chan_update(guild_id, shift_block)
+
+        # since theres now an empty slot, move current channel to it
+        await _update_pos(channel_id, new_pos)
+
+    if 'channel_overwrites' in j:
+        overwrites = j['channel_overwrites']
+        await _process_overwrites(channel_id, overwrites)
 
 
-@bp.route('/<int:channel_id>/messages/<int:message_id>', methods=['DELETE'])
-async def delete_message(channel_id, message_id):
+async def _common_guild_chan(channel_id, j: dict):
+    # common updates to the guild_channels table
+    for field in [field for field in j.keys()
+                  if field in ('nsfw', 'parent_id')]:
+        await app.db.execute(f"""
+        UPDATE guild_channels
+        SET {field} = $1
+        WHERE id = $2
+        """, j[field], channel_id)
+
+
+async def _update_text_channel(channel_id: int, j: dict):
+    # first do the specific ones related to guild_text_channels
+    for field in [field for field in j.keys()
+                  if field in ('topic', 'rate_limit_per_user')]:
+        await app.db.execute(f"""
+        UPDATE guild_text_channels
+        SET {field} = $1
+        WHERE id = $2
+        """, j[field], channel_id)
+
+    await _common_guild_chan(channel_id, j)
+
+
+async def _update_voice_channel(channel_id: int, j: dict):
+    # first do the specific ones in guild_voice_channels
+    for field in [field for field in j.keys()
+                  if field in ('bitrate', 'user_limit')]:
+        await app.db.execute(f"""
+        UPDATE guild_voice_channels
+        SET {field} = $1
+        WHERE id = $2
+        """, j[field], channel_id)
+
+    # yes, i'm letting voice channels have nsfw, you cant stop me
+    await _common_guild_chan(channel_id, j)
+
+
+@bp.route('/<int:channel_id>', methods=['PUT', 'PATCH'])
+async def update_channel(channel_id):
+    """Update a channel's information"""
     user_id = await token_check()
-    _ctype, guild_id = await channel_check(user_id, channel_id)
+    ctype, guild_id = await channel_check(user_id, channel_id)
 
-    author_id = await app.db.fetchval("""
-    SELECT author_id FROM messages
-    WHERE messages.id = $1
-    """, message_id)
+    if ctype not in GUILD_CHANS:
+        raise ChannelNotFound('Can not edit non-guild channels.')
 
-    # TODO: MANAGE_MESSAGES permission check
-    if author_id != user_id:
-        raise Forbidden('You can not delete this message')
+    await channel_perm_check(user_id, channel_id, 'manage_channels')
+    j = validate(await request.get_json(), CHAN_UPDATE)
 
-    await app.db.execute("""
-    DELETE FROM messages
-    WHERE messages.id = $1
-    """, message_id)
+    # TODO: categories?
+    update_handler = {
+        ChannelType.GUILD_TEXT: _update_text_channel,
+        ChannelType.GUILD_VOICE: _update_voice_channel,
+    }[ctype]
 
-    await app.dispatcher.dispatch(
-        'channel', channel_id,
-        'MESSAGE_DELETE', {
-            'id': str(message_id),
-            'channel_id': str(channel_id),
+    await _update_channel_common(channel_id, guild_id, j)
+    await update_handler(channel_id, j)
 
-            # for lazy guilds
-            'guild_id': str(guild_id),
-        })
-
-    return '', 204
-
-
-@bp.route('/<int:channel_id>/pins', methods=['GET'])
-async def get_pins(channel_id):
-    user_id = await token_check()
-    await channel_check(user_id, channel_id)
-
-    ids = await app.db.fetch("""
-    SELECT message_id
-    FROM channel_pins
-    WHERE channel_id = $1
-    ORDER BY message_id ASC
-    """, channel_id)
-
-    ids = [r['message_id'] for r in ids]
-    res = []
-
-    for message_id in ids:
-        message = await app.storage.get_message(message_id)
-        if message is not None:
-            res.append(message)
-
-    return jsonify(message)
-
-
-@bp.route('/<int:channel_id>/pins/<int:message_id>', methods=['PUT'])
-async def add_pin(channel_id, message_id):
-    user_id = await token_check()
-    _ctype, guild_id = await channel_check(user_id, channel_id)
-
-    # TODO: check MANAGE_MESSAGES permission
-
-    await app.db.execute("""
-    INSERT INTO channel_pins (channel_id, message_id)
-    VALUES ($1, $2)
-    """, channel_id, message_id)
-
-    row = await app.db.fetchrow("""
-    SELECT message_id
-    FROM channel_pins
-    WHERE channel_id = $1
-    ORDER BY message_id ASC
-    LIMIT 1
-    """, channel_id)
-
-    timestamp = snowflake_datetime(row['message_id'])
-
-    await app.dispatcher.dispatch_guild(guild_id, 'CHANNEL_PINS_UPDATE', {
-        'channel_id': str(channel_id),
-        'last_pin_timestamp': timestamp.isoformat()
-    })
-
-    return '', 204
-
-
-@bp.route('/<int:channel_id>/pins/<int:message_id>', methods=['DELETE'])
-async def delete_pin(channel_id, message_id):
-    user_id = await token_check()
-    _ctype, guild_id = await channel_check(user_id, channel_id)
-
-    # TODO: check MANAGE_MESSAGES permission
-
-    await app.db.execute("""
-    DELETE FROM channel_pins
-    WHERE channel_id = $1 AND message_id = $2
-    """, channel_id, message_id)
-
-    row = await app.db.fetchrow("""
-    SELECT message_id
-    FROM channel_pins
-    WHERE channel_id = $1
-    ORDER BY message_id ASC
-    LIMIT 1
-    """, channel_id)
-
-    timestamp = snowflake_datetime(row['message_id'])
-
-    await app.dispatcher.dispatch(
-        'channel', channel_id, 'CHANNEL_PINS_UPDATE', {
-            'channel_id': str(channel_id),
-            'last_pin_timestamp': timestamp.isoformat()
-        })
-
-    return '', 204
+    chan = await app.storage.get_channel(channel_id)
+    await app.dispatcher.dispatch('guild', guild_id, 'CHANNEL_UPDATE', chan)
+    return jsonify(chan)
 
 
 @bp.route('/<int:channel_id>/typing', methods=['POST'])
@@ -518,21 +431,18 @@ async def channel_ack(user_id, guild_id, channel_id, message_id: int = None):
     if not message_id:
         message_id = await app.storage.chan_last_message(channel_id)
 
-    res = await app.db.execute("""
-    UPDATE user_read_state
-
-    SET last_message_id = $1,
-        mention_count = 0
-
-    WHERE user_id = $2 AND channel_id = $3
-    """, message_id, user_id, channel_id)
-
-    if res == 'UPDATE 0':
-        await app.db.execute("""
-        INSERT INTO user_read_state
-            (user_id, channel_id, last_message_id, mention_count)
-        VALUES ($1, $2, $3, $4)
-        """, user_id, channel_id, message_id, 0)
+    await app.db.execute("""
+    INSERT INTO user_read_state
+        (user_id, channel_id, last_message_id, mention_count)
+    VALUES
+        ($1, $2, $3, 0)
+    ON CONFLICT ON CONSTRAINT user_read_state_pkey
+    DO
+      UPDATE
+        SET last_message_id = $3, mention_count = 0
+        WHERE user_read_state.user_id = $1
+          AND user_read_state.channel_id = $2
+    """, user_id, channel_id, message_id)
 
     if guild_id:
         await app.dispatcher.dispatch_user_guild(
@@ -551,6 +461,7 @@ async def channel_ack(user_id, guild_id, channel_id, message_id: int = None):
 
 @bp.route('/<int:channel_id>/messages/<int:message_id>/ack', methods=['POST'])
 async def ack_channel(channel_id, message_id):
+    """Acknowledge a channel."""
     user_id = await token_check()
     ctype, guild_id = await channel_check(user_id, channel_id)
 
@@ -569,6 +480,7 @@ async def ack_channel(channel_id, message_id):
 
 @bp.route('/<int:channel_id>/messages/ack', methods=['DELETE'])
 async def delete_read_state(channel_id):
+    """Delete the read state of a channel."""
     user_id = await token_check()
     await channel_check(user_id, channel_id)
 

@@ -75,6 +75,9 @@ CREATE TABLE IF NOT EXISTS users (
     phone varchar(60) DEFAULT '',
     password_hash text NOT NULL,
 
+    -- store the last time the user logged in via the gateway
+    last_session timestamp without time zone default (now() at time zone 'utc'),
+
     PRIMARY KEY (id, username, discriminator)
 );
 
@@ -131,6 +134,10 @@ CREATE TABLE IF NOT EXISTS user_settings (
 
     -- appearance
     message_display_compact bool DEFAULT false,
+
+    -- for now we store status but don't
+    -- actively use it, since the official client
+    -- sends its own presence on IDENTIFY
     status text DEFAULT 'online' NOT NULL,
     theme text DEFAULT 'dark' NOT NULL,
     developer_mode bool DEFAULT true,
@@ -328,7 +335,7 @@ CREATE TABLE IF NOT EXISTS channel_overwrites (
     channel_id bigint REFERENCES channels (id) ON DELETE CASCADE,
 
     -- target_type = 0 -> use target_user
-    -- target_type = 1 -> user target_role
+    -- target_type = 1 -> use target_role
     -- discord already has overwrite.type = 'role' | 'member'
     -- so this allows us to be more compliant with the API
     target_type integer default null,
@@ -344,10 +351,14 @@ CREATE TABLE IF NOT EXISTS channel_overwrites (
     -- they're bigints (64bits), discord,
     -- for now, only needs 53.
     allow bigint DEFAULT 0,
-    deny bigint DEFAULT 0,
-
-    PRIMARY KEY (channel_id, target_role, target_user)
+    deny bigint DEFAULT 0
 );
+
+-- columns in private keys can't have NULL values,
+-- so instead we use a custom constraint with UNIQUE
+
+ALTER TABLE channel_overwrites ADD CONSTRAINT channel_overwrites_uniq
+    UNIQUE (channel_id, target_role, target_user);
 
 
 CREATE TABLE IF NOT EXISTS features (
@@ -479,11 +490,6 @@ CREATE TABLE IF NOT EXISTS bans (
 );
 
 
-CREATE TABLE IF NOT EXISTS embeds (
-    -- TODO: this table
-    id bigint PRIMARY KEY
-);
-
 CREATE TABLE IF NOT EXISTS messages (
     id bigint PRIMARY KEY,
     channel_id bigint REFERENCES channels (id) ON DELETE CASCADE,
@@ -504,6 +510,8 @@ CREATE TABLE IF NOT EXISTS messages (
     tts bool default false,
     mention_everyone bool default false,
 
+    embeds jsonb DEFAULT '[]',
+
     nonce bigint default 0,
 
     message_type int NOT NULL
@@ -515,21 +523,21 @@ CREATE TABLE IF NOT EXISTS message_attachments (
     PRIMARY KEY (message_id, attachment)
 );
 
-CREATE TABLE IF NOT EXISTS message_embeds (
-    message_id bigint REFERENCES messages (id) UNIQUE,
-    embed_id bigint REFERENCES embeds (id),
-    PRIMARY KEY (message_id, embed_id)
-);
-
 CREATE TABLE IF NOT EXISTS message_reactions (
     message_id bigint REFERENCES messages (id),
     user_id bigint REFERENCES users (id),
 
-    -- since it can be a custom emote, or unicode emoji
+    react_ts timestamp without time zone default (now() at time zone 'utc'),
+
+    -- emoji_type = 0 -> custom emoji
+    -- emoji_type = 1 -> unicode emoji
+    emoji_type int DEFAULT 0,
     emoji_id bigint REFERENCES guild_emoji (id),
-    emoji_text text NOT NULL,
-    PRIMARY KEY (message_id, user_id, emoji_id, emoji_text)
+    emoji_text text
 );
+
+ALTER TABLE message_reactions ADD CONSTRAINT message_reactions_main_uniq
+    UNIQUE (message_id, user_id, emoji_id, emoji_text);
 
 CREATE TABLE IF NOT EXISTS channel_pins (
     channel_id bigint REFERENCES channels (id) ON DELETE CASCADE,

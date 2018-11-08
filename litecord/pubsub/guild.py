@@ -1,4 +1,3 @@
-from collections import defaultdict
 from typing import Any
 
 from logbook import Logger
@@ -47,6 +46,8 @@ class GuildDispatcher(DispatcherWithState):
         # when subbing a user to the guild, we should sub them
         # to every channel they have access to, in the guild.
 
+        # TODO: check for permissions
+
         await self._chan_action('sub', guild_id, user_id)
 
     async def unsub(self, guild_id: int, user_id: int):
@@ -56,9 +57,10 @@ class GuildDispatcher(DispatcherWithState):
         # same thing happening from sub() happens on unsub()
         await self._chan_action('unsub', guild_id, user_id)
 
-    async def dispatch(self, guild_id: int,
-                       event: str, data: Any):
-        """Dispatch an event to all subscribers of the guild."""
+    async def dispatch_filter(self, guild_id: int, func,
+                              event: str, data: Any):
+        """Selectively dispatch to session ids that have
+        func(session_id) true."""
         user_ids = self.state[guild_id]
         dispatched = 0
 
@@ -75,8 +77,22 @@ class GuildDispatcher(DispatcherWithState):
                 await self.unsub(guild_id, user_id)
                 continue
 
+            # filter the ones that matter
+            states = list(filter(
+                lambda state: func(state.session_id), states
+            ))
+
             dispatched += await self._dispatch_states(
                 states, event, data)
 
         log.info('Dispatched {} {!r} to {} states',
                  guild_id, event, dispatched)
+
+    async def dispatch(self, guild_id: int,
+                       event: str, data: Any):
+        """Dispatch an event to all subscribers of the guild."""
+        await self.dispatch_filter(
+            guild_id,
+            lambda sess_id: True,
+            event, data,
+        )

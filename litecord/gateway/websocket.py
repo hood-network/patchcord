@@ -28,7 +28,8 @@ WebsocketProperties = collections.namedtuple(
 )
 
 WebsocketObjects = collections.namedtuple(
-    'WebsocketObjects', 'db state_manager storage loop dispatcher presence'
+    'WebsocketObjects', ('db', 'state_manager', 'storage',
+                         'loop', 'dispatcher', 'presence', 'ratelimiter')
 )
 
 
@@ -44,8 +45,38 @@ def encode_etf(payload) -> str:
     return earl.pack(payload)
 
 
+def _etf_decode_dict(data):
+    # NOTE: this is a very slow implementation to
+    # decode the dictionary.
+
+    if isinstance(data, bytes):
+        return data.decode()
+
+    if not isinstance(data, dict):
+        return data
+
+    _copy = dict(data)
+    result = {}
+
+    for key in _copy.keys():
+        # assuming key is bytes rn.
+        new_k = key.decode()
+
+        # maybe nested dicts, so...
+        result[new_k] = _etf_decode_dict(data[key])
+
+    return result
+
 def decode_etf(data: bytes):
-    return earl.unpack(data)
+    res = earl.unpack(data)
+
+    if isinstance(res, bytes):
+        return data.decode()
+
+    if isinstance(res, dict):
+        return _etf_decode_dict(res)
+
+    return res
 
 
 class GatewayWebsocket:
@@ -107,6 +138,11 @@ class GatewayWebsocket:
             await self.ws.send(zlib.compress(encoded))
         else:
             await self.ws.send(encoded.decode())
+
+    def _check_ratelimit(self, key: str, ratelimit_key: str):
+        ratelimit = self.ext.ratelimiter.get_ratelimit(f'_ws.{key}')
+        bucket = ratelimit.get_bucket(ratelimit_key)
+        return bucket.update_rate_limit()
 
     async def _hb_wait(self, interval: int):
         """Wait heartbeat"""
@@ -312,6 +348,14 @@ class GatewayWebsocket:
 
     async def update_status(self, status: dict):
         """Update the status of the current websocket connection."""
+        if not self.state:
+            return
+
+        if self._check_ratelimit('presence', self.state.session_id):
+            # Presence Updates beyond the ratelimit
+            # are just silently dropped.
+            return
+
         if status is None:
             status = {
                 'afk': False,
@@ -365,6 +409,15 @@ class GatewayWebsocket:
             'op': OP.HEARTBEAT_ACK,
         })
 
+    async def _connect_ratelimit(self, user_id: int):
+        if self._check_ratelimit('connect', user_id):
+            await self.invalidate_session(False)
+            raise WebsocketClose(4009, 'You are being ratelimited.')
+
+        if self._check_ratelimit('session', user_id):
+            await self.invalidate_session(False)
+            raise WebsocketClose(4004, 'Websocket Session Ratelimit reached.')
+
     async def handle_2(self, payload: Dict[str, Any]):
         """Handle the OP 2 Identify packet."""
         try:
@@ -383,6 +436,8 @@ class GatewayWebsocket:
             user_id = await raw_token_check(token, self.ext.db)
         except (Unauthorized, Forbidden):
             raise WebsocketClose(4004, 'Authentication failed')
+
+        await self._connect_ratelimit(user_id)
 
         bot = await self.ext.db.fetchval("""
         SELECT bot FROM users
@@ -641,9 +696,11 @@ class GatewayWebsocket:
 
         This is the known structure of GUILD_MEMBER_LIST_UPDATE:
 
+        group_id = 'online' | 'offline' | role_id (string)
+
         sync_item = {
             'group': {
-                'id': string, // 'online' | 'offline' | any role id
+                'id': group_id,
                 'count': num
             }
         } | {
@@ -653,7 +710,7 @@ class GatewayWebsocket:
         list_op = 'SYNC' | 'INVALIDATE' | 'INSERT' | 'UPDATE' | 'DELETE'
 
         list_data = {
-            'id': "everyone" // ??
+            'id': channel_id | 'everyone',
             'guild_id': guild_id,
 
             'ops': [
@@ -666,10 +723,10 @@ class GatewayWebsocket:
                     // exists if op = 'SYNC'
                     'items': sync_item[],
 
-                    // exists if op = 'INSERT' or 'DELETE'
+                    // exists if op == 'INSERT' | 'DELETE' | 'UPDATE'
                     'index': num,
 
-                    // exists if op = 'INSERT'
+                    // exists if op == 'INSERT' | 'UPDATE'
                     'item': sync_item,
                 }
             ],
@@ -678,31 +735,11 @@ class GatewayWebsocket:
             // separately from the online list?
             'groups': [
                 {
-                    'id': string // 'online' | 'offline' | any role id
+                    'id': group_id
                     'count': num
                 }, ...
             ]
         }
-
-        # Implementation defails.
-
-        Lazy guilds are complicated to deal with in the backend level
-        as there are a lot of computation to be done for each request.
-
-        The current implementation is rudimentary and does not account
-        for any roles inside the guild.
-
-        A correct implementation would take account of roles and make
-        the correct groups on list_data:
-
-        For each channel in lazy_request['channels']:
-         - get all roles that have Read Messages on the channel:
-           - Also fetch their member counts, as it'll be important
-         - with the role list, order them like you normally would
-            (by their role priority)
-         - based on the channel's range's min and max and the ordered
-            role list, you can get the roles wanted for your list_data reply.
-         - make new groups ONLY when the role is hoisted.
         """
         data = payload['d']
 
@@ -713,65 +750,16 @@ class GatewayWebsocket:
         if guild_id not in gids:
             return
 
-        member_ids = await self.storage.get_member_ids(guild_id)
-        log.debug('lazy: loading {} members', len(member_ids))
+        # make shard query
+        lazy_guilds = self.ext.dispatcher.backends['lazy_guild']
 
-        # the current implementation is rudimentary and only
-        # generates two groups: online and offline, using
-        # PresenceManager.guild_presences to fill list_data.
+        for chan_id, ranges in data.get('channels', {}).items():
+            chan_id = int(chan_id)
+            member_list = await lazy_guilds.get_gml(chan_id)
 
-        # this also doesn't take account the channels in lazy_request.
-
-        guild_presences = await self.presence.guild_presences(member_ids,
-                                                              guild_id)
-
-        online = [{'member': p}
-                  for p in guild_presences
-                  if p['status'] == 'online']
-        offline = [{'member': p}
-                   for p in guild_presences
-                   if p['status'] == 'offline']
-
-        log.debug('lazy: {} presences, online={}, offline={}',
-                  len(guild_presences),
-                  len(online),
-                  len(offline))
-
-        # construct items in the WORST WAY POSSIBLE.
-        items = [{
-            'group': {
-                'id': 'online',
-                'count': len(online),
-            }
-        }] + online + [{
-            'group': {
-                'id': 'offline',
-                'count': len(offline),
-            }
-        }] + offline
-
-        await self.dispatch('GUILD_MEMBER_LIST_UPDATE', {
-            'id': 'everyone',
-            'guild_id': data['guild_id'],
-            'groups': [
-                {
-                    'id': 'online',
-                    'count': len(online),
-                },
-                {
-                    'id': 'offline',
-                    'count': len(offline),
-                }
-            ],
-
-            'ops': [
-                {
-                    'range': [0, 99],
-                    'op': 'SYNC',
-                    'items': items
-                }
-            ]
-        })
+            await member_list.shard_query(
+                self.state.session_id, ranges
+            )
 
     async def process_message(self, payload):
         """Process a single message coming in from the client."""
@@ -788,17 +776,36 @@ class GatewayWebsocket:
 
         await handler(payload)
 
+    async def _msg_ratelimit(self):
+        if self._check_ratelimit('messages', self.state.session_id):
+            raise WebsocketClose(4008, 'You are being ratelimited.')
+
     async def listen_messages(self):
         """Listen for messages coming in from the websocket."""
+
+        # close anyone trying to login while the
+        # server is shutting down
+        if self.ext.state_manager.closed:
+            raise WebsocketClose(4000, 'state manager closed')
+
+        if not self.ext.state_manager.accept_new:
+            raise WebsocketClose(4000, 'state manager closed for new')
+
         while True:
             message = await self.ws.recv()
             if len(message) > 4096:
                 raise DecodeError('Payload length exceeded')
 
+            if self.state:
+                await self._msg_ratelimit()
+
             payload = self.decoder(message)
             await self.process_message(payload)
 
     def _cleanup(self):
+        for task in self.wsp.tasks.values():
+            task.cancel()
+
         if self.state:
             self.ext.state_manager.remove(self.state)
             self.state.ws = None
