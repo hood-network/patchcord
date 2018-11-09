@@ -799,7 +799,7 @@ class GuildMemberList:
             return
 
         group = self.list.groups[group_idx]
-        group.permissions = role['permissions']
+        group.permissions = Permissions(role['permissions'])
 
         await self._fetch_overwrites()
 
@@ -943,11 +943,14 @@ class LazyGuildDispatcher(Dispatcher):
             log.warning('unknown event: {}', event)
             return
 
-    async def _call_all_lists(self, guild_id, method: str, *args):
+    async def _call_all_lists(self, guild_id, method_str: str, *args):
         lists = self.get_gml_guild(guild_id)
 
+        log.debug('calling method={} to all {} lists',
+                  method, len(lists))
+
         for lazy_list in lists:
-            method = getattr(lazy_list, method)
+            method = getattr(lazy_list, method_str)
             await method(*args)
 
     async def _handle_new_role(self, guild_id: int, new_role: dict):
