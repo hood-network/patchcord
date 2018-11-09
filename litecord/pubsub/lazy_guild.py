@@ -260,7 +260,8 @@ class GuildMemberList:
 
         hoisted = [
             GroupInfo(row['id'], row['name'],
-                      row['position'], row['permissions'])
+                      row['position'],
+                      Permissions(row['permissions']))
             for row in roledata if row['hoist']
         ]
 
