@@ -2,6 +2,7 @@
 Main code for Lazy Guild implementation in litecord.
 """
 import pprint
+import asyncio
 from dataclasses import dataclass, asdict
 from collections import defaultdict
 from typing import Any, List, Dict, Union
@@ -163,6 +164,8 @@ class GuildMemberList:
         #: store the states that are subscribed to the list
         #  type is{session_id: set[list]}
         self.state = defaultdict(set)
+
+        self._list_lock = asyncio.Lock()
 
     @property
     def loop(self):
@@ -342,9 +345,13 @@ class GuildMemberList:
 
             # this should update the list in-place
             group_members.sort(
-                key=lambda p: display_name(member_nicks, p))
+                key=lambda p: display_name(member_nicks, p),
+                reverse=True)
 
-    async def _init_member_list(self):
+            print('post sort')
+            pprint.pprint(group_members)
+
+    async def __init_member_list(self):
         """Generate the main member list with groups."""
         member_ids = await self.storage.get_member_ids(self.guild_id)
 
@@ -366,6 +373,13 @@ class GuildMemberList:
         # second pass: sort each group's members
         # by the display name
         await self._sort_groups()
+
+    async def _init_member_list(self):
+        try:
+            await self._list_lock.acquire()
+            await self.__init_member_list()
+        finally:
+            self._list_lock.release()
 
     @property
     def items(self) -> list:
@@ -597,21 +611,30 @@ class GuildMemberList:
         for presence in presences:
             name = display_name(member_nicks, presence)
 
-            print(name, current_name, name < current_name)
+            print(name, current_name, current_name < name)
 
             # TODO: check if this works
-            if name < current_name:
+            if current_name < name:
                 break
 
             best_index += 1
 
         # insert the presence at the index
-        presences.insert(best_index + 1, current_presence)
+        print('pre insert')
+        pprint.pprint(presences)
+
+        presences.insert(best_index - 1, current_presence)
+        log.debug('inserted cur pres @ pres idx {}', best_index - 1)
+
+        print('post insert')
+        pprint.pprint(presences)
 
         new_item_index = self.get_item_index(user_id)
-
         log.debug('assigned new item index {} to uid {}',
                   new_item_index, user_id)
+
+        print('items')
+        pprint.pprint(self.items)
 
         session_ids_old = self.get_subs(old_item_index)
         session_ids_new = self.get_subs(new_item_index)
@@ -644,21 +667,32 @@ class GuildMemberList:
          - from 'offline' to any
          - from any to 'offline'
          - from any to any
-         - from G to G (with G being any group)
+         - from G to G (with G being any group), while changing position
+         - from G to G (with G being any group), but not changing position
 
         any: 'online' | role_id
 
-        All first, second, and third updates are 'complex' updates,
+        All 1st, 2nd, 3rd, and 4th updates are 'complex' updates,
         which means we'll have to change the group the user is on
-        to account for them.
+        to account for them, or we'll change the position a user
+        is in inside a group (for the 4th update).
 
-        The fourth is a 'simple' change, since we're not changing
+        The fifth is a 'simple' change, since we're not changing
         the group a user is on, and so there's less overhead
         involved.
         """
         await self._init_check()
 
         old_group, old_index, old_presence = None, None, None
+        has_nick = 'nick' in partial_presence
+
+        # partial presences don't have 'nick'. we only use it
+        # as a flag that we're doing a mixed update (complex
+        # but without any inter-group changes)
+        try:
+            partial_presence.pop('nick')
+        except KeyError:
+            pass
 
         for group, presences in self.list:
             p_idx = index_by_func(
@@ -694,9 +728,9 @@ class GuildMemberList:
         log.debug('pres update: gid={} cid={} old_g={} new_g={}',
                   self.guild_id, self.channel_id, old_group, new_group)
 
-        # if we're going to the same group,
-        # treat this as a simple update
-        if old_group == new_group:
+        # if we're going to the same group AND there are no
+        # nickname changes, treat this as a simple update
+        if old_group == new_group and not has_nick:
             return await self._pres_update_simple(user_id)
 
         return await self._pres_update_complex(
@@ -1039,3 +1073,8 @@ class LazyGuildDispatcher(Dispatcher):
 
     async def _handle_role_delete(self, guild_id, role_id: int):
         await self._call_all_lists(guild_id, 'role_delete', role_id)
+
+    async def _handle_pres_update(self, guild_id, user_id: int,
+                                  partial: dict):
+        await self._call_all_lists(
+            guild_id, 'pres_update', user_id, partial)

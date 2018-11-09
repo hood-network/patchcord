@@ -101,6 +101,7 @@ async def modify_guild_member(guild_id, member_id):
     await guild_owner_check(user_id, guild_id)
 
     j = validate(await request.get_json(), MEMBER_UPDATE)
+    nick_flag = False
 
     if 'nick' in j:
         # TODO: check MANAGE_NICKNAMES
@@ -110,6 +111,8 @@ async def modify_guild_member(guild_id, member_id):
         SET nickname = $1
         WHERE user_id = $2 AND guild_id = $3
         """, j['nick'], member_id, guild_id)
+
+        nick_flag = True
 
     if 'mute' in j:
         # TODO: check MUTE_MEMBERS
@@ -141,14 +144,16 @@ async def modify_guild_member(guild_id, member_id):
     member = await app.storage.get_member_data_one(guild_id, member_id)
     member.pop('joined_at')
 
-    lazy_guilds = app.dispatcher.backends['lazy_guild']
-    lists = lazy_guilds.get_gml_guild(guild_id)
+    # call pres_update for role and nick changes.
+    partial = {
+        'roles': member['roles']
+    }
 
-    for member_list in lists:
-        # just call pres_update but only for role changes.
-        await member_list.pres_update(member_id, {
-            'roles': member['roles'],
-        })
+    if nick_flag:
+        partial['nick'] = j['nick']
+
+    await app.dispatcher.dispatch(
+        'lazy_guild', guild_id, 'pres_update', user_id, partial)
 
     await app.dispatcher.dispatch_guild(guild_id, 'GUILD_MEMBER_UPDATE', {**{
         'guild_id': str(guild_id)
@@ -173,6 +178,12 @@ async def update_nickname(guild_id):
 
     member = await app.storage.get_member_data_one(guild_id, user_id)
     member.pop('joined_at')
+
+    # call pres_update for nick changes, etc.
+    await app.dispatcher.dispatch(
+        'lazy_guild', guild_id, 'pres_update', user_id, {
+            'nick': j['nick']
+        })
 
     await app.dispatcher.dispatch_guild(guild_id, 'GUILD_MEMBER_UPDATE', {**{
         'guild_id': str(guild_id)
