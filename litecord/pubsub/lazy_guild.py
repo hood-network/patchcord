@@ -266,7 +266,8 @@ class GuildMemberList:
         ]
 
         # sort role list by position
-        hoisted = sorted(hoisted, key=lambda group: group.position)
+        hoisted = sorted(hoisted, key=lambda group: group.position,
+                         reverse=True)
 
         # we need to store them since
         # we have incoming presences to manage.
@@ -787,7 +788,8 @@ class GuildMemberList:
         # we could self.list.groups.insert... but I don't know.
         # I'm taking the safe route right now by using sorted()
         new_groups = sorted(self.list.groups,
-                            key=lambda group: group.position)
+                            key=lambda group: group.position,
+                            reverse=True)
 
         log.debug('resorted groups from role pos upd '
                   'rid={} rpos={} (gid={}, cid={}) '
