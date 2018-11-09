@@ -19,6 +19,9 @@ log = Logger(__name__)
 GroupID = Union[int, str]
 Presence = Dict[str, Any]
 
+# TODO: move this constant out of the lazy_guild module
+MAX_ROLES = 250
+
 
 @dataclass
 class GroupInfo:
@@ -32,7 +35,7 @@ class GroupInfo:
 @dataclass
 class MemberList:
     """Total information on the guild's member list.
-    
+
     Attributes
     ----------
     groups: List[:class:`GroupInfo`]
@@ -83,6 +86,7 @@ class Operation:
 
     @property
     def to_dict(self) -> dict:
+        """Return a dictionary representation of the operation."""
         res = {
             'op': self.list_op
         }
@@ -217,6 +221,23 @@ class GuildMemberList:
 
         return group_id
 
+    def _can_read_chan(self, group: GroupInfo):
+        # get the base role perms
+        role_perms = group.permissions
+
+        # then the final perms for that role if
+        # any overwrite exists in the channel
+        final_perms = overwrite_find_mix(
+            role_perms, self.list.overwrites, group.gid)
+
+        # update the group's permissions
+        # with the mixed ones
+        group.permissions = final_perms
+
+        # if the role can read messages, then its
+        # part of the group.
+        return final_perms.bits.read_messages
+
     async def get_roles(self) -> List[GroupInfo]:
         """Get role information, but only:
          - the ID
@@ -246,28 +267,10 @@ class GuildMemberList:
         # sort role list by position
         hoisted = sorted(hoisted, key=lambda group: group.position)
 
-        # we need to store them for later on
-        # for members
+        # we need to store them since
+        # we have incoming presences to manage.
         await self._fetch_overwrites()
-
-        def _can_read_chan(group: GroupInfo):
-            # get the base role perms
-            role_perms = group.permissions
-
-            # then the final perms for that role if
-            # any overwrite exists in the channel
-            final_perms = overwrite_find_mix(
-                role_perms, self.list.overwrites, group.gid)
-
-            # update the group's permissions
-            # with the mixed ones
-            group.permissions = final_perms
-
-            # if the role can read messages, then its
-            # part of the group.
-            return final_perms.bits.read_messages
-
-        return list(filter(_can_read_chan, hoisted))
+        return list(filter(self._can_read_chan, hoisted))
 
     async def set_groups(self):
         """Get the groups for the member list."""
@@ -277,10 +280,13 @@ class GuildMemberList:
         self.list.groups = role_ids + ['online', 'offline']
 
         # inject default groups 'online' and 'offline'
+
+        # their position is always going to be the last ones.
         self.list.groups = role_ids + [
-            GroupInfo('online', 'online', -1, -1),
-            GroupInfo('offline', 'offline', -1, -1)
+            GroupInfo('online', 'online', MAX_ROLES + 1, 0),
+            GroupInfo('offline', 'offline', MAX_ROLES + 2, 0)
         ]
+
         self.list.group_info = {g.gid: g for g in role_groups}
 
     async def get_group(self, member_id: int,
@@ -693,6 +699,59 @@ class GuildMemberList:
 
         return await self._pres_update_complex(
             user_id, old_group, old_index, new_group)
+
+    async def new_role(self, role: dict):
+        """Add a new role to the list"""
+        group_id = int(role['id'])
+
+        new_group = GroupInfo(group_id, role['name'],
+                              role['position'], role['permisions'])
+
+        # check if new role has good perms
+        await self._fetch_overwrites()
+
+        if not self._can_read_chan(new_group):
+            log.info('ignoring incoming group {}', new_group)
+            return
+
+        # maintain role sorting
+        self.list.groups.insert(role['position'], new_group)
+
+        # since this is a new group, we can set it
+        # as a new empty list (as nobody is in the
+        # new role by default)
+
+        # NOTE: maybe that assumption changes
+        # when bots come along.
+        self.list.data[new_group.gid] = []
+
+    async def role_pos_update(self, role: dict):
+        """Change a role's position if it is in the group list
+        to start with."""
+        role_id = int(role['id'])
+
+        groups_idx = index_by_func(
+            lambda g: g.gid == role_id,
+            self.list.groups
+        )
+
+        if groups_idx is None:
+            log.info('ignoring pos update for rid={}, unknown group',
+                     role_id)
+            return
+
+        group = self.list.groups[groups_idx]
+        group.position = role['position']
+
+        # since we changed the role's position, we need to resort the
+        # group list to account for that.
+        new_groups = sorted(self.list.groups,
+                            key=lambda group: group.position)
+
+        self.list.groups = new_groups
+
+    async def role_update(self, role: dict):
+        pass
 
     async def role_delete(self, role_id: int):
         """Called when a role is deleted, so we should
