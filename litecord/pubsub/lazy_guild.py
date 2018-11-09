@@ -13,6 +13,7 @@ from litecord.permissions import (
     Permissions, overwrite_find_mix, get_permissions, role_permissions
 )
 from litecord.utils import index_by_func
+from litecord.storage import str_
 
 log = Logger(__name__)
 
@@ -460,13 +461,16 @@ class GuildMemberList:
         """Send a GUILD_MEMBER_LIST_UPDATE event
         for a shard that is querying about the member list.
 
+        For the purposes of documentation:
+        Range = Union[List, Tuple]
+
         Paramteters
         -----------
         session_id: str
             The Session ID querying information.
         channel_id: int
             The Channel ID that we want information on.
-        ranges: List[List[int]]
+        ranges: List[Range[int, int]]
             ranges of the list that we want.
         """
 
@@ -850,7 +854,7 @@ class GuildMemberList:
 
     async def role_delete(self, role_id: int):
         """Called when a role is deleted, so we should
-        delete it off the list."""
+        delete it off the list and reassign presences."""
         if not self.list:
             return
 
@@ -859,7 +863,7 @@ class GuildMemberList:
 
         # find the item id for the group info
         role_item_index = index_by_func(
-            lambda d: d.get('group', {}).get('id') == role_id,
+            lambda d: str_(d.get('group', {}).get('id')) == str(role_id),
             self.items
         )
 
@@ -896,7 +900,17 @@ class GuildMemberList:
 
         # now the data info
         try:
-            self.list.data.pop(role_id)
+            # we need to reassign those orphan presences
+            # into a new group
+            presences = self.list.data.pop(role_id)
+
+            # by calling the same functions we'd be calling
+            # when generating the guild, we can reassign
+            # the presences into new groups and sort
+            # the new presences so we achieve the correct state
+            log.debug('reassigning {} presences', len(presences))
+            await self._pass_1(presences)
+            await self._sort_groups()
         except KeyError:
             log.warning('list unstable: {} not in data dict', role_id)
 
@@ -914,6 +928,10 @@ class GuildMemberList:
         log.info('role_delete rid={} (gid={}, cid={})',
                  role_id, self.guild_id, self.channel_id)
 
+        pprint.pprint(self.state)
+        log.debug('there are {} session ids to resync (for item {})',
+                  len(sess_ids_resync), role_item_index)
+
         for session_id in sess_ids_resync:
             # find the list range that the group was on
             # so we resync only the given range, instead
@@ -923,13 +941,15 @@ class GuildMemberList:
             try:
                 # get the only range where the group is in
                 role_range = next((r_min, r_max) for r_min, r_max in ranges
-                                  if r_min < role_item_index < r_max)
+                                  if r_min <= role_item_index <= r_max)
             except StopIteration:
+                log.debug('ignoring sess_id={}, no range for item {}, {}',
+                          session_id, role_item_index, ranges)
                 continue
 
             # do resync-ing in the background
             self.loop.create_task(
-                self.shard_query(session_id, role_range)
+                self.shard_query(session_id, [role_range])
             )
 
 

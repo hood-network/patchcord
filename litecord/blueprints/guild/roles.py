@@ -1,6 +1,7 @@
 from typing import List, Dict, Any, Union
 
 from quart import Blueprint, request, current_app as app, jsonify
+from logging import Logger
 
 from litecord.auth import token_check
 
@@ -15,6 +16,7 @@ from litecord.snowflake import get_snowflake
 from litecord.utils import dict_get
 
 DEFAULT_EVERYONE_PERMS = 104324161
+log = Logger(__name__)
 bp = Blueprint('guild_roles', __name__)
 
 
@@ -264,6 +266,8 @@ async def update_guild_role_positions(guild_id):
 
     # extract the list out
     j = j['roles']
+
+    log.debug('role stuff: {!r}', j)
 
     all_roles = await app.storage.get_role_data(guild_id)
 
