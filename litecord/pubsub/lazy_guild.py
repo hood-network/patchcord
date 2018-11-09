@@ -701,7 +701,11 @@ class GuildMemberList:
             user_id, old_group, old_index, new_group)
 
     async def new_role(self, role: dict):
-        """Add a new role to the list"""
+        """Add a new role to the list.
+
+        Only adds the new role to the list if the role
+        has the necessary permissions to start with.
+        """
         group_id = int(role['id'])
 
         new_group = GroupInfo(group_id, role['name'],
@@ -725,10 +729,24 @@ class GuildMemberList:
         # when bots come along.
         self.list.data[new_group.gid] = []
 
-    async def role_pos_update(self, role: dict):
-        """Change a role's position if it is in the group list
-        to start with."""
-        role_id = int(role['id'])
+    def _get_role_as_group_idx(self, role_id: int) -> int:
+        """Get a group index representing the given role id.
+
+        Returns
+        -------
+        int
+            Representing the ID of the role inside the
+            group list.
+
+        None
+            If any of those occour:
+             - member list is uninitialized.
+             - role is not found inside the group list.
+        """
+        if not self.list:
+            log.warning('uninitialized list for rid={}',
+                        role_id)
+            return None
 
         groups_idx = index_by_func(
             lambda g: g.gid == role_id,
@@ -736,22 +754,64 @@ class GuildMemberList:
         )
 
         if groups_idx is None:
-            log.info('ignoring pos update for rid={}, unknown group',
+            log.info('ignoring rid={}, unknown group',
                      role_id)
+            return None
+
+        return groups_idx
+
+    async def role_pos_update(self, role: dict):
+        """Change a role's position if it is in the group list
+        to start with.
+
+        This resorts the entire group list, which might be
+        an inefficient operation.
+        """
+        role_id = int(role['id'])
+
+        groups_idx = self._get_role_as_group_idx(role_id)
+        if groups_idx is None:
             return
 
         group = self.list.groups[groups_idx]
         group.position = role['position']
 
-        # since we changed the role's position, we need to resort the
-        # group list to account for that.
+        # TODO: maybe this can be more efficient?
+        # we could self.list.groups.insert... but I don't know.
+        # I'm taking the safe route right now by using sorted()
         new_groups = sorted(self.list.groups,
                             key=lambda group: group.position)
 
         self.list.groups = new_groups
 
     async def role_update(self, role: dict):
-        pass
+        """Update a role.
+
+        This function only takes care of updating
+        any permission-related info, and removing
+        the group if it lost the permissions to
+        read the channel.
+        """
+        role_id = int(role['id'])
+
+        group_idx = self._get_role_as_group_idx(role_id)
+        if not group_idx:
+            return
+
+        group = self.list.groups[group_idx]
+        group.permissions = role['permissions']
+
+        await self._fetch_overwrites()
+
+        # if the role can't read the channel anymore,
+        # we have to delete it just like an actual role
+        # deletion event.
+
+        # role_delte will take care of sending the
+        # respective GUILD_MEMBER_LIST_UPDATE events
+        # down to the subscribers.
+        if not self._can_read_chan(group):
+            return await self.role_delete(role_id)
 
     async def role_delete(self, role_id: int):
         """Called when a role is deleted, so we should
