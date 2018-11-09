@@ -53,10 +53,14 @@ async def create_role(guild_id, name: str, **kwargs):
     # TODO: use @everyone's perm number
     default_perms = dict_get(kwargs, 'default_perms', DEFAULT_EVERYONE_PERMS)
 
-    max_pos = await app.db.fetchval("""
-    SELECT MAX(position)
-    FROM roles
+    # update all roles so that we have space for pos 1, but without
+    # sending GUILD_ROLE_UPDATE for everyone
+    await app.db.execute("""
+    UPDATE roles
+    SET
+        position = position + 1
     WHERE guild_id = $1
+      AND NOT (position = 0)
     """, guild_id)
 
     await app.db.execute(
@@ -71,10 +75,8 @@ async def create_role(guild_id, name: str, **kwargs):
         dict_get(kwargs, 'color', 0),
         dict_get(kwargs, 'hoist', False),
 
-        # set position = 0 when there isn't any
-        # other role (when we're creating the
-        # @everyone role)
-        max_pos + 1 if max_pos is not None else 0,
+        # always set ourselves on position 1
+        1,
         int(dict_get(kwargs, 'permissions', default_perms)),
         False,
         dict_get(kwargs, 'mentionable', False)
