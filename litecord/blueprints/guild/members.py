@@ -141,6 +141,15 @@ async def modify_guild_member(guild_id, member_id):
     member = await app.storage.get_member_data_one(guild_id, member_id)
     member.pop('joined_at')
 
+    lazy_guilds = app.dispatcher.backends['lazy_guild']
+    lists = lazy_guilds.get_gml_guild(guild_id)
+
+    for member_list in lists:
+        # just call pres_update but only for role changes.
+        await member_list.pres_update(member_id, {
+            'roles': member['roles'],
+        })
+
     await app.dispatcher.dispatch_guild(guild_id, 'GUILD_MEMBER_UPDATE', {**{
         'guild_id': str(guild_id)
     }, **member})

@@ -123,7 +123,9 @@ class PresenceManager:
             log.debug('Lazy Dispatch to {}',
                       len(session_ids))
 
-            if member_list.channel_id == 'everyone':
+            # if we are on the 'everyone' member list, we don't
+            # dispatch a PRESENCE_UPDATE for those shards.
+            if member_list.channel_id == member_list.guild_id:
                 in_lazy.extend(session_ids)
 
         pres_update_payload = {
