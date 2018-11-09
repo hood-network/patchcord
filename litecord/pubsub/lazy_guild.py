@@ -31,10 +31,30 @@ class GroupInfo:
 
 @dataclass
 class MemberList:
-    """Total information on the guild's member list."""
+    """Total information on the guild's member list.
+    
+    Attributes
+    ----------
+    groups: List[:class:`GroupInfo`]
+        List with all group information, sorted
+        by their actual position in the member list.
+    data:
+        Actual dictionary holding a list of presences
+        that are connected to the given group.
+    overwrites:
+        Holds the channel overwrite information
+        for the list (a list is tied to a single
+        channel, and since only roles with Read Messages
+        can be in the list, we need to store that information)
+    """
     groups: List[GroupInfo] = None
+
+    #: this attribute is not actively used
+    #  but i'm keeping it here to future-proof
+    #  in the case where we need to fetch info
+    #  by the group id.
     group_info: Dict[GroupID, GroupInfo] = None
-    data: Dict[GroupID, Presence] = None
+    data: Dict[GroupID, List[Presence]] = None
     overwrites: Dict[int, Dict[str, Any]] = None
 
     def __bool__(self):
@@ -138,6 +158,11 @@ class GuildMemberList:
         #: store the states that are subscribed to the list
         #  type is{session_id: set[list]}
         self.state = defaultdict(set)
+
+    @property
+    def loop(self):
+        """Get the main asyncio loop instance."""
+        return self.main.app.loop
 
     @property
     def storage(self):
@@ -385,6 +410,7 @@ class GuildMemberList:
             self._set_empty_list()
 
     def get_state(self, session_id: str):
+        """Get the state for a session id."""
         try:
             state = self.state_man.fetch_raw(session_id)
             return state
@@ -668,19 +694,73 @@ class GuildMemberList:
         return await self._pres_update_complex(
             user_id, old_group, old_index, new_group)
 
-    async def dispatch(self, event: str, data: Any):
-        """Modify the member list and dispatch the respective
-        events to subscribed shards.
+    async def role_delete(self, role_id: int):
+        """Called when a role is deleted, so we should
+        delete it off the list."""
 
-        GuildMemberList stores the current guilds' list
-        in its :attr:`GuildMemberList.list` attribute,
-        with that attribute being modified via different
-        calls to :meth:`GuildMemberList.dispatch`
-        """
-
-        # if no subscribers, drop event
         if not self.list:
             return
+
+        # before we delete anything, we need to find the
+        # states we'll resend the list info to.
+
+        # find the item id for the group info
+        role_item_index = index_by_func(
+            lambda d: d.get('group', {}).get('id') == role_id,
+            self.items
+        )
+
+        sess_ids_resync = self.get_subs(role_item_index)
+
+        # remove the group info off the list
+        groups_index = index_by_func(
+            lambda group: group.gid == role_id,
+            self.list.groups
+        )
+
+        if groups_index is not None:
+            del self.list.groups[groups_index]
+        else:
+            log.warning('list unstable: {} not on group list', role_id)
+
+        # then the state of it in the group_info list
+        try:
+            self.list.group_info.pop(role_id)
+        except KeyError:
+            log.warning('list unstable: {} not on group info', role_id)
+
+        # now the data info
+        try:
+            self.list.data.pop(role_id)
+        except KeyError:
+            log.warning('list unstable: {} not in data dict', role_id)
+
+        # and then overwrites.
+        try:
+            self.list.overwrites.pop(role_id)
+        except KeyError:
+            log.warning('list unstable: {} not in overwrites dict', role_id)
+
+        # after removing, we do a resync with the
+        # shards that had the group.
+
+        for session_id in sess_ids_resync:
+            # find the list range that the group was on
+            # so we resync only the given range, instead
+            # of the whole list state.
+            ranges = self.state[session_id]
+
+            try:
+                # get the only range where the group is in
+                role_range = next((r_min, r_max) for r_min, r_max in ranges
+                                  if r_min < role_item_index < r_max)
+            except StopIteration:
+                continue
+
+            # do resync-ing in the background
+            self.loop.create_task(
+                self.shard_query(session_id, role_range)
+            )
 
 
 class LazyGuildDispatcher(Dispatcher):
@@ -734,3 +814,34 @@ class LazyGuildDispatcher(Dispatcher):
     async def unsub(self, chan_id, session_id):
         gml = await self.get_gml(chan_id)
         gml.unsub(session_id)
+
+    async def dispatch(self, guild_id, event: str, *args, **kwargs):
+        """Call a function specialized in handling the given event"""
+        try:
+            handler = getattr(self, f'_handle_{event}')
+            await handler(guild_id, *args, **kwargs)
+        except AttributeError:
+            log.warning('unknown event: {}', event)
+            return
+
+    async def _call_all_lists(self, guild_id, method: str, *args):
+        lists = self.get_gml_guild(guild_id)
+
+        for lazy_list in lists:
+            method = getattr(lazy_list, method)
+            await method(*args)
+
+    async def _handle_new_role(self, guild_id: int, new_role: dict):
+        """Handle the addition of a new group by dispatching it to
+        the member lists."""
+        await self._call_all_lists(guild_id, 'new_role', new_role)
+
+    async def _handle_role_pos_upd(self, guild_id, role: dict):
+        await self._call_all_lists(guild_id, 'role_pos_update', role)
+
+    async def _handle_role_update(self, guild_id, role: dict):
+        # handle name and hoist changes
+        await self._call_all_lists(guild_id, 'role_update', role)
+
+    async def _handle_role_delete(self, guild_id, role_id: int):
+        await self._call_all_lists(guild_id, 'role_delete', role_id)

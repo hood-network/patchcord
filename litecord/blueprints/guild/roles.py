@@ -29,6 +29,23 @@ async def get_guild_roles(guild_id):
     )
 
 
+async def _maybe_lg(guild_id: int, event: str,
+                    role, force: bool = False):
+    # sometimes we want to dispatch an event
+    # even if the role isn't hoisted
+
+    # an example of such a case is when a role loses
+    # its hoist status.
+
+    # check if is a dict first because role_delete
+    # only receives the role id.
+    if isinstance(role, dict) and not role['hoist'] and not force:
+        return
+
+    await app.dispatcher.dispatch(
+        'lazy_guild', guild_id, event, role)
+
+
 async def create_role(guild_id, name: str, **kwargs):
     """Create a role in a guild."""
     new_role_id = get_snowflake()
@@ -64,6 +81,10 @@ async def create_role(guild_id, name: str, **kwargs):
     )
 
     role = await app.storage.get_role(new_role_id, guild_id)
+
+    # we need to update the lazy guild handlers for the newly created group
+    await _maybe_lg(guild_id, 'new_role', role)
+
     await app.dispatcher.dispatch_guild(
         guild_id, 'GUILD_ROLE_CREATE', {
             'guild_id': str(guild_id),
@@ -95,6 +116,8 @@ async def create_guild_role(guild_id: int):
 async def _role_update_dispatch(role_id: int, guild_id: int):
     """Dispatch a GUILD_ROLE_UPDATE with updated information on a role."""
     role = await app.storage.get_role(role_id, guild_id)
+
+    await _maybe_lg(guild_id, 'role_pos_upd', role)
 
     await app.dispatcher.dispatch_guild(guild_id, 'GUILD_ROLE_UPDATE', {
         'guild_id': str(guild_id),
@@ -285,6 +308,7 @@ async def update_guild_role(guild_id, role_id):
         """, j[field], role_id, guild_id)
 
     role = await _role_update_dispatch(role_id, guild_id)
+    await _maybe_lg(guild_id, 'role_update', role, True)
     return jsonify(role)
 
 
@@ -306,6 +330,8 @@ async def delete_guild_role(guild_id, role_id):
 
     if res == 'DELETE 0':
         return '', 204
+
+    await _maybe_lg(guild_id, 'role_delete', role_id, True)
 
     await app.dispatcher.dispatch_guild(guild_id, 'GUILD_ROLE_DELETE', {
         'guild_id': str(guild_id),
