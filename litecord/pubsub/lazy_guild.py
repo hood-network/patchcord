@@ -276,14 +276,10 @@ class GuildMemberList:
     async def set_groups(self):
         """Get the groups for the member list."""
         role_groups = await self.get_roles()
-        role_ids = [g.gid for g in role_groups]
-
-        self.list.groups = role_ids + ['online', 'offline']
 
         # inject default groups 'online' and 'offline'
-
         # their position is always going to be the last ones.
-        self.list.groups = role_ids + [
+        self.list.groups = role_groups + [
             GroupInfo('online', 'online', MAX_ROLES + 1, 0),
             GroupInfo('offline', 'offline', MAX_ROLES + 2, 0)
         ]
@@ -385,7 +381,7 @@ class GuildMemberList:
         for group, presences in self.list:
             res.append({
                 'group': {
-                    'id': group.gid,
+                    'id': str(group.gid),
                     'count': len(presences),
                 }
             })
@@ -436,7 +432,7 @@ class GuildMemberList:
             'groups': [
                 {
                     'count': len(presences),
-                    'id': group.gid
+                    'id': str(group.gid),
                 } for group, presences in self.list
             ],
 
@@ -707,10 +703,15 @@ class GuildMemberList:
         Only adds the new role to the list if the role
         has the necessary permissions to start with.
         """
+        if not self.list:
+            return
+
         group_id = int(role['id'])
 
-        new_group = GroupInfo(group_id, role['name'],
-                              role['position'], role['permisions'])
+        new_group = GroupInfo(
+            group_id, role['name'],
+            role['position'], Permissions(role['permissions'])
+        )
 
         # check if new role has good perms
         await self._fetch_overwrites()
@@ -718,6 +719,9 @@ class GuildMemberList:
         if not self._can_read_chan(new_group):
             log.info('ignoring incoming group {}', new_group)
             return
+
+        log.debug('new_role: inserted rid={} (gid={}, cid={})',
+                  group_id, self.guild_id, self.channel_id)
 
         # maintain role sorting
         self.list.groups.insert(role['position'], new_group)
@@ -745,8 +749,8 @@ class GuildMemberList:
              - role is not found inside the group list.
         """
         if not self.list:
-            log.warning('uninitialized list for rid={}',
-                        role_id)
+            log.warning('uninitialized list for gid={} cid={} rid={}',
+                        self.guild_id, self.channel_id, role_id)
             return None
 
         groups_idx = index_by_func(
@@ -793,10 +797,22 @@ class GuildMemberList:
         the group if it lost the permissions to
         read the channel.
         """
+        if not self.list:
+            return
+
         role_id = int(role['id'])
 
         group_idx = self._get_role_as_group_idx(role_id)
+
+        if not group_idx and role['hoist']:
+            # this is a new group, so we'll treat it accordingly.
+            log.debug('role_update promote to new_role call rid={}',
+                      role_id)
+            return await self.new_role(role)
+
         if not group_idx:
+            log.debug('role is not group {} (gid={}, cid={})',
+                      role_id, self.guild_id, self.channel_id)
             return
 
         group = self.list.groups[group_idx]
@@ -812,12 +828,20 @@ class GuildMemberList:
         # respective GUILD_MEMBER_LIST_UPDATE events
         # down to the subscribers.
         if not self._can_read_chan(group):
+            log.debug('role_update promote to role_delete '
+                      'call rid={} (lost perms)',
+                      role_id)
+            return await self.role_delete(role_id)
+
+        if not role['hoist']:
+            log.debug('role_update promote to role_delete '
+                      'call rid={} (no hoist)',
+                      role_id)
             return await self.role_delete(role_id)
 
     async def role_delete(self, role_id: int):
         """Called when a role is deleted, so we should
         delete it off the list."""
-
         if not self.list:
             return
 
@@ -830,7 +854,19 @@ class GuildMemberList:
             self.items
         )
 
-        sess_ids_resync = self.get_subs(role_item_index)
+        # we only resync when we actually have an item to resync
+        # we don't have items to resync when we:
+        #  - a role without users is losing hoist
+        #  - the role isn't a group to begin with
+
+        # we convert the get_subs result to a list
+        # so we have all the states to resync with.
+
+        # using a filter object would cause problems
+        # as we only resync AFTER we delete the group
+        sess_ids_resync = (list(self.get_subs(role_item_index))
+                           if role_item_index is not None
+                           else [])
 
         # remove the group info off the list
         groups_index = index_by_func(
@@ -859,10 +895,15 @@ class GuildMemberList:
         try:
             self.list.overwrites.pop(role_id)
         except KeyError:
-            log.warning('list unstable: {} not in overwrites dict', role_id)
+            # don't need to log as not having a overwrite
+            # is acceptable behavior.
+            pass
 
         # after removing, we do a resync with the
         # shards that had the group.
+
+        log.info('role_delete rid={} (gid={}, cid={})',
+                 role_id, self.guild_id, self.channel_id)
 
         for session_id in sess_ids_resync:
             # find the list range that the group was on
@@ -938,17 +979,18 @@ class LazyGuildDispatcher(Dispatcher):
     async def dispatch(self, guild_id, event: str, *args, **kwargs):
         """Call a function specialized in handling the given event"""
         try:
-            handler = getattr(self, f'_handle_{event}')
-            await handler(guild_id, *args, **kwargs)
+            handler = getattr(self, f'_handle_{event.lower()}')
         except AttributeError:
             log.warning('unknown event: {}', event)
             return
+
+        await handler(guild_id, *args, **kwargs)
 
     async def _call_all_lists(self, guild_id, method_str: str, *args):
         lists = self.get_gml_guild(guild_id)
 
         log.debug('calling method={} to all {} lists',
-                  method, len(lists))
+                  method_str, len(lists))
 
         for lazy_list in lists:
             method = getattr(lazy_list, method_str)
