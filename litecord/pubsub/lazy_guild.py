@@ -776,6 +776,8 @@ class GuildMemberList:
 
         groups_idx = self._get_role_as_group_idx(role_id)
         if groups_idx is None:
+            log.debug('ignoring rid={} because not group (gid={}, cid={})',
+                      role_id, self.guild_id, self.channel_id)
             return
 
         group = self.list.groups[groups_idx]
@@ -787,6 +789,11 @@ class GuildMemberList:
         new_groups = sorted(self.list.groups,
                             key=lambda group: group.position)
 
+        log.debug('resorted groups from role pos upd '
+                  'rid={} rpos={} (gid={}, cid={}) '
+                  'res={}',
+                  role_id, group.position, self.guild_id, self.channel_id,
+                  [g.gid for g in new_groups])
         self.list.groups = new_groups
 
     async def role_update(self, role: dict):
