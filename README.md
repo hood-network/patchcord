@@ -71,6 +71,9 @@ Because of that, **never setup a testing environment in production.**
 # setup the testing users
 $ pipenv run ./manage.py setup_tests
 
-# run tests
-$ pipenv run tox
+# make sure you have tox installed
+$ pip install tox
+
+# run basic linter and tests
+$ tox
 ```
