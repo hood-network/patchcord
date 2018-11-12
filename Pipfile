@@ -12,6 +12,8 @@ Quart = "==0.6.4"
 Earl-ETF = "==2.1.2"
 logbook = "*"
 Cerberus = "==1.2"
+pytest = "*"
+pytest-asyncio = "*"
 
 [dev-packages]
 
