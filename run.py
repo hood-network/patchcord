@@ -92,7 +92,6 @@ for bp, suffix in bps.items():
     suffix = suffix or ''
     app.register_blueprint(bp, url_prefix=f'/api/v6{suffix}')
 
-
 @app.before_request
 async def app_before_request():
     await ratelimit_handler()
@@ -188,6 +187,7 @@ async def app_before_serving():
     ws_future = websockets.serve(_wrapper, host, port)
 
     await ws_future
+    log.info('started')
 
 
 @app.after_serving
@@ -236,4 +236,5 @@ async def handle_500(err):
 
 @app.route('/')
 async def index():
+    """sample index page."""
     return 'hewwo'
