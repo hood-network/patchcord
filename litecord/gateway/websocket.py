@@ -116,7 +116,7 @@ class GatewayWebsocket:
         """
         encoded = self.encoder(payload)
 
-        if len(encoded) < 1024:
+        if len(encoded) < 2048:
             log.debug('sending\n{}', pprint.pformat(payload))
         else:
             # log.debug('sending {}', pprint.pformat(payload))
@@ -749,6 +749,9 @@ class GatewayWebsocket:
         # make sure to not extract info you shouldn't get
         if guild_id not in gids:
             return
+
+        log.debug('lazy request: members: {}',
+                  data.get('members', []))
 
         # make shard query
         lazy_guilds = self.ext.dispatcher.backends['lazy_guild']
