@@ -62,35 +62,39 @@ def make_app():
     return app
 
 
+def set_blueprints(app_):
+    bps = {
+        gateway: None,
+        auth: '/auth',
+        users: '/users',
+        relationships: '/users',
+
+        guilds: '/guilds',
+        guild_roles: '/guilds',
+        guild_members: '/guilds',
+        guild_channels: '/guilds',
+        guild_mod: '/guilds',
+
+        channels: '/channels',
+        channel_messages: '/channels',
+        channel_reactions: '/channels',
+        channel_pins: '/channels',
+
+        webhooks: None,
+        science: None,
+        voice: '/voice',
+        invites: None,
+        dms: '/users'
+    }
+
+    for bp, suffix in bps.items():
+        suffix = suffix or ''
+        app_.register_blueprint(bp, url_prefix=f'/api/v6{suffix}')
+
+
 app = make_app()
+set_blueprints(app)
 
-bps = {
-    gateway: None,
-    auth: '/auth',
-    users: '/users',
-    relationships: '/users',
-
-    guilds: '/guilds',
-    guild_roles: '/guilds',
-    guild_members: '/guilds',
-    guild_channels: '/guilds',
-    guild_mod: '/guilds',
-
-    channels: '/channels',
-    channel_messages: '/channels',
-    channel_reactions: '/channels',
-    channel_pins: '/channels',
-
-    webhooks: None,
-    science: None,
-    voice: '/voice',
-    invites: None,
-    dms: '/users'
-}
-
-for bp, suffix in bps.items():
-    suffix = suffix or ''
-    app.register_blueprint(bp, url_prefix=f'/api/v6{suffix}')
 
 @app.before_request
 async def app_before_request():
