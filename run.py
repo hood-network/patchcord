@@ -63,6 +63,9 @@ def make_app():
 
 
 def set_blueprints(app_):
+    """Set the blueprints for a given app instance"""
+    log.debug('blueprint setup')
+
     bps = {
         gateway: None,
         auth: '/auth',
@@ -90,6 +93,8 @@ def set_blueprints(app_):
     for bp, suffix in bps.items():
         suffix = suffix or ''
         app_.register_blueprint(bp, url_prefix=f'/api/v6{suffix}')
+
+    log.debug('blueprint setup: OK')
 
 
 app = make_app()
@@ -148,6 +153,7 @@ async def app_set_ratelimit_headers(resp):
 
 async def init_app_db(app):
     """Connect to databases"""
+    log.info('db connect')
     app.db = await asyncpg.create_pool(**app.config['POSTGRES'])
 
 
