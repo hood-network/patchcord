@@ -9,7 +9,7 @@ This project is a rewrite of [litecord-reference].
 
 ## Notes
 
- - There are no testing being run on the current codebase. Which means the code is definitely unstable.
+ - Unit testing isn't completly perfect.
  - No voice is planned to be developed, for now.
  - You must figure out connecting to the server yourself. Litecord will not distribute
     Discord's official client code nor provide ways to modify the client.
@@ -17,7 +17,7 @@ This project is a rewrite of [litecord-reference].
 ## Install
 
 Requirements:
-- Python 3.6 or higher
+- Python 3.7 or higher
 - PostgreSQL
 - [Pipenv]
 
@@ -60,4 +60,17 @@ $ pipenv run hypercorn run:app
 ```sh
 $ git pull
 $ pipenv run ./manage.py migrate
+```
+
+## Running tests
+
+To run tests we must create users that we know the passwords of.
+Because of that, **never setup a testing environment in production.**
+
+```sh
+# setup the testing users
+$ pipenv run ./manage.py setup_tests
+
+# run tests
+$ pipenv run tox
 ```
