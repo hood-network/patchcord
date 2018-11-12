@@ -1,7 +1,6 @@
 """
 Main code for Lazy Guild implementation in litecord.
 """
-import pprint
 import asyncio
 from dataclasses import dataclass, asdict, field
 from collections import defaultdict
@@ -666,22 +665,17 @@ class GuildMemberList:
         index = 1
 
         for g, member_ids in self.list.iter_non_empty:
-            print('step', index, g.gid, user_id, member_ids)
-
             try:
                 relative_index = member_ids.index(user_id)
                 index += relative_index
 
-                print('found, finish', index, relative_index)
                 return index
             except ValueError:
                 pass
 
             # +1 is for the group item
-            print('not found, skip', index, len(member_ids))
             index += 1 + len(member_ids)
 
-        print('not found, finish')
         return None
 
     def get_group_item_index(self, group_id: GroupID) -> int:
@@ -722,9 +716,6 @@ class GuildMemberList:
             log.warning('lazy guild got invalid pres update uid={}',
                         user_id)
             return []
-
-        print('item found', item_index)
-        pprint.pprint(self.items)
 
         item = self.items[item_index]
         session_ids = self.get_subs(item_index)
@@ -1131,7 +1122,6 @@ class GuildMemberList:
         log.info('role_delete rid={} (gid={}, cid={})',
                  role_id, self.guild_id, self.channel_id)
 
-        pprint.pprint(self.state)
         log.debug('there are {} session ids to resync (for item {})',
                   len(sess_ids_resync), role_item_index)
 
