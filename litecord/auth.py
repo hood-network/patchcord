@@ -1,11 +1,15 @@
 import base64
 import binascii
+from random import randint
 
+import bcrypt
+from asyncpg import UniqueViolationError
 from itsdangerous import Signer, BadSignature
 from logbook import Logger
 from quart import request, current_app as app
 
-from .errors import Forbidden, Unauthorized
+from litecord.errors import Forbidden, Unauthorized, BadRequest
+from litecord.snowflake import get_snowflake
 
 
 log = Logger(__name__)
@@ -75,3 +79,59 @@ async def token_check():
     user_id = await raw_token_check(token)
     request.user_id = user_id
     return user_id
+
+
+async def hash_data(data: str, loop=None) -> str:
+    """Hash information with bcrypt."""
+    loop = loop or app.loop
+    buf = data.encode()
+
+    hashed = await loop.run_in_executor(
+        None, bcrypt.hashpw, buf, bcrypt.gensalt(14)
+    )
+
+    return hashed.decode()
+
+
+
+async def check_username_usage(username: str, db=None):
+    """Raise an error if too many people are with the same username."""
+    db = db or app.db
+    same_username = await db.fetchval("""
+    SELECT COUNT(*)
+    FROM users
+    WHERE username = $1
+    """, username)
+
+    if same_username > 8000:
+        raise BadRequest('Too many people.', {
+            'username': 'Too many people used the same username. '
+                        'Please choose another'
+        })
+
+
+async def create_user(username: str, email: str, password: str,
+                      db=None, loop=None):
+    """Create a single user."""
+    db = db or app.db
+    loop = loop or app.loop
+
+    new_id = get_snowflake()
+
+    new_discrim = randint(1, 9999)
+    new_discrim = '%04d' % new_discrim
+
+    pwd_hash = await hash_data(password, loop)
+
+    await check_username_usage(username, db)
+
+    try:
+        await db.execute("""
+        INSERT INTO users (id, email, username,
+                        discriminator, password_hash)
+        VALUES ($1, $2, $3, $4, $5)
+        """, new_id, email, username, new_discrim, pwd_hash)
+    except UniqueViolationError:
+        raise BadRequest('Email already used.')
+
+    return new_id, pwd_hash

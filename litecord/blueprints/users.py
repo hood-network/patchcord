@@ -9,7 +9,8 @@ from ..schemas import validate, USER_SETTINGS, \
     USER_UPDATE, GUILD_SETTINGS
 
 from .guilds import guild_check
-from .auth import hash_data, check_password, check_username_usage
+from .auth import check_password
+from litecord.auth import hash_data, check_username_usage
 
 bp = Blueprint('user', __name__)
 

@@ -7,6 +7,7 @@ from logbook import Logger
 
 from run import init_app_managers, init_app_db
 from manage.cmd.migration import migration
+from manage.cmd import users, tests
 
 log = Logger(__name__)
 
@@ -29,6 +30,8 @@ def init_parser():
     subparser = parser.add_subparsers(help='operations')
 
     migration(subparser)
+    users.setup(subparser)
+    tests.setup(subparser)
 
     return parser
 

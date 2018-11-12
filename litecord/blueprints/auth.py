@@ -8,21 +8,10 @@ from quart import Blueprint, jsonify, request, current_app as app
 
 from litecord.snowflake import get_snowflake
 from litecord.errors import BadRequest
-from litecord.auth import token_check
+from litecord.auth import token_check, create_user
 
 
 bp = Blueprint('auth', __name__)
-
-
-async def hash_data(data: str) -> str:
-    """Hash information with bcrypt."""
-    buf = data.encode()
-
-    hashed = await app.loop.run_in_executor(
-        None, bcrypt.hashpw, buf, bcrypt.gensalt(14)
-    )
-
-    return hashed.decode()
 
 
 async def check_password(pwd_hash: str, given_password: str) -> bool:
@@ -43,43 +32,15 @@ def make_token(user_id, user_pwd_hash) -> str:
     return signer.sign(user_id).decode()
 
 
-async def check_username_usage(username: str):
-    """Raise an error if too many people are with the same username."""
-    same_username = await app.db.fetchval("""
-    SELECT COUNT(*)
-    FROM users
-    WHERE username = $1
-    """, username)
-
-    if same_username > 8000:
-        raise BadRequest('Too many people.', {
-            'username': 'Too many people used the same username. '
-                        'Please choose another'
-        })
-
-
 @bp.route('/register', methods=['POST'])
 async def register():
+    """Register a single user."""
     j = await request.get_json()
     email, password, username = j['email'], j['password'], j['username']
 
-    new_id = get_snowflake()
-
-    new_discrim = random.randint(1, 9999)
-    new_discrim = '%04d' % new_discrim
-
-    pwd_hash = await hash_data(password)
-
-    await check_username_usage(username)
-
-    try:
-        await app.db.execute("""
-        INSERT INTO users (id, email, username,
-                        discriminator, password_hash)
-        VALUES ($1, $2, $3, $4, $5)
-        """, new_id, email, username, new_discrim, pwd_hash)
-    except asyncpg.UniqueViolationError:
-        raise BadRequest('Email already used.')
+    new_id, pwd_hash = await create_user(
+        username, email, password, app.db
+    )
 
     return jsonify({
         'token': make_token(new_id, pwd_hash)
