@@ -29,19 +29,20 @@ def extract_limit(request, default: int = 50):
 
 
 def query_tuple_from_args(args: dict, limit: int) -> tuple:
+    """Extract a 2-tuple out of request arguments."""
     before, after = None, None
 
     if 'around' in request.args:
         average = int(limit / 2)
-        around = int(request.args['around'])
+        around = int(args['around'])
 
         after = around - average
         before = around + average
 
-    elif 'before' in request.args:
-        before = int(request.args['before'])
-    elif 'after' in request.args:
-        before = int(request.args['after'])
+    elif 'before' in args:
+        before = int(args['before'])
+    elif 'after' in args:
+        before = int(args['after'])
 
     return before, after
 
