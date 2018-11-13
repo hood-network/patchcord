@@ -12,6 +12,7 @@ Earl-ETF = "==2.1.2"
 logbook = "==1.4.0"
 Cerberus = "==1.2"
 quart = {editable = true, ref = "e23714d5", git = "https://gitlab.com/pgjones/quart"}
+pillow = "*"
 
 [dev-packages]
 pytest = "==3.10.1"

@@ -14,7 +14,7 @@ import config
 
 from litecord.blueprints import (
     gateway, auth, users, guilds, channels, webhooks, science,
-    voice, invites, relationships, dms
+    voice, invites, relationships, dms, icons
 )
 
 # those blueprints are separated from the "main" ones
@@ -85,12 +85,14 @@ def set_blueprints(app_):
         science: None,
         voice: '/voice',
         invites: None,
-        dms: '/users'
+        dms: '/users',
+
+        icons: -1,
     }
 
     for bp, suffix in bps.items():
-        suffix = suffix or ''
-        app_.register_blueprint(bp, url_prefix=f'/api/v6{suffix}')
+        url_prefix = f'/api/v6/{suffix or ""}' if suffix != -1 else ''
+        app_.register_blueprint(bp, url_prefix=url_prefix)
 
 
 app = make_app()
@@ -99,6 +101,8 @@ set_blueprints(app)
 
 @app.before_request
 async def app_before_request():
+    """Functions to call before the request actually
+    takes place."""
     await ratelimit_handler()
 
 
