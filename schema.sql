@@ -331,34 +331,6 @@ CREATE TABLE IF NOT EXISTS group_dm_members (
 );
 
 
-CREATE TABLE IF NOT EXISTS channel_overwrites (
-    channel_id bigint REFERENCES channels (id) ON DELETE CASCADE,
-
-    -- target_type = 0 -> use target_user
-    -- target_type = 1 -> use target_role
-    -- discord already has overwrite.type = 'role' | 'member'
-    -- so this allows us to be more compliant with the API
-    target_type integer default null,
-
-    -- keeping both columns separated and as foreign keys
-    -- instead of a single "target_id bigint" column
-    -- makes us able to remove the channel overwrites of
-    -- a role when its deleted (same for users, etc).
-    target_role bigint REFERENCES roles (id) ON DELETE CASCADE,
-    target_user bigint REFERENCES users (id) ON DELETE CASCADE,
-
-    -- since those are permission bit sets
-    -- they're bigints (64bits), discord,
-    -- for now, only needs 53.
-    allow bigint DEFAULT 0,
-    deny bigint DEFAULT 0
-);
-
--- columns in private keys can't have NULL values,
--- so instead we use a custom constraint with UNIQUE
-
-ALTER TABLE channel_overwrites ADD CONSTRAINT channel_overwrites_uniq
-    UNIQUE (channel_id, target_role, target_user);
 
 
 CREATE TABLE IF NOT EXISTS features (
@@ -459,6 +431,36 @@ CREATE TABLE IF NOT EXISTS roles (
 
     PRIMARY KEY (id, guild_id)
 );
+
+
+CREATE TABLE IF NOT EXISTS channel_overwrites (
+    channel_id bigint REFERENCES channels (id) ON DELETE CASCADE,
+
+    -- target_type = 0 -> use target_user
+    -- target_type = 1 -> use target_role
+    -- discord already has overwrite.type = 'role' | 'member'
+    -- so this allows us to be more compliant with the API
+    target_type integer default null,
+
+    -- keeping both columns separated and as foreign keys
+    -- instead of a single "target_id bigint" column
+    -- makes us able to remove the channel overwrites of
+    -- a role when its deleted (same for users, etc).
+    target_role bigint REFERENCES roles (id) ON DELETE CASCADE,
+    target_user bigint REFERENCES users (id) ON DELETE CASCADE,
+
+    -- since those are permission bit sets
+    -- they're bigints (64bits), discord,
+    -- for now, only needs 53.
+    allow bigint DEFAULT 0,
+    deny bigint DEFAULT 0
+);
+
+-- columns in private keys can't have NULL values,
+-- so instead we use a custom constraint with UNIQUE
+
+ALTER TABLE channel_overwrites ADD CONSTRAINT channel_overwrites_uniq
+    UNIQUE (channel_id, target_role, target_user);
 
 
 CREATE TABLE IF NOT EXISTS guild_whitelists (
