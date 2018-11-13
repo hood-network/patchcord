@@ -1,7 +1,14 @@
 image: python:3.7-alpine
 
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
 services:
   - postgres:alpine
+
+cache:
+  paths:
+    - .cache/pip
 
 tests:
   before_script:
