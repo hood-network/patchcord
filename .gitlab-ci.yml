@@ -13,12 +13,13 @@ cache:
 tests:
   before_script:
     - python -V
-    - apk --update add --no-cache build-base gcc libgcc libffi-dev openssl-dev git
+    - apk --update add --no-cache build-base gcc libgcc libffi-dev openssl-dev git postgresql-client
     - pip3 install pipenv wheel tox
     - pipenv install --dev
   script:
     - ls
     - cp config.ci.py config.py
+    - psql -U postgres -f schema.sql
     - pipenv run ./manage.py migrate
     - pipenv run ./manage.py setup_tests
     - tox
