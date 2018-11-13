@@ -19,7 +19,7 @@ tests:
   script:
     - ls
     - cp config.ci.py config.py
-    - psql -U postgres -f schema.sql
+    - psql -h postgres -U postgres -f schema.sql
     - pipenv run ./manage.py migrate
     - pipenv run ./manage.py setup_tests
     - tox
