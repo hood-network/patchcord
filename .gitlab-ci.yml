@@ -13,7 +13,7 @@ cache:
 tests:
   before_script:
     - python -V
-    - apk --update add --no-cache build-base gcc libgcc
+    - apk --update add --no-cache build-base gcc libgcc libffi-dev openssl-dev
     - pip3 install pipenv wheel tox
     - pipenv install --dev
   script:
