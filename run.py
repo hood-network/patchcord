@@ -64,8 +64,6 @@ def make_app():
 
 def set_blueprints(app_):
     """Set the blueprints for a given app instance"""
-    log.debug('blueprint setup')
-
     bps = {
         gateway: None,
         auth: '/auth',
@@ -93,8 +91,6 @@ def set_blueprints(app_):
     for bp, suffix in bps.items():
         suffix = suffix or ''
         app_.register_blueprint(bp, url_prefix=f'/api/v6{suffix}')
-
-    log.debug('blueprint setup: OK')
 
 
 app = make_app()
@@ -197,7 +193,6 @@ async def app_before_serving():
     ws_future = websockets.serve(_wrapper, host, port)
 
     await ws_future
-    log.info('started')
 
 
 @app.after_serving
