@@ -2,7 +2,6 @@ from typing import List, Dict, Any
 from random import choice
 
 from logbook import Logger
-from quart import current_app as app
 
 log = Logger(__name__)
 

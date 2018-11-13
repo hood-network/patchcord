@@ -1,6 +1,6 @@
 import ctypes
 
-from quart import current_app as app, request
+from quart import current_app as app
 
 # so we don't keep repeating the same
 # type for all the fields

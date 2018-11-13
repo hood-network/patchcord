@@ -1,4 +1,4 @@
-from typing import List, Dict, Any, Union
+from typing import List, Dict
 
 from quart import Blueprint, request, current_app as app, jsonify
 from logging import Logger

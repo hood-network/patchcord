@@ -13,7 +13,7 @@ from litecord.permissions import (
     Permissions, overwrite_find_mix, get_permissions, role_permissions
 )
 from litecord.utils import index_by_func
-from litecord.storage import str_
+
 
 log = Logger(__name__)
 

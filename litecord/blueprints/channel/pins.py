@@ -1,4 +1,4 @@
-from quart import Blueprint, current_app as app, request, jsonify
+from quart import Blueprint, current_app as app, jsonify
 
 from litecord.auth import token_check
 from litecord.blueprints.checks import channel_check

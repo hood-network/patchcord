@@ -2,7 +2,6 @@
 blueprint for direct messages
 """
 
-from asyncpg import UniqueViolationError
 from quart import Blueprint, request, current_app as app, jsonify
 from logbook import Logger
 

@@ -1,4 +1,4 @@
-from quart import current_app as app, request, g
+from quart import current_app as app, request
 
 from litecord.errors import Ratelimited
 from litecord.auth import token_check, Unauthorized

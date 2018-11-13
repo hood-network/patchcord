@@ -6,7 +6,7 @@ from logbook import Logger
 from .enums import ChannelType, RelationshipType
 from .schemas import USER_MENTION, ROLE_MENTION
 from litecord.blueprints.channel.reactions import (
-    emoji_info_from_str, EmojiType, emoji_sql, partial_emoji
+    EmojiType, emoji_sql, partial_emoji
 )
 
 

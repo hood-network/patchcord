@@ -1,4 +1,3 @@
-import collections
 from typing import List, Any
 
 from logbook import Logger

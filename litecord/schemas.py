@@ -1,5 +1,5 @@
 import re
-from typing import Union, Dict, List, Any
+from typing import Union, Dict, List
 
 from cerberus import Validator
 from logbook import Logger

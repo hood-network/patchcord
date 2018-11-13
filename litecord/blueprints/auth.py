@@ -1,13 +1,9 @@
-import random
 import base64
 
-import asyncpg
 import itsdangerous
 import bcrypt
 from quart import Blueprint, jsonify, request, current_app as app
 
-from litecord.snowflake import get_snowflake
-from litecord.errors import BadRequest
 from litecord.auth import token_check, create_user
 
 
