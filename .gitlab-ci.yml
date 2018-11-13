@@ -1,0 +1,17 @@
+image: python:3.7-alpine
+
+services:
+  - postgres:alpine
+
+tests:
+  before_script:
+    - python -V
+    - apk --update add --no-cache --virtual .build_deps build-base python3.7-dev gcc libgcc
+    - pip3 install pipenv wheel tox
+    - pipenv install --dev
+  script:
+    - ls
+    - cp config.ci.py config.py
+    - pipenv run ./manage.py migrate
+    - pipenv run ./manage.py setup_tests
+    - tox
