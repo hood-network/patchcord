@@ -13,7 +13,7 @@ cache:
 tests:
   before_script:
     - python -V
-    - apk --update add --no-cache --virtual .build_deps build-base python3.7-dev gcc libgcc
+    - apk --update add --no-cache build-base python3.7-dev gcc libgcc
     - pip3 install pipenv wheel tox
     - pipenv install --dev
   script:
