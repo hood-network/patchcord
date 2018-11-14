@@ -32,6 +32,10 @@ from litecord.blueprints.user import (
     user_settings, user_billing
 )
 
+from litecord.blueprints.user.billing_job import (
+    payment_job
+)
+
 from litecord.ratelimits.handler import ratelimit_handler
 from litecord.ratelimits.main import RatelimitManager
 
@@ -42,6 +46,7 @@ from litecord.storage import Storage
 from litecord.dispatcher import EventDispatcher
 from litecord.presence import PresenceManager
 from litecord.images import IconManager
+from litecord.jobs import JobManager
 
 # setup logbook
 handler = StreamHandler(sys.stdout, level=logbook.INFO)
@@ -164,9 +169,14 @@ async def app_set_ratelimit_headers(resp):
 
 
 async def init_app_db(app):
-    """Connect to databases"""
+    """Connect to databases.
+
+    Also spawns the job scheduler.
+    """
     log.info('db connect')
     app.db = await asyncpg.create_pool(**app.config['POSTGRES'])
+
+    app.sched = JobManager()
 
 
 def init_app_managers(app):
@@ -180,7 +190,13 @@ def init_app_managers(app):
     app.dispatcher = EventDispatcher(app)
     app.presence = PresenceManager(app.storage,
                                    app.state_manager, app.dispatcher)
+
     app.storage.presence = app.presence
+
+
+async def post_app_start(app):
+    # we'll need to start a billing job
+    app.sched.spawn(payment_job(app))
 
 
 @app.before_serving
@@ -209,6 +225,7 @@ async def app_before_serving():
 
     ws_future = websockets.serve(_wrapper, host, port)
 
+    await post_app_start(app)
     await ws_future
 
 
@@ -222,6 +239,8 @@ async def app_after_serving():
         await asyncio.wait(tasks, loop=app.loop)
 
     app.state_manager.close()
+
+    app.sched.close()
 
     log.info('closing db')
     await app.db.close()
