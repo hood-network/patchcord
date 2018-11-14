@@ -205,18 +205,9 @@ async def _update_guild(guild_id):
 
     if 'icon' in j:
         # delete old
-        old_icon_hash = await app.db.fetchval("""
-        SELECT icon
-        FROM guilds
-        WHERE id = $1
-        """, guild_id)
-
-        old_icon = await app.icons.get_guild_icon(
-            guild_id, old_icon_hash)
-
-        await app.icons.delete(old_icon)
-
-        new_icon = await put_guild_icon(guild_id, j['icon'])
+        new_icon = await app.icons.update(
+            'guild', guild_id, j['icon']
+        )
 
         await app.db.execute("""
         UPDATE guilds

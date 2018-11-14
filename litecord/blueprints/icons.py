@@ -1,5 +1,5 @@
 from os.path import splitext
-from quart import Blueprint, current_app as app, send_file
+from quart import Blueprint, current_app as app, send_file, request
 
 bp = Blueprint('images', __name__)
 
@@ -20,11 +20,13 @@ def splitext_(filepath):
     return name, ext.strip('.')
 
 
-@bp.route('/emojis/<int:emoji_id>.<ext>', methods=['GET'])
-async def _get_raw_emoji(emoji_id: int, ext: str):
+@bp.route('/emojis/<emoji_file>', methods=['GET'])
+async def _get_raw_emoji(emoji_file):
     # emoji = app.icons.get_emoji(emoji_id, ext=ext)
     # just a test file for now
-    return await send_file('./LICENSE')
+    emoji_id, ext = splitext_(emoji_file)
+    return await send_icon(
+        'emoji', emoji_id, emoji_id, ext=ext)
 
 
 @bp.route('/icons/<int:guild_id>/<icon_file>', methods=['GET'])
@@ -43,9 +45,13 @@ async def _get_default_user_avatar(discrim: int):
     pass
 
 
-@bp.route('/avatars/<int:user_id>/<avatar_hash>.<ext>')
-async def _get_user_avatar(user_id, avatar_hash, ext):
-    return await send_icon('user', user_id, avatar_hash, ext=ext)
+@bp.route('/avatars/<int:user_id>/<avatar_file>')
+async def _get_user_avatar(user_id, avatar_file):
+    # size_int = int(request.args.get('size', '1024'))
+    # siz = (size_int, size_int)
+    avatar_hash, ext = splitext_(avatar_file)
+    return await send_icon(
+        'user', user_id, avatar_hash, ext=ext)
 
 
 # @bp.route('/app-icons/<int:application_id>/<icon_hash>.<ext>')

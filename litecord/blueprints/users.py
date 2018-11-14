@@ -173,9 +173,15 @@ async def patch_me():
         """, j['email'], user_id)
         user['email'] = j['email']
 
-    if 'avatar' in j:
-        # TODO: update icon
-        pass
+    if 'avatar' in j and j['avatar']:
+        new_icon = await app.icons.update(
+            'user', user_id, j['avatar'], size=(128, 128))
+
+        await app.db.execute("""
+        UPDATE users
+        SET avatar = $1
+        WHERE id = $2
+        """, new_icon.icon_hash, user_id)
 
     if 'new_password' in j and j['new_password']:
         await _check_pass(j, user)

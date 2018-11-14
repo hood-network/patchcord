@@ -116,6 +116,27 @@ def parse_data_uri(string) -> tuple:
         raise ImageError('data URI invalid syntax')
 
 
+def _gen_update_sql(scope: str) -> str:
+    field = {
+        'user': 'avatar',
+        'guild': 'icon'
+    }[scope]
+
+    table = {
+        'user': 'users',
+        'guild': 'guilds'
+    }[scope]
+
+    col = {
+        'user': 'id',
+        'guild': 'id'
+    }[scope]
+
+    return f"""
+    SELECT {field} FROM {table} WHERE {col} = $1
+    """
+
+
 class IconManager:
     """Main icon manager."""
     def __init__(self, app):
@@ -140,6 +161,7 @@ class IconManager:
 
     async def generic_get(self, scope, key, icon_hash, **kwargs) -> Icon:
         """Get any icon."""
+        log.debug('GET {} {} {}', scope, key, icon_hash)
         key = str(key)
 
         icon_row = await self.storage.db.fetchrow("""
@@ -158,7 +180,7 @@ class IconManager:
         if not icon.as_pathlib.exists():
             await self.delete(icon)
             return None
-
+        
         if 'ext' in kwargs and kwargs['ext'] != icon.extension:
             return await self._convert_ext(icon, kwargs['ext'])
 
@@ -252,9 +274,22 @@ class IconManager:
         WHERE hash = $1
         """, icon.icon_hash)
 
-        icon_path = icon.as_pathlib
+        paths = IMAGE_FOLDER.glob(f'{icon.icon_hash}.*')
 
-        try:
-            icon_path.unlink()
-        except FileNotFoundError:
-            pass
+        for path in paths:
+            try:
+                path.unlink()
+            except FileNotFoundError:
+                pass
+
+    async def update(self, scope: str, key: str,
+                     new_icon_data: str, **kwargs) -> Icon:
+        """Update an icon on a key."""
+        old_icon_hash = await self.storage.db.fetchval(
+            _gen_update_sql(scope), key)
+
+        key = str(key)
+        old_icon = await self.generic_get(scope, key, old_icon_hash)
+        await self.delete(old_icon)
+
+        return await self.put(scope, key, new_icon_data, **kwargs)
