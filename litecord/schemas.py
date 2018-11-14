@@ -69,7 +69,8 @@ class LitecordValidator(Validator):
 
     def _validate_type_voice_region(self, value: str) -> bool:
         # TODO: complete this list
-        return value.lower() in ('brazil', 'us-east', 'us-west', 'us-south', 'russia')
+        return value.lower() in ('brazil', 'us-east', 'us-west',
+                                 'us-south', 'russia')
 
     def _validate_type_verification_level(self, value: int) -> bool:
         return _in_enum(VerificationLevel, value)

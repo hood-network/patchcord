@@ -28,6 +28,10 @@ from litecord.blueprints.channel import (
     channel_messages, channel_reactions, channel_pins
 )
 
+from litecord.blueprints.user import (
+    user_settings, user_billing
+)
+
 from litecord.ratelimits.handler import ratelimit_handler
 from litecord.ratelimits.main import RatelimitManager
 
@@ -68,7 +72,10 @@ def set_blueprints(app_):
     bps = {
         gateway: None,
         auth: '/auth',
+
         users: '/users',
+        user_settings: '/users',
+        user_billing: '/users',
         relationships: '/users',
 
         guilds: '/guilds',

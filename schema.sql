@@ -156,6 +156,83 @@ CREATE TABLE IF NOT EXISTS user_settings (
 );
 
 
+-- main user billing tables
+CREATE TABLE IF NOT EXISTS user_payment_sources (
+    id bigint PRIMARY KEY,
+    user_id bigint REFERENCES users (id) NOT NULL,
+
+    -- type=1: credit card fields
+    -- type=2: paypal fields
+    source_type int,
+
+    -- idk lol
+    invalid bool DEFAULT false,
+    default_ bool DEFAULT false,
+
+    -- credit card info (type 1 only)
+    expires_month int DEFAULT 12,
+    expires_year int DEFAULT 3000,
+    brand text,
+    cc_full text NOT NULL,
+
+    -- paypal info (type 2 only)
+    paypal_email text DEFAULT 'a@a.com',
+
+    -- applies to both
+    billing_address jsonb DEFAULT '{}'
+);
+
+-- actual subscription statuses
+CREATE TABLE IF NOT EXISTS user_subscriptions (
+    id bigint PRIMARY KEY,
+    source_id bigint REFERENCES user_payment_sources (id) NOT NULL,
+    user_id bigint REFERENCES users (id) NOT NULL,
+
+    -- s_type = 1: purchase
+    -- s_type = 2: upgrade
+    s_type int DEFAULT 1,
+
+    -- gateway = 1: stripe
+    -- gateway = 2: braintree
+    payment_gateway int DEFAULT 0,
+    payment_gateway_plan_id text,
+
+    -- status = 1: active
+    -- status = 3: cancelled
+    status int DEFAULT 1,
+
+    canceled_at timestamp without time zone default NULL,
+
+    -- set by us
+    period_start timestamp without time zone default (now() at time zone 'utc'),
+    period_end timestamp without time zone default NULL
+);
+
+-- payment logs
+CREATE TABLE IF NOT EXISTS user_payments (
+    id bigint PRIMARY KEY,
+    source_id bigint REFERENCES user_payment_sources (id),
+    subscription_id bigint REFERENCES user_subscriptions (id),
+    user_id bigint REFERENCES users (id),
+
+    currency text DEFAULT 'usd',
+
+    -- status = 1: success
+    -- status = 2: failed
+    status int DEFAULT 1,
+
+    -- 499 = 4 dollars 99 cents
+    amount bigint,
+
+    tax int DEFAULT 0,
+    tax_inclusive BOOL default true,
+
+    description text,
+
+    amount_refunded int DEFAULT 0
+);
+
+
 -- main user relationships
 CREATE TABLE IF NOT EXISTS relationships (
     -- the id of who made the relationship
