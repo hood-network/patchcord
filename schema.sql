@@ -40,17 +40,22 @@ INSERT INTO user_conn_apps (id, name) VALUES (9, 'Skype');
 INSERT INTO user_conn_apps (id, name) VALUES (10, 'League of Legends');
 
 
-CREATE TABLE IF NOT EXISTS files (
-    -- snowflake id of the file
-    id bigint PRIMARY KEY NOT NULL,
+CREATE TABLE IF NOT EXISTS icons (
+    -- can be 'user', 'guild', 'emoji'
+    scope text NOT NULL,
 
-    -- sha512(file)
-    hash text NOT NULL,
-    mimetype text NOT NULL,
+    -- can be a user snowflake, guild snowflake or
+    -- emoji snowflake
+    key text,
 
-    -- path to the file system
-    fspath text NOT NULL
+    -- sha256 of the icon
+    hash text UNIQUE NOT NULL,
+
+    -- icon mime
+    mime text NOT NULL,
+    PRIMARY KEY (scope, hash, mime)
 );
+
 
 
 CREATE TABLE IF NOT EXISTS users (
@@ -63,7 +68,7 @@ CREATE TABLE IF NOT EXISTS users (
     bot boolean DEFAULT FALSE,
     mfa_enabled boolean DEFAULT FALSE,
     verified boolean DEFAULT FALSE,
-    avatar bigint REFERENCES files (id) DEFAULT NULL,
+    avatar text REFERENCES icons (hash) DEFAULT NULL,
 
     -- user badges, discord dev, etc
     flags int DEFAULT 0,
@@ -320,7 +325,7 @@ CREATE TABLE IF NOT EXISTS group_dm_channels (
     id bigint REFERENCES channels (id) ON DELETE CASCADE,
     owner_id bigint REFERENCES users (id),
     name text,
-    icon bigint REFERENCES files (id),
+    icon text REFERENCES icons (hash) DEFAULT NULL,
     PRIMARY KEY (id)
 );
 
@@ -359,7 +364,7 @@ CREATE TABLE IF NOT EXISTS guild_emoji (
     uploader_id bigint REFERENCES users (id),
 
     name text NOT NULL,
-    image bigint REFERENCES files (id),
+    image text REFERENCES icons (hash),
     animated bool DEFAULT false,
     managed bool DEFAULT false,
     require_colons bool DEFAULT false
@@ -521,7 +526,7 @@ CREATE TABLE IF NOT EXISTS messages (
 
 CREATE TABLE IF NOT EXISTS message_attachments (
     message_id bigint REFERENCES messages (id),
-    attachment bigint REFERENCES files (id),
+    attachment bigint REFERENCES attachments (id),
     PRIMARY KEY (message_id, attachment)
 );
 

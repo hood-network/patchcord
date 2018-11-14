@@ -37,6 +37,7 @@ from litecord.gateway.state_manager import StateManager
 from litecord.storage import Storage
 from litecord.dispatcher import EventDispatcher
 from litecord.presence import PresenceManager
+from litecord.images import IconManager
 
 # setup logbook
 handler = StreamHandler(sys.stdout, level=logbook.INFO)
@@ -91,7 +92,11 @@ def set_blueprints(app_):
     }
 
     for bp, suffix in bps.items():
-        url_prefix = f'/api/v6/{suffix or ""}' if suffix != -1 else ''
+        url_prefix = f'/api/v6{suffix or ""}'
+
+        if suffix == -1:
+            url_prefix = ''
+
         app_.register_blueprint(bp, url_prefix=url_prefix)
 
 
@@ -163,6 +168,7 @@ def init_app_managers(app):
     app.ratelimiter = RatelimitManager()
     app.state_manager = StateManager()
     app.storage = Storage(app.db)
+    app.icons = IconManager(app)
 
     app.dispatcher = EventDispatcher(app)
     app.presence = PresenceManager(app.storage,

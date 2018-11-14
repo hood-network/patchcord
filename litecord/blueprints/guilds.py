@@ -86,6 +86,19 @@ async def guild_create_channels_prep(guild_id: int, channels: list):
         await create_guild_channel(guild_id, channel_id, ctype)
 
 
+async def put_guild_icon(guild_id: int, icon: str):
+    """Insert a guild icon on the icon database."""
+    if icon and icon.startswith('data'):
+        encoded = icon
+    else:
+        encoded = (f'data:image/jpeg;base64,{icon}'
+                   if icon
+                   else None)
+
+    return await app.icons.put(
+        'guild', guild_id, encoded, size=(128, 128))
+
+
 @bp.route('', methods=['POST'])
 async def create_guild():
     """Create a new guild, assigning
@@ -96,13 +109,15 @@ async def create_guild():
 
     guild_id = get_snowflake()
 
+    image = await put_guild_icon(guild_id, j['icon'])
+
     await app.db.execute(
         """
         INSERT INTO guilds (id, name, region, icon, owner_id,
             verification_level, default_message_notifications,
             explicit_content_filter)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-        """, guild_id, j['name'], j['region'], j['icon'], user_id,
+        """, guild_id, j['name'], j['region'], image.icon_hash, user_id,
         j.get('verification_level', 0),
         j.get('default_message_notifications', 0),
         j.get('explicit_content_filter', 0))
@@ -157,8 +172,8 @@ async def get_guild(guild_id):
     )
 
 
-@bp.route('/<int:guild_id>', methods=['UPDATE'])
-async def update_guild(guild_id):
+@bp.route('/<int:guild_id>', methods=['PATCH'])
+async def _update_guild(guild_id):
     user_id = await token_check()
 
     # TODO: check MANAGE_GUILD
@@ -171,41 +186,62 @@ async def update_guild(guild_id):
         await app.db.execute("""
         UPDATE guilds
         SET owner_id = $1
-        WHERE guild_id = $2
+        WHERE id = $2
         """, int(j['owner_id']), guild_id)
 
     if 'name' in j:
         await app.db.execute("""
         UPDATE guilds
         SET name = $1
-        WHERE guild_id = $2
+        WHERE id = $2
         """, j['name'], guild_id)
 
     if 'region' in j:
         await app.db.execute("""
         UPDATE guilds
         SET region = $1
-        WHERE guild_id = $2
+        WHERE id = $2
         """, j['region'], guild_id)
+
+    if 'icon' in j:
+        # delete old
+        old_icon_hash = await app.db.fetchval("""
+        SELECT icon
+        FROM guilds
+        WHERE id = $1
+        """, guild_id)
+
+        old_icon = await app.icons.get_guild_icon(
+            guild_id, old_icon_hash)
+
+        await app.icons.delete(old_icon)
+
+        new_icon = await put_guild_icon(guild_id, j['icon'])
+
+        await app.db.execute("""
+        UPDATE guilds
+        SET icon = $1
+        WHERE id = $2
+        """, new_icon.icon_hash, guild_id)
 
     fields = ['verification_level', 'default_message_notifications',
               'explicit_content_filter', 'afk_timeout']
 
     for field in [f for f in fields if f in j]:
-        await app.db.execute("""
+        await app.db.execute(f"""
         UPDATE guilds
         SET {field} = $1
-        WHERE guild_id = $2
+        WHERE id = $2
         """, j[field], guild_id)
 
     channel_fields = ['afk_channel_id', 'system_channel_id']
     for field in [f for f in channel_fields if f in j]:
         # TODO: check channel link to guild
 
-        await app.db.execute("""
+        await app.db.execute(f"""
         UPDATE guilds
         SET {field} = $1
-        WHERE guild_id = $2
+        WHERE id = $2
         """, j[field], guild_id)
 
     guild = await app.storage.get_guild_full(

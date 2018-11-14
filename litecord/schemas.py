@@ -234,20 +234,22 @@ GUILD_UPDATE = {
     },
     'region': {'type': 'voice_region', 'required': False},
     'icon': {'type': 'b64_icon', 'required': False},
+    'splash': {'type': 'b64_icon', 'required': False, 'nullable': True},
 
-    'verification_level': {'type': 'verification_level', 'required': False},
+    'verification_level': {
+        'type': 'verification_level', 'required': False},
     'default_message_notifications': {
-        'type': 'msg_notifications',
-        'required': False,
-    },
+        'type': 'msg_notifications', 'required': False},
     'explicit_content_filter': {'type': 'explicit', 'required': False},
 
-    'afk_channel_id': {'type': 'snowflake', 'required': False},
+    'afk_channel_id': {
+        'type': 'snowflake', 'required': False, 'nullable': True},
     'afk_timeout': {'type': 'number', 'required': False},
 
     'owner_id': {'type': 'snowflake', 'required': False},
 
-    'system_channel_id': {'type': 'snowflake', 'required': False},
+    'system_channel_id': {
+        'type': 'snowflake', 'required': False, 'nullable': True},
 }
 
 
@@ -451,6 +453,7 @@ INVITE = {
 
     'temporary': {'type': 'boolean', 'required': False, 'default': False},
     'unique': {'type': 'boolean', 'required': False, 'default': True},
+    'validate': {'type': 'boolean', 'required': False, 'nullable': True}
 }
 
 USER_SETTINGS = {
