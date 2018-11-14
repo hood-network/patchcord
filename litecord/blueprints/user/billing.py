@@ -1,5 +1,6 @@
 import pprint
 import json
+import datetime
 from enum import Enum
 
 from quart import Blueprint, jsonify, request, current_app as app
@@ -9,10 +10,9 @@ from litecord.schemas import validate
 from litecord.blueprints.checks import guild_check
 from litecord.storage import timestamp_
 from litecord.snowflake import snowflake_datetime, get_snowflake
+from litecord.errors import BadRequest
 
 bp = Blueprint('users_billing', __name__)
-
-
 
 
 class PaymentSource(Enum):
@@ -144,7 +144,7 @@ async def get_payment_source(user_id: int, source_id: int) -> dict:
 
 
 async def get_subscription(subscription_id: int):
-    row = await app.db.execute("""
+    row = await app.db.fetchrow("""
     SELECT id::text, source_id::text AS payment_source_id,
            payment_gateway, payment_gateway_plan_id,
            period_start AS current_period_start,
@@ -168,7 +168,7 @@ async def get_subscription(subscription_id: int):
 
 
 async def get_payment(payment_id: int):
-    row = await app.db.execute("""
+    row = await app.db.fetchrow("""
     SELECT id::text, source_id, subscription_id,
            amount, amount_refunded, currency,
            description, status, tax, tax_inclusive
@@ -245,6 +245,37 @@ async def _create_payment_source():
 async def _create_subscription():
     user_id = await token_check()
     j = validate(await request.get_json(), CREATE_SUBSCRIPTION)
+
+    source = await get_payment_source(user_id, j['payment_source_id'])
+    if not source:
+        raise BadInput('invalid source id')
+
+    plan_id = j['payment_gateway_plan_id']
+
+    # tier 1 is lightro / classic
+    # tier 2 is nitro
+
+    period_end = {
+        'premium_month_tier_1': '1 month',
+        'premium_month_tier_2': '1 month'
+    }[plan_id]
+
+    new_id = get_snowflake()
+
+    await app.db.execute(
+        f"""
+        INSERT INTO user_subscriptions (id, source_id, user_id,
+            s_type, payment_gateway, payment_gateway_plan_id,
+            status, period_end)
+        VALUES ($1, $2, $3, $4, $5, $6, $7,
+            now()::timestamp + interval '{period_end}')
+        """, new_id, j['payment_source_id'], user_id,
+        SubscriptionType.PURCHASE, PaymentGateway.STRIPE,
+        plan_id, 1)
+
+    return jsonify(
+        await get_subscription(new_id)
+    )
 
 
 @bp.route('/@me/billing/subscriptions/<int:subscription_id>',
