@@ -54,18 +54,24 @@ async def _process_user_payments(app, user_id: int):
     subscription = await get_subscription(
         sub_id, app.db)
 
+    # if the max payment is X days old, we create another.
+    # X is 30 for monthly subscriptions of nitro,
+    # X is 365 for yearly subscriptions of nitro
     threshold = THRESHOLDS[subscription['payment_gateway_plan_id']]
 
     log.debug('delta {} delta days {} threshold {}',
               delta, delta.days, threshold)
 
     if delta.days > threshold:
-        # insert new payment, for free !!!!!!
         log.info('creating payment for sid={}',
                  sub_id)
+
+        # create_payment does not call any Stripe
+        # or BrainTree APIs at all, since we'll just
+        # give it as free.
         await create_payment(sub_id, app)
     else:
-        log.debug('not there yet for sid={}', sub_id)
+        log.debug('sid={}, missing {threshold - delta.days} days', sub_id)
 
 
 async def payment_job(app):
@@ -74,7 +80,7 @@ async def payment_job(app):
     This function will check through users' payments
     and add a new one once a month / year.
     """
-    log.info('payment job start!')
+    log.debug('payment job start!')
 
     user_ids = await app.db.fetch("""
     SELECT DISTINCT user_id
@@ -82,7 +88,6 @@ async def payment_job(app):
     """)
 
     log.debug('working {} users', len(user_ids))
-    print(user_ids)
 
     # go through each user's payments
     for row in user_ids:

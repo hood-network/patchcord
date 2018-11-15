@@ -220,15 +220,18 @@ async def get_payment(payment_id: int, db=None):
     return drow
 
 
-async def create_payment(subscription_id, app):
+async def create_payment(subscription_id, db=None):
     """Create a payment."""
-    sub = await get_subscription(subscription_id, app.db)
+    if not db:
+        db = app.db
+
+    sub = await get_subscription(subscription_id, db)
 
     new_id = get_snowflake()
 
     amount = AMOUNTS[sub['payment_gateway_plan_id']]
 
-    await app.db.execute(
+    await db.execute(
         """
         INSERT INTO user_payments (
             id, source_id, subscription_id, user_id,
