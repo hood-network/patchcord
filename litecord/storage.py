@@ -221,12 +221,11 @@ class Storage:
         members = []
 
         for user_id in user_ids:
-            row = await self._member_basic(guild_id, user_id)
+            member = await self.get_member_data_one(guild_id, user_id)
 
-            if not row:
+            if not member:
                 continue
 
-            member = await self._member_dict(row, guild_id, user_id)
             members.append(member)
 
         return members
