@@ -86,10 +86,14 @@ class Storage:
         """Get a single user payload."""
         user_id = int(user_id)
 
-        # TODO: query less instead of popping when secure=True
-        user_row = await self.db.fetchrow("""
-        SELECT id::text, username, discriminator, avatar, email,
-            flags, bot, mfa_enabled, verified, premium_since
+        fields = ['id::text', 'username', 'discriminator',
+                  'avatar', 'flags', 'bot', 'premium_since']
+
+        if secure:
+            fields.extend(['email', 'verified', 'mfa_enabled'])
+
+        user_row = await self.db.fetchrow(f"""
+        SELECT {','.join(fields)}
         FROM users
         WHERE users.id = $1
         """, user_id)
@@ -102,11 +106,7 @@ class Storage:
         duser['premium'] = duser['premium_since'] is not None
         duser.pop('premium_since')
 
-        if not secure:
-            duser.pop('email')
-            duser.pop('verified')
-            duser.pop('mfa_enabled')
-        else:
+        if secure:
             duser['mobile'] = False
             duser['phone'] = None
 
