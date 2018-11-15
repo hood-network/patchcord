@@ -6,11 +6,10 @@ from asyncio import sleep
 from logbook import Logger
 
 from litecord.blueprints.user.billing import (
-    get_subscription, get_payment_ids, get_payment, PaymentStatus,
-    create_payment
+    get_subscription, get_payment_ids, get_payment, create_payment
 )
 
-from litecord.snowflake import snowflake_datetime, get_snowflake
+from litecord.snowflake import snowflake_datetime
 
 log = Logger(__name__)
 

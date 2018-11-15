@@ -47,8 +47,8 @@ async def _get_default_user_avatar(discrim: int):
 
 @bp.route('/avatars/<int:user_id>/<avatar_file>')
 async def _get_user_avatar(user_id, avatar_file):
-    # size_int = int(request.args.get('size', '1024'))
-    # siz = (size_int, size_int)
+    size_int = int(request.args.get('size', '1024'))
+    print('user request size', size_int)
     avatar_hash, ext = splitext_(avatar_file)
     return await send_icon(
         'user', user_id, avatar_hash, ext=ext)

@@ -1,14 +1,10 @@
-import pprint
 import json
-import datetime
-from asyncio import sleep
 from enum import Enum
 
 from quart import Blueprint, jsonify, request, current_app as app
 
 from litecord.auth import token_check
 from litecord.schemas import validate
-from litecord.blueprints.checks import guild_check
 from litecord.storage import timestamp_
 from litecord.snowflake import snowflake_datetime, get_snowflake
 from litecord.errors import BadRequest
@@ -350,15 +346,16 @@ async def _create_subscription():
 @bp.route('/@me/billing/subscriptions/<int:subscription_id>',
           methods=['DELETE'])
 async def _delete_subscription(subscription_id):
-    user_id = await token_check()
-    return '', 204
+    # user_id = await token_check()
+    # return '', 204
+    pass
 
 
 @bp.route('/@me/billing/subscriptions/<int:subscription_id>',
           methods=['PATCH'])
 async def _patch_subscription(subscription_id):
     """change a subscription's payment source"""
-    user_id = await token_check()
-    j = validate(await request.get_json(), PATCH_SUBSCRIPTION)
+    # user_id = await token_check()
+    # j = validate(await request.get_json(), PATCH_SUBSCRIPTION)
     # returns subscription object
-
+    pass

@@ -5,8 +5,7 @@ from quart import Blueprint, jsonify, request, current_app as app
 
 from ..auth import token_check
 from ..errors import Forbidden, BadRequest
-from ..schemas import validate, USER_SETTINGS, \
-    USER_UPDATE, GUILD_SETTINGS
+from ..schemas import validate, USER_UPDATE
 
 from .guilds import guild_check
 from .auth import check_password
