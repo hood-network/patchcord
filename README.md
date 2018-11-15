@@ -61,8 +61,8 @@ there is a basic `nginx.conf` file at the root.
 ### Checking if it is working
 
 You can check if your instance is running by checking the `/api/v6/gateway`
-path. And for basic websocket testing a tool such as [wss](https://github.com/hashrocket/ws)
-can be used.
+path. For basic websocket testing a tool such as
+[ws](https://github.com/hashrocket/ws) can be used.
 
 ## Updating
 
