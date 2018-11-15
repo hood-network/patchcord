@@ -71,7 +71,8 @@ async def _process_user_payments(app, user_id: int):
         # give it as free.
         await create_payment(sub_id, app)
     else:
-        log.debug('sid={}, missing {threshold - delta.days} days', sub_id)
+        log.debug('sid={}, missing {} days',
+                  sub_id, threshold - delta.days)
 
 
 async def payment_job(app):
