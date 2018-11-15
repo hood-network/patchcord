@@ -700,8 +700,13 @@ class Storage:
         # TODO: res['embeds']
         res['embeds'] = []
 
-        # TODO: res['pinned']
-        res['pinned'] = False
+        pin_id = await self.db.fetchval("""
+        SELECT message_id
+        FROM channel_pins
+        WHERE channel_id = $1 AND message_id = $2
+        """, channel_id, message_id)
+
+        res['pinned'] = pin_id is not None
 
         # this is specifically for lazy guilds:
         # only insert when the channel
