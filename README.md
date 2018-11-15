@@ -55,6 +55,15 @@ Use `--access-log -` to output access logs to stdout.
 $ pipenv run hypercorn run:app
 ```
 
+*It is recommended to run litecord behind NGINX.* Because of that,
+there is a basic `nginx.conf` file at the root.
+
+### Checking if it is working
+
+You can check if your instance is running by checking the `/api/v6/gateway`
+path. And for basic websocket testing a tool such as [wss](https://github.com/hashrocket/ws)
+can be used.
+
 ## Updating
 
 ```sh
