@@ -31,6 +31,10 @@ def make_token(user_id, user_pwd_hash) -> str:
 @bp.route('/register', methods=['POST'])
 async def register():
     """Register a single user."""
+    enabled = app.config.get('REGISTRATIONS')
+    if not enabled:
+        return 'Registrations disabled', 405
+
     j = await request.get_json()
     email, password, username = j['email'], j['password'], j['username']
 

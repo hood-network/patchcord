@@ -97,4 +97,5 @@ async def payment_job(app):
         except Exception:
             log.exception('error while processing user payments')
 
+    log.debug('rescheduling..')
     await _resched(app)
