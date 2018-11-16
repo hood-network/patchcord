@@ -9,6 +9,9 @@ class Config:
     # Enable ssl? (gives wss:// instead of ws:// on gateway route)
     IS_SSL = False
 
+    # enable registrations in this instance?
+    REGISTRATIONS = False
+
     # what to give on gateway route?
     # this must point to the websocket.
 
