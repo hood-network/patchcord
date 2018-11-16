@@ -34,7 +34,7 @@ WebsocketObjects = collections.namedtuple(
 
 
 def encode_json(payload) -> str:
-    return json.dumps(payload)
+    return json.dumps(payload, separators=(',', ':'))
 
 
 def decode_json(data: str):
