@@ -139,6 +139,16 @@ class GatewayWebsocket:
         else:
             await self.ws.send(encoded.decode())
 
+    async def send_op(self, op_code: int, data: Any):
+        """Send a packet but just the OP code information is filled in."""
+        await self.send({
+            'op': op_code,
+            'd': data,
+
+            't': None,
+            's': None
+        })
+
     def _check_ratelimit(self, key: str, ratelimit_key: str):
         ratelimit = self.ext.ratelimiter.get_ratelimit(f'_ws.{key}')
         bucket = ratelimit.get_bucket(ratelimit_key)
@@ -169,14 +179,11 @@ class GatewayWebsocket:
         # random heartbeat intervals
         interval = randint(40, 46) * 1000
 
-        await self.send({
-            'op': OP.HELLO,
-            'd': {
-                'heartbeat_interval': interval,
-                '_trace': [
-                    'lesbian-server'
-                ],
-            }
+        await self.send_op(OP.HELLO, {
+            'heartbeat_interval': interval,
+            '_trace': [
+                'lesbian-server'
+            ],
         })
 
         self._hb_start(interval)
@@ -416,9 +423,7 @@ class GatewayWebsocket:
         self._hb_start((46 + 3) * 1000)
         cliseq = payload.get('d')
         self.state.last_seq = cliseq
-        await self.send({
-            'op': OP.HEARTBEAT_ACK,
-        })
+        await self.send_op(OP.HEARTBEAT_ACK, None)
 
     async def _connect_ratelimit(self, user_id: int):
         if self._check_ratelimit('connect', user_id):
@@ -512,10 +517,7 @@ class GatewayWebsocket:
     async def invalidate_session(self, resumable: bool = True):
         """Invalidate the current session and signal that
         to the client."""
-        await self.send({
-            'op': OP.INVALID_SESSION,
-            'd': resumable,
-        })
+        await self.send_op(OP.INVALID_SESSION, resumable)
 
         if not resumable and self.state:
             # since the state will be removed from
