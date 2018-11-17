@@ -183,7 +183,7 @@ async def init_app_db(app):
 def init_app_managers(app):
     """Initialize singleton classes."""
     app.loop = asyncio.get_event_loop()
-    app.ratelimiter = RatelimitManager()
+    app.ratelimiter = RatelimitManager(app.config.get('_testing'))
     app.state_manager = StateManager()
 
     app.storage = Storage(app.db)

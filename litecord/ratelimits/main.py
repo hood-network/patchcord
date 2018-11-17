@@ -42,13 +42,23 @@ RATELIMITS = {
 
 class RatelimitManager:
     """Manager for the bucket managers"""
-    def __init__(self):
+    def __init__(self, testing_flag=False):
         self._ratelimiters = {}
+        self._test = testing_flag
         self.global_bucket = Ratelimit(50, 1)
         self._fill_rtl()
 
     def _fill_rtl(self):
         for path, rtl in RATELIMITS.items():
+            # overwrite rtl with a 10/1 for _ws.connect
+            # if we're in testing mode.
+
+            # NOTE: this is a bad way to do it, but
+            # we only need to change that one for now.
+            rtl = (Ratelimit(10, 1)
+                   if self._test and path == '_ws.connect'
+                   else rtl)
+
             self._ratelimiters[path] = rtl
 
     def get_ratelimit(self, key: str) -> Ratelimit:

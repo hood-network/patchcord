@@ -13,6 +13,7 @@ from run import app as main_app, set_blueprints
 @pytest.fixture(name='app')
 def _test_app(unused_tcp_port, event_loop):
     set_blueprints(main_app)
+    main_app.config['_testing'] = True
 
     # reassign an unused tcp port for websockets
     # since the config might give a used one.

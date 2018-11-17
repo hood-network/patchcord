@@ -67,3 +67,39 @@ async def test_ready(test_cli):
         await conn.close(1000, 'test end')
     except (Exception, websockets.ConnectionClosed):
         assert False
+
+
+@pytest.mark.asyncio
+async def test_ready_fields(test_cli):
+    token = await login('normal', test_cli)
+    conn = await gw_start(test_cli)
+
+    # get the hello frame but ignore it
+    await _json(conn)
+
+    await _json_send(conn, {
+        'op': OP.IDENTIFY,
+        'd': {
+            'token': token,
+        }
+    })
+
+    ready = await _json(conn)
+    assert isinstance(ready, dict)
+    assert ready['op'] == OP.DISPATCH
+    assert ready['t'] == 'READY'
+
+    data = ready['d']
+    assert isinstance(data, dict)
+
+    # NOTE: change if default gateway changes
+    assert data['v'] == 6
+
+    # make sure other fields exist and are with
+    # proper types.
+    assert isinstance(data['user'], dict)
+    assert isinstance(data['private_channels'], list)
+    assert isinstance(data['guilds'], list)
+    assert isinstance(data['session_id'], str)
+
+    await conn.close(1000, 'test end')
