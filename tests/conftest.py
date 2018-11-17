@@ -17,6 +17,7 @@ def _test_app(unused_tcp_port, event_loop):
     # reassign an unused tcp port for websockets
     # since the config might give a used one.
     main_app.config['WS_PORT'] = unused_tcp_port
+    main_app.config['WEBSOCKET_URL'] = f'localhost:{unused_tcp_port}'
 
     # make sure we're calling the before_serving hooks
     event_loop.run_until_complete(main_app.startup())
