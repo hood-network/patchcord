@@ -59,8 +59,9 @@ async def _pres(storage, user_id: int, status_obj: dict) -> dict:
 
 class PresenceManager:
     """Presence related functions."""
-    def __init__(self, storage, state_manager, dispatcher):
+    def __init__(self, storage, user_storage, state_manager, dispatcher):
         self.storage = storage
+        self.user_storage = user_storage
         self.state_manager = state_manager
         self.dispatcher = dispatcher
 
@@ -171,7 +172,7 @@ class PresenceManager:
             state['status'] = 'offline'
 
         # TODO: shard-aware
-        guild_ids = await self.storage.get_user_guilds(user_id)
+        guild_ids = await self.user_storage.get_user_guilds(user_id)
 
         for guild_id in guild_ids:
             await self.dispatch_guild_pres(

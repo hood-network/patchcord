@@ -278,3 +278,13 @@ class UserStorage:
             }})
 
         return res
+
+    async def get_user_guilds(self, user_id: int) -> List[int]:
+        """Get all guild IDs a user is on."""
+        guild_ids = await self.db.fetch("""
+        SELECT guild_id
+        FROM members
+        WHERE user_id = $1
+        """, user_id)
+
+        return [row['guild_id'] for row in guild_ids]

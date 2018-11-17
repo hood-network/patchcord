@@ -147,16 +147,6 @@ class Storage:
 
         return drow
 
-    async def get_user_guilds(self, user_id: int) -> List[int]:
-        """Get all guild IDs a user is on."""
-        guild_ids = await self.db.fetch("""
-        SELECT guild_id
-        FROM members
-        WHERE user_id = $1
-        """, user_id)
-
-        return [row['guild_id'] for row in guild_ids]
-
     async def _member_basic(self, guild_id: int, member_id: int):
         return await self.db.fetchrow("""
         SELECT user_id, nickname, joined_at, deafened, muted

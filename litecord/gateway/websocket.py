@@ -329,7 +329,7 @@ class GatewayWebsocket:
             raise InvalidShard('Shard count > Total shards')
 
     async def _guild_ids(self):
-        guild_ids = await self.storage.get_user_guilds(
+        guild_ids = await self.user_storage.get_user_guilds(
             self.state.user_id
         )
 
@@ -667,7 +667,8 @@ class GatewayWebsocket:
         """Handle OP 12 Guild Sync."""
         data = payload['d']
 
-        gids = await self.storage.get_user_guilds(self.state.user_id)
+        gids = await self.user_storage.get_user_guilds(
+            self.state.user_id)
 
         for guild_id in data:
             try:
