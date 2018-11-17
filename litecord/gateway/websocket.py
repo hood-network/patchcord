@@ -29,7 +29,8 @@ WebsocketProperties = collections.namedtuple(
 
 WebsocketObjects = collections.namedtuple(
     'WebsocketObjects', ('db', 'state_manager', 'storage',
-                         'loop', 'dispatcher', 'presence', 'ratelimiter')
+                         'loop', 'dispatcher', 'presence', 'ratelimiter',
+                         'user_storage')
 )
 
 
@@ -82,8 +83,13 @@ def decode_etf(data: bytes):
 class GatewayWebsocket:
     """Main gateway websocket logic."""
 
-    def __init__(self, ws, **kwargs):
-        self.ext = WebsocketObjects(*kwargs['prop'])
+    def __init__(self, ws, app, **kwargs):
+        self.ext = WebsocketObjects(
+            app.db, app.state_manager, app.storage, app.loop,
+            app.dispatcher, app.presence, app.ratelimiter,
+            app.user_storage
+        )
+
         self.storage = self.ext.storage
         self.presence = self.ext.presence
         self.ws = ws
