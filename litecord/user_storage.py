@@ -114,7 +114,7 @@ class UserStorage:
             if drow['peer_id'] not in mutuals:
                 drow['type'] = _outgoing
 
-            drow['user'] = await self.get_user(drow['peer_id'])
+            drow['user'] = await self.storage.get_user(drow['peer_id'])
 
             drow.pop('user_id')
             drow.pop('peer_id')
