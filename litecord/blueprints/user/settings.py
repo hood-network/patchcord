@@ -51,7 +51,7 @@ async def patch_guild_settings(guild_id: int):
 
     # querying the guild settings information before modifying
     # will make sure they exist in the table.
-    await app.storage.get_guild_settings_one(user_id, guild_id)
+    await app.user_storage.get_guild_settings_one(user_id, guild_id)
 
     for field in (k for k in j.keys() if k != 'channel_overrides'):
         await app.db.execute(f"""
@@ -86,7 +86,8 @@ async def patch_guild_settings(guild_id: int):
                   AND guild_settings_channel_overrides.channel_id = $3
             """, user_id, guild_id, chan_id, chan_overrides[field])
 
-    settings = await app.storage.get_guild_settings_one(user_id, guild_id)
+    settings = await app.user_storage.get_guild_settings_one(
+        user_id, guild_id)
 
     await app.dispatcher.dispatch_user(
         user_id, 'USER_GUILD_SETTINGS_UPDATE', settings)

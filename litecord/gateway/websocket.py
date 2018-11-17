@@ -247,20 +247,21 @@ class GatewayWebsocket:
 
         user_id = self.state.user_id
 
-        relationships = await self.storage.get_relationships(user_id)
+        relationships = await self.user_storage.get_relationships(user_id)
 
         friend_ids = [int(r['user']['id']) for r in relationships
                       if r['type'] == RelationshipType.FRIEND.value]
 
         friend_presences = await self.ext.presence.friend_presences(friend_ids)
+        settings = await self.user_storage.get_user_settings(user_id)
 
         return {
-            'user_settings': await self.storage.get_user_settings(user_id),
-            'notes': await self.storage.fetch_notes(user_id),
+            'user_settings': settings,
+            'notes': await self.user_storage.fetch_notes(user_id),
             'relationships': relationships,
             'presences': friend_presences,
-            'read_state': await self.storage.get_read_state(user_id),
-            'user_guild_settings': await self.storage.get_guild_settings(
+            'read_state': await self.user_storage.get_read_state(user_id),
+            'user_guild_settings': await self.user_storage.get_guild_settings(
                 user_id),
 
             'friend_suggestion_count': 0,
@@ -288,7 +289,7 @@ class GatewayWebsocket:
             'v': 6,
             'user': user,
 
-            'private_channels': await self.storage.get_dms(user_id),
+            'private_channels': await self.user_storage.get_dms(user_id),
 
             'guilds': guilds,
             'session_id': self.state.session_id,

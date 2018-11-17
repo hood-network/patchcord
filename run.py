@@ -43,6 +43,7 @@ from litecord.gateway import websocket_handler
 from litecord.errors import LitecordError
 from litecord.gateway.state_manager import StateManager
 from litecord.storage import Storage
+from litecord.user_storage import UserStorage
 from litecord.dispatcher import EventDispatcher
 from litecord.presence import PresenceManager
 from litecord.images import IconManager
@@ -184,7 +185,10 @@ def init_app_managers(app):
     app.loop = asyncio.get_event_loop()
     app.ratelimiter = RatelimitManager()
     app.state_manager = StateManager()
+
     app.storage = Storage(app.db)
+    app.user_storage = UserStorage(app.storage)
+
     app.icons = IconManager(app)
 
     app.dispatcher = EventDispatcher(app)

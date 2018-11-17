@@ -12,7 +12,8 @@ bp = Blueprint('relationship', __name__)
 @bp.route('/@me/relationships', methods=['GET'])
 async def get_me_relationships():
     user_id = await token_check()
-    return jsonify(await app.storage.get_relationships(user_id))
+    return jsonify(
+        await app.user_storage.get_relationships(user_id))
 
 
 async def _unsub_friend(user_id, peer_id):
@@ -254,8 +255,8 @@ async def get_mutual_friends(peer_id: int):
 
     # NOTE: maybe this could be better with pure SQL calculations
     # but it would be beyond my current SQL knowledge, so...
-    user_rels = await app.storage.get_relationships(user_id)
-    peer_rels = await app.storage.get_relationships(peer_id)
+    user_rels = await app.user_storage.get_relationships(user_id)
+    peer_rels = await app.user_storage.get_relationships(peer_id)
 
     user_friends = {rel['user']['id']
                     for rel in user_rels if rel['type'] == _friend}
