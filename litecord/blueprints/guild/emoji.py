@@ -53,6 +53,9 @@ async def _put_emoji(guild_id):
         bsize=128 * KILOBYTES, size=(128, 128)
     )
 
+    if not icon:
+        return '', 400
+
     await app.db.execute(
         """
         INSERT INTO guild_emoji

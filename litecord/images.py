@@ -205,7 +205,7 @@ class IconManager:
                   b64_data: str, **kwargs) -> Icon:
         """Insert an icon."""
         if b64_data is None:
-            return Icon(None, None, '')
+            return None
 
         mime, raw_data = parse_data_uri(b64_data)
         data_fd = BytesIO(raw_data)
@@ -213,9 +213,8 @@ class IconManager:
         # get an extension for the given data uri
         extension = _get_ext(mime)
 
-        if 'bsize' in kwargs:
-            if len(raw_data) > kwargs['bsize']:
-                return Icon(None, None, '')
+        if 'bsize' in kwargs and len(raw_data) > kwargs['bsize']:
+            return None
 
         if 'size' in kwargs:
             image = Image.open(data_fd)
