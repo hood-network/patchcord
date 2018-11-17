@@ -67,7 +67,7 @@ class Storage:
         self.db = db
         self.presence = None
 
-    async def _fetchrow_with_json(self, query: str, *args):
+    async def fetchrow_with_json(self, query: str, *args):
         """Fetch a single row with JSON/JSONB support."""
         # the pool by itself doesn't have
         # set_type_codec, so we must set it manually
@@ -76,7 +76,7 @@ class Storage:
             await _set_json(con)
             return await con.fetchrow(query, *args)
 
-    async def _fetch_with_json(self, query: str, *args):
+    async def fetch_with_json(self, query: str, *args):
         """Fetch many rows with JSON/JSONB support."""
         async with self.db.acquire() as con:
             await _set_json(con)

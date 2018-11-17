@@ -91,6 +91,7 @@ class GatewayWebsocket:
         )
 
         self.storage = self.ext.storage
+        self.user_storage = self.ext.user_storage
         self.presence = self.ext.presence
         self.ws = ws
 
@@ -358,7 +359,7 @@ class GatewayWebsocket:
         await self.ext.dispatcher.sub_many('guild', user_id, guild_ids)
 
         # subscribe the user to all dms they have OPENED.
-        dms = await self.storage.get_dms(user_id)
+        dms = await self.user_storage.get_dms(user_id)
         dm_ids = [int(dm['id']) for dm in dms]
 
         log.info('subscribing to {} dms', len(dm_ids))
@@ -367,7 +368,7 @@ class GatewayWebsocket:
         # subscribe to all friends
         # (their friends will also subscribe back
         #  when they come online)
-        friend_ids = await self.storage.get_friend_ids(user_id)
+        friend_ids = await self.user_storage.get_friend_ids(user_id)
         log.info('subscribing to {} friends', len(friend_ids))
         await self.ext.dispatcher.sub_many('friend', user_id, friend_ids)
 

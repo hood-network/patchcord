@@ -25,7 +25,7 @@ class UserStorage:
 
     async def get_user_settings(self, user_id: int) -> Dict[str, Any]:
         """Get current user settings."""
-        row = await self._fetchrow_with_json("""
+        row = await self.storage.fetchrow_with_json("""
         SELECT *
         FROM user_settings
         WHERE id = $1
