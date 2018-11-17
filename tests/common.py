@@ -13,3 +13,15 @@ async def login(acc_name: str, test_cli):
 
     rjson = await resp.json
     return rjson['token']
+
+
+async def get_uid(token, test_cli):
+    resp = await test_cli.get('/api/v6/users/@me', headers={
+        'Authorization': token
+    })
+
+    if resp.status_code != 200:
+        raise RuntimeError(f'non-200 on get uid: {resp.status_code}')
+
+    rjson = await resp.json
+    return rjson['id']
