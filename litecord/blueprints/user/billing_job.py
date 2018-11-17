@@ -2,7 +2,7 @@
 this file only serves the periodic payment job code.
 """
 import datetime
-from asyncio import sleep
+from asyncio import sleep, CancelledError
 from logbook import Logger
 
 from litecord.blueprints.user.billing import (
@@ -98,4 +98,7 @@ async def payment_job(app):
             log.exception('error while processing user payments')
 
     log.debug('rescheduling..')
-    await _resched(app)
+    try:
+        await _resched(app)
+    except CancelledError:
+        log.info('cancelled while waiting for resched')
