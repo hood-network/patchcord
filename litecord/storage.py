@@ -850,7 +850,7 @@ class Storage:
         """Get a list of all emoji objects in a guild."""
         rows = await self.db.fetch("""
         SELECT id
-        FROM guild_emojis
+        FROM guild_emoji
         WHERE guild_id = $1
         """, guild_id)
 
