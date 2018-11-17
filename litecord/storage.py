@@ -145,8 +145,6 @@ class Storage:
         if user_id:
             drow['owner'] = drow['owner_id'] == str(user_id)
 
-        # TODO: emojis
-        drow['emojis'] = []
         return drow
 
     async def get_user_guilds(self, user_id: int) -> List[int]:
@@ -511,6 +509,8 @@ class Storage:
                 mids, guild_id
             ),
 
+            'emojis': await self.get_guild_emojis(guild_id),
+
             # TODO: voice state management
             'voice_states': [],
         }}
@@ -823,3 +823,43 @@ class Storage:
         parties.remove(user_id)
 
         return parties[0]
+
+    async def get_emoji(self, emoji_id: int) -> Dict:
+        """Get a single emoji."""
+        row = await self.db.fetchrow("""
+        SELECT id::text, name, animated, managed,
+               require_colons, uploader_id
+        FROM guild_emoji
+        WHERE id = $1
+        """, emoji_id)
+
+        if not row:
+            return
+
+        drow = dict(row)
+
+        # ????
+        drow['roles'] = []
+
+        uploader_id = drow.pop('uploader_id')
+        drow['user'] = await self.get_user(uploader_id)
+
+        return drow
+
+    async def get_guild_emojis(self, guild_id: int):
+        """Get a list of all emoji objects in a guild."""
+        rows = await self.db.fetch("""
+        SELECT id
+        FROM guild_emojis
+        WHERE guild_id = $1
+        """, guild_id)
+
+        emoji_ids = [r['id'] for r in rows]
+
+        res = []
+
+        for emoji_id in emoji_ids:
+            emoji = await self.get_emoji(emoji_id)
+            res.append(emoji)
+
+        return res

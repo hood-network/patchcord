@@ -21,7 +21,8 @@ from litecord.blueprints import (
 # for code readability if people want to dig through
 # the codebase.
 from litecord.blueprints.guild import (
-    guild_roles, guild_members, guild_channels, guild_mod
+    guild_roles, guild_members, guild_channels, guild_mod,
+    guild_emoji
 )
 
 from litecord.blueprints.channel import (
@@ -89,6 +90,7 @@ def set_blueprints(app_):
         guild_members: '/guilds',
         guild_channels: '/guilds',
         guild_mod: '/guilds',
+        guild_emoji: '/guilds',
 
         channels: '/channels',
         channel_messages: '/channels',
