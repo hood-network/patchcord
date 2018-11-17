@@ -4,6 +4,7 @@ from litecord.auth import token_check
 from litecord.blueprints.checks import guild_check, guild_perm_check
 from litecord.schemas import validate, NEW_EMOJI, PATCH_EMOJI
 from litecord.snowflake import get_snowflake
+from litecord.types import KILOBYTES
 
 bp = Blueprint('guild.emoji', __name__)
 
@@ -45,7 +46,12 @@ async def _put_emoji(guild_id):
 
     emoji_id = get_snowflake()
 
-    icon = await app.icons.put('emoji', emoji_id, j['image'])
+    icon = await app.icons.put(
+        'emoji', emoji_id, j['image'],
+
+        # limits to emojis
+        bsize=128 * KILOBYTES, size=(128, 128)
+    )
 
     await app.db.execute(
         """

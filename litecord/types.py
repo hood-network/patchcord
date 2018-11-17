@@ -1,3 +1,5 @@
+KILOBYTES = 1024
+
 
 class Color:
     """Custom color class"""

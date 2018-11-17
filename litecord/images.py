@@ -213,6 +213,10 @@ class IconManager:
         # get an extension for the given data uri
         extension = _get_ext(mime)
 
+        if 'bsize' in kwargs:
+            if len(raw_data) > kwargs['bsize']:
+                return Icon(None, None, '')
+
         if 'size' in kwargs:
             image = Image.open(data_fd)
 
