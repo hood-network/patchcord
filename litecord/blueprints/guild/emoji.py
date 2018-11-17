@@ -45,7 +45,7 @@ async def _put_emoji(guild_id):
 
     emoji_id = get_snowflake()
 
-    icon = await app.icons.put('emoji', emoji_id, None, j['image'])
+    icon = await app.icons.put('emoji', emoji_id, j['image'])
 
     await app.db.execute(
         """
