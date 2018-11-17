@@ -49,11 +49,11 @@ CREATE TABLE IF NOT EXISTS icons (
     key text,
 
     -- sha256 of the icon
-    hash text UNIQUE NOT NULL,
+    hash text,
 
     -- icon mime
     mime text NOT NULL,
-    PRIMARY KEY (scope, hash, mime)
+    PRIMARY KEY (scope, key)
 );
 
 

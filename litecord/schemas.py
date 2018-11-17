@@ -566,3 +566,16 @@ GUILD_SETTINGS = {
 GUILD_PRUNE = {
     'days': {'type': 'number', 'coerce': int, 'min': 1}
 }
+
+NEW_EMOJI = {
+    'name': {
+        'type': 'string', 'minlength': 1, 'maxlength': 256, 'required': True},
+    'image': {'type': 'b64_icon', 'required': True},
+    'roles': {'type': 'list', 'schema': {'coerce': int}}
+}
+
+PATCH_EMOJI = {
+    'name': {
+        'type': 'string', 'minlength': 1, 'maxlength': 256, 'required': True},
+    'roles': {'type': 'list', 'schema': {'coerce': int}}
+}

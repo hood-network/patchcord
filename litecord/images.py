@@ -26,6 +26,7 @@ def _get_mime(ext: str):
 @dataclass
 class Icon:
     """Main icon class"""
+    key: str
     icon_hash: str
     mime: str
 
@@ -33,7 +34,7 @@ class Icon:
     def as_path(self) -> str:
         """Return a filesystem path for the given icon."""
         ext = _get_ext(self.mime)
-        return str(IMAGE_FOLDER / f'{self.icon_hash}.{ext}')
+        return str(IMAGE_FOLDER / f'{self.key}_{self.icon_hash}.{ext}')
 
     @property
     def as_pathlib(self) -> str:
@@ -147,40 +148,42 @@ class IconManager:
         target_mime = _get_mime(target)
         log.info('converting from {} to {}', icon.mime, target_mime)
 
-        target_path = IMAGE_FOLDER / f'{icon.icon_hash}.{target}'
+        target_path = IMAGE_FOLDER / f'{icon.key}_{icon.icon_hash}.{target}'
 
         if target_path.exists():
-            return Icon(icon.icon_hash, target_mime)
+            return Icon(icon.key, icon.icon_hash, target_mime)
 
         image = Image.open(icon.as_path)
         target_fd = target_path.open('wb')
         image.save(target_fd, format=target)
         target_fd.close()
 
-        return Icon(icon.icon_hash, target_mime)
+        return Icon(icon.key, icon.icon_hash, target_mime)
 
     async def generic_get(self, scope, key, icon_hash, **kwargs) -> Icon:
         """Get any icon."""
         log.debug('GET {} {} {}', scope, key, icon_hash)
         key = str(key)
 
-        icon_row = await self.storage.db.fetchrow("""
-        SELECT hash, mime
+        hash_query = 'AND hash = $3' if key else ''
+
+        icon_row = await self.storage.db.fetchrow(f"""
+        SELECT key, hash, mime
         FROM icons
         WHERE scope = $1
           AND key = $2
-          AND hash = $3
+          {hash_query}
         """, scope, key, icon_hash)
 
         if not icon_row:
             return None
 
-        icon = Icon(icon_row['hash'], icon_row['mime'])
+        icon = Icon(icon_row['key'], icon_row['hash'], icon_row['mime'])
 
         if not icon.as_pathlib.exists():
             await self.delete(icon)
             return None
-        
+
         if 'ext' in kwargs and kwargs['ext'] != icon.extension:
             return await self._convert_ext(icon, kwargs['ext'])
 
@@ -195,7 +198,7 @@ class IconManager:
                   b64_data: str, **kwargs) -> Icon:
         """Insert an icon."""
         if b64_data is None:
-            return Icon(None, '')
+            return Icon(None, None, '')
 
         mime, raw_data = parse_data_uri(b64_data)
         data_fd = BytesIO(raw_data)
@@ -223,7 +226,10 @@ class IconManager:
             data_fd.seek(0)
 
         # calculate sha256
-        icon_hash = await calculate_hash(data_fd)
+        # ignore icon hashes if we're talking about emoji
+        icon_hash = (await calculate_hash(data_fd)
+                     if scope != 'emoji'
+                     else None)
 
         await self.storage.db.execute("""
         INSERT INTO icons (scope, key, hash, mime)
@@ -231,14 +237,14 @@ class IconManager:
         """, scope, str(key), icon_hash, mime)
 
         # write it off to fs
-        icon_path = IMAGE_FOLDER / f'{icon_hash}.{extension}'
+        icon_path = IMAGE_FOLDER / f'{key}_{icon_hash}.{extension}'
         icon_path.write_bytes(raw_data)
 
         # copy from data_fd to icon_fd
         # with icon_path.open(mode='wb') as icon_fd:
         #    icon_fd.write(data_fd.read())
 
-        return Icon(icon_hash, mime)
+        return Icon(str(key), icon_hash, mime)
 
     async def delete(self, icon: Icon):
         """Delete an icon from the database and filesystem."""
@@ -274,7 +280,7 @@ class IconManager:
         WHERE hash = $1
         """, icon.icon_hash)
 
-        paths = IMAGE_FOLDER.glob(f'{icon.icon_hash}.*')
+        paths = IMAGE_FOLDER.glob(f'{icon.key}_{icon.icon_hash}.*')
 
         for path in paths:
             try:
