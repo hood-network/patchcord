@@ -96,7 +96,7 @@ async def put_guild_icon(guild_id: int, icon: str):
                    else None)
 
     return await app.icons.put(
-        'guild', guild_id, encoded, size=(128, 128))
+        'guild', guild_id, encoded, size=(128, 128), always_icon=True)
 
 
 @bp.route('', methods=['POST'])

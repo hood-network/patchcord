@@ -138,6 +138,14 @@ def _gen_update_sql(scope: str) -> str:
     """
 
 
+def _invalid(kwargs: dict):
+    """Send an invalid value."""
+    if kwargs.get('always_icon', False):
+        return None
+
+    return Icon(None, None, '')
+
+
 class IconManager:
     """Main icon manager."""
     def __init__(self, app):
@@ -205,7 +213,7 @@ class IconManager:
                   b64_data: str, **kwargs) -> Icon:
         """Insert an icon."""
         if b64_data is None:
-            return None
+            return _invalid(kwargs)
 
         mime, raw_data = parse_data_uri(b64_data)
         data_fd = BytesIO(raw_data)
@@ -214,7 +222,7 @@ class IconManager:
         extension = _get_ext(mime)
 
         if 'bsize' in kwargs and len(raw_data) > kwargs['bsize']:
-            return None
+            return _invalid(kwargs)
 
         if 'size' in kwargs:
             image = Image.open(data_fd)
