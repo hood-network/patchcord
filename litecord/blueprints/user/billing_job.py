@@ -10,6 +10,7 @@ from litecord.blueprints.user.billing import (
 )
 
 from litecord.snowflake import snowflake_datetime
+from litecord.types import MINUTES
 
 log = Logger(__name__)
 
@@ -24,8 +25,8 @@ THRESHOLDS = {
 
 
 async def _resched(app):
-    log.debug('waiting 2 minutes for job.')
-    await sleep(120)
+    log.debug('waiting 30 minutes for job.')
+    await sleep(30 * MINUTES)
     app.sched.spawn(payment_job(app))
 
 

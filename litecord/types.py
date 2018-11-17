@@ -1,4 +1,9 @@
+# size units
 KILOBYTES = 1024
+
+# time units
+MINUTES = 60
+HOUR = 60 * MINUTES
 
 
 class Color:
