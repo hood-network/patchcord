@@ -26,7 +26,7 @@ THRESHOLDS = {
 async def _resched(app):
     log.debug('waiting 2 minutes for job.')
     await sleep(120)
-    await app.sched.spawn(payment_job(app))
+    app.sched.spawn(payment_job(app))
 
 
 async def _process_user_payments(app, user_id: int):

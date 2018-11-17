@@ -20,6 +20,7 @@ class JobManager:
         task = self.loop.create_task(
             self._wrapper(coro)
         )
+
         self.jobs.append(task)
 
     def close(self):
