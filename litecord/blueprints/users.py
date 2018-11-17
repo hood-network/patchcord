@@ -199,8 +199,8 @@ async def patch_me():
 
     public_user = await app.storage.get_user(user_id)
 
-    guild_ids = await app.storage.get_user_guilds(user_id)
-    friend_ids = await app.storage.get_friend_ids(user_id)
+    guild_ids = await app.user_storage.get_user_guilds(user_id)
+    friend_ids = await app.user_storage.get_friend_ids(user_id)
 
     await app.dispatcher.dispatch_many(
         'guild', guild_ids, 'USER_UPDATE', public_user
@@ -217,7 +217,7 @@ async def patch_me():
 async def get_me_guilds():
     """Get partial user guilds."""
     user_id = await token_check()
-    guild_ids = await app.storage.get_user_guilds(user_id)
+    guild_ids = await app.user_storage.get_user_guilds(user_id)
 
     partials = []
 
