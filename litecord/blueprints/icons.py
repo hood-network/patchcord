@@ -26,7 +26,7 @@ async def _get_raw_emoji(emoji_file):
     # just a test file for now
     emoji_id, ext = splitext_(emoji_file)
     return await send_icon(
-        'emoji', emoji_id, emoji_id, ext=ext)
+        'emoji', emoji_id, None, ext=ext)
 
 
 @bp.route('/icons/<int:guild_id>/<icon_file>', methods=['GET'])

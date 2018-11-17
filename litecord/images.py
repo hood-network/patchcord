@@ -165,7 +165,14 @@ class IconManager:
         log.debug('GET {} {} {}', scope, key, icon_hash)
         key = str(key)
 
-        hash_query = 'AND hash = $3' if key else ''
+        hash_query = 'AND hash = $3' if icon_hash else ''
+
+        # hacky solution to only add icon_hash
+        # when needed.
+        args = [scope, key]
+
+        if icon_hash:
+            args.append(icon_hash)
 
         icon_row = await self.storage.db.fetchrow(f"""
         SELECT key, hash, mime
@@ -173,7 +180,7 @@ class IconManager:
         WHERE scope = $1
           AND key = $2
           {hash_query}
-        """, scope, key, icon_hash)
+        """, *args)
 
         if not icon_row:
             return None
