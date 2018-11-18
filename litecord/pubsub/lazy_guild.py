@@ -595,6 +595,9 @@ class GuildMemberList:
 
     async def resync_by_item(self, item_index: int):
         """Resync but only giving the item index."""
+        if item_index is None:
+            return []
+
         return await self.resync(
             self.get_subs(item_index),
             item_index
@@ -974,6 +977,11 @@ class GuildMemberList:
         role_id = int(role['id'])
 
         old_index = self.get_group_item_index(role_id)
+
+        if not old_index:
+            log.warning('lazy role_pos_update: unknown group {}', role_id)
+            return
+
         old_sessions = list(self.get_subs(old_index))
 
         groups_idx = self._get_role_as_group_idx(role_id)
