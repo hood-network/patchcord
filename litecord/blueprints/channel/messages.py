@@ -181,7 +181,7 @@ async def create_message(channel_id):
     )
 
     payload = await app.storage.get_message(message_id, user_id)
-    
+
     if ctype == ChannelType.DM:
         # guild id here is the peer's ID.
         await _dm_pre_dispatch(channel_id, user_id)
@@ -189,8 +189,6 @@ async def create_message(channel_id):
 
     await app.dispatcher.dispatch('channel', channel_id,
                                   'MESSAGE_CREATE', payload)
-
-    # TODO: dispatch the MESSAGE_CREATE to any mentioning user.
 
     if ctype == ChannelType.GUILD_TEXT:
         for str_uid in payload['mentions']:

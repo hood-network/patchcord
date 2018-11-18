@@ -765,7 +765,7 @@ class GatewayWebsocket:
         """
         data = payload['d']
 
-        gids = await self.storage.get_user_guilds(self.state.user_id)
+        gids = await self.user_storage.get_user_guilds(self.state.user_id)
         guild_id = int(data['guild_id'])
 
         # make sure to not extract info you shouldn't get

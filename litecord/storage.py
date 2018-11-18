@@ -662,7 +662,6 @@ class Storage:
                 return str(role_id)
 
             if role_id == guild_id:
-                # TODO: check MENTION_EVERYONE permission
                 return str(role_id)
 
             role = await self.get_role(role_id, guild_id)
