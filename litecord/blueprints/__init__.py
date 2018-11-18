@@ -10,7 +10,8 @@ from .invites import bp as invites
 from .relationships import bp as relationships
 from .dms import bp as dms
 from .icons import bp as icons
+from .nodeinfo import bp as nodeinfo
 
 __all__ = ['gateway', 'auth', 'users', 'guilds', 'channels',
            'webhooks', 'science', 'voice', 'invites', 'relationships',
-           'dms', 'icons']
+           'dms', 'icons', 'nodeinfo']

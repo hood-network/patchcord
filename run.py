@@ -14,7 +14,7 @@ import config
 
 from litecord.blueprints import (
     gateway, auth, users, guilds, channels, webhooks, science,
-    voice, invites, relationships, dms, icons
+    voice, invites, relationships, dms, icons, nodeinfo
 )
 
 # those blueprints are separated from the "main" ones
@@ -104,6 +104,7 @@ def set_blueprints(app_):
         dms: '/users',
 
         icons: -1,
+        nodeinfo: -1,
     }
 
     for bp, suffix in bps.items():
