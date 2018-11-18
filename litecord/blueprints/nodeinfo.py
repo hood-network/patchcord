@@ -6,9 +6,11 @@ bp = Blueprint('nodeinfo', __name__)
 @bp.route('/.well-known/nodeinfo')
 async def _dummy_nodeinfo_index():
     proto = 'http' if not app.config['IS_SSL'] else 'https'
+    main_url = app.config.get('MAIN_URL', request.host)
+
     return jsonify({
         'links': [{
-            'href': f'{proto}://{request.host}/nodeinfo/2.0.json',
+            'href': f'{proto}://{main_url}/nodeinfo/2.0.json',
             'rel': 'http://nodeinfo.diaspora.software/ns/schema/2.0'
         }]
     })
