@@ -140,7 +140,7 @@ def _gen_update_sql(scope: str) -> str:
 
 def _invalid(kwargs: dict):
     """Send an invalid value."""
-    if kwargs.get('always_icon', False):
+    if not kwargs.get('always_icon', False):
         return None
 
     return Icon(None, None, '')
