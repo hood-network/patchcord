@@ -67,6 +67,8 @@ async def guild_perm_check(user_id, guild_id, permission: str):
     if not hasperm:
         raise MissingPermissions('Missing permissions.')
 
+    return bool(hasperm)
+
 
 async def channel_perm_check(user_id, channel_id,
                              permission: str, raise_err=True):
@@ -74,10 +76,7 @@ async def channel_perm_check(user_id, channel_id,
     base_perms = await get_permissions(user_id, channel_id)
     hasperm = getattr(base_perms.bits, permission)
 
-    print(base_perms)
-    print(base_perms.binary)
-
     if not hasperm and raise_err:
         raise MissingPermissions('Missing permissions.')
 
-    return hasperm
+    return bool(hasperm)

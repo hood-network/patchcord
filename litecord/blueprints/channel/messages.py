@@ -151,11 +151,12 @@ async def create_message(channel_id):
 
     # TODO: check connection to the gateway
 
-    mentions_everyone = ('@everyone' in j['content'] and
-                         await channel_perm_check(
-                             user_id, channel_id, 'mention_everyone', False
-                         )
-                         )
+    can_everyone = await channel_perm_check(
+        user_id, channel_id, 'mention_everyone', False
+    )
+
+    mentions_everyone = ('@everyone' in j['content']) and can_everyone
+    mentions_here = ('@here' in j['content']) and can_everyone
 
     is_tts = (j.get('tts', False) and
               await channel_perm_check(
@@ -174,7 +175,7 @@ async def create_message(channel_id):
         j['content'],
 
         is_tts,
-        mentions_everyone,
+        mentions_everyone or mentions_here,
 
         int(j.get('nonce', 0)),
         MessageType.DEFAULT.value
@@ -206,15 +207,31 @@ async def create_message(channel_id):
             for member_id in member_ids:
                 uids.add(member_id)
 
-        # if we're on an at-everyone / at-here, just update
-        # the read state for everyone.
-        if mentions_everyone:
+        # at-here only updates the state
+        # for the users that have a state
+        # in the channel.
+        if mentions_here:
             uids = []
             await app.db.execute("""
             UPDATE user_read_state
             SET mention_count = mention_count + 1
             WHERE channel_id = $1
             """, channel_id)
+
+        # at-here updates the read state
+        # for all users, including the ones
+        # that might not have read permissions
+        # to the channel.
+        if mentions_everyone:
+            uids = []
+
+            member_ids = await app.storage.get_member_ids(guild_id)
+
+            await app.db.executemany("""
+            UPDATE user_read_state
+            SET mention_count = mention_count + 1
+            WHERE channel_id = $1 AND user_id = $2
+            """, [(channel_id, uid) for uid in member_ids])
 
         for user_id in uids:
             await app.db.execute("""
