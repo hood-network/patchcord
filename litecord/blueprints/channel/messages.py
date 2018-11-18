@@ -194,8 +194,6 @@ async def create_message(channel_id):
         for mention in payload['mentions']:
             uid = int(mention['id'])
 
-            print('updating user read state', repr(uid), repr(channel_id))
-
             await app.db.execute("""
             UPDATE user_read_state
             SET mention_count = mention_count + 1

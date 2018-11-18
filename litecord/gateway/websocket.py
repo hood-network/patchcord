@@ -635,9 +635,11 @@ class GatewayWebsocket:
             'members': result
         })
 
-    async def handle_8(self, data: Any):
+    async def handle_8(self, payload: Dict):
         """Handle OP 8 Request Guild Members."""
+        data = payload['d']
         gids = data['guild_id']
+
         uids, query, limit = data.get('user_ids', []), \
             data.get('query', ''), \
             data.get('limit', 0)
