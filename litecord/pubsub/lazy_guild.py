@@ -664,7 +664,7 @@ class GuildMemberList:
         user_id = int(user_id)
         index = 1
 
-        for g, member_ids in self.list.iter_non_empty:
+        for _g, member_ids in self.list.iter_non_empty:
             try:
                 relative_index = member_ids.index(user_id)
                 index += relative_index
@@ -973,7 +973,7 @@ class GuildMemberList:
         """
         role_id = int(role['id'])
 
-        old_index = self.get_group_item_index
+        old_index = self.get_group_item_index(role_id)
         old_sessions = list(self.get_subs(old_index))
 
         groups_idx = self._get_role_as_group_idx(role_id)
