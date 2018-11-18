@@ -11,7 +11,7 @@ bp = Blueprint('users_settings', __name__)
 async def get_user_settings():
     """Get the current user's settings."""
     user_id = await token_check()
-    settings = await app.storage.get_user_settings(user_id)
+    settings = await app.user_storage.get_user_settings(user_id)
     return jsonify(settings)
 
 
@@ -32,7 +32,7 @@ async def patch_current_settings():
         WHERE id = $2
         """, j[key], user_id)
 
-    settings = await app.storage.get_user_settings(user_id)
+    settings = await app.user_storage.get_user_settings(user_id)
     await app.dispatcher.dispatch_user(
         user_id, 'USER_SETTINGS_UPDATE', settings)
     return jsonify(settings)
