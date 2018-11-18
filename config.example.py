@@ -3,10 +3,15 @@ MODE = 'Development'
 
 class Config:
     """Default configuration values for litecord."""
-    # Enable debug logging?
+    #: Main URL of the instance.
+    MAIN_URL = 'discordapp.io'
+
+    #: Enable debug logging?
     DEBUG = False
 
-    # Enable ssl? (gives wss:// instead of ws:// on gateway route)
+    #: Enable ssl?
+    #  many routes will start giving https / wss
+    #  urls depending of this config.
     IS_SSL = False
 
     # enable registrations in this instance?
@@ -22,7 +27,7 @@ class Config:
 
     # Where to host the websocket?
     # (a local address the server will bind to)
-    WS_HOST = 'localhost'
+    WS_HOST = '0.0.0.0'
     WS_PORT = 5001
 
     # Postgres credentials
