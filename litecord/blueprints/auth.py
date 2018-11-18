@@ -36,7 +36,7 @@ async def register():
     if not enabled:
         return 'Registrations disabled', 405
 
-    j = await request.get_json()
+    j = validate(await request.get_json(), REGISTER)
     email, password, username = j['email'], j['password'], j['username']
 
     new_id, pwd_hash = await create_user(
@@ -51,6 +51,7 @@ async def register():
 @bp.route('/register_inv', methods=['POST'])
 async def _register_with_invite():
     data = await request.form
+    data = validate(await request.form, REGISTER_WITH_INVITE)
 
     # dummy for now
     print(data['username'])
