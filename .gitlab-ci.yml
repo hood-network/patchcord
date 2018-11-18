@@ -15,6 +15,7 @@ tests:
     - python -V
     - apk --update add --no-cache build-base gcc libgcc libffi-dev openssl-dev git postgresql-client jpeg-dev openjpeg-dev zlib-dev freetype-dev lcms2-dev freetype-dev
     - pip3 install pipenv wheel tox
+    - pipenv install --dev
   script:
     - ls
     - cp config.ci.py config.py
