@@ -880,10 +880,6 @@ class GuildMemberList:
         roles = partial_presence.get('roles', old_presence['roles'])
         status = partial_presence.get('status', old_presence['status'])
 
-        # update the old presence's roles and status.
-        old_presence['roles'] = roles
-        old_presence['status'] = status
-
         # calculate a possible new group
         new_group = await self.get_group_for_member(
             user_id, roles, status)
@@ -894,6 +890,7 @@ class GuildMemberList:
         # update our presence with the given partial presence
         # since in both cases we'd update it anyways
         self.list.presences[user_id].update(partial_presence)
+        self.list.members[user_id]['roles'] = roles
 
         # if we're going to the same group AND there are no
         # nickname changes, treat this as a simple update
