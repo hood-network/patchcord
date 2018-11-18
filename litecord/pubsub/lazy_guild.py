@@ -880,6 +880,10 @@ class GuildMemberList:
         roles = partial_presence.get('roles', old_presence['roles'])
         status = partial_presence.get('status', old_presence['status'])
 
+        # update the old presence's roles and status.
+        old_presence['roles'] = roles
+        old_presence['status'] = status
+
         # calculate a possible new group
         new_group = await self.get_group_for_member(
             user_id, roles, status)
