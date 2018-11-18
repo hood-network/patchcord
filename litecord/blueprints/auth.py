@@ -5,6 +5,7 @@ import bcrypt
 from quart import Blueprint, jsonify, request, current_app as app
 
 from litecord.auth import token_check, create_user
+from litecord.schemas import validate, REGISTER, REGISTER_WITH_INVITE
 
 
 bp = Blueprint('auth', __name__)
@@ -45,6 +46,19 @@ async def register():
     return jsonify({
         'token': make_token(new_id, pwd_hash)
     })
+
+
+@bp.route('/register_inv', methods=['POST'])
+async def _register_with_invite():
+    data = await request.form
+
+    # dummy for now
+    print(data['username'])
+    print(data['email'])
+    print(data['password'])
+    print(data['invcode'])
+
+    return 'dab', 200
 
 
 @bp.route('/login', methods=['POST'])

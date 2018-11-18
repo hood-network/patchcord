@@ -150,6 +150,16 @@ def validate(reqjson: Union[Dict, List], schema: Dict,
     return validator.document
 
 
+REGISTER = {
+    'email': {'type': 'email'},
+    'username': {'type': 'username'},
+    'password': {'type': 'string', 'minlength': 5}
+}
+
+REGISTER_WITH_INVITE = {**REGISTER, **{
+    'invcode': {'type': 'string', 'required': True}
+}
+
 USER_UPDATE = {
     'username': {
         'type': 'username', 'minlength': 2,

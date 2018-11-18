@@ -5,7 +5,7 @@ import asyncpg
 import logbook
 import logging
 import websockets
-from quart import Quart, g, jsonify, request
+from quart import Quart, g, jsonify, request, send_file
 from logbook import StreamHandler, Logger
 from logbook.compat import redirect_logging
 
@@ -285,3 +285,9 @@ async def handle_500(err):
 async def index():
     """sample index page."""
     return 'hewwo'
+
+
+@app.route('/register')
+async def register_frontend():
+    """basic register page."""
+    return await send_file('static/invite_register.html')
