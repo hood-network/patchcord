@@ -191,13 +191,16 @@ async def create_message(channel_id):
                                   'MESSAGE_CREATE', payload)
 
     if ctype == ChannelType.GUILD_TEXT:
-        for str_uid in payload['mentions']:
-            uid = int(str_uid)
+        for mention in payload['mentions']:
+            uid = int(mention['id'])
+
+            print('updating user read state', repr(uid), repr(channel_id))
 
             await app.db.execute("""
             UPDATE user_read_state
-            SET mention_count += 1
-            WHERE user_id = $1 AND channel_id = $2
+            SET mention_count = mention_count + 1
+            WHERE user_id = $1
+              AND channel_id = $2
             """, uid, channel_id)
 
     return jsonify(payload)
