@@ -852,3 +852,13 @@ class Storage:
             res.append(emoji)
 
         return res
+
+    async def get_role_members(self, role_id: int) -> List[int]:
+        """Get all members with a role."""
+        rows = await self.db.fetch("""
+        SELECT user_id
+        FROM member_roles
+        WHERE role_id = $1
+        """, role_id)
+
+        return [r['id'] for r in rows]
