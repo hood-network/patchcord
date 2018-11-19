@@ -191,6 +191,12 @@ async def create_message(channel_id):
     await app.dispatcher.dispatch('channel', channel_id,
                                   'MESSAGE_CREATE', payload)
 
+    await app.db.execute("""
+    UPDATE user_read_state
+    SET last_message_id = $1
+    WHERE channel_id = $2 AND user_id = $3
+    """, message_id, channel_id, user_id)
+
     if ctype == ChannelType.GUILD_TEXT:
         # calculate the user ids we'll bump the mention count for
         uids = set()
