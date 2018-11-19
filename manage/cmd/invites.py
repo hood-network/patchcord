@@ -7,7 +7,7 @@ ALPHABET = string.ascii_lowercase + string.ascii_uppercase + string.digits
 
 async def _gen_inv() -> str:
     """Generate an invite code"""
-    return ''.join(choice(ALPHABET) for _ in range(10))
+    return ''.join(choice(ALPHABET) for _ in range(6))
 
 
 async def gen_inv(ctx) -> str:
