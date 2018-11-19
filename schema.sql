@@ -45,9 +45,6 @@ CREATE TABLE IF NOT EXISTS instance_invites (
 
     created_at timestamp without time zone default (now() at time zone 'utc'),
 
-    temporary bool DEFAULT false,
-    expires_at timestamp without time zone,
-
     uses bigint DEFAULT 0,
 
     -- -1 means infinite uses
