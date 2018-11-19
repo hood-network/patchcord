@@ -211,17 +211,15 @@ async def patch_me():
     friend_ids = await app.user_storage.get_friend_ids(user_id)
 
     session_ids.extend(
-        await app.dispatcher.dispatch_many_filter(
-            'guild', guild_ids,
-            lambda sess_id: sess_id not in session_ids,
+        await app.dispatcher.dispatch_many_filter_list(
+            'guild', guild_ids, session_ids,
             'USER_UPDATE', public_user
         )
     )
 
     session_ids.extend(
-        await app.dispatcher.dispatch_many_filter(
-            'friend', friend_ids,
-            lambda sess_id: sess_id not in session_ids,
+        await app.dispatcher.dispatch_many_filter_list(
+            'friend', friend_ids, session_ids,
             'USER_UPDATE', public_user
         )
     )

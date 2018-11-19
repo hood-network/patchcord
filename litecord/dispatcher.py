@@ -114,20 +114,24 @@ class EventDispatcher:
         key = backend.KEY_TYPE(key)
         return await backend.dispatch_filter(key, func, *args)
 
-    async def dispatch_many_filter(self, backend_str, keys: List[Any],
-                                   func, *args) -> List[str]:
-        """Call the dispatch_filter method to many keys.
+    async def dispatch_many_filter_list(self, backend_str: str,
+                                        keys: List[Any], sess_list: List[str],
+                                        *args):
+        """Make a "unique" dispatch given a list of session ids.
 
-        Not all backends will handle this function.
+        This only works for backends that have a dispatch_filter
+        handler and return session id lists in their dispatch
+        results.
         """
-        res = []
-
         for key in keys:
-            res.extend(
-                await self.dispatch_filter(backend_str, key, func, *args)
+            sess_list.extend(
+                await self.dispatch_filter(
+                    backend_str, key,
+                    lambda sess_id: sess_id not in sess_list,
+                    *args)
             )
 
-        return res
+        return sess_list
 
     async def reset(self, backend_str: str, key: Any):
         """Reset the bucket in the given backend."""
