@@ -184,6 +184,10 @@ async def use_invite(invite_code):
         },
     })
 
+    # update member lists for the new member
+    await app.dispatcher.dispatch(
+        'lazy_guild', guild_id, 'new_member', user_id)
+
     # subscribe new member to guild, so they get events n stuff
     await app.dispatcher.sub('guild', guild_id, user_id)
 

@@ -819,6 +819,47 @@ class GuildMemberList:
         return (await self.resync(session_ids_old, old_user_index) +
                 await self.resync(session_ids_new, new_user_index))
 
+    async def new_member(self, user_id: int):
+        """Insert a new member."""
+        if not self.list:
+            log.info('lazy: ignoring new member from not-init {}',
+                     user_id)
+            return
+
+        # fetch the new member's presence
+        pres = await self.presence.guild_presences(
+            [user_id], self.guild_id)
+
+        try:
+            pres = pres[0]
+        except IndexError:
+            log.warning('lazy: did not find pres for new uid {}',
+                        user_id)
+            return
+
+        # insert to pres dict
+        self.list.presences[user_id] = pres
+
+        member = await self.storage.get_member_data_one(
+            self.guild_id, user_id)
+
+        self.list.members[user_id] = member
+
+        # find a group for the newcomer
+        group_id = await self.get_group_for_member(
+            user_id, member['roles'], pres['status'])
+
+        self.list.data[group_id].append(user_id)
+        await self._sort_groups()
+
+        user_index = self.get_item_index(user_id)
+
+        if not user_index:
+            log.warning('lazy: new uid {} was not assigned idx',
+                        user_id)
+
+        return await self.resync_by_item(user_index)
+
     async def pres_update(self, user_id: int,
                           partial_presence: Presence):
         """Update a presence inside the member list.
@@ -1228,3 +1269,7 @@ class LazyGuildDispatcher(Dispatcher):
                                   partial: dict):
         await self._call_all_lists(
             guild_id, 'pres_update', user_id, partial)
+
+    async def _handle_new_member(self, guild_id, user_id: int):
+        await self._call_all_lists(
+            guild_id, 'new_member', user_id)
