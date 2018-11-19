@@ -68,6 +68,12 @@ async def _register_with_invite():
     if row['max_uses'] != -1 and row['uses'] >= row['max_uses']:
         raise BadRequest('invite expired')
 
+    await app.db.execute("""
+    UPDATE instance_invites
+    SET uses = uses + 1
+    WHERE code = $1
+    """, invcode)
+
     user_id, pwd_hash = await create_user(
         data['username'], data['email'], data['password'], app.db)
 
