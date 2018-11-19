@@ -40,6 +40,21 @@ INSERT INTO user_conn_apps (id, name) VALUES (9, 'Skype');
 INSERT INTO user_conn_apps (id, name) VALUES (10, 'League of Legends');
 
 
+CREATE TABLE IF NOT EXISTS instance_invites (
+    code text PRIMARY KEY,
+
+    created_at timestamp without time zone default (now() at time zone 'utc'),
+
+    temporary bool DEFAULT false,
+    expires_at timestamp without time zone,
+
+    uses bigint DEFAULT 0,
+
+    -- -1 means infinite uses
+    max_uses bigint DEFAULT -1
+);
+
+
 CREATE TABLE IF NOT EXISTS icons (
     -- can be 'user', 'guild', 'emoji'
     scope text NOT NULL,
