@@ -65,16 +65,16 @@ class Dispatcher:
 
     async def _dispatch_states(self, states: list, event: str, data) -> int:
         """Dispatch an event to a list of states."""
-        dispatched = 0
+        res = []
 
         for state in states:
             try:
                 await state.ws.dispatch(event, data)
-                dispatched += 1
+                res.append(state.session_id)
             except:
                 log.exception('error while dispatching')
 
-        return dispatched
+        return res
 
 
 class DispatcherWithState(Dispatcher):

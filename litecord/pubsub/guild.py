@@ -63,6 +63,7 @@ class GuildDispatcher(DispatcherWithState):
         func(session_id) true."""
         user_ids = self.state[guild_id]
         dispatched = 0
+        sessions = []
 
         # acquire a copy since we may be modifying
         # the original user_ids
@@ -82,16 +83,20 @@ class GuildDispatcher(DispatcherWithState):
                 lambda state: func(state.session_id), states
             ))
 
-            dispatched += await self._dispatch_states(
+            cur_sess = await self._dispatch_states(
                 states, event, data)
+            sessions.extend(cur_sess)
+            dispatched += len(cur_sess)
 
         log.info('Dispatched {} {!r} to {} states',
                  guild_id, event, dispatched)
 
+        return sessions
+
     async def dispatch(self, guild_id: int,
                        event: str, data: Any):
         """Dispatch an event to all subscribers of the guild."""
-        await self.dispatch_filter(
+        return await self.dispatch_filter(
             guild_id,
             lambda sess_id: True,
             event, data,

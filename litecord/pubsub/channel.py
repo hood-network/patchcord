@@ -19,6 +19,7 @@ class ChannelDispatcher(DispatcherWithState):
         # and store the number of states we dispatched the event to
         user_ids = self.state[channel_id]
         dispatched = 0
+        sessions = []
 
         # making a copy of user_ids since
         # we'll modify it later on.
@@ -42,7 +43,12 @@ class ChannelDispatcher(DispatcherWithState):
                 await self.unsub(channel_id, user_id)
                 continue
 
-            dispatched += await self._dispatch_states(states, event, data)
+            cur_sess = await self._dispatch_states(states, event, data)
+
+            sessions.extend(cur_sess)
+            dispatched += len(cur_sess)
 
         log.info('Dispatched chan={} {!r} to {} states',
                  channel_id, event, dispatched)
+
+        return sessions

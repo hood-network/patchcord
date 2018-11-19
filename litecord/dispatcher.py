@@ -114,6 +114,21 @@ class EventDispatcher:
         key = backend.KEY_TYPE(key)
         return await backend.dispatch_filter(key, func, *args)
 
+    async def dispatch_many_filter(self, backend_str, keys: List[Any],
+                                   func, *args) -> List[str]:
+        """Call the dispatch_filter method to many keys.
+
+        Not all backends will handle this function.
+        """
+        res = []
+
+        for key in keys:
+            res.extend(
+                await self.dispatch_filter(backend_str, key, func, *args)
+            )
+
+        return res
+
     async def reset(self, backend_str: str, key: Any):
         """Reset the bucket in the given backend."""
         backend = self.backends[backend_str]
