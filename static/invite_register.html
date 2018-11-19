@@ -1,23 +1,26 @@
 <html>
 
     <head>
+	<title>litecord: register</title>
+	<link href="css/invite_register.css" rel="stylesheet">
     </head>
 
     <body>
-        <p>register</p>
-
+	<div style="padding: 10px;"/>
+	<main class="rounded-thing">
+	<h1>register</h1>
         <form method="post" action="/api/v6/auth/register_inv">
-            <p>your username</p>
-            <input type="text" name="username"/>
-            <p>your email</p>
-            <input type="text" name="email"/>
-            <p>your password</p>
-            <input type="password" name="password"/>
-            <p>invite code</p>
-            <input type="text" name="invcode"/>
+            <input type="text" name="username" placeholder="your username"/>
+	    <br/>
+	    <input type="text" name="email" placeholder="your email"/>
+	    <br/>
+            <input type="password" name="password" placeholder="your password"/>
+	    <br/>
+	    <input type="text" name="invcode" placeholder="invite code"/>
 
             <p/><input type="submit" value="register">
         </form>
+	</main>
     </body>
 
 </html>
