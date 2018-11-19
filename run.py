@@ -5,7 +5,7 @@ import asyncpg
 import logbook
 import logging
 import websockets
-from quart import Quart, g, jsonify, request, send_file
+from quart import Quart, g, jsonify, request
 from logbook import StreamHandler, Logger
 from logbook.compat import redirect_logging
 
