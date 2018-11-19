@@ -195,10 +195,10 @@ async def patch_me():
         """, new_hash, user_id)
 
     user.pop('password_hash')
-    await app.dispatcher.dispatch_user(
-        user_id, 'USER_UPDATE', user)
 
     public_user = await app.storage.get_user(user_id)
+    await app.dispatcher.dispatch_user(
+        user_id, 'USER_UPDATE', public_user)
 
     guild_ids = await app.user_storage.get_user_guilds(user_id)
     friend_ids = await app.user_storage.get_friend_ids(user_id)
