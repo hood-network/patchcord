@@ -9,7 +9,7 @@ from litecord.permissions import base_permissions, get_permissions
 
 async def guild_check(user_id: int, guild_id: int):
     """Check if a user is in a guild."""
-    joined_at = await app.db.execute("""
+    joined_at = await app.db.fetchval("""
     SELECT joined_at
     FROM members
     WHERE user_id = $1 AND guild_id = $2
