@@ -700,7 +700,7 @@ class Storage:
         # only insert when the channel
         # is actually from a guild.
         if guild_id:
-            res['guild_id'] = guild_id
+            res['guild_id'] = str(guild_id)
 
         return res
 

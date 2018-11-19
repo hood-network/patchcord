@@ -269,9 +269,18 @@ async def edit_message(channel_id, message_id):
 
     # TODO: update embed
 
+    # only set new timestamp upon actual update
+    if updated:
+        await app.db.execute("""
+        UPDATE messages
+        SET edited_at = (now() at time zone 'utc')
+        WHERE id = $1
+        """, message_id)
+
     message = await app.storage.get_message(message_id, user_id)
 
-    # only dispatch MESSAGE_UPDATE if we actually had any update to start with
+    # only dispatch MESSAGE_UPDATE if any update
+    # actually happened
     if updated:
         await app.dispatcher.dispatch('channel', channel_id,
                                       'MESSAGE_UPDATE', message)
