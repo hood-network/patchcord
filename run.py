@@ -14,7 +14,7 @@ import config
 
 from litecord.blueprints import (
     gateway, auth, users, guilds, channels, webhooks, science,
-    voice, invites, relationships, dms, icons, nodeinfo
+    voice, invites, relationships, dms, icons, nodeinfo, static
 )
 
 # those blueprints are separated from the "main" ones
@@ -105,6 +105,7 @@ def set_blueprints(app_):
 
         icons: -1,
         nodeinfo: -1,
+        static: -1
     }
 
     for bp, suffix in bps.items():
@@ -285,9 +286,3 @@ async def handle_500(err):
 async def index():
     """sample index page."""
     return 'hewwo'
-
-
-@app.route('/register')
-async def register_frontend():
-    """basic register page."""
-    return await send_file('static/invite_register.html')
