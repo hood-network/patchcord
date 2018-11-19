@@ -20,6 +20,9 @@ def _get_ext(mime: str):
 
 
 def _get_mime(ext: str):
+    if ext == 'webp':
+        return 'image/webp'
+
     return mimetypes.types_map[f'.{ext}']
 
 
