@@ -1,26 +1,37 @@
+<!DOCTYPE html>
 <html>
-
     <head>
+        <meta charset="utf-8">
         <title>litecord: register</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <link href="css/invite_register.css" rel="stylesheet">
     </head>
-
     <body>
-        <div style="padding: 10px;"/>
-        <main class="rounded-thing">
-        <h1>register</h1>
-        <form method="post" action="/api/v6/auth/register_inv">
-            <input type="text" name="username" placeholder="your username"/>
-            <br/>
-            <input type="text" name="email" placeholder="your email"/>
-            <br/>
-            <input type="password" name="password" placeholder="your password"/>
-            <br/>
-            <input type="text" name="invcode" placeholder="invite code"/>
+        <main id="register">
+            <h1>register</h1>
+            <form method="post" action="/api/v6/auth/register_inv">
+                <div class="form-group">
+                    <label for="username">username <small>(only alphanumeric or underscore, no spaces)</small></label>
+                    <input type="text" name="username" maxlength=19 minlength=2 pattern="^[a-zA-Z0-9_]+$" placeholder="luna" required>
+                </div>
 
-            <p/><input type="submit" value="register">
-        </form>
+                <div class="form-group">
+                    <label for="email">email</label>
+                    <input type="email" name="email" pattern="^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$" placeholder="luna@blockchain.mail" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">password</label>
+                    <input type="password" name="password" minlength=5 required>
+                </div>
+
+                <div class="form-group">
+                    <label for="invcode">invite code</label>
+                    <input type="text" name="invcode" placeholder="4MLsEr" required>
+                </div>
+
+                <input type="submit" value="register">
+            </form>
         </main>
     </body>
-
 </html>
