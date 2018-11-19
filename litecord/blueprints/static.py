@@ -6,4 +6,8 @@ bp = Blueprint('static', __name__)
 
 @bp.route('/<path:path>')
 async def static_pages(path):
-    return app.send_static_file(str(Path(f'./static/{path}')))
+    if '..' in path:
+        return 'no', 404
+
+    static_path = Path.cwd() / Path('static') / path
+    return await app.send_static_file(str(static_path))
