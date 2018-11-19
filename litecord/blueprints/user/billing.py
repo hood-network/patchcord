@@ -336,7 +336,7 @@ async def _create_subscription():
         SubscriptionType.PURCHASE, PaymentGateway.STRIPE,
         plan_id, 1)
 
-    await create_payment(new_id, app)
+    await create_payment(new_id, app.db)
 
     return jsonify(
         await get_subscription(new_id)
