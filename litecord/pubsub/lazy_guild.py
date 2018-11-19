@@ -875,15 +875,28 @@ class GuildMemberList:
             return state.user_id != user_id
 
         # for now, remove any of the users' subscribed states
-        old_len = len(self.state)
+        state_keys = self.state.keys()
 
-        self.state = set(filter(
-            is_valid_state,
-            self.state
-        ))
+        for session_id in state_keys:
+            state = self.get_state(session_id)
 
+            # if unknown state, remove from the subscriber list
+            if state is None:
+                self.state.pop(session_id)
+
+            # if we aren't talking about the state the user
+            # being removed is subscribed to, ignore
+            if state.user_id != user_id:
+                continue
+
+            # state.user_id == user_id being removed,
+            # so we remove it.
+            self.state.pop(session_id)
+
+        old_len = len(state_keys)
         removed = old_len - len(self.state)
-        log.info('removed {} states due to remove_member {}',
+
+        log.info('lazy: removed {} states due to remove_member {}',
                  removed, user_id)
 
         # then clean anything on the internal member list
