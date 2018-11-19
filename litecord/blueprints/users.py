@@ -173,7 +173,17 @@ async def patch_me():
         """, j['email'], user_id)
         user['email'] = j['email']
 
-    if 'avatar' in j and j['avatar']:
+    # only update if values are different
+    # from what the user gave.
+
+    # this will return false if the client
+    # sends j['avatar'] as the user's
+    # original avatar hash, as they're the
+    # same.
+
+    # IconManager.update will take care of validating
+    # the value once put()-ing
+    if to_update(j, user, 'avatar'):
         new_icon = await app.icons.update(
             'user', user_id, j['avatar'], size=(128, 128))
 

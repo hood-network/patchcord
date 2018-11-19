@@ -191,7 +191,8 @@ USER_UPDATE = {
     },
 
     'avatar': {
-        'type': 'b64_icon', 'required': False,
+        # can be both b64_icon or string (just the hash)
+        'type': 'string', 'required': False,
         'nullable': True
     },
 
