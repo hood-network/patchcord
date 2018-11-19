@@ -1,0 +1,31 @@
+html, body {
+  background-color: #23272a;
+  color: white;
+  font-family: sans-serif;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-flow: column nowrap;
+  margin: 0;
+}
+@media (max-width: 500px) {
+    html,
+    body {
+        display: inherit !important;
+        padding: 1em;
+    }
+
+    main {
+        width: 100%;
+    }
+}
+
+* { box-sizing: border-box; }
+.rounded-thing {
+  border-radius: 5px;
+  background-color: #2c2f33;
+  padding: 10px; 
+}
+input { padding: 5px; }
+input[type=submit] { padding: 5px; }
+input[type=submit]:hover { background-color: #7298da; padding: 5px; }
