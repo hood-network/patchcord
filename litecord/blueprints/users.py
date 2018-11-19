@@ -10,6 +10,7 @@ from ..schemas import validate, USER_UPDATE
 from .guilds import guild_check
 from .auth import check_password
 from litecord.auth import hash_data, check_username_usage
+from litecord.blueprints.guild.mod import remove_member
 
 bp = Blueprint('user', __name__)
 
@@ -245,27 +246,7 @@ async def leave_guild(guild_id: int):
     user_id = await token_check()
     await guild_check(user_id, guild_id)
 
-    await app.db.execute("""
-    DELETE FROM members
-    WHERE user_id = $1 AND guild_id = $2
-    """, user_id, guild_id)
-
-    # first dispatch guild delete to the user,
-    # then remove from the guild,
-    # then tell the others that the member was removed
-    await app.dispatcher.dispatch_user_guild(
-        user_id, guild_id, 'GUILD_DELETE', {
-            'id': str(guild_id),
-            'unavailable': False,
-        }
-    )
-
-    await app.dispatcher.unsub('guild', guild_id, user_id)
-
-    await app.dispatcher.dispatch_guild('GUILD_MEMBER_REMOVE', {
-        'guild_id': str(guild_id),
-        'user': await app.storage.get_user(user_id)
-    })
+    await remove_member(guild_id, user_id)
 
     return '', 204
 

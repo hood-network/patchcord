@@ -17,12 +17,16 @@ async def remove_member(guild_id: int, member_id: int):
     WHERE guild_id = $1 AND user_id = $2
     """, guild_id, member_id)
 
-    await app.dispatcher.dispatch_user(member_id, 'GUILD_DELETE', {
-        'guild_id': guild_id,
-        'unavailable': False,
-    })
+    await app.dispatcher.dispatch_user_guild(
+        member_id, guild_id, 'GUILD_DELETE', {
+            'guild_id': str(guild_id),
+            'unavailable': False,
+        })
 
     await app.dispatcher.unsub('guild', guild_id, member_id)
+
+    await app.dispatcher.dispatch(
+        'lazy_guild', guild_id, 'remove_member', member_id)
 
     await app.dispatcher.dispatch_guild(guild_id, 'GUILD_MEMBER_REMOVE', {
         'guild_id': str(guild_id),

@@ -860,6 +860,43 @@ class GuildMemberList:
 
         return await self.resync_by_item(user_index)
 
+    async def remove_member(self, user_id: int):
+        """Remove a member from the list."""
+        if not self.list:
+            log.warning('lazy: unitialized, ignoring del uid {}',
+                        user_id)
+            return
+
+        # we need the old index to resync later on
+        old_idx = self.get_item_index(user_id)
+
+        try:
+            pres = self.list.presences.pop(user_id)
+        except KeyError:
+            log.warning('lazy: unknown pres uid {}', user_id)
+            return
+
+        try:
+            member = self.list.members.pop(user_id)
+        except KeyError:
+            log.warning('lazy: unknown member uid {}', user_id)
+            return
+
+        group_id = await self.get_group_for_member(
+            user_id, member['roles'], pres['status'])
+
+        if not group_id:
+            log.warning('lazy: unknown group uid {}', user_id)
+            return
+
+        self.list.data[group_id].remove(user_id)
+
+        if old_idx is None:
+            log.warning('lazy: unknown old idx uid {}', user_id)
+            return
+
+        await self.resync_by_item(old_idx)
+
     async def pres_update(self, user_id: int,
                           partial_presence: Presence):
         """Update a presence inside the member list.
@@ -1273,3 +1310,7 @@ class LazyGuildDispatcher(Dispatcher):
     async def _handle_new_member(self, guild_id, user_id: int):
         await self._call_all_lists(
             guild_id, 'new_member', user_id)
+
+    async def _handle_remove_member(self, guild_id, user_id: int):
+        await self._call_all_lists(
+            guild_id, 'remove_member', user_id)
