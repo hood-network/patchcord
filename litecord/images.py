@@ -15,6 +15,9 @@ log = Logger(__name__)
 
 
 def _get_ext(mime: str):
+    if mime == 'image/webp':
+        return 'webp'
+
     extensions = mimetypes.guess_all_extensions(mime)
     return extensions[0].strip('.')
 
