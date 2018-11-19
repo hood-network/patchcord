@@ -207,6 +207,7 @@ async def patch_me():
     user.pop('password_hash')
 
     public_user = await app.storage.get_user(user_id)
+    private_user = await app.storage.get_user(user_id, secure=True)
     session_ids = []
 
     # by using dispatch_with_filter
@@ -214,7 +215,7 @@ async def patch_me():
     # a USER_UPDATE once and not any others.
     session_ids.extend(
         await app.dispatcher.dispatch_user(
-            user_id, 'USER_UPDATE', public_user)
+            user_id, 'USER_UPDATE', private_user)
     )
 
     guild_ids = await app.user_storage.get_user_guilds(user_id)
@@ -234,7 +235,7 @@ async def patch_me():
         )
     )
 
-    return jsonify(user)
+    return jsonify(private_user)
 
 
 @bp.route('/@me/guilds', methods=['GET'])
