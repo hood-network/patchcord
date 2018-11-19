@@ -207,6 +207,10 @@ class GatewayWebsocket:
         }
 
         self.state.store[self.state.seq] = payload
+
+        log.debug('sending payload {!r} sid {}',
+                  event.upper(), self.state.session_id)
+
         await self.send(payload)
 
     async def _make_guild_list(self) -> List[int]:
