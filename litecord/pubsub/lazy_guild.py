@@ -870,6 +870,24 @@ class GuildMemberList:
         # we need the old index to resync later on
         old_idx = self.get_item_index(user_id)
 
+        def is_valid_state(session_id):
+            state = self.get_state(session_id)
+            return state.user_id != user_id
+
+        # for now, remove any of the users' subscribed states
+        old_len = len(self.state)
+
+        self.state = set(filter(
+            is_valid_state,
+            self.state
+        ))
+
+        removed = old_len - len(self.state)
+        log.info('removed {} states due to remove_member {}',
+                 removed, user_id)
+
+        # then clean anything on the internal member list
+        # about the member being removed.
         try:
             pres = self.list.presences.pop(user_id)
         except KeyError:
@@ -895,6 +913,7 @@ class GuildMemberList:
             log.warning('lazy: unknown old idx uid {}', user_id)
             return
 
+        # tell everyone about the removal.
         await self.resync_by_item(old_idx)
 
     async def pres_update(self, user_id: int,

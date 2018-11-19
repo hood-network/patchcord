@@ -784,6 +784,8 @@ class GatewayWebsocket:
             chan_id = int(chan_id)
             member_list = await lazy_guilds.get_gml(chan_id)
 
+            # TODO: check read_messages permission
+
             await member_list.shard_query(
                 self.state.session_id, ranges
             )
