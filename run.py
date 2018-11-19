@@ -279,7 +279,7 @@ async def handle_500(err):
         'error': True,
         'message': repr(err),
         'internal_server_error': True,
-    })
+    }), 500
 
 
 @app.route('/')

@@ -238,7 +238,7 @@ class IconManager:
             log.info('resizing from {} to {}',
                      image.size, want)
 
-            resized = image.resize(want)
+            resized = image.resize(want, resample=Image.LANCZOS)
 
             data_fd = BytesIO()
             resized.save(data_fd, format=extension)
