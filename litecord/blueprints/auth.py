@@ -6,6 +6,7 @@ from quart import Blueprint, jsonify, request, current_app as app
 
 from litecord.auth import token_check, create_user
 from litecord.schemas import validate, REGISTER, REGISTER_WITH_INVITE
+from litecord.errors import BadRequest
 
 
 bp = Blueprint('auth', __name__)
@@ -53,13 +54,27 @@ async def _register_with_invite():
     data = await request.form
     data = validate(await request.form, REGISTER_WITH_INVITE)
 
-    # dummy for now
-    print(data['username'])
-    print(data['email'])
-    print(data['password'])
-    print(data['invcode'])
+    invcode = data['invcode']
 
-    return 'dab', 200
+    row = await app.db.fetchrow("""
+    SELECT uses, max_uses
+    FROM instance_invites
+    WHERE code = $1
+    """, invcode)
+
+    if row is None:
+        raise BadRequest('unknown instance invite')
+
+    if row['max_uses'] != -1 and row['uses'] >= row['max_uses']:
+        raise BadRequest('invite expired')
+
+    user_id, pwd_hash = await create_user(
+        data['username'], data['email'], data['password'], app.db)
+
+    return jsonify({
+        'token': make_token(user_id, pwd_hash),
+        'user_id': str(user_id),
+    })
 
 
 @bp.route('/login', methods=['POST'])
