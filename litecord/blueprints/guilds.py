@@ -14,6 +14,8 @@ from ..schemas import (
 from .channels import channel_ack
 from .checks import guild_check, guild_owner_check
 
+from litecord.errors import BadRequest
+
 
 bp = Blueprint('guilds', __name__)
 
@@ -227,7 +229,13 @@ async def _update_guild(guild_id):
 
     channel_fields = ['afk_channel_id', 'system_channel_id']
     for field in [f for f in channel_fields if f in j]:
-        # TODO: check channel link to guild
+        chan = await app.storage.get_channel(int(j[field]))
+
+        if chan is None:
+            raise BadRequest('invalid channel id')
+
+        if chan['guild_id'] != str(guild_id):
+            raise BadRequest('channel id not linked to guild')
 
         await app.db.execute(f"""
         UPDATE guilds
