@@ -235,6 +235,10 @@ async def patch_me():
         )
     )
 
+    await app.dispatcher.dispatch_many(
+        'lazy_guild', guild_ids, 'update_user', user_id
+    )
+
     return jsonify(private_user)
 
 

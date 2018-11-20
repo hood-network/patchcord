@@ -929,6 +929,17 @@ class GuildMemberList:
         # tell everyone about the removal.
         await self.resync_by_item(old_idx)
 
+    async def update_user(self, user_id: int):
+        """Called for user updates such as avatar or username."""
+
+        # update user information inside self.list.members
+        self.list.members[user_id]['user'] = \
+            await self.storage.get_user(user_id)
+
+        # redispatch
+        user_idx = self.get_item_index(user_id)
+        return await self.resync_by_item(user_idx)
+
     async def pres_update(self, user_id: int,
                           partial_presence: Presence):
         """Update a presence inside the member list.
@@ -1346,3 +1357,7 @@ class LazyGuildDispatcher(Dispatcher):
     async def _handle_remove_member(self, guild_id, user_id: int):
         await self._call_all_lists(
             guild_id, 'remove_member', user_id)
+
+    async def _handle_update_user(self, guild_id, user_id: int):
+        await self._call_all_lists(
+            guild_id, 'update_user', user_id)
