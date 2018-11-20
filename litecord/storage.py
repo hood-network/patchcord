@@ -30,7 +30,7 @@ def str_(val):
 
 
 def timestamp_(dt):
-    return dt.isoformat() if dt else None
+    return f'{dt.isoformat()}+00:00' if dt else None
 
 
 async def _set_json(con):
@@ -188,7 +188,7 @@ class Storage:
             # the user since it is known that everyone has
             # that role.
             'roles': roles,
-            'joined_at': row['joined_at'].isoformat(),
+            'joined_at': timestamp_(row['joined_at']),
             'deaf': row['deafened'],
             'mute': row['muted'],
         }
@@ -483,7 +483,7 @@ class Storage:
             WHERE guild_id = $1 AND user_id = $2
             """, guild_id, user_id)
 
-            res['joined_at'] = joined_at.isoformat()
+            res['joined_at'] = timestamp_(joined_at.isoformat())
 
         members = await self.get_member_data(guild_id)
         channels = await self.get_channel_data(guild_id)
@@ -633,7 +633,7 @@ class Storage:
 
         res = dict(row)
         res['nonce'] = str(res['nonce'])
-        res['timestamp'] = res['timestamp'].isoformat()
+        res['timestamp'] = timestamp_(res['timestamp'])
         res['edited_timestamp'] = timestamp_(res['edited_timestamp'])
 
         res['type'] = res['message_type']
