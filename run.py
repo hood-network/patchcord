@@ -231,6 +231,11 @@ async def api_index(app):
         path = path.replace('>', '}')
         path = path.replace('int:', '')
 
+        # change our parameters into user.id
+        path = path.replace('member.id', 'user.id')
+        path = path.replace('banned.id', 'user.id')
+        path = path.replace('target.id', 'user.id')
+
         methods = rule.methods
 
         for method in methods:
