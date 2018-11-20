@@ -14,17 +14,30 @@ IMAGE_FOLDER = Path('./images')
 log = Logger(__name__)
 
 
-def _get_ext(mime: str):
-    if mime == 'image/webp':
-        return 'webp'
+EXTENSIONS = {
+    'image/jpeg': 'jpeg',
+    'image/webp': 'webp'
+}
+
+
+MIMES = {
+    'jpg': 'image/jpeg',
+    'jpe': 'image/jpeg',
+    'webp': 'image/webp',
+}
+
+
+def _get_ext(mime: str) -> str:
+    if mime in EXTENSIONS:
+        return EXTENSIONS[mime]
 
     extensions = mimetypes.guess_all_extensions(mime)
     return extensions[0].strip('.')
 
 
 def _get_mime(ext: str):
-    if ext == 'webp':
-        return 'image/webp'
+    if ext in MIMES:
+        return MIMES[ext]
 
     return mimetypes.types_map[f'.{ext}']
 
