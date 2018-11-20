@@ -378,8 +378,6 @@ async def _get_mentions():
 
     j = validate(dict(request.args), GET_MENTIONS)
 
-    print('args', j)
-
     guild_query = 'AND message.guild_id = $2' if 'guild_id' in j else ''
     role_query = "OR content LIKE '%<@&%'" if j['roles'] else ''
     everyone_query = "OR content LIKE '%@everyone%'" if j['everyone'] else ''
@@ -420,7 +418,5 @@ async def _get_mentions():
         res.append(
             message
         )
-
-    print(res)
 
     return jsonify(res)
