@@ -9,7 +9,7 @@ from ..auth import token_check
 from ..snowflake import get_snowflake
 from ..enums import ChannelType
 from ..schemas import (
-    validate, GUILD_CREATE, GUILD_UPDATE
+    validate, GUILD_CREATE, GUILD_UPDATE, SEARCH_CHANNEL
 )
 from .channels import channel_ack
 from .checks import guild_check, guild_owner_check
@@ -277,7 +277,7 @@ async def delete_guild(guild_id):
     return '', 204
 
 
-@bp.route('/<int:guild_id>/messages/search')
+@bp.route('/<int:guild_id>/messages/search', methods=['GET'])
 async def search_messages(guild_id):
     """Search messages in a guild.
 
@@ -286,12 +286,37 @@ async def search_messages(guild_id):
     user_id = await token_check()
     await guild_check(user_id, guild_id)
 
-    # TODO: implement route
+    j = validate(request.args, SEARCH_CHANNEL)
+
+    # main message ids
+    # TODO: filter only channels where user can
+    # read messages to prevent leaking
+    rows = await app.db.fetch(f"""
+    SELECT message_id,
+        COUNT(*) OVER() as total_results
+    FROM messages
+    WHERE guild_id = $1
+    ORDER BY
+    LIMIT 50
+    OFFSET $2
+    """, guild_id, j['offset'])
+
+    results = 0 if not rows else rows[0]['total_results']
+    main_messages = [r['message_id'] for r in rows]
+
+    # fetch contexts for each message
+    # (2 messages before, 2 messages after).
+
+    # TODO: actual contexts
+    res = []
+
+    for message_id in main_messages:
+        res.append([await app.storage.get_message(message_id)])
 
     return jsonify({
-        'total_results': 0,
-        'messages': [],
-        'analytics_id': 'ass',
+        'total_results': results,
+        'messages': res,
+        'analytics_id': '',
     })
 
 

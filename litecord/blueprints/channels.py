@@ -7,7 +7,7 @@ from litecord.auth import token_check
 from litecord.enums import ChannelType, GUILD_CHANS
 from litecord.errors import ChannelNotFound
 from litecord.schemas import (
-    validate, CHAN_UPDATE, CHAN_OVERWRITE
+    validate, CHAN_UPDATE, CHAN_OVERWRITE, SEARCH_CHANNEL
 )
 
 from litecord.blueprints.checks import channel_check, channel_perm_check
@@ -490,3 +490,41 @@ async def delete_read_state(channel_id):
     """, user_id, channel_id)
 
     return '', 204
+
+
+@bp.route('/<int:channel_id>/messages/search', methods=['GET'])
+async def _search_channel(channel_id):
+    """Search in DMs or group DMs"""
+    user_id = await token_check()
+    await channel_check(user_id, channel_id)
+    await channel_perm_check(user_id, channel_id, 'read_messages')
+    j = validate(request.args, SEARCH_CHANNEL)
+
+    # main message ids
+    rows = await app.db.fetch(f"""
+    SELECT message_id,
+        COUNT(*) OVER() as total_results
+    FROM messages
+    WHERE channel_id = $1 AND content LIKE '%'||$3||'%'
+    ORDER BY
+    LIMIT 50
+    OFFSET $2
+    """, channel_id, j['offset'], j['content'])
+
+    results = 0 if not rows else rows[0]['total_results']
+    main_messages = [r['message_id'] for r in rows]
+
+    # fetch contexts for each message
+    # (2 messages before, 2 messages after).
+
+    # TODO: actual contexts
+    res = []
+
+    for message_id in main_messages:
+        res.append([await app.storage.get_message(message_id)])
+
+    return jsonify({
+        'total_results': results,
+        'messages': res,
+        'analytics_id': '',
+    })

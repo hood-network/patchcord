@@ -591,3 +591,10 @@ PATCH_EMOJI = {
         'type': 'string', 'minlength': 1, 'maxlength': 256, 'required': True},
     'roles': {'type': 'list', 'schema': {'coerce': int}}
 }
+
+
+SEARCH_CHANNEL = {
+    'content': {'type': 'string', 'minlength': 1},
+    'include_nsfw': {'type': 'boolean'},
+    'offset': {'coerce': int}
+}

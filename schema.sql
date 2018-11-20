@@ -590,6 +590,9 @@ CREATE TABLE IF NOT EXISTS messages (
     id bigint PRIMARY KEY,
     channel_id bigint REFERENCES channels (id) ON DELETE CASCADE,
 
+    -- this is good for search.
+    guild_id bigint REFERENCES guilds (id) ON DELETE CASCADE,
+
     -- those are mutually exclusive, only one of them
     -- can NOT be NULL at a time.
 
