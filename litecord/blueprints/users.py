@@ -5,7 +5,7 @@ from quart import Blueprint, jsonify, request, current_app as app
 
 from ..auth import token_check
 from ..errors import Forbidden, BadRequest
-from ..schemas import validate, USER_UPDATE
+from ..schemas import validate, USER_UPDATE, GET_MENTIONS
 
 from .guilds import guild_check
 from .auth import check_password
@@ -370,3 +370,49 @@ async def get_profile(peer_id: int):
         'premium_since': peer_premium,
         'mutual_guilds': mutual_res,
     })
+
+
+@bp.route('/@me/mentions', methods=['GET'])
+async def _get_mentions():
+    user_id = await token_check()
+
+    j = validate(dict(request.args), GET_MENTIONS)
+
+    print('args', j)
+
+    guild_query = 'AND guild_id = $2' if 'guild_id' in j else ''
+    role_query = "OR content LIKE '%<@&%'" if j['roles'] else ''
+    everyone_query = "OR content LIKE '%@everyone%'" if j['everyone'] else ''
+    mention_user = f'<@{user_id}>'
+
+    args = [mention_user]
+
+    if guild_query:
+        args.append(j['guild_id'])
+
+    rows = await app.db.fetch(f"""
+    SELECT id
+    FROM messages
+    WHERE (
+        content LIKE '%'||$1||'%'
+        {role_query}
+        {everyone_query}
+        {guild_query}
+        )
+    LIMIT {j["limit"]}
+    """, *args)
+
+    res = []
+    for row in rows:
+        message = await app.storage.get_message(row['id'])
+        chan = await app.storage.get_channel(int(message['channel_id']))
+        if not chan:
+            print('ignore wee woo')
+            continue
+        res.append(
+            message
+        )
+
+    print(res)
+
+    return jsonify(res)

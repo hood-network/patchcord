@@ -598,3 +598,11 @@ SEARCH_CHANNEL = {
     'include_nsfw': {'coerce': bool, 'default': False},
     'offset': {'coerce': int, 'default': 0}
 }
+
+
+GET_MENTIONS = {
+    'limit': {'coerce': int, 'default': 25},
+    'roles': {'coerce': bool, 'default': True},
+    'everyone': {'coerce': bool, 'default': True},
+    'guild_id': {'coerce': int, 'required': False}
+}
