@@ -143,8 +143,11 @@ async def create_message(channel_id):
     user_id = await token_check()
     ctype, guild_id = await channel_check(user_id, channel_id)
 
+    actual_guild_id = None
+
     if ctype in GUILD_CHANS:
         await channel_perm_check(user_id, channel_id, 'send_messages')
+        actual_guild_id = guild_id
 
     j = validate(await request.get_json(), MESSAGE_CREATE)
     message_id = get_snowflake()
@@ -165,12 +168,13 @@ async def create_message(channel_id):
 
     await app.db.execute(
         """
-        INSERT INTO messages (id, channel_id, author_id, content, tts,
-            mention_everyone, nonce, message_type)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        INSERT INTO messages (id, channel_id, guild_id, author_id,
+            content, tts, mention_everyone, nonce, message_type)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
     """,
         message_id,
         channel_id,
+        actual_guild_id,
         user_id,
         j['content'],
 
