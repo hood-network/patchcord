@@ -69,7 +69,7 @@ Group DM Remove Recipient              DELETE       /channels/{channel.id}/recip
 Leave Guild                            DELETE       /users/@me/guilds/{guild.id}
 List Guild Members                     GET          /guilds/{guild.id}/members
 List Voice Regions                     GET          /voice/regions
-Modify Channel                         PUT/PATCH    /channels/{channel.id}
+Modify Channel                         PATCH    /channels/{channel.id}
 Modify Current User                    PATCH        /users/@me
 Modify Current User's Nick             PATCH        /guilds/{guild.id}/members/@me/nick
 Modify Guild                           PATCH        /guilds/{guild.id}
