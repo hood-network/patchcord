@@ -137,6 +137,7 @@ async def app_after_request(resp):
                                                     'X-Fingerprint, '
                                                     'X-Context-Properties, '
                                                     'X-Failed-Requests, '
+                                                    'X-Debug-Options, '
                                                     'Content-Type, '
                                                     'Authorization, '
                                                     'Origin, '
