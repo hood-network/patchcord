@@ -380,7 +380,7 @@ async def _get_mentions():
 
     print('args', j)
 
-    guild_query = 'AND guild_id = $2' if 'guild_id' in j else ''
+    guild_query = 'AND message.guild_id = $2' if 'guild_id' in j else ''
     role_query = "OR content LIKE '%<@&%'" if j['roles'] else ''
     everyone_query = "OR content LIKE '%@everyone%'" if j['everyone'] else ''
     mention_user = f'<@{user_id}>'
@@ -390,11 +390,17 @@ async def _get_mentions():
     if guild_query:
         args.append(j['guild_id'])
 
+    guild_ids = await app.user_storage.get_user_guilds(user_id)
+    gids = ','.join(str(guild_id) for guild_id in guild_ids)
+
     rows = await app.db.fetch(f"""
-    SELECT id
+    SELECT messages.id
     FROM messages
+    JOIN channels ON messages.channel_id = channels.id
     WHERE (
-        content LIKE '%'||$1||'%'
+        channels.channel_type = 0
+        AND messages.guild_id IN ({gids})
+        AND content LIKE '%'||$1||'%'
         {role_query}
         {everyone_query}
         {guild_query}
@@ -405,10 +411,12 @@ async def _get_mentions():
     res = []
     for row in rows:
         message = await app.storage.get_message(row['id'])
-        chan = await app.storage.get_channel(int(message['channel_id']))
-        if not chan:
-            print('ignore wee woo')
+        gid = int(message['guild_id'])
+
+        # ignore messages pre-messages.guild_id
+        if gid not in guild_ids:
             continue
+
         res.append(
             message
         )
