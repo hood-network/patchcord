@@ -245,6 +245,7 @@ class Storage:
         LIMIT {limit}
         """, guild_id, query)
 
+        mids = [r['user_id'] for r in mids]
         members = await self.get_member_multi(guild_id, mids)
         return members
 
