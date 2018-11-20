@@ -51,6 +51,9 @@ async def create_invite(channel_id):
 async def get_invite(invite_code: str):
     inv = await app.storage.get_invite(invite_code)
 
+    if not inv:
+        return '', 404
+
     if request.args.get('with_counts'):
         extra = await app.storage.get_invite_extra(invite_code)
         inv.update(extra)
