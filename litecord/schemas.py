@@ -594,7 +594,7 @@ PATCH_EMOJI = {
 
 
 SEARCH_CHANNEL = {
-    'content': {'type': 'string', 'minlength': 1},
-    'include_nsfw': {'type': 'boolean'},
-    'offset': {'coerce': int}
+    'content': {'type': 'string', 'minlength': 1, 'required': True},
+    'include_nsfw': {'coerce': bool, 'default': False},
+    'offset': {'coerce': int, 'default': 0}
 }
