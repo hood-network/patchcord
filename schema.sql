@@ -456,7 +456,7 @@ CREATE TABLE IF NOT EXISTS guild_emoji (
     image text REFERENCES icons (hash),
     animated bool DEFAULT false,
     managed bool DEFAULT false,
-    require_colons bool DEFAULT false
+    require_colons bool DEFAULT true
 );
 
 /* Someday I might actually write this.
