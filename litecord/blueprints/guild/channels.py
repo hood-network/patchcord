@@ -62,7 +62,7 @@ async def create_guild_channel(guild_id: int, channel_id: int,
     await _specific_chan_create(channel_id, ctype, **kwargs)
 
 
-@bp.route('/<int:guild>/channels', methods=['GET'])
+@bp.route('/<int:guild_id>/channels', methods=['GET'])
 async def get_guild_channels(guild_id):
     """Get the list of channels in a guild."""
     user_id = await token_check()
