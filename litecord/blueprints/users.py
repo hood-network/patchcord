@@ -378,7 +378,7 @@ async def _get_mentions():
 
     j = validate(dict(request.args), GET_MENTIONS)
 
-    guild_query = 'AND message.guild_id = $2' if 'guild_id' in j else ''
+    guild_query = 'AND messages.guild_id = $2' if 'guild_id' in j else ''
     role_query = "OR content LIKE '%<@&%'" if j['roles'] else ''
     everyone_query = "OR content LIKE '%@everyone%'" if j['everyone'] else ''
     mention_user = f'<@{user_id}>'
