@@ -206,9 +206,56 @@ def init_app_managers(app):
     app.storage.presence = app.presence
 
 
+async def api_index(app):
+    to_find = {}
+    found = []
+
+    with open('discord_endpoints.txt') as fd:
+        for line in fd.readlines():
+            components = line.split('  ')
+            components = list(filter(
+                bool,
+                components
+            ))
+            name, method, path = components
+            path = f'/api/v6{path.strip()}'
+            method = method.strip()
+            to_find[(path, method)] = name
+
+    for rule in app.url_map.rules:
+        path = rule.rule
+
+        # convert the path to the discord_endpoints file's style
+        path = path.replace('_', '.')
+        path = path.replace('<', '{')
+        path = path.replace('>', '}')
+        path = path.replace('int:', '')
+
+        methods = rule.methods
+
+        for method in methods:
+            pathname = to_find.get((path, method))
+            if pathname:
+                found.append(pathname)
+
+    found = set(found)
+    api = set(to_find.values())
+
+    missing = api - found
+
+    percentage = (len(found) / len(api)) * 100
+    percentage = round(percentage, 2)
+
+    log.debug('API compliance: {} out of {} ({} missing), {}% compliant',
+              len(found), len(api), len(missing), percentage)
+
+    log.debug('missing: {}', missing)
+
+
 async def post_app_start(app):
     # we'll need to start a billing job
     app.sched.spawn(payment_job(app))
+    app.sched.spawn(api_index(app))
 
 
 @app.before_serving
