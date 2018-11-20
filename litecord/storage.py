@@ -286,8 +286,9 @@ class Storage:
             }}
 
         if chan_type == ChannelType.GUILD_VOICE:
-            vrow = await self.db.fetchval("""
-            SELECT bitrate, user_limit FROM guild_voice_channels
+            vrow = await self.db.fetchrow("""
+            SELECT bitrate, user_limit
+            FROM guild_voice_channels
             WHERE id = $1
             """, row['id'])
 
