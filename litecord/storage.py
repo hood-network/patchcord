@@ -483,7 +483,7 @@ class Storage:
             WHERE guild_id = $1 AND user_id = $2
             """, guild_id, user_id)
 
-            res['joined_at'] = timestamp_(joined_at.isoformat())
+            res['joined_at'] = timestamp_(joined_at)
 
         members = await self.get_member_data(guild_id)
         channels = await self.get_channel_data(guild_id)
