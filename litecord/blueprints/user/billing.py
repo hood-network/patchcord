@@ -334,7 +334,9 @@ async def _create_subscription():
 
     period_end = {
         'premium_month_tier_1': '1 month',
-        'premium_month_tier_2': '1 month'
+        'premium_month_tier_2': '1 month',
+        'premium_year_tier_1': '1 year',
+        'premium_year_tier_2': '1 year',
     }[plan_id]
 
     new_id = get_snowflake()
