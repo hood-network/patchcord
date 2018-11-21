@@ -12,6 +12,9 @@ from .auth import check_password
 from litecord.auth import hash_data, check_username_usage
 from litecord.blueprints.guild.mod import remove_member
 
+from litecord.blueprints.user.billing import PremiumType
+from litecord.images import parse_data_uri
+
 bp = Blueprint('user', __name__)
 
 
@@ -184,6 +187,11 @@ async def patch_me():
     # IconManager.update will take care of validating
     # the value once put()-ing
     if to_update(j, user, 'avatar'):
+        mime, _ = parse_data_uri(j['avatar'])
+
+        if mime == 'image/gif' and user['premium_type'] == PremiumType.NONE:
+            raise BadRequest('no gif without nitro')
+
         new_icon = await app.icons.update(
             'user', user_id, j['avatar'], size=(128, 128))
 
