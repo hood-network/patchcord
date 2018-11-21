@@ -19,6 +19,7 @@ This project is a rewrite of [litecord-reference].
 Requirements:
 - Python 3.7 or higher
 - PostgreSQL
+- gifsicle for GIF emoji and avatar handling.
 - [Pipenv]
 
 [pipenv]: https://github.com/pypa/pipenv
