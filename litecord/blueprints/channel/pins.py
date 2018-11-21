@@ -1,7 +1,7 @@
 from quart import Blueprint, current_app as app, jsonify
 
 from litecord.auth import token_check
-from litecord.blueprints.checks import channel_check
+from litecord.blueprints.checks import channel_check, channel_perm_check
 from litecord.snowflake import snowflake_datetime
 
 bp = Blueprint('channel_pins', __name__)
@@ -37,7 +37,7 @@ async def add_pin(channel_id, message_id):
     user_id = await token_check()
     _ctype, guild_id = await channel_check(user_id, channel_id)
 
-    # TODO: check MANAGE_MESSAGES permission
+    await channel_perm_check(user_id, channel_id, 'manage_messages')
 
     await app.db.execute("""
     INSERT INTO channel_pins (channel_id, message_id)
@@ -67,7 +67,7 @@ async def delete_pin(channel_id, message_id):
     user_id = await token_check()
     _ctype, guild_id = await channel_check(user_id, channel_id)
 
-    # TODO: check MANAGE_MESSAGES permission
+    await channel_perm_check(user_id, channel_id, 'manage_messages')
 
     await app.db.execute("""
     DELETE FROM channel_pins
