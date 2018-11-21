@@ -3,7 +3,7 @@ KILOBYTES = 1024
 
 # time units
 MINUTES = 60
-HOUR = 60 * MINUTES
+HOURS = 60 * MINUTES
 
 
 class Color:
@@ -20,3 +20,7 @@ class Color:
 
     def __int__(self):
         return self.value
+
+
+def timestamp_(dt):
+    return f'{dt.isoformat()}+00:00' if dt else None

@@ -207,6 +207,8 @@ CREATE TABLE IF NOT EXISTS user_subscriptions (
     -- gateway = 1: stripe
     -- gateway = 2: braintree
     payment_gateway int DEFAULT 0,
+
+    -- "premium_<month|year>_tier_<int>"
     payment_gateway_plan_id text,
 
     -- status = 1: active

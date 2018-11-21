@@ -9,6 +9,10 @@ from litecord.blueprints.channel.reactions import (
     EmojiType, emoji_sql, partial_emoji
 )
 
+from litecord.blueprints.user.billing import PLAN_ID_TO_TYPE
+
+from litecord.types import timestamp_
+
 
 log = Logger(__name__)
 
@@ -27,10 +31,6 @@ def dict_(val):
 
 def str_(val):
     return maybe(str, val)
-
-
-def timestamp_(dt):
-    return f'{dt.isoformat()}+00:00' if dt else None
 
 
 async def _set_json(con):
@@ -109,6 +109,15 @@ class Storage:
         if secure:
             duser['mobile'] = False
             duser['phone'] = None
+
+            plan_id = await self.db.fetchval("""
+            SELECT payment_gateway_plan_id
+            FROM user_subscriptions
+            WHERE status = 1
+              AND user_id = $1
+            """, user_id)
+
+            duser['premium_type'] = PLAN_ID_TO_TYPE.get(plan_id)
 
         return duser
 

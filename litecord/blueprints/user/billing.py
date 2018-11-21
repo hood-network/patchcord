@@ -5,9 +5,9 @@ from quart import Blueprint, jsonify, request, current_app as app
 
 from litecord.auth import token_check
 from litecord.schemas import validate
-from litecord.storage import timestamp_
 from litecord.snowflake import snowflake_datetime, get_snowflake
 from litecord.errors import BadRequest
+from litecord.types import timestamp_
 
 bp = Blueprint('users_billing', __name__)
 
@@ -41,6 +41,20 @@ class PaymentGateway:
 class PaymentStatus:
     SUCCESS = 1
     FAILED = 2
+
+
+class PremiumType:
+    TIER_1 = 1
+    TIER_2 = 2
+    NONE = None
+
+
+PLAN_ID_TO_TYPE = {
+    'premium_month_tier_1': PremiumType.TIER_1,
+    'premium_month_tier_2': PremiumType.TIER_2,
+    'premium_year_tier_1': PremiumType.TIER_1,
+    'premium_year_tier_2': PremiumType.TIER_2,
+}
 
 
 # how much should a payment be, depending
