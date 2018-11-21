@@ -1,13 +1,15 @@
 from quart import Blueprint, request, current_app as app, jsonify
 
 from litecord.blueprints.auth import token_check
-from litecord.blueprints.checks import guild_check
 from litecord.errors import BadRequest
+
 from litecord.schemas import (
     validate, MEMBER_UPDATE
 )
-from litecord.blueprints.checks import guild_owner_check
 
+from litecord.blueprints.checks import (
+    guild_check, guild_owner_check, guild_perm_check
+)
 
 bp = Blueprint('guild_members', __name__)
 
@@ -104,7 +106,7 @@ async def modify_guild_member(guild_id, member_id):
     nick_flag = False
 
     if 'nick' in j:
-        # TODO: check MANAGE_NICKNAMES
+        await guild_perm_check(user_id, guild_id, 'manage_nicknames')
 
         await app.db.execute("""
         UPDATE members
@@ -115,7 +117,7 @@ async def modify_guild_member(guild_id, member_id):
         nick_flag = True
 
     if 'mute' in j:
-        # TODO: check MUTE_MEMBERS
+        await guild_perm_check(user_id, guild_id, 'mute_members')
 
         await app.db.execute("""
         UPDATE members
@@ -124,7 +126,7 @@ async def modify_guild_member(guild_id, member_id):
         """, j['mute'], member_id, guild_id)
 
     if 'deaf' in j:
-        # TODO: check DEAFEN_MEMBERS
+        await guild_perm_check(user_id, guild_id, 'deafen_members')
 
         await app.db.execute("""
         UPDATE members
@@ -138,7 +140,7 @@ async def modify_guild_member(guild_id, member_id):
         pass
 
     if 'roles' in j:
-        # TODO: check permissions
+        await guild_perm_check(user_id, guild_id, 'manage_roles')
         await _update_member_roles(guild_id, member_id, j['roles'])
 
     member = await app.storage.get_member_data_one(guild_id, member_id)
