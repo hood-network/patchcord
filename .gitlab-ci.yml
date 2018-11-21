@@ -13,7 +13,7 @@ cache:
 tests:
   before_script:
     - python -V
-    - apk --update add --no-cache build-base gcc libgcc libffi-dev openssl-dev git postgresql-client jpeg-dev openjpeg-dev zlib-dev freetype-dev lcms2-dev freetype-dev
+    - apk --update add --no-cache build-base gcc libgcc libffi-dev openssl-dev git postgresql-client jpeg-dev openjpeg-dev zlib-dev freetype-dev lcms2-dev freetype-dev gifsicle
     - pip3 install pipenv wheel tox
     - pipenv install --dev
   script:
