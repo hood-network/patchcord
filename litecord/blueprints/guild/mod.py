@@ -1,7 +1,7 @@
 from quart import Blueprint, request, current_app as app, jsonify
 
 from litecord.blueprints.auth import token_check
-from litecord.blueprints.checks import guild_owner_check
+from litecord.blueprints.checks import guild_perm_check, guild_owner_check
 
 from litecord.schemas import validate, GUILD_PRUNE
 
@@ -45,8 +45,7 @@ async def kick_guild_member(guild_id, member_id):
     """Remove a member from a guild."""
     user_id = await token_check()
 
-    # TODO: check KICK_MEMBERS permission
-    await guild_owner_check(user_id, guild_id)
+    await guild_perm_check(user_id, guild_id, 'kick_members')
     await remove_member(guild_id, member_id)
     return '', 204
 
@@ -55,8 +54,7 @@ async def kick_guild_member(guild_id, member_id):
 async def get_bans(guild_id):
     user_id = await token_check()
 
-    # TODO: check BAN_MEMBERS permission
-    await guild_owner_check(user_id, guild_id)
+    await guild_perm_check(user_id, guild_id, 'ban_members')
 
     bans = await app.db.fetch("""
     SELECT user_id, reason
@@ -79,8 +77,7 @@ async def get_bans(guild_id):
 async def create_ban(guild_id, member_id):
     user_id = await token_check()
 
-    # TODO: check BAN_MEMBERS permission
-    await guild_owner_check(user_id, guild_id)
+    await guild_perm_check(user_id, guild_id, 'ban_members')
 
     j = await request.get_json()
 
@@ -103,8 +100,7 @@ async def create_ban(guild_id, member_id):
 async def remove_ban(guild_id, banned_id):
     user_id = await token_check()
 
-    # TODO: check BAN_MEMBERS permission
-    await guild_owner_check(guild_id, user_id)
+    await guild_perm_check(user_id, guild_id, 'ban_members')
 
     res = await app.db.execute("""
     DELETE FROM bans
@@ -159,8 +155,7 @@ async def get_prune(guild_id: int, days: int) -> list:
 async def get_guild_prune_count(guild_id):
     user_id = await token_check()
 
-    # TODO: check KICK_MEMBERS
-    await guild_owner_check(user_id, guild_id)
+    await guild_perm_check(user_id, guild_id, 'kick_members')
 
     j = validate(await request.get_json(), GUILD_PRUNE)
     days = j['days']
@@ -175,8 +170,7 @@ async def get_guild_prune_count(guild_id):
 async def begin_guild_prune(guild_id):
     user_id = await token_check()
 
-    # TODO: check KICK_MEMBERS
-    await guild_owner_check(user_id, guild_id)
+    await guild_perm_check(user_id, guild_id, 'kick_members')
 
     j = validate(await request.get_json(), GUILD_PRUNE)
     days = j['days']
