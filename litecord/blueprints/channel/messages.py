@@ -51,8 +51,8 @@ def query_tuple_from_args(args: dict, limit: int) -> tuple:
 async def get_messages(channel_id):
     user_id = await token_check()
 
-    # TODO: check READ_MESSAGE_HISTORY permission
     ctype, peer_id = await channel_check(user_id, channel_id)
+    await channel_perm_check(user_id, channel_id, 'read_history')
 
     if ctype == ChannelType.DM:
         # make sure both parties will be subbed
@@ -97,8 +97,8 @@ async def get_messages(channel_id):
 async def get_single_message(channel_id, message_id):
     user_id = await token_check()
     await channel_check(user_id, channel_id)
+    await channel_perm_check(user_id, channel_id, 'read_history')
 
-    # TODO: check READ_MESSAGE_HISTORY permissions
     message = await app.storage.get_message(message_id, user_id)
 
     if not message:
