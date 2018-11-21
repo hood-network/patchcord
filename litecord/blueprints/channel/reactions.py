@@ -6,7 +6,7 @@ from logbook import Logger
 
 from litecord.utils import async_map
 from litecord.blueprints.auth import token_check
-from litecord.blueprints.checks import channel_check
+from litecord.blueprints.checks import channel_check, channel_perm_check
 from litecord.blueprints.channel.messages import (
     query_tuple_from_args, extract_limit
 )
@@ -68,11 +68,27 @@ async def add_reaction(channel_id: int, message_id: int, emoji: str):
     """Put a reaction."""
     user_id = await token_check()
 
-    # TODO: check READ_MESSAGE_HISTORY permission
-    #       and ADD_REACTIONS. look on route docs.
     ctype, guild_id = await channel_check(user_id, channel_id)
+    await channel_perm_check(user_id, channel_id, 'read_history')
 
     emoji_type, emoji_id, emoji_name = emoji_info_from_str(emoji)
+
+    emoji_id = emoji_id if emoji_type == EmojiType.CUSTOM else None
+    emoji_text = emoji_id if emoji_type == EmojiType.UNICODE else None
+
+    # ADD_REACTIONS is only checked when this is the first
+    # reaction in a message.
+    reaction_count = await app.db.fetchval("""
+    SELECT COUNT(*)
+    FROM message_reactions
+    WHERE message_id = $1
+      AND emoji_type = $2
+      AND emoji_id = $3
+      AND emoji_text = $4
+    """, message_id, emoji_type, emoji_id, emoji_text)
+
+    if reaction_count == 0:
+        await channel_perm_check(user_id, channel_id, 'add_reactions')
 
     await app.db.execute(
         """
@@ -84,8 +100,7 @@ async def add_reaction(channel_id: int, message_id: int, emoji: str):
         # if it is custom, we put the emoji_id on emoji_id
         # column, if it isn't, we put it on emoji_text
         # column.
-        emoji_id if emoji_type == EmojiType.CUSTOM else None,
-        emoji_id if emoji_type == EmojiType.UNICODE else None
+        emoji_id, emoji_text
     )
 
     partial = partial_emoji(emoji_type, emoji_id, emoji_name)
@@ -162,12 +177,10 @@ async def remove_own_reaction(channel_id, message_id, emoji):
 @bp.route(f'{BASEPATH}/<emoji>/<int:other_id>', methods=['DELETE'])
 async def remove_user_reaction(channel_id, message_id, emoji, other_id):
     """Remove a reaction made by another user."""
-    await token_check()
+    user_id = await token_check()
+    await channel_perm_check(user_id, channel_id, 'manage_messages')
 
-    # TODO: check MANAGE_MESSAGES permission (and use user_id
-    # from token_check to do it)
     await remove_reaction(channel_id, message_id, other_id, emoji)
-
     return '', 204
 
 
@@ -204,8 +217,8 @@ async def remove_all_reactions(channel_id, message_id):
     """Remove all reactions in a message."""
     user_id = await token_check()
 
-    # TODO: check MANAGE_MESSAGES permission
     ctype, guild_id = await channel_check(user_id, channel_id)
+    await channel_perm_check(user_id, channel_id, 'manage_messages')
 
     await app.db.execute("""
     DELETE FROM message_reactions
