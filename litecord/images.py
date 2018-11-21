@@ -168,6 +168,13 @@ def _invalid(kwargs: dict):
     return Icon(None, None, '')
 
 
+def _try_unlink(path: str):
+    try:
+        os.remove(path)
+    except FileNotFoundError:
+        pass
+
+
 class IconManager:
     """Main icon manager."""
     def __init__(self, app):
@@ -249,7 +256,9 @@ class IconManager:
                  image.size, target)
 
         # insert image info on input_handler
+        # close it to make it ready for consumption by gifsicle
         input_handler.write(raw_data)
+        input_handler.close()
 
         # call gifsicle under subprocess
         log.debug('input: {}', input_path)
@@ -270,12 +279,20 @@ class IconManager:
         output_handler = open(output_path, 'rb')
         data_fd.write(output_handler.read())
 
+        # close unused handlers
+        output_handler.close()
+
+        # delete the files we created with mkstemp
+        _try_unlink(input_path)
+        _try_unlink(output_path)
+
         # reseek, save to raw_data, reseek again.
         # TODO: remove raw_data altogether as its inefficient
         # to have two representations of the same bytes
         data_fd.seek(0)
         raw_data = data_fd.read()
         data_fd.seek(0)
+
 
         return data_fd, raw_data
 
