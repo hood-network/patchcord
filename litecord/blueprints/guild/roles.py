@@ -6,7 +6,7 @@ from logging import Logger
 from litecord.auth import token_check
 
 from litecord.blueprints.checks import (
-    guild_check, guild_owner_check
+    guild_check, guild_owner_check, guild_perm_check
 )
 from litecord.schemas import (
     validate, ROLE_CREATE, ROLE_UPDATE, ROLE_UPDATE_POSITION
@@ -103,8 +103,7 @@ async def create_guild_role(guild_id: int):
     """Add a role to a guild"""
     user_id = await token_check()
 
-    # TODO: use check_guild and MANAGE_ROLES permission
-    await guild_owner_check(user_id, guild_id)
+    await guild_perm_check(user_id, guild_id, 'manage_roles')
 
     # client can just send null
     j = validate(await request.get_json() or {}, ROLE_CREATE)
@@ -255,8 +254,7 @@ async def update_guild_role_positions(guild_id):
     """Update the positions for a bunch of roles."""
     user_id = await token_check()
 
-    # TODO: check MANAGE_ROLES
-    await guild_owner_check(user_id, guild_id)
+    await guild_perm_check(user_id, guild_id, 'manage_roles')
 
     raw_j = await request.get_json()
 
@@ -278,6 +276,8 @@ async def update_guild_role_positions(guild_id):
     # TODO: check if the user can even change the roles in the first place,
     #       preferrably when we have a proper perms system.
 
+    # NOTE: ^ this is related to the positioning of the roles.
+
     pairs = gen_pairs(
         j,
         roles_pos,
@@ -298,8 +298,7 @@ async def update_guild_role(guild_id, role_id):
     """Update a single role's information."""
     user_id = await token_check()
 
-    # TODO: check MANAGE_ROLES
-    await guild_owner_check(user_id, guild_id)
+    await guild_perm_check(user_id, guild_id, 'manage_roles')
 
     j = validate(await request.get_json(), ROLE_UPDATE)
 
@@ -326,8 +325,7 @@ async def delete_guild_role(guild_id, role_id):
     """
     user_id = await token_check()
 
-    # TODO: check MANAGE_ROLES
-    await guild_owner_check(user_id, guild_id)
+    await guild_perm_check(user_id, guild_id, 'manage_roles')
 
     res = await app.db.execute("""
     DELETE FROM roles
