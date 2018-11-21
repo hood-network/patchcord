@@ -12,7 +12,7 @@ from ..schemas import (
     validate, GUILD_CREATE, GUILD_UPDATE, SEARCH_CHANNEL
 )
 from .channels import channel_ack
-from .checks import guild_check, guild_owner_check
+from .checks import guild_check, guild_owner_check, guild_perm_check
 
 from litecord.errors import BadRequest
 
@@ -178,8 +178,8 @@ async def get_guild(guild_id):
 async def _update_guild(guild_id):
     user_id = await token_check()
 
-    # TODO: check MANAGE_GUILD
     await guild_check(user_id, guild_id)
+    await guild_perm_check(user_id, guild_id, 'manage_guild')
     j = validate(await request.get_json(), GUILD_UPDATE)
 
     if 'owner_id' in j:
