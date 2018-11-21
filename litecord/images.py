@@ -228,6 +228,11 @@ class IconManager:
         return await self.generic_get(
             'guild', guild_id, icon_hash, **kwargs)
 
+    async def _put_gif(self, scope: str, key,
+                       raw_data: bytes, **kwargs) -> Icon:
+        """Insert a gif icon"""
+        raise NotImplementedError
+
     async def put(self, scope: str, key: str,
                   b64_data: str, **kwargs) -> Icon:
         """Insert an icon."""
@@ -235,6 +240,8 @@ class IconManager:
             return _invalid(kwargs)
 
         mime, raw_data = parse_data_uri(b64_data)
+
+        # TODO: filter mimes
         data_fd = BytesIO(raw_data)
 
         # get an extension for the given data uri
@@ -242,6 +249,11 @@ class IconManager:
 
         if 'bsize' in kwargs and len(raw_data) > kwargs['bsize']:
             return _invalid(kwargs)
+
+        # size management is different for gif files
+        # as they're composed of multiple frames.
+        if mime == 'image/gif':
+            return await self._put_gif(scope, key, raw_data, **kwargs)
 
         if 'size' in kwargs:
             image = Image.open(data_fd)
