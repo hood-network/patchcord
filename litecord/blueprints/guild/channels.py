@@ -1,14 +1,17 @@
 from quart import Blueprint, request, current_app as app, jsonify
 
 from litecord.blueprints.auth import token_check
-from litecord.blueprints.checks import guild_check, guild_owner_check
 from litecord.snowflake import get_snowflake
 from litecord.errors import BadRequest
 from litecord.enums import ChannelType
+from litecord.blueprints.guild.roles import gen_pairs
+
 from litecord.schemas import (
     validate, ROLE_UPDATE_POSITION
 )
-from litecord.blueprints.guild.roles import gen_pairs
+from litecord.blueprints.checks import (
+    guild_check, guild_owner_check, guild_perm_check
+)
 
 
 bp = Blueprint('guild_channels', __name__)
@@ -78,8 +81,8 @@ async def create_channel(guild_id):
     user_id = await token_check()
     j = await request.get_json()
 
-    # TODO: check permissions for MANAGE_CHANNELS
     await guild_check(user_id, guild_id)
+    await guild_perm_check(user_id, guild_id, 'manage_channels')
 
     channel_type = j.get('type', ChannelType.GUILD_TEXT)
     channel_type = ChannelType(channel_type)
@@ -156,8 +159,8 @@ async def modify_channel_pos(guild_id):
     """Change positions of channels in a guild."""
     user_id = await token_check()
 
-    # TODO: check MANAGE_CHANNELS
     await guild_owner_check(user_id, guild_id)
+    await guild_perm_check(user_id, guild_id, 'manage_channels')
 
     # same thing as guild.roles, so we use
     # the same schema and all.
