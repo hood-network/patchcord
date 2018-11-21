@@ -17,7 +17,7 @@ async def get_pins(channel_id):
     SELECT message_id
     FROM channel_pins
     WHERE channel_id = $1
-    ORDER BY message_id ASC
+    ORDER BY message_id DESC
     """, channel_id)
 
     ids = [r['message_id'] for r in ids]
