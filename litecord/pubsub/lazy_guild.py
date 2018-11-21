@@ -931,6 +931,13 @@ class GuildMemberList:
 
     async def update_user(self, user_id: int):
         """Called for user updates such as avatar or username."""
+        if not self.list:
+            return
+
+        if user_id not in self.list.members:
+            log.warning('lazy: ignoring unknown uid {}',
+                        user_id)
+            return
 
         # update user information inside self.list.members
         self.list.members[user_id]['user'] = \

@@ -1,6 +1,8 @@
+import os
 import mimetypes
 import asyncio
 import base64
+import tempfile
 
 from dataclasses import dataclass
 from hashlib import sha256
@@ -9,6 +11,7 @@ from io import BytesIO
 
 from logbook import Logger
 from PIL import Image
+
 
 IMAGE_FOLDER = Path('./images')
 log = Logger(__name__)
@@ -228,10 +231,54 @@ class IconManager:
         return await self.generic_get(
             'guild', guild_id, icon_hash, **kwargs)
 
-    async def _put_gif(self, scope: str, key,
-                       raw_data: bytes, **kwargs) -> Icon:
-        """Insert a gif icon"""
-        raise NotImplementedError
+    async def _resize_gif(self, scope: str, key,
+                          raw_data: bytes, target: tuple) -> tuple:
+        """Resize a GIF image."""
+        # generate a temporary file to call gifsticle to and from.
+        input_fd, input_path = tempfile.mkstemp(suffix='.gif')
+        _, output_path = tempfile.mkstemp(suffix='.gif')
+
+        input_handler = os.fdopen(input_fd, 'wb')
+
+        # make sure its valid image data
+        data_fd = BytesIO(raw_data)
+        image = Image.open(data_fd)
+        image.close()
+
+        log.info('resizing a GIF from {} to {}',
+                 image.size, target)
+
+        # insert image info on input_handler
+        input_handler.write(raw_data)
+
+        # call gifsicle under subprocess
+        log.debug('input: {}', input_path)
+        log.debug('output: {}', output_path)
+
+        process = await asyncio.create_subprocess_shell(
+            f'gifsicle --resize {target[0]}x{target[1]} '
+            f'{input_path} > {output_path}',
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+
+        # run it, etc.
+        await process.communicate()
+
+        # write over an empty data_fd
+        data_fd = BytesIO()
+        output_handler = open(output_path, 'rb')
+        data_fd.write(output_handler.read())
+
+        # reseek, save to raw_data, reseek again.
+        # TODO: remove raw_data altogether as its inefficient
+        # to have two representations of the same bytes
+        data_fd.seek(0)
+        raw_data = data_fd.read()
+        data_fd.seek(0)
+
+        return data_fd, raw_data
+
 
     async def put(self, scope: str, key: str,
                   b64_data: str, **kwargs) -> Icon:
@@ -252,10 +299,10 @@ class IconManager:
 
         # size management is different for gif files
         # as they're composed of multiple frames.
-        if mime == 'image/gif':
-            return await self._put_gif(scope, key, raw_data, **kwargs)
-
-        if 'size' in kwargs:
+        if 'size' in kwargs and mime == 'image/gif':
+            data_fd, raw_data = await self._resize_gif(
+                scope, key, raw_data, kwargs['size'])
+        elif 'size' in kwargs:
             image = Image.open(data_fd)
 
             want = kwargs['size']
@@ -279,6 +326,9 @@ class IconManager:
         icon_hash = (await calculate_hash(data_fd)
                      if scope != 'emoji'
                      else None)
+
+        if scope == 'user' and mime == 'image/gif':
+            icon_hash = f'a_{icon_hash}'
 
         await self.storage.db.execute("""
         INSERT INTO icons (scope, key, hash, mime)
