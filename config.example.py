@@ -6,6 +6,9 @@ class Config:
     #: Main URL of the instance.
     MAIN_URL = 'discordapp.io'
 
+    #: Name of the instance
+    NAME = 'Litecord/Nya'
+
     #: Enable debug logging?
     DEBUG = False
 
@@ -36,6 +39,7 @@ class Config:
 
 class Development(Config):
     DEBUG = True
+
     POSTGRES = {
         'host': 'localhost',
         'user': 'litecord',
@@ -47,3 +51,10 @@ class Development(Config):
 class Production(Config):
     DEBUG = False
     IS_SSL = True
+
+    POSTGRES = {
+        'host': 'some_production_postgres',
+        'user': 'some_production_user',
+        'password': 'some_production_password',
+        'database': 'litecord_or_anything_else_really',
+    }

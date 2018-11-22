@@ -18,4 +18,5 @@ async def static_pages(path):
 async def index_handler():
     """Handler for the index page."""
     index_path = Path.cwd() / Path('static') / 'index.html'
-    return await render_template_string(index_path.read_text())
+    return await render_template_string(
+        index_path.read_text(), inst_name=app.config['NAME'])
