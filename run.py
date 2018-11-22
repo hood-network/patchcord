@@ -335,9 +335,3 @@ async def handle_500(err):
         'message': repr(err),
         'internal_server_error': True,
     }), 500
-
-
-@app.route('/')
-async def index():
-    """sample index page."""
-    return 'hewwo'

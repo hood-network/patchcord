@@ -1,0 +1,25 @@
+{% block body %}
+<center>
+    <h1>
+        welcome to a Litecord instance
+    </h1>
+
+    <p>
+    Litecord is server software that implements
+    the Discord API.
+    </p>
+
+    <p>
+    It supports nodeinfo, despise not being part
+    in any federated network.
+    </p>
+
+    <p>
+        <a href="https://gitlab.com/luna/litecord">Litecord source code</a>
+    </p>
+    <p>
+        <a href="{{request.protocol}}/nodeinfo/2.0.json">This instance's nodeinfo</a>
+    </p>
+
+</center>
+{% endblock%}
