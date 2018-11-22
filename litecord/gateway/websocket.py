@@ -793,7 +793,7 @@ class GatewayWebsocket:
             member_list = await lazy_guilds.get_gml(chan_id)
 
             perms = await get_permissions(
-                self.state.user_id, chan_id, self.storage)
+                self.state.user_id, chan_id, storage=self.storage)
 
             if not perms.read_messages:
                 # ignore requests to unknown channels
