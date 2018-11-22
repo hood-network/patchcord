@@ -1,7 +1,7 @@
 from quart import Blueprint, request, current_app as app, jsonify
 
 from litecord.blueprints.auth import token_check
-from litecord.blueprints.checks import guild_perm_check, guild_owner_check
+from litecord.blueprints.checks import guild_perm_check
 
 from litecord.schemas import validate, GUILD_PRUNE
 

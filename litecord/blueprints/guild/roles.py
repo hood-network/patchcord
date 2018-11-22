@@ -6,7 +6,7 @@ from logging import Logger
 from litecord.auth import token_check
 
 from litecord.blueprints.checks import (
-    guild_check, guild_owner_check, guild_perm_check
+    guild_check, guild_perm_check
 )
 from litecord.schemas import (
     validate, ROLE_CREATE, ROLE_UPDATE, ROLE_UPDATE_POSITION

@@ -7,7 +7,7 @@ from logbook import Logger
 from ..auth import token_check
 from ..schemas import validate, INVITE
 from ..enums import ChannelType
-from ..errors import BadRequest, Forbidden
+from ..errors import BadRequest
 from .guilds import create_guild_settings
 from ..utils import async_map
 
