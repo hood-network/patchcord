@@ -795,7 +795,7 @@ class GatewayWebsocket:
             perms = await get_permissions(
                 self.state.user_id, chan_id, storage=self.storage)
 
-            if not perms.read_messages:
+            if not perms.bits.read_messages:
                 # ignore requests to unknown channels
                 return
 
