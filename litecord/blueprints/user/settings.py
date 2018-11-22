@@ -1,3 +1,5 @@
+import json
+
 from quart import Blueprint, jsonify, request, current_app as app
 
 from litecord.auth import token_check
@@ -25,7 +27,14 @@ async def patch_current_settings():
     user_id = await token_check()
     j = validate(await request.get_json(), USER_SETTINGS)
 
+    json_fields = ['guild_positions', 'restricted_guilds']
+
     for key in j:
+        val = j[key]
+
+        if key in json_fields:
+            val = json.dumps(val)
+
         await app.db.execute(f"""
         UPDATE user_settings
         SET {key}=$1
