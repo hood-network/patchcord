@@ -11,10 +11,7 @@ from litecord.blueprints.user.billing import (
 )
 
 from litecord.snowflake import snowflake_datetime
-from litecord.types import MINUTES, HOURS
-from litecord.enums import UserFlags
-
-from litecord.blueprints.users import mass_user_update
+from litecord.types import MINUTES
 
 log = Logger(__name__)
 

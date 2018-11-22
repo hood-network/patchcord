@@ -12,7 +12,7 @@ from .auth import check_password
 from litecord.auth import hash_data, check_username_usage
 from litecord.blueprints.guild.mod import remove_member
 
-from litecord.blueprints.user.billing import PremiumType
+from litecord.enums import PremiumType
 from litecord.images import parse_data_uri
 from litecord.permissions import base_permissions
 

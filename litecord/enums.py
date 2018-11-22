@@ -163,3 +163,9 @@ class MessageNotifications(EasyEnum):
     ALL = 0
     MENTIONS = 1
     NOTHING = 2
+
+
+class PremiumType:
+    TIER_1 = 1
+    TIER_2 = 2
+    NONE = None

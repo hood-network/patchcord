@@ -1,14 +1,19 @@
 import json
+import datetime
 from enum import Enum
 
 from quart import Blueprint, jsonify, request, current_app as app
+from logbook import Logger
 
 from litecord.auth import token_check
 from litecord.schemas import validate
 from litecord.snowflake import snowflake_datetime, get_snowflake
 from litecord.errors import BadRequest
-from litecord.types import timestamp_
+from litecord.types import timestamp_, HOURS
+from litecord.enums import UserFlags, PremiumType
+from litecord.blueprints.users import mass_user_update
 
+log = Logger(__name__)
 bp = Blueprint('users_billing', __name__)
 
 
@@ -41,12 +46,6 @@ class PaymentGateway:
 class PaymentStatus:
     SUCCESS = 1
     FAILED = 2
-
-
-class PremiumType:
-    TIER_1 = 1
-    TIER_2 = 2
-    NONE = None
 
 
 PLAN_ID_TO_TYPE = {
