@@ -3,6 +3,7 @@ from quart import Blueprint, current_app as app, jsonify
 from litecord.auth import token_check
 from litecord.blueprints.checks import channel_check, channel_perm_check
 from litecord.snowflake import snowflake_datetime
+from litecord.types import timestamp_
 
 bp = Blueprint('channel_pins', __name__)
 
@@ -58,7 +59,7 @@ async def add_pin(channel_id, message_id):
         'channel', channel_id, 'CHANNEL_PINS_UPDATE',
         {
             'channel_id': str(channel_id),
-            'last_pin_timestamp': timestamp.isoformat()
+            'last_pin_timestamp': timestamp_(timestamp)
         }
     )
 
