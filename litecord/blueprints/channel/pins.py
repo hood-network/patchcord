@@ -5,6 +5,9 @@ from litecord.blueprints.checks import channel_check, channel_perm_check
 from litecord.snowflake import snowflake_datetime
 from litecord.types import timestamp_
 
+from litecord.system_messages import send_sys_message
+from litecord.enums import MessageType
+
 bp = Blueprint('channel_pins', __name__)
 
 
@@ -62,6 +65,10 @@ async def add_pin(channel_id, message_id):
             'last_pin_timestamp': timestamp_(timestamp)
         }
     )
+
+    await send_sys_message(app, channel_id,
+                           MessageType.CHANNEL_PINNED_MESSAGE,
+                           message_id, user_id)
 
     return '', 204
 

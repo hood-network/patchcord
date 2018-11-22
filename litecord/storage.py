@@ -699,6 +699,9 @@ class Storage:
         # TODO: res['embeds']
         res['embeds'] = []
 
+        # TODO: res['member'] for partial member data
+        #  of the author
+
         pin_id = await self.db.fetchval("""
         SELECT message_id
         FROM channel_pins
