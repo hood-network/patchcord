@@ -3,6 +3,9 @@ MODE = 'CI'
 
 class Config:
     """Default configuration values for litecord."""
+    MAIN_URL = 'localhost:1'
+    NAME = 'gitlab ci'
+
     # Enable debug logging?
     DEBUG = False
 
