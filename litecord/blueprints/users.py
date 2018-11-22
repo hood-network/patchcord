@@ -19,6 +19,49 @@ from litecord.permissions import base_permissions
 bp = Blueprint('user', __name__)
 
 
+async def mass_user_update(user_id, app_=None):
+    """Dispatch USER_UPDATE in a mass way."""
+    if app_ is None:
+        app_ = app
+
+    # by using dispatch_with_filter
+    # we're guaranteeing all shards will get
+    # a USER_UPDATE once and not any others.
+
+    session_ids = []
+
+    public_user = await app_.storage.get_user(user_id)
+    private_user = await app_.storage.get_user(user_id, secure=True)
+
+    session_ids.extend(
+        await app_.dispatcher.dispatch_user(
+            user_id, 'USER_UPDATE', private_user)
+    )
+
+    guild_ids = await app_.user_storage.get_user_guilds(user_id)
+    friend_ids = await app_.user_storage.get_friend_ids(user_id)
+
+    session_ids.extend(
+        await app_.dispatcher.dispatch_many_filter_list(
+            'guild', guild_ids, session_ids,
+            'USER_UPDATE', public_user
+        )
+    )
+
+    session_ids.extend(
+        await app_.dispatcher.dispatch_many_filter_list(
+            'friend', friend_ids, session_ids,
+            'USER_UPDATE', public_user
+        )
+    )
+
+    await app_.dispatcher.dispatch_many(
+        'lazy_guild', guild_ids, 'update_user', user_id
+    )
+
+    return private_user
+
+
 @bp.route('/@me', methods=['GET'])
 async def get_me():
     """Get the current user's information."""
@@ -215,39 +258,7 @@ async def patch_me():
 
     user.pop('password_hash')
 
-    public_user = await app.storage.get_user(user_id)
-    private_user = await app.storage.get_user(user_id, secure=True)
-    session_ids = []
-
-    # by using dispatch_with_filter
-    # we're guaranteeing all shards will get
-    # a USER_UPDATE once and not any others.
-    session_ids.extend(
-        await app.dispatcher.dispatch_user(
-            user_id, 'USER_UPDATE', private_user)
-    )
-
-    guild_ids = await app.user_storage.get_user_guilds(user_id)
-    friend_ids = await app.user_storage.get_friend_ids(user_id)
-
-    session_ids.extend(
-        await app.dispatcher.dispatch_many_filter_list(
-            'guild', guild_ids, session_ids,
-            'USER_UPDATE', public_user
-        )
-    )
-
-    session_ids.extend(
-        await app.dispatcher.dispatch_many_filter_list(
-            'friend', friend_ids, session_ids,
-            'USER_UPDATE', public_user
-        )
-    )
-
-    await app.dispatcher.dispatch_many(
-        'lazy_guild', guild_ids, 'update_user', user_id
-    )
-
+    private_user = await mass_user_update(user_id, app)
     return jsonify(private_user)
 
 

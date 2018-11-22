@@ -14,6 +14,8 @@ from litecord.snowflake import snowflake_datetime
 from litecord.types import MINUTES, HOURS
 from litecord.enums import UserFlags
 
+from litecord.blueprints.users import mass_user_update
+
 log = Logger(__name__)
 
 # how many days until a payment needs
@@ -130,10 +132,8 @@ async def _process_subscription(app, subscription_id: int):
     WHERE id = $3
     """, first_payment_ts, new_flags, user_id)
 
-    user_object = await app.storage.get_user(user_id, secure=True)
-
-    # dispatch updated user to all clients
-    await app.dispatcher.dispatch_user(user_id, 'USER_UPDATE', user_object)
+    # dispatch updated user to all possible clients
+    await mass_user_update(user_id, app)
 
 
 async def payment_job(app):
