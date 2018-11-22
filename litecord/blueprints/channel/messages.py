@@ -314,7 +314,8 @@ async def delete_message(channel_id, message_id):
 
     by_ownership = author_id == user_id
 
-    if not by_perm and not by_ownership:
+    can_delete = by_perm or by_ownership
+    if not can_delete:
         raise Forbidden('You can not delete this message')
 
     await app.db.execute("""
