@@ -7,7 +7,7 @@ from logbook import Logger
 
 from litecord.blueprints.user.billing import (
     get_subscription, get_payment_ids, get_payment, create_payment,
-    SubscriptionStatus
+    SubscriptionStatus, process_subscription
 )
 
 from litecord.snowflake import snowflake_datetime
@@ -79,63 +79,6 @@ async def _process_user_payments(app, user_id: int):
                   sub_id, threshold - delta.days)
 
 
-async def _process_subscription(app, subscription_id: int):
-    sub = await get_subscription(subscription_id, app.db)
-
-    user_id = int(sub['user_id'])
-
-    if sub['status'] != SubscriptionStatus.ACTIVE:
-        log.debug('ignoring sub {}, not active',
-                  subscription_id)
-        return
-
-    # if the subscription is still active
-    # (should get cancelled status on failed
-    #  payments), then we should update premium status
-    first_payment_id = await app.db.fetchval("""
-    SELECT MIN(id)
-    FROM user_payments
-    WHERE subscription_id = $1
-    """, subscription_id)
-
-    first_payment_ts = snowflake_datetime(first_payment_id)
-
-    premium_since = await app.db.fetchval("""
-    SELECT premium_since
-    FROM users
-    WHERE id = $1
-    """, user_id)
-
-    premium_since = premium_since or datetime.datetime.fromtimestamp(0)
-
-    delta = abs(first_payment_ts - premium_since)
-
-    # if the time difference between the first payment
-    # and the premium_since column is more than 24h
-    # we update it.
-    if delta.total_seconds() < 24 * HOURS:
-        return
-
-    old_flags = await app.db.fetchval("""
-    SELECT flags
-    FROM users
-    WHERE id = $1
-    """, user_id)
-
-    new_flags = old_flags | UserFlags.premium_early
-    log.debug('updating flags {}, {} => {}',
-              user_id, old_flags, new_flags)
-
-    await app.db.execute("""
-    UPDATE users
-    SET premium_since = $1, flags = $2
-    WHERE id = $3
-    """, first_payment_ts, new_flags, user_id)
-
-    # dispatch updated user to all possible clients
-    await mass_user_update(user_id, app)
-
-
 async def payment_job(app):
     """Main payment job function.
 
@@ -166,7 +109,7 @@ async def payment_job(app):
 
     for row in subscribers:
         try:
-            await _process_subscription(app, row['id'])
+            await process_subscription(app, row['id'])
         except Exception:
             log.exception('error while processing subscription')
     log.debug('rescheduling..')

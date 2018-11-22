@@ -258,6 +258,64 @@ async def create_payment(subscription_id, db=None):
     return new_id
 
 
+async def process_subscription(app, subscription_id: int):
+    """Process a single subscription."""
+    sub = await get_subscription(subscription_id, app.db)
+
+    user_id = int(sub['user_id'])
+
+    if sub['status'] != SubscriptionStatus.ACTIVE:
+        log.debug('ignoring sub {}, not active',
+                  subscription_id)
+        return
+
+    # if the subscription is still active
+    # (should get cancelled status on failed
+    #  payments), then we should update premium status
+    first_payment_id = await app.db.fetchval("""
+    SELECT MIN(id)
+    FROM user_payments
+    WHERE subscription_id = $1
+    """, subscription_id)
+
+    first_payment_ts = snowflake_datetime(first_payment_id)
+
+    premium_since = await app.db.fetchval("""
+    SELECT premium_since
+    FROM users
+    WHERE id = $1
+    """, user_id)
+
+    premium_since = premium_since or datetime.datetime.fromtimestamp(0)
+
+    delta = abs(first_payment_ts - premium_since)
+
+    # if the time difference between the first payment
+    # and the premium_since column is more than 24h
+    # we update it.
+    if delta.total_seconds() < 24 * HOURS:
+        return
+
+    old_flags = await app.db.fetchval("""
+    SELECT flags
+    FROM users
+    WHERE id = $1
+    """, user_id)
+
+    new_flags = old_flags | UserFlags.premium_early
+    log.debug('updating flags {}, {} => {}',
+              user_id, old_flags, new_flags)
+
+    await app.db.execute("""
+    UPDATE users
+    SET premium_since = $1, flags = $2
+    WHERE id = $3
+    """, first_payment_ts, new_flags, user_id)
+
+    # dispatch updated user to all possible clients
+    await mass_user_update(user_id, app)
+
+
 @bp.route('/@me/billing/payment-sources', methods=['GET'])
 async def _get_billing_sources():
     user_id = await token_check()
@@ -353,6 +411,10 @@ async def _create_subscription():
         plan_id, 1)
 
     await create_payment(new_id, app.db)
+
+    # make sure we update the user's premium status
+    # and dispatch respective user updates to other people.
+    await process_subscription(app, new_id)
 
     return jsonify(
         await get_subscription(new_id)
