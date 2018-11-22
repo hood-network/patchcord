@@ -124,6 +124,9 @@ class LitecordValidator(Validator):
         # for now, we'll use the same validation for guild_name
         return self._validate_type_guild_name(value)
 
+    def _validate_type_theme(self, value: str) -> bool:
+        return value in ['light', 'dark']
+
 
 def validate(reqjson: Union[Dict, List], schema: Dict,
              raise_err: bool = True) -> Union[Dict, List]:
@@ -513,7 +516,8 @@ USER_SETTINGS = {
 
     'timezone_offset': {'type': 'number', 'required': False},
 
-    'status': {'type': 'status_external', 'required': False}
+    'status': {'type': 'status_external', 'required': False},
+    'theme': {'type': 'theme', 'required': False}
 }
 
 RELATIONSHIP = {
