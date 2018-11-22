@@ -7,7 +7,7 @@ from logbook import Logger
 
 from litecord.blueprints.user.billing import (
     get_subscription, get_payment_ids, get_payment, create_payment,
-    SubscriptionStatus, process_subscription
+    process_subscription
 )
 
 from litecord.snowflake import snowflake_datetime
