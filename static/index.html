@@ -1,9 +1,14 @@
 <html>
     <head>
         <title>{{ inst_name }} - index</title>
+	<style>
+		#content {
+			text-align: center;
+		}
+	</style>
     </head>
     <body>
-        <center>
+        <main id="content">
             <h1>
                 welcome to {{ inst_name }}, a Litecord instance
             </h1>
@@ -25,6 +30,6 @@
                 <a href="{{request.protocol}}/nodeinfo/2.0.json">This instance's nodeinfo</a>
             </p>
 
-        </center>
+        </main>
     </body>
 </html>
