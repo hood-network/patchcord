@@ -6,21 +6,25 @@ import json
 from typing import List, Dict, Any
 from random import randint
 
-import earl
 import websockets
 from logbook import Logger
+import earl
 
-from litecord.errors import WebsocketClose, Unauthorized, Forbidden, BadRequest
 from litecord.auth import raw_token_check
 from litecord.enums import RelationshipType
 from litecord.schemas import validate, GW_STATUS_UPDATE
 from litecord.utils import task_wrapper
+from litecord.permissions import get_permissions
 
-from .errors import DecodeError, UnknownOPCode, \
-    InvalidShard, ShardingRequired
-from .opcodes import OP
-from .state import GatewayState
+from litecord.gateway.opcodes import OP
+from litecord.gateway.state import GatewayState
 
+from litecord.errors import (
+    WebsocketClose, Unauthorized, Forbidden, BadRequest
+)
+from .errors import (
+    DecodeError, UnknownOPCode, InvalidShard, ShardingRequired
+)
 
 log = Logger(__name__)
 WebsocketProperties = collections.namedtuple(
@@ -788,7 +792,12 @@ class GatewayWebsocket:
             chan_id = int(chan_id)
             member_list = await lazy_guilds.get_gml(chan_id)
 
-            # TODO: check read_messages permission
+            perms = await get_permissions(
+                self.state.user_id, chan_id, self.storage)
+
+            if not perms.read_messages:
+                # ignore requests to unknown channels
+                return
 
             await member_list.shard_query(
                 self.state.session_id, ranges
