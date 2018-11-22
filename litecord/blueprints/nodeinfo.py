@@ -23,6 +23,11 @@ async def _dummy_nodeinfo():
     FROM users
     """)
 
+    message_count = await app.db.fetchval("""
+    SELECT COUNT(*)
+    FROM messages
+    """)
+
     return jsonify({
         'metadata': {
             'features': [
@@ -48,7 +53,7 @@ async def _dummy_nodeinfo():
         },
 
         'usage': {
-            'localPosts': -1,
+            'localPosts': message_count,
             'users': {
                 'total': usercount
             }
