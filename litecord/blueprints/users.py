@@ -14,6 +14,7 @@ from litecord.blueprints.guild.mod import remove_member
 
 from litecord.blueprints.user.billing import PremiumType
 from litecord.images import parse_data_uri
+from litecord.permissions import base_permissions
 
 bp = Blueprint('user', __name__)
 
@@ -267,8 +268,9 @@ async def get_me_guilds():
 
         partial = dict(partial)
 
-        # TODO: partial['permissions']
+        partial['permissions'] = await base_permissions(user_id, guild_id)
         partial['owner'] = partial['owner_id'] == user_id
+
         partial.pop('owner_id')
 
         partials.append(partial)
