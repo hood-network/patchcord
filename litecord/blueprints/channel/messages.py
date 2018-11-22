@@ -16,11 +16,12 @@ log = Logger(__name__)
 bp = Blueprint('channel_messages', __name__)
 
 
-def extract_limit(request, default: int = 50):
+def extract_limit(request_, default: int = 50, max_val: int = 100):
+    """Extract a limit kwarg."""
     try:
-        limit = int(request.args.get('limit', default))
+        limit = int(request_.args.get('limit', default))
 
-        if limit not in range(0, 100):
+        if limit not in range(0, max_val + 1):
             raise ValueError()
     except (TypeError, ValueError):
         raise BadRequest('limit not int')
