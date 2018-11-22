@@ -54,10 +54,13 @@ async def add_pin(channel_id, message_id):
 
     timestamp = snowflake_datetime(row['message_id'])
 
-    await app.dispatcher.dispatch_guild(guild_id, 'CHANNEL_PINS_UPDATE', {
-        'channel_id': str(channel_id),
-        'last_pin_timestamp': timestamp.isoformat()
-    })
+    await app.dispatcher.dispatch(
+        'channel', channel_id, 'CHANNEL_PINS_UPDATE',
+        {
+            'channel_id': str(channel_id),
+            'last_pin_timestamp': timestamp.isoformat()
+        }
+    )
 
     return '', 204
 
