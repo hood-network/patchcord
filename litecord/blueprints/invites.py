@@ -179,6 +179,12 @@ async def use_invite(invite_code):
     VALUES ($1, $2, $3)
     """, user_id, guild_id, guild_id)
 
+    await app.db.execute("""
+    UPDATE invites
+    SET uses = uses + 1
+    WHERE code = $1
+    """, invite_code)
+
     # tell current members a new member came up
     member = await app.storage.get_member_data_one(guild_id, user_id)
     await app.dispatcher.dispatch_guild(guild_id, 'GUILD_MEMBER_ADD', {
