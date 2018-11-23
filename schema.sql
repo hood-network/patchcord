@@ -356,6 +356,7 @@ CREATE TABLE IF NOT EXISTS guild_channels (
 CREATE TABLE IF NOT EXISTS guild_text_channels (
     id bigint REFERENCES guild_channels (id) ON DELETE CASCADE,
     topic text DEFAULT '',
+    rate_limit_per_user bigint DEFAULT 0,
     PRIMARY KEY (id)
 );
 

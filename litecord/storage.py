@@ -282,17 +282,19 @@ class Storage:
         chan_type = ChannelType(channel_type)
 
         if chan_type == ChannelType.GUILD_TEXT:
-            topic = await self.db.fetchval("""
-            SELECT topic FROM guild_text_channels
+            ext_row = await self.db.fetchrow("""
+            SELECT topic, rate_limit_per_user
+            FROM guild_text_channels
             WHERE id = $1
             """, row['id'])
 
+            drow = dict(ext_row)
+
             last_msg = await self.chan_last_message_str(row['id'])
 
-            return {**row, **{
-                'topic': topic,
-                'last_message_id': last_msg,
-            }}
+            drow['last_message_id'] = last_msg
+
+            return {**row, **drow}
 
         if chan_type == ChannelType.GUILD_VOICE:
             vrow = await self.db.fetchrow("""
