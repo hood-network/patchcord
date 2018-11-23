@@ -94,6 +94,11 @@ async def delete_invite(invite_code: str):
     return jsonify(inv)
 
 
+@bp.route('/invite/<invite_code>', methods=['DELETE'])
+async def delete_invite_2(invite_code: str):
+    return await delete_invite(invite_code)
+
+
 async def _get_inv(code):
     inv = await app.storage.get_invite(code)
     meta = await app.storage.get_invite_metadata(code)
