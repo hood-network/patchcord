@@ -127,6 +127,9 @@ class LitecordValidator(Validator):
     def _validate_type_theme(self, value: str) -> bool:
         return value in ['light', 'dark']
 
+    def _validate_type_nickname(self, value: str) -> bool:
+        return isinstance(value, str) and len(value) in range(1, 32)
+
 
 def validate(reqjson: Union[Dict, List], schema: Dict,
              raise_err: bool = True) -> Union[Dict, List]:
@@ -350,10 +353,7 @@ ROLE_UPDATE_POSITION = {
 
 MEMBER_UPDATE = {
     'nick': {
-        'type': 'username',
-        'minlength': 1, 'maxlength': 100,
-        'required': False,
-    },
+        'type': 'nickname', 'required': False},
     'roles': {'type': 'list', 'required': False,
               'schema': {'coerce': int}},
     'mute': {'type': 'boolean', 'required': False},

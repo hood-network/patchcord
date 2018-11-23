@@ -170,13 +170,17 @@ async def update_nickname(guild_id):
     user_id = await token_check()
     await guild_check(user_id, guild_id)
 
-    j = await request.get_json()
+    j = validate(await request.get_json(), {
+        'nick': {'type': 'nickname'}
+    })
+
+    nick = j['nick'] or None
 
     await app.db.execute("""
     UPDATE members
     SET nickname = $1
     WHERE user_id = $2 AND guild_id = $3
-    """, j['nick'], user_id, guild_id)
+    """, nick, user_id, guild_id)
 
     member = await app.storage.get_member_data_one(guild_id, user_id)
     member.pop('joined_at')
