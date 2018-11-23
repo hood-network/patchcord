@@ -128,7 +128,7 @@ class LitecordValidator(Validator):
         return value in ['light', 'dark']
 
     def _validate_type_nickname(self, value: str) -> bool:
-        return isinstance(value, str) and len(value) in range(1, 32)
+        return isinstance(value, str) and (len(value) < 32)
 
 
 def validate(reqjson: Union[Dict, List], schema: Dict,

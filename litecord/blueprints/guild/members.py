@@ -108,11 +108,13 @@ async def modify_guild_member(guild_id, member_id):
     if 'nick' in j:
         await guild_perm_check(user_id, guild_id, 'manage_nicknames')
 
+        nick = j['nick'] or None
+
         await app.db.execute("""
         UPDATE members
         SET nickname = $1
         WHERE user_id = $2 AND guild_id = $3
-        """, j['nick'], member_id, guild_id)
+        """, nick, member_id, guild_id)
 
         nick_flag = True
 
