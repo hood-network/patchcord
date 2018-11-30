@@ -502,11 +502,11 @@ async def _search_channel(channel_id):
 
     # main message ids
     rows = await app.db.fetch(f"""
-    SELECT message_id,
+    SELECT messages.id,
         COUNT(*) OVER() as total_results
     FROM messages
     WHERE channel_id = $1 AND content LIKE '%'||$3||'%'
-    ORDER BY
+    ORDER BY messages.id DESC
     LIMIT 50
     OFFSET $2
     """, channel_id, j['offset'], j['content'])
@@ -521,7 +521,9 @@ async def _search_channel(channel_id):
     res = []
 
     for message_id in main_messages:
-        res.append([await app.storage.get_message(message_id)])
+        msg = await app.storage.get_message(message_id)
+        msg['hit'] = True
+        res.append([msg])
 
     return jsonify({
         'total_results': results,
