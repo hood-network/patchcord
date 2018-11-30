@@ -30,7 +30,7 @@ from litecord.blueprints.channel import (
 )
 
 from litecord.blueprints.user import (
-    user_settings, user_billing
+    user_settings, user_billing, fake_store
 )
 
 from litecord.blueprints.user.billing_job import (
@@ -102,6 +102,8 @@ def set_blueprints(app_):
         voice: '/voice',
         invites: None,
         dms: '/users',
+
+        fake_store: None,
 
         icons: -1,
         nodeinfo: -1,
