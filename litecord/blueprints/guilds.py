@@ -291,15 +291,17 @@ async def search_messages(guild_id):
     # main message ids
     # TODO: filter only channels where user can
     # read messages to prevent leaking
+
     rows = await app.db.fetch(f"""
     SELECT messages.id,
         COUNT(*) OVER() as total_results
     FROM messages
     WHERE guild_id = $1
+      AND messages.content LIKE '%'||$2||'%'
     ORDER BY messages.id DESC
     LIMIT 50
-    OFFSET $2
-    """, guild_id, j['offset'])
+    OFFSET $3
+    """, guild_id, j['content'], j['offset'])
 
     results = 0 if not rows else rows[0]['total_results']
     main_messages = [r['id'] for r in rows]
