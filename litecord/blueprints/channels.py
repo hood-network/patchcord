@@ -185,6 +185,10 @@ async def close_channel(channel_id):
         WHERE id = $1
         """, channel_id)
 
+        # clean its member list representation
+        lazy_guilds = app.dispatcher.backends['lazy_guild']
+        lazy_guilds.remove_channel(channel_id)
+
         await app.dispatcher.dispatch_guild(
             guild_id, 'CHANNEL_DELETE', chan)
         return jsonify(chan)
@@ -404,6 +408,8 @@ async def update_channel(channel_id):
     await update_handler(channel_id, j)
 
     chan = await app.storage.get_channel(channel_id)
+
+
     await app.dispatcher.dispatch('guild', guild_id, 'CHANNEL_UPDATE', chan)
     return jsonify(chan)
 
@@ -498,6 +504,7 @@ async def _search_channel(channel_id):
     user_id = await token_check()
     await channel_check(user_id, channel_id)
     await channel_perm_check(user_id, channel_id, 'read_messages')
+
     j = validate(request.args, SEARCH_CHANNEL)
 
     # main message ids

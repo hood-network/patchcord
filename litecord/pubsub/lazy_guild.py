@@ -1264,6 +1264,17 @@ class GuildMemberList:
 
         return await self.resync(sess_ids_resync, role_item_index)
 
+    def close(self):
+        """Remove data."""
+        log.info('closing GML gid={} cid={}, {} subscribers',
+                 self.guild_id, self.channel_id, len(self.state))
+
+        self.guild_id = None
+        self.channel_id = None
+        self.main = None
+        self.list = MemberList
+        self.state = {}
+
 
 class LazyGuildDispatcher(Dispatcher):
     """Main class holding the member lists for lazy guilds."""
@@ -1326,6 +1337,19 @@ class LazyGuildDispatcher(Dispatcher):
             return
 
         await handler(guild_id, *args, **kwargs)
+
+    def remove_channel(self, channel_id: int):
+        """Remove a channel from the manager."""
+        try:
+            gml = self.state.pop(channel_id)
+            gml.close()
+        except KeyError:
+            pass
+
+    async def chan_update(self, channel_id: int):
+        """Signal a channel update to a member list."""
+        gml = await self.get_gml(channel_id)
+        await gml.chan_update()
 
     async def _call_all_lists(self, guild_id, method_str: str, *args):
         lists = self.get_gml_guild(guild_id)
