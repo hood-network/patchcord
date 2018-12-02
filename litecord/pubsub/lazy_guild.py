@@ -162,6 +162,17 @@ def _to_simple_group(presence: dict) -> str:
     return 'offline' if presence['status'] == 'offline' else 'online'
 
 
+async def everyone_allow(gml) -> bool:
+    everyone_perms = await role_permissions(
+        gml.guild_id,
+        gml.guild_id,
+        gml.channel_id,
+        storage=gml.storage
+    )
+
+    return everyone_perms.bits.read_messages
+
+
 def display_name(member_nicks: Dict[str, str], presence: Presence) -> str:
     """Return the display name of a presence.
 
@@ -284,7 +295,7 @@ class GuildMemberList:
                             if g.gid in roles)
         except StopIteration:
             # no group was found, so we fallback
-            # to simple group"
+            # to simple group
             group_id = _to_simple_group({'status': status})
 
         return group_id
@@ -1274,6 +1285,27 @@ class GuildMemberList:
                   len(sess_ids_resync), role_item_index)
 
         return await self.resync(sess_ids_resync, role_item_index)
+
+    async def chan_update(self):
+        """Called then a channel's data has been updated."""
+        await self._fetch_overwrites()
+
+        # TODO: recreate groups
+
+        # self.list.data = dict()
+        # await self._list_fill_groups()
+        # await self._sort_groups()
+
+        if self.list_id == 'everyone':
+            return
+
+        # we are on a non-everyone gml, time to check everyone perms
+        ev_read = await everyone_allow(self)
+
+        if ev_read:
+            # we became the everyone list right now, so we MUST
+            # move our current state.
+            pass
 
     def close(self):
         """Remove data."""
