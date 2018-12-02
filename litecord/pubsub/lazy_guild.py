@@ -1342,6 +1342,11 @@ class LazyGuildDispatcher(Dispatcher):
         """Remove a channel from the manager."""
         try:
             gml = self.state.pop(channel_id)
+
+            # remove it from guild map as well
+            guild_id = gml.guild_id
+            self.guild_map[guild_id].pop(channel_id)
+
             gml.close()
         except KeyError:
             pass
