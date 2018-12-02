@@ -177,7 +177,8 @@ async def role_permissions(guild_id: int, role_id: int,
     return perms
 
 
-async def compute_overwrites(base_perms, user_id, channel_id: int,
+async def compute_overwrites(base_perms: Permissions,
+                             user_id, channel_id: int,
                              guild_id: int = None, storage=None):
     """Compute the permissions in the context of a channel."""
     if not storage:
@@ -195,7 +196,7 @@ async def compute_overwrites(base_perms, user_id, channel_id: int,
         guild_id = await storage.guild_from_channel(channel_id)
 
     # make it a map for better usage
-    overwrites = {o['id']: o for o in overwrites}
+    overwrites = {int(o['id']): o for o in overwrites}
 
     perms = overwrite_find_mix(perms, overwrites, guild_id)
 

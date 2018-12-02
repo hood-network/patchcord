@@ -3,6 +3,7 @@ from typing import Any
 from logbook import Logger
 
 from .dispatcher import DispatcherWithState
+from litecord.permissions import get_permissions
 
 log = Logger(__name__)
 
@@ -12,13 +13,26 @@ class GuildDispatcher(DispatcherWithState):
     KEY_TYPE = int
     VAL_TYPE = int
 
-    async def _chan_action(self, action: str, guild_id: int, user_id: int):
+    async def _chan_action(self, action: str,
+                           guild_id: int, user_id: int):
         """Send an action to all channels of the guild."""
         chan_ids = await self.app.storage.get_channel_ids(guild_id)
 
-        # TODO: check READ_MESSAGE permissions for the user
-
         for chan_id in chan_ids:
+
+            # only do an action for users that can
+            # actually read the channel to start with.
+            chan_perms = await get_permissions(
+                user_id, chan_id,
+                storage=self.main_dispatcher.app.storage)
+
+            print(user_id, chan_id, chan_perms.bits.read_messages)
+
+            if not chan_perms.bits.read_messages:
+                log.debug('skipping cid={}, no read messages',
+                          chan_id)
+                continue
+
             log.debug('sending raw action {!r} to chan={}',
                       action, chan_id)
 
@@ -42,19 +56,11 @@ class GuildDispatcher(DispatcherWithState):
     async def sub(self, guild_id: int, user_id: int):
         """Subscribe a user to the guild."""
         await super().sub(guild_id, user_id)
-
-        # when subbing a user to the guild, we should sub them
-        # to every channel they have access to, in the guild.
-
-        # TODO: check for permissions
-
         await self._chan_action('sub', guild_id, user_id)
 
     async def unsub(self, guild_id: int, user_id: int):
         """Unsubscribe a user from the guild."""
         await super().unsub(guild_id, user_id)
-
-        # same thing happening from sub() happens on unsub()
         await self._chan_action('unsub', guild_id, user_id)
 
     async def dispatch_filter(self, guild_id: int, func,
