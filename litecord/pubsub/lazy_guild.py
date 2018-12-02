@@ -384,6 +384,11 @@ class GuildMemberList:
                 member_id, presence['roles'], presence['status']
             )
 
+            # skip members that don't have any group assigned.
+            # (members without read messages)
+            if group_id is None:
+                continue
+
             member = await self.storage.get_member_data_one(
                 self.guild_id, member_id
             )
@@ -849,6 +854,11 @@ class GuildMemberList:
         group_id = await self.get_group_for_member(
             user_id, member['roles'], pres['status'])
 
+        if group_id is None:
+            log.warning('lazy: not adding uid {}, no group',
+                        user_id)
+            return
+
         self.list.data[group_id].append(user_id)
         await self._sort_groups()
 
@@ -1009,6 +1019,7 @@ class GuildMemberList:
         status = partial_presence.get('status', old_presence['status'])
 
         # calculate a possible new group
+        # TODO: handle when new_group is None (member loses perms)
         new_group = await self.get_group_for_member(
             user_id, roles, status)
 
