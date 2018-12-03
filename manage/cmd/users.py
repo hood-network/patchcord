@@ -12,14 +12,6 @@ async def find_user(username, discrim, ctx):
     WHERE username = $1 AND discriminator = $2
     """, username, discrim)
 
-async def get_password_hash(id, ctx):
-    return await ctx.db.fetchval("""
-    SELECT password_hash
-    FROM users
-    WHERE id = $1
-    """, id)
-
-
 async def set_user_staff(user_id, ctx):
     """Give a single user staff status."""
     old_flags = await ctx.db.fetchval("""
@@ -62,15 +54,19 @@ async def make_staff(ctx, args):
     await set_user_staff(uid, ctx)
     print('OK: set staff')
 
-async def generate_token(ctx, args):
-    """Generate a token for specified user."""
-    uid = await find_user(args.username, args.discrim, ctx)
+async def generate_bot_token(ctx, args):
+    """Generate a token for specified bot."""
 
-    if not uid:
-        return print('user not found')
-    
-    password_hash = await get_password_hash(uid, ctx)
-    print(make_token(uid, password_hash))
+    password_hash = await ctx.db.fetchval("""
+    SELECT password_hash
+    FROM users
+    WHERE id = $1 AND bot = 'true'
+    """, int(args.user_id))
+
+    if not password_hash:
+        return print('cannot find a bot with specified id')
+
+    print(make_token(args.user_id, password_hash))
 
 
 def setup(subparser):
@@ -105,15 +101,12 @@ def setup(subparser):
 
     token_parser = subparser.add_parser(
         'generate_token',
-        help='generate a token for specified user',
-        description=generate_token.__doc__
+        help='generate a token for specified bot',
+        description=generate_bot_token.__doc__
     )
 
     token_parser.add_argument(
-        'username'
-    )
-    token_parser.add_argument(
-        'discrim', help='the discriminator of the user'
+        'user_id'
     )
 
-    token_parser.set_defaults(func=generate_token)
+    token_parser.set_defaults(func=generate_bot_token)
