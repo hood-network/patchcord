@@ -163,7 +163,7 @@ REGISTER = {
 }
 
 REGISTER_WITH_INVITE = {**REGISTER, **{
-    'invcode': {'type': 'string', 'required': True}
+    'invite': {'type': 'string', 'required': True}
 }}
 
 
