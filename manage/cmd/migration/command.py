@@ -1,4 +1,5 @@
 import inspect
+import os
 from pathlib import Path
 from dataclasses import dataclass
 from collections import namedtuple
@@ -22,14 +23,13 @@ class MigrationContext:
     @property
     def latest(self):
         """Return the latest migration ID."""
-        return max(self.scripts.keys())
-
+        return 0 if len(self.scripts) == 0 else max(self.scripts.keys())
 
 def make_migration_ctx() -> MigrationContext:
     """Create the MigrationContext instance."""
     # taken from https://stackoverflow.com/a/6628348
     script_path = inspect.stack()[0][1]
-    script_folder = '/'.join(script_path.split('/')[:-1])
+    script_folder = os.sep.join(script_path.split(os.sep)[:-1])
     script_folder = Path(script_folder)
 
     migration_folder = script_folder / 'scripts'
@@ -40,7 +40,7 @@ def make_migration_ctx() -> MigrationContext:
         mig_path_str = str(mig_path)
 
         # extract migration script id and name
-        mig_filename = mig_path_str.split('/')[-1].split('.')[0]
+        mig_filename = mig_path_str.split(os.sep)[-1].split('.')[0]
         name_fragments = mig_filename.split('_')
 
         mig_id = int(name_fragments[0])

@@ -1,4 +1,7 @@
-from litecord.blueprints.auth import create_user
+import base64
+import itsdangerous
+import bcrypt
+from litecord.blueprints.auth import create_user, make_token
 from litecord.enums import UserFlags
 
 
@@ -8,7 +11,6 @@ async def find_user(username, discrim, ctx):
     FROM users
     WHERE username = $1 AND discriminator = $2
     """, username, discrim)
-
 
 async def set_user_staff(user_id, ctx):
     """Give a single user staff status."""
@@ -52,6 +54,20 @@ async def make_staff(ctx, args):
     await set_user_staff(uid, ctx)
     print('OK: set staff')
 
+async def generate_bot_token(ctx, args):
+    """Generate a token for specified bot."""
+
+    password_hash = await ctx.db.fetchval("""
+    SELECT password_hash
+    FROM users
+    WHERE id = $1 AND bot = 'true'
+    """, int(args.user_id))
+
+    if not password_hash:
+        return print('cannot find a bot with specified id')
+
+    print(make_token(args.user_id, password_hash))
+
 
 def setup(subparser):
     setup_test_parser = subparser.add_parser(
@@ -82,3 +98,15 @@ def setup(subparser):
     )
 
     staff_parser.set_defaults(func=make_staff)
+
+    token_parser = subparser.add_parser(
+        'generate_token',
+        help='generate a token for specified bot',
+        description=generate_bot_token.__doc__
+    )
+
+    token_parser.add_argument(
+        'user_id'
+    )
+
+    token_parser.set_defaults(func=generate_bot_token)
