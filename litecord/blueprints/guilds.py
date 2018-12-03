@@ -133,9 +133,9 @@ async def create_guild():
     # is the same as the id of the guild, and create_role
     # generates a new snowflake.
     await app.db.execute("""
-    INSERT INTO roles (id, guild_id, name, position, permissions)
-    VALUES ($1, $2, $3, $4, $5)
-    """, guild_id, guild_id, '@everyone', 0, DEFAULT_EVERYONE_PERMS)
+    INSERT INTO roles (id, guild_id, name, position, permissions, color)
+    VALUES ($1, $2, $3, $4, $5, $6)
+    """, guild_id, guild_id, '@everyone', 0, DEFAULT_EVERYONE_PERMS, 0)
 
     # add the @everyone role to the guild creator
     await app.db.execute("""
@@ -253,7 +253,7 @@ async def _update_guild(guild_id):
     return jsonify(guild)
 
 
-@bp.route('/<int:guild_id>', methods=['DELETE'])
+@bp.route('/<int:guild_id>/delete', methods=['POST'])
 async def delete_guild(guild_id):
     """Delete a guild."""
     user_id = await token_check()
@@ -264,9 +264,11 @@ async def delete_guild(guild_id):
     WHERE guilds.id = $1
     """, guild_id)
 
-    await app.dispatcher.dispatch_guild(guild_id, 'GUILD_DELETE', {
-        'id': guild_id,
-        'unavailable': False,
+    # Discord's client expects IDs being string
+    await app.dispatcher.dispatch('guild', guild_id, 'GUILD_DELETE', {
+        'guild_id': str(guild_id),
+        'id': str(guild_id),
+        # 'unavailable': False,
     })
 
     # remove from the dispatcher so nobody

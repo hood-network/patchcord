@@ -18,7 +18,7 @@ Create Reaction                        PUT          /channels/{channel.id}/messa
 Create Webhook                         POST         /channels/{channel.id}/webhooks
 Delete All Reactions                   DELETE       /channels/{channel.id}/messages/{message.id}/reactions
 Delete Channel Permission              DELETE       /channels/{channel.id}/permissions/{overwrite.id}
-Delete Guild                           DELETE       /guilds/{guild.id}
+Delete Guild                           POST         /guilds/{guild.id}/delete
 Delete Guild Integration               DELETE       /guilds/{guild.id}/integrations/{integration.id}
 Delete Guild Role                      DELETE       /guilds/{guild.id}/roles/{role.id}
 Delete Invite                          DELETE       /invites/{invite.code}
