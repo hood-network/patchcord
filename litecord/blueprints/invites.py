@@ -19,6 +19,81 @@ from litecord.blueprints.checks import (
 log = Logger(__name__)
 bp = Blueprint('invites', __name__)
 
+# TODO: Ban handling
+async def use_invite(user_id, invite_code):
+    """Try using an invite"""
+    inv = await app.db.fetchrow("""
+            SELECT guild_id, created_at, max_age, uses, max_uses
+            FROM invites
+            WHERE code = $1
+            """, invite_code)
+    
+    if inv is None:
+        raise BadRequest('Unknown invite')
+    
+    now = datetime.datetime.utcnow()
+    delta_sec = (now - inv['created_at']).total_seconds()
+
+    if delta_sec > inv['max_age']:
+        await delete_invite(invite_code)
+        raise BadRequest('Unknown invite (expiried)')
+
+    if inv['max_uses'] != -1 and inv['uses'] > inv['max_uses']:
+        await delete_invite(invite_code)
+        raise BadRequest('Unknown invite (too many uses)')
+
+    guild_id = inv['guild_id']
+
+    joined = await app.db.fetchval("""
+    SELECT joined_at
+    FROM members
+    WHERE user_id = $1 AND guild_id = $2
+    """, user_id, guild_id)
+
+    if joined is not None:
+        raise BadRequest('You are already in the guild')
+
+    await app.db.execute("""
+    INSERT INTO members (user_id, guild_id)
+    VALUES ($1, $2)
+    """, user_id, guild_id)
+
+    await create_guild_settings(guild_id, user_id)
+
+    # add the @everyone role to the invited member
+    await app.db.execute("""
+    INSERT INTO member_roles (user_id, guild_id, role_id)
+    VALUES ($1, $2, $3)
+    """, user_id, guild_id, guild_id)
+
+    await app.db.execute("""
+    UPDATE invites
+    SET uses = uses + 1
+    WHERE code = $1
+    """, invite_code)
+
+    # tell current members a new member came up
+    member = await app.storage.get_member_data_one(guild_id, user_id)
+    await app.dispatcher.dispatch_guild(guild_id, 'GUILD_MEMBER_ADD', {
+        **member,
+        **{
+            'guild_id': str(guild_id),
+        },
+    })
+
+    # update member lists for the new member
+    await app.dispatcher.dispatch(
+        'lazy_guild', guild_id, 'new_member', user_id)
+
+    # subscribe new member to guild, so they get events n stuff
+    await app.dispatcher.sub('guild', guild_id, user_id)
+
+    # tell the new member that theres the guild it just joined.
+    # we use dispatch_user_guild so that we send the GUILD_CREATE
+    # just to the shards that are actually tied to it.
+    guild = await app.storage.get_guild_full(guild_id, user_id, 250)
+    await app.dispatcher.dispatch_user_guild(
+        user_id, guild_id, 'GUILD_CREATE', guild)
 
 @bp.route('/channels/<int:channel_id>/invites', methods=['POST'])
 async def create_invite(channel_id):
@@ -148,82 +223,11 @@ async def get_channel_invites(channel_id: int):
 
 
 @bp.route('/invite/<invite_code>', methods=['POST'])
-async def use_invite(invite_code):
+async def _use_invite(invite_code):
     """Use an invite."""
     user_id = await token_check()
 
-    inv = await app.db.fetchrow("""
-    SELECT guild_id, created_at, max_age, uses, max_uses
-    FROM invites
-    WHERE code = $1
-    """, invite_code)
-
-    if inv is None:
-        raise BadRequest('Invite not found')
-
-    now = datetime.datetime.utcnow()
-    delta_sec = (now - inv['created_at']).total_seconds()
-
-    if delta_sec > inv['max_age']:
-        await delete_invite(invite_code)
-        raise BadRequest('Invite has expired (age).')
-
-    if inv['uses'] > inv['max_uses']:
-        await delete_invite(invite_code)
-        raise BadRequest('Invite has expired (uses).')
-
-    guild_id = inv['guild_id']
-
-    joined = await app.db.fetchval("""
-    SELECT joined_at
-    FROM members
-    WHERE user_id = $1 AND guild_id = $2
-    """, user_id, guild_id)
-
-    if joined is not None:
-        raise BadRequest('You are already in the guild')
-
-    await app.db.execute("""
-    INSERT INTO members (user_id, guild_id)
-    VALUES ($1, $2)
-    """, user_id, guild_id)
-
-    await create_guild_settings(guild_id, user_id)
-
-    # add the @everyone role to the invited member
-    await app.db.execute("""
-    INSERT INTO member_roles (user_id, guild_id, role_id)
-    VALUES ($1, $2, $3)
-    """, user_id, guild_id, guild_id)
-
-    await app.db.execute("""
-    UPDATE invites
-    SET uses = uses + 1
-    WHERE code = $1
-    """, invite_code)
-
-    # tell current members a new member came up
-    member = await app.storage.get_member_data_one(guild_id, user_id)
-    await app.dispatcher.dispatch_guild(guild_id, 'GUILD_MEMBER_ADD', {
-        **member,
-        **{
-            'guild_id': str(guild_id),
-        },
-    })
-
-    # update member lists for the new member
-    await app.dispatcher.dispatch(
-        'lazy_guild', guild_id, 'new_member', user_id)
-
-    # subscribe new member to guild, so they get events n stuff
-    await app.dispatcher.sub('guild', guild_id, user_id)
-
-    # tell the new member that theres the guild it just joined.
-    # we use dispatch_user_guild so that we send the GUILD_CREATE
-    # just to the shards that are actually tied to it.
-    guild = await app.storage.get_guild_full(guild_id, user_id, 250)
-    await app.dispatcher.dispatch_user_guild(
-        user_id, guild_id, 'GUILD_CREATE', guild)
+    await use_invite(user_id, invite_code)
 
     # the reply is an invite object for some reason.
     inv = await app.storage.get_invite(invite_code)

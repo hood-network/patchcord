@@ -7,6 +7,7 @@ from quart import Blueprint, jsonify, request, current_app as app
 from litecord.auth import token_check, create_user
 from litecord.schemas import validate, REGISTER, REGISTER_WITH_INVITE
 from litecord.errors import BadRequest
+from .invites import delete_invite, use_invite
 
 
 bp = Blueprint('auth', __name__)
@@ -35,14 +36,28 @@ async def register():
     """Register a single user."""
     enabled = app.config.get('REGISTRATIONS')
     if not enabled:
-        return 'Registrations disabled', 405
+        raise BadRequest('Registrations disabled', {
+            'email': 'Registrations are disabled.'
+        })
 
-    j = validate(await request.get_json(), REGISTER)
-    email, password, username = j['email'], j['password'], j['username']
+    j = await request.get_json()
+
+    if not 'password' in j:
+        j['password'] = 'default_password' # we need some password to make a token
+
+    j = validate(j, REGISTER)
+    email, password, username, invite = j['email'] if 'email' in j else None, j['password'], j['username'], j['invite']
 
     new_id, pwd_hash = await create_user(
         username, email, password, app.db
     )
+
+    if j['invite']:
+        try:
+            await use_invite(new_id, j['invite'])
+        except Exception as e:
+            print(e)
+            pass # do nothing      
 
     return jsonify({
         'token': make_token(new_id, pwd_hash)

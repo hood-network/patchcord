@@ -168,6 +168,10 @@ def to_update(j: dict, user: dict, field: str):
 
 
 async def _check_pass(j, user):
+    # Do not do password checks on unclaimed accounts
+    if user['email'] is None:
+        return
+
     if not j['password']:
         raise BadRequest('password required', {
             'password': 'password required'
@@ -244,6 +248,11 @@ async def patch_me():
         SET avatar = $1
         WHERE id = $2
         """, new_icon.icon_hash, user_id)
+
+    if user['email'] is None and not 'new_password' in j:
+        raise BadRequest('missing password', {
+            'password': 'Please set a password.'
+        })
 
     if 'new_password' in j and j['new_password']:
         await _check_pass(j, user)
