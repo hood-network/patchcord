@@ -1,5 +1,6 @@
 import datetime
 import hashlib
+import base64
 import os
 
 from quart import Blueprint, request, current_app as app, jsonify
@@ -31,16 +32,17 @@ async def use_invite(user_id, invite_code):
     if inv is None:
         raise BadRequest('Unknown invite')
     
-    now = datetime.datetime.utcnow()
-    delta_sec = (now - inv['created_at']).total_seconds()
+    if inv['max_age'] is not 0:
+        now = datetime.datetime.utcnow()
+        delta_sec = (now - inv['created_at']).total_seconds()
 
-    if delta_sec > inv['max_age']:
-        await delete_invite(invite_code)
-        raise BadRequest('Unknown invite (expiried)')
+        if delta_sec > inv['max_age']:
+            await delete_invite(invite_code)
+            raise BadRequest('Unknown invite (expiried)')
 
-    if inv['max_uses'] != -1 and inv['uses'] > inv['max_uses']:
-        await delete_invite(invite_code)
-        raise BadRequest('Unknown invite (too many uses)')
+        if inv['max_uses'] is not -1 and inv['uses'] > inv['max_uses']:
+            await delete_invite(invite_code)
+            raise BadRequest('Unknown invite (too many uses)')
 
     guild_id = inv['guild_id']
 
@@ -109,7 +111,7 @@ async def create_invite(channel_id):
                         ChannelType.GUILD_VOICE.value):
         raise BadRequest('Invalid channel type')
 
-    invite_code = hashlib.md5(os.urandom(64)).hexdigest()[:6]
+    invite_code = base64.b64encode(hashlib.md5(os.urandom(64)).digest()).decode("utf-8").replace("/", "").replace("+", "")[:7]
 
     await app.db.execute(
         """
