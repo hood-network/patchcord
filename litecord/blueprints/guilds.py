@@ -133,9 +133,9 @@ async def create_guild():
     # is the same as the id of the guild, and create_role
     # generates a new snowflake.
     await app.db.execute("""
-    INSERT INTO roles (id, guild_id, name, position, permissions, color)
-    VALUES ($1, $2, $3, $4, $5, $6)
-    """, guild_id, guild_id, '@everyone', 0, DEFAULT_EVERYONE_PERMS, 0)
+    INSERT INTO roles (id, guild_id, name, position, permissions)
+    VALUES ($1, $2, $3, $4, $5)
+    """, guild_id, guild_id, '@everyone', 0, DEFAULT_EVERYONE_PERMS)
 
     # add the @everyone role to the guild creator
     await app.db.execute("""
