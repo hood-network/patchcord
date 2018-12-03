@@ -1,4 +1,7 @@
-from litecord.blueprints.auth import create_user
+import base64
+import itsdangerous
+import bcrypt
+from litecord.blueprints.auth import create_user, make_token
 from litecord.enums import UserFlags
 
 
@@ -8,6 +11,13 @@ async def find_user(username, discrim, ctx):
     FROM users
     WHERE username = $1 AND discriminator = $2
     """, username, discrim)
+
+async def get_password_hash(id, ctx):
+    return await ctx.db.fetchval("""
+    SELECT password_hash
+    FROM users
+    WHERE id = $1
+    """, id)
 
 
 async def set_user_staff(user_id, ctx):
@@ -52,6 +62,16 @@ async def make_staff(ctx, args):
     await set_user_staff(uid, ctx)
     print('OK: set staff')
 
+async def generate_token(ctx, args):
+    """Generate a token for specified user."""
+    uid = await find_user(args.username, args.discrim, ctx)
+
+    if not uid:
+        return print('user not found')
+    
+    password_hash = await get_password_hash(uid, ctx)
+    print(make_token(uid, password_hash))
+
 
 def setup(subparser):
     setup_test_parser = subparser.add_parser(
@@ -82,3 +102,18 @@ def setup(subparser):
     )
 
     staff_parser.set_defaults(func=make_staff)
+
+    token_parser = subparser.add_parser(
+        'generate_token',
+        help='generate a token for specified user',
+        description=generate_token.__doc__
+    )
+
+    token_parser.add_argument(
+        'username'
+    )
+    token_parser.add_argument(
+        'discrim', help='the discriminator of the user'
+    )
+
+    token_parser.set_defaults(func=generate_token)
