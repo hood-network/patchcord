@@ -253,7 +253,8 @@ async def _update_guild(guild_id):
     return jsonify(guild)
 
 
-@bp.route('/<int:guild_id>/delete', methods=['POST'])
+@bp.route('/<int:guild_id>', methods=['DELETE'])
+@bp.route('/<int:guild_id>/delete', methods=['POST']) # this one is not actually documented, but it's used by Discord client
 async def delete_guild(guild_id):
     """Delete a guild."""
     user_id = await token_check()
