@@ -162,8 +162,9 @@ REGISTER = {
     'password': {'type': 'string', 'minlength': 5, 'required': True}
 }
 
+# only used by us, not discord, hence 'invcode' (to separate from discord)
 REGISTER_WITH_INVITE = {**REGISTER, **{
-    'invite': {'type': 'string', 'required': True}
+    'invcode': {'type': 'string', 'required': True}
 }}
 
 
