@@ -7,6 +7,15 @@ This project is a rewrite of [litecord-reference].
 
 [litecord-reference]: https://gitlab.com/luna/litecord-reference
 
+## Project Goals
+
+- Being able to unit test bots in an autonomous fashion.
+- Doing research and exploration on Discord API.
+
+### Non-goals
+
+- Being used as a "self-hostable Discord alternative".
+
 ## Caveats
 
 - Unit testing is incomplete.
