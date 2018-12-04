@@ -7,7 +7,7 @@ from quart import Blueprint, jsonify, request, current_app as app
 from litecord.auth import token_check, create_user
 from litecord.schemas import validate, REGISTER, REGISTER_WITH_INVITE
 from litecord.errors import BadRequest
-from .invites import delete_invite, use_invite
+from .invites import use_invite
 
 
 bp = Blueprint('auth', __name__)
@@ -52,9 +52,9 @@ async def register():
         username, email, password, app.db
     )
 
-    if j['invite']:
+    if invite:
         try:
-            await use_invite(new_id, j['invite'])
+            await use_invite(new_id, invite)
         except Exception as e:
             print(e)
             pass # do nothing      
