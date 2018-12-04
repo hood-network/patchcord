@@ -13,6 +13,7 @@ from litecord.permissions import (
     Permissions, overwrite_find_mix, get_permissions, role_permissions
 )
 from litecord.utils import index_by_func
+from litecord.utils import mmh3
 
 
 log = Logger(__name__)
@@ -267,7 +268,33 @@ class GuildMemberList:
         """get the id of the member list."""
         return ('everyone'
                 if self.channel_id == self.guild_id
-                else str(self.channel_id))
+                else self._calculated_id)
+
+    @property
+    def _calculated_id(self):
+        """Calculate an id used by the client."""
+
+        if not self.list:
+            return str(self.channel_id)
+
+        # list of strings holding the hash input
+        ovs_i = []
+
+        print(self.list.overwrites)
+
+        for actor_id, overwrite in self.list.overwrites.items():
+            allow, deny = (
+                Permissions(overwrite['allow']),
+                Permissions(overwrite['deny'])
+            )
+
+            if allow.bits.read_messages:
+                ovs_i.append(f'allow:{actor_id}')
+            elif deny.bits.read_messages:
+                ovs_i.append(f'deny:{actor_id}')
+
+        hash_in = ','.join(ovs_i)
+        return str(mmh3(hash_in))
 
     def _set_empty_list(self):
         """Set the member list as being empty."""
