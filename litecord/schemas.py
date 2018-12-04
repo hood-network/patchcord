@@ -157,9 +157,13 @@ def validate(reqjson: Union[Dict, List], schema: Dict,
 
 
 REGISTER = {
-    'email': {'type': 'email', 'required': True},
     'username': {'type': 'username', 'required': True},
-    'password': {'type': 'string', 'minlength': 5, 'required': True}
+    'email': {'type': 'email', 'required': False},
+    'password': {'type': 'string', 'minlength': 5, 'required': False},
+    'invite': {'type': 'string', 'required': False, 'nullable': True},        # optional
+    'fingerprint': {'type': 'string', 'required': False, 'nullable': True},   # these are sent by official client
+    'captcha_key': {'type': 'string', 'required': False, 'nullable': True},
+    'consent': {'type': 'boolean'}
 }
 
 # only used by us, not discord, hence 'invcode' (to separate from discord)
@@ -470,7 +474,7 @@ INVITE = {
 
     'temporary': {'type': 'boolean', 'required': False, 'default': False},
     'unique': {'type': 'boolean', 'required': False, 'default': True},
-    'validate': {'type': 'boolean', 'required': False, 'nullable': True}
+    'validate': {'type': 'string', 'required': False, 'nullable': True} # discord client sends invite code there
 }
 
 USER_SETTINGS = {

@@ -74,7 +74,7 @@ CREATE TABLE IF NOT EXISTS users (
     id bigint UNIQUE NOT NULL,
     username text NOT NULL,
     discriminator varchar(4) NOT NULL,
-    email varchar(255) NOT NULL UNIQUE,
+    email varchar(255) DEFAULT NULL,
 
     -- user properties
     bot boolean DEFAULT FALSE,
