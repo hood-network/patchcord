@@ -224,7 +224,7 @@ class GatewayWebsocket:
 
         if self.state.bot:
             return [{
-                'id': row[0],
+                'id': row,
                 'unavailable': True,
             } for row in guild_ids]
 
@@ -373,12 +373,13 @@ class GatewayWebsocket:
         log.info('subscribing to {} dms', len(dm_ids))
         await self.ext.dispatcher.sub_many('channel', user_id, dm_ids)
 
-        # subscribe to all friends
-        # (their friends will also subscribe back
-        #  when they come online)
-        friend_ids = await self.user_storage.get_friend_ids(user_id)
-        log.info('subscribing to {} friends', len(friend_ids))
-        await self.ext.dispatcher.sub_many('friend', user_id, friend_ids)
+        if not self.state.bot:
+            # subscribe to all friends
+            # (their friends will also subscribe back
+            #  when they come online)
+            friend_ids = await self.user_storage.get_friend_ids(user_id)
+            log.info('subscribing to {} friends', len(friend_ids))
+            await self.ext.dispatcher.sub_many('friend', user_id, friend_ids)
 
     async def update_status(self, status: dict):
         """Update the status of the current websocket connection."""
@@ -891,7 +892,6 @@ class GatewayWebsocket:
             log.warning('conn close, state={}, err={}', self.state, err)
         except WebsocketClose as err:
             log.warning('ws close, state={} err={}', self.state, err)
-
             await self.ws.close(code=err.code, reason=err.reason)
         except Exception as err:
             log.exception('An exception has occoured. state={}', self.state)
