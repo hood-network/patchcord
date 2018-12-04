@@ -1,10 +1,11 @@
 ![Litecord logo](static/logo/logo.png)
 
-Litecord is an open source implementation of Discord's HTTP API and Gateway in
-Python 3.
+Litecord is an open source, [clean-room design][clean-room] reimplementation of
+Discord's HTTP API and Gateway in Python 3.
 
 This project is a rewrite of [litecord-reference].
 
+[clean-room]: https://en.wikipedia.org/wiki/Clean_room_design
 [litecord-reference]: https://gitlab.com/luna/litecord-reference
 
 ## Project Goals
