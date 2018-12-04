@@ -11,7 +11,7 @@ This project is a rewrite of [litecord-reference].
 ## Project Goals
 
 - Being able to unit test bots in an autonomous fashion.
-- Doing research and exploration on Discord API.
+- Doing research and exploration on the Discord API.
 
 ### Non-goals
 
