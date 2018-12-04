@@ -1,4 +1,4 @@
-# litecord
+![Litecord logo](static/logo/logo.png)
 
 Litecord is an open source implementation of Discord's backend and API in
 Python.
