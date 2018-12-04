@@ -1,71 +1,106 @@
-# litecord
+![Litecord logo](static/logo/logo.png)
 
-Litecord is an open source implementation of Discord's backend and API in
-Python.
+Litecord is an open source, [clean-room design][clean-room] reimplementation of
+Discord's HTTP API and Gateway in Python 3.
 
 This project is a rewrite of [litecord-reference].
 
+[clean-room]: https://en.wikipedia.org/wiki/Clean_room_design
 [litecord-reference]: https://gitlab.com/luna/litecord-reference
 
-## Notes
+## Project Goals
 
- - Unit testing isn't completly perfect.
- - No voice is planned to be developed, for now.
- - You must figure out connecting to the server yourself. Litecord will not distribute
-    Discord's official client code nor provide ways to modify the client.
+- Being able to unit test bots in an autonomous fashion.
+- Doing research and exploration on the Discord API.
 
-## Install
+### Non-goals
+
+- Being used as a "self-hostable Discord alternative".
+
+## Caveats
+
+- Unit testing is incomplete.
+- Currently, there are no plans to support voice chat.
+- You must figure out how to connect to a Litecord instance. Litecord will not
+  distribute official client code from Discord nor provide ways to modify the
+  official client.
+
+## Installation
 
 Requirements:
-- Python 3.7 or higher
-- PostgreSQL
-- gifsicle for GIF emoji and avatar handling.
-- [Pipenv]
+
+- **Python 3.7+**
+- PostgreSQL (tested using 9.6+)
+- gifsicle for GIF emoji and avatar handling
+- [pipenv]
 
 [pipenv]: https://github.com/pypa/pipenv
 
+### Download the code
+
 ```sh
-$ git clone https://gitlab.com/luna/litecord.git && cd litecord
+$ git clone https://gitlab.com/litecord/litecord.git && cd litecord
+```
 
-# Setup the database:
-# don't forget that you can create a specific
-# postgres user just for the litecord database
+### Setting up the database
+
+It's recommended to create a separate user for the `litecord` database.
+
+```sh
+# Create the PostgreSQL database.
 $ createdb litecord
+
+# Apply the base schema to the database.
 $ psql -f schema.sql litecord
+```
 
-# Configure litecord:
-# edit config.py as you wish
-$ cp config.example.py config.py
+Then, you should run database migrations:
 
-# run database migrations (this is a
-# required step in setup)
+```sh
 $ pipenv run ./manage.py migrate
+```
 
-# Install all packages:
+### Configuring
+
+Copy the `config.example.py` file and edit it to configure your instance:
+
+```sh
+$ cp config.example.py config.py
+$ $EDITOR config.py
+```
+
+### Install packages
+
+```sh
 $ pipenv install --dev
 ```
 
 ## Running
 
-Hypercorn is used to run litecord. By default, it will bind to `0.0.0.0:5000`.
-You can use the `-b` option to change it (e.g. `-b 0.0.0.0:45000`).
-
-Use `--access-log -` to output access logs to stdout.
+Hypercorn is used to run Litecord. By default, it will bind to `0.0.0.0:5000`.
+This will expose your Litecord instance to the world. You can use the `-b`
+option to change it (e.g. `-b 0.0.0.0:45000`).
 
 ```sh
 $ pipenv run hypercorn run:app
 ```
 
-*It is recommended to run litecord behind NGINX.* Because of that,
-there is a basic `nginx.conf` file at the root.
+You can use `--access-log -` to output access logs to stdout.
 
-### Checking if it is working
+**It is recommended to run litecord behind [NGINX].** You can use the
+`nginx.conf` file at the root of the repository as a template.
 
-You can check if your instance is running by checking the `/api/v6/gateway`
-path. For basic websocket testing a tool such as
+[nginx]: https://www.nginx.com
+
+### Does it work?
+
+You can check if your instance is running by performing an HTTP `GET` request on
+the `/api/v6/gateway` endpoint. For basic websocket testing, a tool such as
 [ws](https://github.com/hashrocket/ws) can be used.
 
 ## Updating
+
+Update the code and run any new database migrations:
 
 ```sh
 $ git pull
@@ -74,16 +109,16 @@ $ pipenv run ./manage.py migrate
 
 ## Running tests
 
-To run tests we must create users that we know the passwords of.
-Because of that, **never setup a testing environment in production.**
+Running tests involves creating dummy users with known passwords. Because of
+this, you should never setup a testing environment in production.
 
 ```sh
-# setup the testing users
+# Setup any testing users:
 $ pipenv run ./manage.py setup_tests
 
-# make sure you have tox installed
+# Install tox:
 $ pip install tox
 
-# run basic linter and tests
+# Run lints and tests:
 $ tox
 ```

@@ -25,7 +25,7 @@ async def check_password(pwd_hash: str, given_password: str) -> bool:
 
 def make_token(user_id, user_pwd_hash) -> str:
     """Generate a single token for a user."""
-    signer = itsdangerous.Signer(user_pwd_hash)
+    signer = itsdangerous.TimestampSigner(user_pwd_hash)
     user_id = base64.b64encode(str(user_id).encode())
 
     return signer.sign(user_id).decode()

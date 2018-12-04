@@ -4,7 +4,7 @@ from random import randint
 
 import bcrypt
 from asyncpg import UniqueViolationError
-from itsdangerous import Signer, BadSignature
+from itsdangerous import TimestampSigner, BadSignature
 from logbook import Logger
 from quart import request, current_app as app
 
@@ -38,7 +38,7 @@ async def raw_token_check(token, db=None):
     if not pwd_hash:
         raise Unauthorized('User ID not found')
 
-    signer = Signer(pwd_hash)
+    signer = TimestampSigner(pwd_hash)
 
     try:
         signer.unsign(token)

@@ -1,22 +1,25 @@
 import random
+from os import urandom
 
 from asyncpg import UniqueViolationError
 from quart import Blueprint, jsonify, request, current_app as app
+from logbook import Logger
 
-from ..auth import token_check
-from ..errors import Forbidden, BadRequest
+from ..errors import Forbidden, BadRequest, Unauthorized
 from ..schemas import validate, USER_UPDATE, GET_MENTIONS
 
 from .guilds import guild_check
-from .auth import check_password
-from litecord.auth import hash_data, check_username_usage
+from litecord.auth import token_check, hash_data, check_username_usage
 from litecord.blueprints.guild.mod import remove_member
 
 from litecord.enums import PremiumType
 from litecord.images import parse_data_uri
 from litecord.permissions import base_permissions
 
+from litecord.blueprints.auth import check_password
+
 bp = Blueprint('user', __name__)
+log = Logger(__name__)
 
 
 async def mass_user_update(user_id, app_=None):
@@ -450,3 +453,102 @@ async def _get_mentions():
         )
 
     return jsonify(res)
+
+
+def rand_hex(length: int = 8) -> str:
+    """Generate random hex characters."""
+    return urandom(length).hex()[:length]
+
+
+async def _del_from_table(table: str, user_id: int):
+    column = {
+        'channel_overwrites': 'target_user',
+        'user_settings': 'id'
+    }.get(table, 'user_id')
+
+    res = await app.db.execute(f"""
+    DELETE FROM {table}
+    WHERE {column} = $1
+    """, user_id)
+
+    log.info('Deleting uid {} from {}, res: {!r}',
+             user_id, table, res)
+
+
+@bp.route('/users/@me/delete')
+async def delete_account():
+    """Delete own account.
+
+    There isn't any inherent need to dispatch
+    events to connected users, so this is mostly
+    DB operations.
+    """
+    user_id = await token_check()
+
+    j = await request.get_json()
+
+    try:
+        password = j['password']
+    except KeyError:
+        raise BadRequest('password required')
+
+    owned_guilds = await app.db.fetchval("""
+    SELECT COUNT(*)
+    FROM guilds
+    WHERE owner_id = $1
+    """, user_id)
+
+    if owned_guilds > 0:
+        raise BadRequest('You still own guilds.')
+
+    pwd_hash = await app.db.fetchval("""
+    SELECT password_hash
+    FROM users
+    WHERE id = $1
+    """, user_id)
+
+    if not await check_password(pwd_hash, password):
+        raise Unauthorized('password does not match')
+
+    new_username = f'Deleted User {rand_hex()}'
+
+    await app.db.execute("""
+    UPDATE users
+    SET
+        username = $1,
+        email = NULL,
+        mfa_enabled = false,
+        verified = false
+        avatar = NULL,
+        flags = 0,
+        premium_since = NULL,
+        phone = '',
+        password_hash = '123'
+    WHERE
+        id = $2
+    """, new_username, user_id)
+
+    # remove the user from various tables
+    await _del_from_table('user_settings', user_id)
+    await _del_from_table('user_payment_sources', user_id)
+    await _del_from_table('user_subscriptions', user_id)
+    await _del_from_table('user_payments', user_id)
+    await _del_from_table('user_read_state', user_id)
+    await _del_from_table('guild_settings', user_id)
+    await _del_from_table('guild_settings_channel_overrides', user_id)
+
+    await app.db.execute("""
+    DELETE FROM relationships
+    WHERE user_id = $1 OR peer_id = $1
+    """, user_id)
+
+    # DMs are still maintained, but not the state.
+    await _del_from_table('dm_channel_state', user_id)
+
+    # TODO: group DMs
+
+    await _del_from_table('members', user_id)
+    await _del_from_table('member_roles', user_id)
+    await _del_from_table('channel_overwrites', user_id)
+
+    return '', 204

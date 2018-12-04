@@ -26,8 +26,6 @@ class GuildDispatcher(DispatcherWithState):
                 user_id, chan_id,
                 storage=self.main_dispatcher.app.storage)
 
-            print(user_id, chan_id, chan_perms.bits.read_messages)
-
             if not chan_perms.bits.read_messages:
                 log.debug('skipping cid={}, no read messages',
                           chan_id)
