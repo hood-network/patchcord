@@ -475,7 +475,7 @@ async def _del_from_table(table: str, user_id: int):
              user_id, table, res)
 
 
-@bp.route('/users/@me/delete')
+@bp.route('/@me/delete', methods=['POST'])
 async def delete_account():
     """Delete own account.
 
@@ -518,7 +518,7 @@ async def delete_account():
         username = $1,
         email = NULL,
         mfa_enabled = false,
-        verified = false
+        verified = false,
         avatar = NULL,
         flags = 0,
         premium_since = NULL,

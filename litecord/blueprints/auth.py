@@ -145,3 +145,9 @@ async def verify_user():
         user_id, 'USER_UPDATE', new_user)
 
     return '', 204
+
+
+@bp.route('/logout', methods=['POST'])
+async def _logout():
+    """Called by the client to logout."""
+    return '', 204
