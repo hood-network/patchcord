@@ -280,8 +280,6 @@ class GuildMemberList:
         # list of strings holding the hash input
         ovs_i = []
 
-        print(self.list.overwrites)
-
         for actor_id, overwrite in self.list.overwrites.items():
             allow, deny = (
                 Permissions(overwrite['allow']),
