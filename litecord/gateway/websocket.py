@@ -245,13 +245,15 @@ class GatewayWebsocket:
             return
 
         for guild_obj in unavailable_guilds:
-            guild = await self.storage.get_guild(guild_obj['id'],
-                                                 self.state.user_id)
+            # fetch full guild object including the 'large' field
+            guild = await self.storage.get_guild_full(
+                int(guild_obj['id']), self.state.user_id, self.state.large
+            )
 
-            if not guild:
+            if guild is None:
                 continue
 
-            await self.dispatch('GUILD_CREATE', dict(guild))
+            await self.dispatch('GUILD_CREATE', guild)
 
     async def user_ready(self):
         """Fetch information about users in the READY packet.
