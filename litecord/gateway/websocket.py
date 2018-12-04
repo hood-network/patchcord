@@ -237,7 +237,7 @@ class GatewayWebsocket:
             for guild_id in guild_ids
         ]
 
-    async def guild_dispatch(self, unavailable_guilds: List[Dict[str, Any]]):
+    async def _guild_dispatch(self, unavailable_guilds: List[Dict[str, Any]]):
         """Dispatch GUILD_CREATE information."""
 
         # Users don't get asynchronous guild dispatching.
@@ -255,7 +255,7 @@ class GatewayWebsocket:
 
             await self.dispatch('GUILD_CREATE', guild)
 
-    async def user_ready(self):
+    async def _user_ready(self) -> dict:
         """Fetch information about users in the READY packet.
 
         This part of the API is completly undocumented.
@@ -300,7 +300,7 @@ class GatewayWebsocket:
         uready = {}
         if not self.state.bot:
             # user, fetch info
-            uready = await self.user_ready()
+            uready = await self._user_ready()
 
         await self.dispatch('READY', {**{
             'v': 6,
@@ -314,7 +314,7 @@ class GatewayWebsocket:
         }, **uready})
 
         # async dispatch of guilds
-        self.ext.loop.create_task(self.guild_dispatch(guilds))
+        self.ext.loop.create_task(self._guild_dispatch(guilds))
 
     async def _check_shards(self, shard, user_id):
         current_shard, shard_count = shard
@@ -338,7 +338,11 @@ class GatewayWebsocket:
         if current_shard > shard_count:
             raise InvalidShard('Shard count > Total shards')
 
-    async def _guild_ids(self):
+    async def _guild_ids(self) -> list:
+        """Get a list of Guild IDs that are tied to this connection.
+
+        The implementation is shard-aware.
+        """
         guild_ids = await self.user_storage.get_user_guilds(
             self.state.user_id
         )
@@ -359,8 +363,8 @@ class GatewayWebsocket:
     async def subscribe_all(self):
         """Subscribe to all guilds, DM channels, and friends.
 
-        Subscribing to channels is already handled
-        by GuildDispatcher.sub
+        Note: subscribing to channels is already handled
+            by GuildDispatcher.sub
         """
         user_id = self.state.user_id
 
