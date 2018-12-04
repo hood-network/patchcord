@@ -20,7 +20,7 @@ This project is a rewrite of [litecord-reference].
 ## Caveats
 
 - Unit testing is incomplete.
-- Currently, are no plans to support voice chat.
+- Currently, there are no plans to support voice chat.
 - You must figure out how to connect to a Litecord instance. Litecord will not
   distribute official client code from Discord nor provide ways to modify the
   official client.
