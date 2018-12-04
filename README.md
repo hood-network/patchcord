@@ -84,7 +84,7 @@ You can use `--access-log -` to output access logs to stdout.
 
 ### Does it work?
 
-You can check if your instance is running by performing a HTTP `GET` request on
+You can check if your instance is running by performing an HTTP `GET` request on
 the `/api/v6/gateway` endpoint. For basic websocket testing, a tool such as
 [ws](https://github.com/hashrocket/ws) can be used.
 
