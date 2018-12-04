@@ -1,4 +1,3 @@
-import json
 from typing import List, Dict, Any
 
 from logbook import Logger
