@@ -2,7 +2,6 @@
 litecord.embed.schemas - embed input validators.
 """
 import urllib.parse
-
 from litecord.types import Color
 
 
@@ -46,7 +45,7 @@ EMBED_AUTHOR = {
         'type': 'string', 'minlength': 1, 'maxlength': 128, 'required': False
     },
     'url': {
-        'type': EmbedURL, 'required': False,
+        'coerce': EmbedURL, 'required': False,
     },
     'icon_url': {
         'coerce': EmbedURL, 'required': False,
@@ -56,10 +55,7 @@ EMBED_AUTHOR = {
 EMBED_OBJECT = {
     'title': {
         'type': 'string', 'minlength': 1, 'maxlength': 128, 'required': False},
-    'type': {
-        'type': 'string', 'allowed': ['rich'], 'required': False,
-        'default': 'rich'
-    },
+    # NOTE: type set by us
     'description': {
         'type': 'string', 'minlength': 1, 'maxlength': 1024, 'required': False,
     },

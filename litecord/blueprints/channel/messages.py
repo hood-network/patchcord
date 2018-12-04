@@ -10,6 +10,7 @@ from litecord.errors import MessageNotFound, Forbidden, BadRequest
 from litecord.enums import MessageType, ChannelType, GUILD_CHANS
 from litecord.snowflake import get_snowflake
 from litecord.schemas import validate, MESSAGE_CREATE
+from litecord.utils import pg_set_json
 
 
 log = Logger(__name__)
@@ -143,24 +144,29 @@ async def create_message(channel_id: int, actual_guild_id: int,
                          author_id: int, data: dict) -> int:
     message_id = get_snowflake()
 
-    await app.db.execute(
-        """
-        INSERT INTO messages (id, channel_id, guild_id, author_id,
-            content, tts, mention_everyone, nonce, message_type)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-    """,
-        message_id,
-        channel_id,
-        actual_guild_id,
-        author_id,
-        data['content'],
+    async with app.db.acquire() as conn:
+        await pg_set_json(conn)
 
-        data['tts'],
-        data['everyone_mention'],
+        await conn.execute(
+            """
+            INSERT INTO messages (id, channel_id, guild_id, author_id,
+                content, tts, mention_everyone, nonce, message_type,
+                embeds)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        """,
+            message_id,
+            channel_id,
+            actual_guild_id,
+            author_id,
+            data['content'],
 
-        data['nonce'],
-        MessageType.DEFAULT.value
-    )
+            data['tts'],
+            data['everyone_mention'],
+
+            data['nonce'],
+            MessageType.DEFAULT.value,
+            data.get('embeds', [])
+        )
 
     return message_id
 
@@ -231,7 +237,6 @@ async def _create_message(channel_id):
         actual_guild_id = guild_id
 
     j = validate(await request.get_json(), MESSAGE_CREATE)
-    message_id = get_snowflake()
 
     # TODO: check connection to the gateway
 
@@ -247,12 +252,14 @@ async def _create_message(channel_id):
                   user_id, channel_id, 'send_tts_messages', False
               ))
 
-    await create_message(channel_id, actual_guild_id, user_id, {
-        'content': j['content'],
-        'tts': is_tts,
-        'nonce': int(j.get('nonce', 0)),
-        'everyone_mention': mentions_everyone or mentions_here,
-    })
+    message_id = await create_message(
+        channel_id, actual_guild_id, user_id, {
+            'content': j['content'],
+            'tts': is_tts,
+            'nonce': int(j.get('nonce', 0)),
+            'everyone_mention': mentions_everyone or mentions_here,
+            'embeds': [j['embed']] if 'embed' in j else [],
+        })
 
     payload = await app.storage.get_message(message_id, user_id)
 

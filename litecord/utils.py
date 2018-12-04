@@ -1,4 +1,5 @@
 import asyncio
+import json
 from logbook import Logger
 
 log = Logger(__name__)
@@ -110,3 +111,21 @@ def mmh3(key: str, seed: int = 0):
     h1 ^= _u(h1) >> 16
 
     return _u(h1) >> 0
+
+
+async def pg_set_json(con):
+    """Set JSON and JSONB codecs for an
+    asyncpg connection."""
+    await con.set_type_codec(
+        'json',
+        encoder=json.dumps,
+        decoder=json.loads,
+        schema='pg_catalog'
+    )
+
+    await con.set_type_codec(
+        'jsonb',
+        encoder=json.dumps,
+        decoder=json.loads,
+        schema='pg_catalog'
+    )
