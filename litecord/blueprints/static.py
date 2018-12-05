@@ -15,6 +15,7 @@ async def static_pages(path):
 
 
 @bp.route('/')
+@bp.route('/api')
 async def index_handler():
     """Handler for the index page."""
     index_path = Path.cwd() / Path('static') / 'index.html'
