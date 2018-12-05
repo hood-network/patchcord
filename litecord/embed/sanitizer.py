@@ -58,9 +58,9 @@ def path_exists(embed: Embed, components: str):
 def proxify(url) -> str:
     """Return a mediaproxy url for the given EmbedURL."""
 
-    md_base_url = app.config.MEDIA_PROXY
+    md_base_url = app.config['MEDIA_PROXY']
     parsed = url.parsed
-    proto = 'https' if app.config.IS_SSL else 'http'
+    proto = 'https' if app.config['IS_SSL'] else 'http'
 
     return (
         # base mediaproxy url
@@ -74,9 +74,9 @@ async def fetch_metadata(url) -> dict:
     parsed = url.parsed
 
     md_path = f'{parsed.scheme}/{parsed.netloc}/{parsed.path}'
-    md_base_url = app.config.MEDIA_PROXY
 
-    proto = 'https' if app.config.IS_SSL else 'http'
+    md_base_url = app.config['MEDIA_PROXY']
+    proto = 'https' if app.config['IS_SSL'] else 'http'
 
     request_url = f'{proto}://{md_base_url}/meta/{md_path}'
 
