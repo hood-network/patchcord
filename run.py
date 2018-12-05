@@ -8,6 +8,7 @@ import websockets
 from quart import Quart, g, jsonify, request
 from logbook import StreamHandler, Logger
 from logbook.compat import redirect_logging
+from aiohttp import ClientSession
 
 # import the config set by instance owner
 import config
@@ -280,6 +281,8 @@ async def app_before_serving():
 
     g.app = app
     g.loop = asyncio.get_event_loop()
+
+    app.session = ClientSession()
 
     init_app_managers(app)
 

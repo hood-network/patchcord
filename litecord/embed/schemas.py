@@ -54,6 +54,8 @@ EMBED_AUTHOR = {
     'icon_url': {
         'coerce': EmbedURL, 'required': False,
     }
+
+    # NOTE: proxy_icon_url set by us
 }
 
 EMBED_FIELD = {

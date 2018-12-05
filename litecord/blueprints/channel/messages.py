@@ -12,7 +12,7 @@ from litecord.snowflake import get_snowflake
 from litecord.schemas import validate, MESSAGE_CREATE
 from litecord.utils import pg_set_json
 
-from litecord.embed import sanitize_embed
+from litecord.embed.sanitizer import fill_embed
 
 
 log = Logger(__name__)
@@ -260,7 +260,10 @@ async def _create_message(channel_id):
             'tts': is_tts,
             'nonce': int(j.get('nonce', 0)),
             'everyone_mention': mentions_everyone or mentions_here,
-            'embeds': [sanitize_embed(j['embed'])] if 'embed' in j else [],
+
+            # fill_embed takes care of filling proxy and width/height
+            'embeds': ([await fill_embed(j['embed'])]
+                       if 'embed' in j else []),
         })
 
     payload = await app.storage.get_message(message_id, user_id)
