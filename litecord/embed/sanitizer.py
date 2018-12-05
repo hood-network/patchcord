@@ -65,7 +65,7 @@ def proxify(url) -> str:
     return (
         # base mediaproxy url
         f'{proto}://{md_base_url}/img/'
-        f'{parsed.scheme}/{parsed.netloc}/{parsed.path}'
+        f'{parsed.scheme}/{parsed.netloc}{parsed.path}'
     )
 
 
@@ -73,7 +73,7 @@ async def fetch_metadata(url) -> dict:
     """Fetch metadata for a url."""
     parsed = url.parsed
 
-    md_path = f'{parsed.scheme}/{parsed.netloc}/{parsed.path}'
+    md_path = f'{parsed.scheme}/{parsed.netloc}{parsed.path}'
 
     md_base_url = app.config['MEDIA_PROXY']
     proto = 'https' if app.config['IS_SSL'] else 'http'
