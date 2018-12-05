@@ -12,6 +12,8 @@ from litecord.snowflake import get_snowflake
 from litecord.schemas import validate, MESSAGE_CREATE
 from litecord.utils import pg_set_json
 
+from litecord.embed import sanitize_embed
+
 
 log = Logger(__name__)
 bp = Blueprint('channel_messages', __name__)
@@ -258,7 +260,7 @@ async def _create_message(channel_id):
             'tts': is_tts,
             'nonce': int(j.get('nonce', 0)),
             'everyone_mention': mentions_everyone or mentions_here,
-            'embeds': [j['embed']] if 'embed' in j else [],
+            'embeds': [sanitize_embed(j['embed'])] if 'embed' in j else [],
         })
 
     payload = await app.storage.get_message(message_id, user_id)

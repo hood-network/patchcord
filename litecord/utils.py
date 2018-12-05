@@ -1,6 +1,8 @@
 import asyncio
 import json
 from logbook import Logger
+from typing import Any
+from quart.json import JSONEncoder
 
 log = Logger(__name__)
 
@@ -113,19 +115,27 @@ def mmh3(key: str, seed: int = 0):
     return _u(h1) >> 0
 
 
+class LitecordJSONEncoder(JSONEncoder):
+    def default(self, value: Any):
+        try:
+            return value.to_json
+        except AttributeError:
+            return super().default(value)
+
+
 async def pg_set_json(con):
     """Set JSON and JSONB codecs for an
     asyncpg connection."""
     await con.set_type_codec(
         'json',
-        encoder=json.dumps,
+        encoder=lambda v: json.dumps(v, cls=LitecordJSONEncoder),
         decoder=json.loads,
         schema='pg_catalog'
     )
 
     await con.set_type_codec(
         'jsonb',
-        encoder=json.dumps,
+        encoder=lambda v: json.dumps(v, cls=LitecordJSONEncoder),
         decoder=json.loads,
         schema='pg_catalog'
     )

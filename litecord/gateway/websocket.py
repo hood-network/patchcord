@@ -13,7 +13,7 @@ import earl
 from litecord.auth import raw_token_check
 from litecord.enums import RelationshipType
 from litecord.schemas import validate, GW_STATUS_UPDATE
-from litecord.utils import task_wrapper
+from litecord.utils import task_wrapper, LitecordJSONEncoder
 from litecord.permissions import get_permissions
 
 from litecord.gateway.opcodes import OP
@@ -39,7 +39,8 @@ WebsocketObjects = collections.namedtuple(
 
 
 def encode_json(payload) -> str:
-    return json.dumps(payload, separators=(',', ':'))
+    return json.dumps(payload, separators=(',', ':'),
+                      cls=LitecordJSONEncoder)
 
 
 def decode_json(data: str):

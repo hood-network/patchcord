@@ -20,6 +20,10 @@ class EmbedURL:
         """Return the URL."""
         return urllib.parse.urlunparse(self.parsed)
 
+    @property
+    def to_json(self):
+        return self.url
+
 
 EMBED_FOOTER = {
     'text': {
