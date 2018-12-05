@@ -6,8 +6,6 @@ litecord.embed.sanitizer
 from typing import Dict, Any
 from logbook import Logger
 
-from litecord.embed.schemas import EmbedURL
-
 log = Logger(__name__)
 Embed = Dict[str, Any]
 

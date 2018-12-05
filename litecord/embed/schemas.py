@@ -56,6 +56,18 @@ EMBED_AUTHOR = {
     }
 }
 
+EMBED_FIELD = {
+    'name': {
+        'type': 'string', 'minlength': 1, 'maxlength': 128, 'required': True
+    },
+    'value': {
+        'type': 'string', 'minlength': 1, 'maxlength': 128, 'required': True
+    },
+    'inline': {
+        'type': 'boolean', 'required': False, 'default': True,
+    },
+}
+
 EMBED_OBJECT = {
     'title': {
         'type': 'string', 'minlength': 1, 'maxlength': 128, 'required': False},
@@ -100,9 +112,10 @@ EMBED_OBJECT = {
         'schema': EMBED_AUTHOR,
         'required': False,
     },
+
     'fields': {
         'type': 'list',
-        'schema': EMBED_AUTHOR,
+        'schema': {'type': 'dict', 'schema': EMBED_FIELD},
         'required': False,
     },
 }
