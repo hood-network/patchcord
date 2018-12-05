@@ -8,6 +8,8 @@ from typing import Dict, Any
 from logbook import Logger
 from quart import current_app as app
 
+from litecord.embed.schemas import EmbedURL
+
 log = Logger(__name__)
 Embed = Dict[str, Any]
 
@@ -55,12 +57,18 @@ def path_exists(embed: Embed, components: str):
     return False
 
 
-def proxify(url) -> str:
+def proxify(url, *, config=None) -> str:
     """Return a mediaproxy url for the given EmbedURL."""
 
-    md_base_url = app.config['MEDIA_PROXY']
+    if not config:
+        config = app.config
+
+    if isinstance(url, str):
+        url = EmbedURL(url)
+
+    md_base_url = config['MEDIA_PROXY']
     parsed = url.parsed
-    proto = 'https' if app.config['IS_SSL'] else 'http'
+    proto = 'https' if config['IS_SSL'] else 'http'
 
     return (
         # base mediaproxy url
@@ -69,18 +77,28 @@ def proxify(url) -> str:
     )
 
 
-async def fetch_metadata(url) -> dict:
+async def fetch_metadata(url, *, config=None, session=None) -> dict:
     """Fetch metadata for a url."""
+
+    if session is None:
+        session = app.session
+
+    if config is None:
+        config = app.config
+
+    if isinstance(url, str):
+        url = EmbedURL(url)
+
     parsed = url.parsed
 
     md_path = f'{parsed.scheme}/{parsed.netloc}{parsed.path}'
 
-    md_base_url = app.config['MEDIA_PROXY']
-    proto = 'https' if app.config['IS_SSL'] else 'http'
+    md_base_url = config['MEDIA_PROXY']
+    proto = 'https' if config['IS_SSL'] else 'http'
 
     request_url = f'{proto}://{md_base_url}/meta/{md_path}'
 
-    async with app.session.get(request_url) as resp:
+    async with session.get(request_url) as resp:
         if resp.status != 200:
             return
 

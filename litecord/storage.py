@@ -64,6 +64,12 @@ class Storage:
             await pg_set_json(con)
             return await con.fetch(query, *args)
 
+    async def execute_with_json(self, query: str, *args):
+        """Execute a SQL statement with JSON/JSONB support."""
+        async with self.db.acquire() as con:
+            await pg_set_json(con)
+            return await con.execute(query, *args)
+
     async def get_user(self, user_id, secure=False) -> Dict[str, Any]:
         """Get a single user payload."""
         user_id = int(user_id)

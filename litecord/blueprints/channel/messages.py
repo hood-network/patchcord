@@ -1,5 +1,6 @@
-from quart import Blueprint, request, current_app as app, jsonify
+import re
 
+from quart import Blueprint, request, current_app as app, jsonify
 from logbook import Logger
 
 
@@ -12,7 +13,7 @@ from litecord.snowflake import get_snowflake
 from litecord.schemas import validate, MESSAGE_CREATE
 from litecord.utils import pg_set_json
 
-from litecord.embed.sanitizer import fill_embed
+from litecord.embed.sanitizer import fill_embed, proxify, fetch_metadata
 
 
 log = Logger(__name__)
@@ -226,6 +227,70 @@ async def _guild_text_mentions(payload: dict, guild_id: int,
         """, user_id, channel_id)
 
 
+async def process_url_embed(config, storage, dispatcher, session, payload: dict):
+    message_id = int(payload['id'])
+    channel_id = int(payload['channel_id'])
+
+    # if we already have embeds
+    # we shouldn't add our own.
+    embeds = payload['embeds']
+
+    if embeds:
+        log.debug('url processor: ignoring existing embeds @ mid {}',
+                  message_id)
+        return
+
+    # use regex to get URLs
+    urls = re.findall(r'(https?://\S+)', payload['content'])
+    urls = urls[:5]
+
+    new_embeds = []
+
+    # fetch metadata for each url
+    for url in urls:
+        img_proxy_url = proxify(url, config=config)
+        meta = await fetch_metadata(url, config=config, session=session)
+
+        if not meta['image']:
+            continue
+
+        new_embeds.append({
+            'type': 'image',
+            'url': url,
+            'thumbnail': {
+                'width': meta['width'],
+                'height': meta['height'],
+                'url': url,
+                'proxy_url': img_proxy_url
+            }
+        })
+
+    # update if we got embeds
+    if not new_embeds:
+        return
+
+    log.debug('made {} thumbnail embeds for mid {}',
+              len(new_embeds), message_id)
+
+    await storage.execute_with_json("""
+    UPDATE messages
+    SET embeds = $1
+    WHERE messages.id = $2
+    """, new_embeds, message_id)
+
+    update_payload = {
+        'id': str(message_id),
+        'channel_id': str(channel_id),
+        'embeds': new_embeds,
+    }
+
+    if 'guild_id' in payload:
+        update_payload['guild_id'] = payload['guild_id']
+
+    await dispatcher.dispatch(
+        'channel', channel_id, 'MESSAGE_UPDATE', update_payload)
+
+
 @bp.route('/<int:channel_id>/messages', methods=['POST'])
 async def _create_message(channel_id):
     """Create a message."""
@@ -275,6 +340,10 @@ async def _create_message(channel_id):
 
     await app.dispatcher.dispatch('channel', channel_id,
                                   'MESSAGE_CREATE', payload)
+
+    app.sched.spawn(
+        process_url_embed(app.config, app.storage, app.dispatcher, app.session,
+                          payload))
 
     # update read state for the author
     await app.db.execute("""
