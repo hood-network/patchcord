@@ -28,12 +28,16 @@ class Config:
     # e.g 'gateway.example.com' for reverse proxies.
     WEBSOCKET_URL = 'localhost:5001'
 
-    # Where to host the websocket?
-    # (a local address the server will bind to)
+    #: Where to host the websocket?
+    #  (a local address the server will bind to)
     WS_HOST = '0.0.0.0'
     WS_PORT = 5001
 
-    # Postgres credentials
+    #: Mediaproxy URL on the internet
+    #  mediaproxy is made to prevent client IPs being leaked.
+    MEDIA_PROXY = 'localhost:5002'
+
+    #: Postgres credentials
     POSTGRES = {}
 
 
