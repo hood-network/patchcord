@@ -1,4 +1,3 @@
-import json
 from typing import List, Dict, Any
 
 from logbook import Logger
@@ -12,6 +11,7 @@ from litecord.blueprints.channel.reactions import (
 from litecord.blueprints.user.billing import PLAN_ID_TO_TYPE
 
 from litecord.types import timestamp_
+from litecord.utils import pg_set_json
 
 
 log = Logger(__name__)
@@ -31,24 +31,6 @@ def dict_(val):
 
 def str_(val):
     return maybe(str, val)
-
-
-async def _set_json(con):
-    """Set JSON and JSONB codecs for an
-    asyncpg connection."""
-    await con.set_type_codec(
-        'json',
-        encoder=json.dumps,
-        decoder=json.loads,
-        schema='pg_catalog'
-    )
-
-    await con.set_type_codec(
-        'jsonb',
-        encoder=json.dumps,
-        decoder=json.loads,
-        schema='pg_catalog'
-    )
 
 
 def _filter_recipients(recipients: List[Dict[str, Any]], user_id: int):
@@ -73,13 +55,13 @@ class Storage:
         # set_type_codec, so we must set it manually
         # by acquiring the connection
         async with self.db.acquire() as con:
-            await _set_json(con)
+            await pg_set_json(con)
             return await con.fetchrow(query, *args)
 
     async def fetch_with_json(self, query: str, *args):
         """Fetch many rows with JSON/JSONB support."""
         async with self.db.acquire() as con:
-            await _set_json(con)
+            await pg_set_json(con)
             return await con.fetch(query, *args)
 
     async def get_user(self, user_id, secure=False) -> Dict[str, Any]:
@@ -631,10 +613,10 @@ class Storage:
 
     async def get_message(self, message_id: int, user_id=None) -> Dict:
         """Get a single message's payload."""
-        row = await self.db.fetchrow("""
+        row = await self.fetchrow_with_json("""
         SELECT id::text, channel_id::text, author_id, content,
             created_at AS timestamp, edited_at AS edited_timestamp,
-            tts, mention_everyone, nonce, message_type
+            tts, mention_everyone, nonce, message_type, embeds
         FROM messages
         WHERE id = $1
         """, message_id)
@@ -697,9 +679,6 @@ class Storage:
 
         # TODO: res['attachments']
         res['attachments'] = []
-
-        # TODO: res['embeds']
-        res['embeds'] = []
 
         # TODO: res['member'] for partial member data
         #  of the author

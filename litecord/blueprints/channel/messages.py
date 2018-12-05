@@ -10,6 +10,9 @@ from litecord.errors import MessageNotFound, Forbidden, BadRequest
 from litecord.enums import MessageType, ChannelType, GUILD_CHANS
 from litecord.snowflake import get_snowflake
 from litecord.schemas import validate, MESSAGE_CREATE
+from litecord.utils import pg_set_json
+
+from litecord.embed import sanitize_embed
 
 
 log = Logger(__name__)
@@ -139,8 +142,93 @@ async def _dm_pre_dispatch(channel_id, peer_id):
     await try_dm_state(peer_id, channel_id)
 
 
+async def create_message(channel_id: int, actual_guild_id: int,
+                         author_id: int, data: dict) -> int:
+    message_id = get_snowflake()
+
+    async with app.db.acquire() as conn:
+        await pg_set_json(conn)
+
+        await conn.execute(
+            """
+            INSERT INTO messages (id, channel_id, guild_id, author_id,
+                content, tts, mention_everyone, nonce, message_type,
+                embeds)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        """,
+            message_id,
+            channel_id,
+            actual_guild_id,
+            author_id,
+            data['content'],
+
+            data['tts'],
+            data['everyone_mention'],
+
+            data['nonce'],
+            MessageType.DEFAULT.value,
+            data.get('embeds', [])
+        )
+
+    return message_id
+
+async def _guild_text_mentions(payload: dict, guild_id: int,
+                               mentions_everyone: bool, mentions_here: bool):
+    channel_id = int(payload['channel_id'])
+
+    # calculate the user ids we'll bump the mention count for
+    uids = set()
+
+    # first is extracting user mentions
+    for mention in payload['mentions']:
+        uids.add(int(mention['id']))
+
+    # then role mentions
+    for role_mention in payload['mention_roles']:
+        role_id = int(role_mention)
+        member_ids = await app.storage.get_role_members(role_id)
+
+        for member_id in member_ids:
+            uids.add(member_id)
+
+    # at-here only updates the state
+    # for the users that have a state
+    # in the channel.
+    if mentions_here:
+        uids = []
+        await app.db.execute("""
+        UPDATE user_read_state
+        SET mention_count = mention_count + 1
+        WHERE channel_id = $1
+        """, channel_id)
+
+    # at-here updates the read state
+    # for all users, including the ones
+    # that might not have read permissions
+    # to the channel.
+    if mentions_everyone:
+        uids = []
+
+        member_ids = await app.storage.get_member_ids(guild_id)
+
+        await app.db.executemany("""
+        UPDATE user_read_state
+        SET mention_count = mention_count + 1
+        WHERE channel_id = $1 AND user_id = $2
+        """, [(channel_id, uid) for uid in member_ids])
+
+    for user_id in uids:
+        await app.db.execute("""
+        UPDATE user_read_state
+        SET mention_count = mention_count + 1
+        WHERE user_id = $1
+            AND channel_id = $2
+        """, user_id, channel_id)
+
+
 @bp.route('/<int:channel_id>/messages', methods=['POST'])
-async def create_message(channel_id):
+async def _create_message(channel_id):
+    """Create a message."""
     user_id = await token_check()
     ctype, guild_id = await channel_check(user_id, channel_id)
 
@@ -151,7 +239,6 @@ async def create_message(channel_id):
         actual_guild_id = guild_id
 
     j = validate(await request.get_json(), MESSAGE_CREATE)
-    message_id = get_snowflake()
 
     # TODO: check connection to the gateway
 
@@ -167,24 +254,14 @@ async def create_message(channel_id):
                   user_id, channel_id, 'send_tts_messages', False
               ))
 
-    await app.db.execute(
-        """
-        INSERT INTO messages (id, channel_id, guild_id, author_id,
-            content, tts, mention_everyone, nonce, message_type)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-    """,
-        message_id,
-        channel_id,
-        actual_guild_id,
-        user_id,
-        j['content'],
-
-        is_tts,
-        mentions_everyone or mentions_here,
-
-        int(j.get('nonce', 0)),
-        MessageType.DEFAULT.value
-    )
+    message_id = await create_message(
+        channel_id, actual_guild_id, user_id, {
+            'content': j['content'],
+            'tts': is_tts,
+            'nonce': int(j.get('nonce', 0)),
+            'everyone_mention': mentions_everyone or mentions_here,
+            'embeds': [sanitize_embed(j['embed'])] if 'embed' in j else [],
+        })
 
     payload = await app.storage.get_message(message_id, user_id)
 
@@ -196,6 +273,7 @@ async def create_message(channel_id):
     await app.dispatcher.dispatch('channel', channel_id,
                                   'MESSAGE_CREATE', payload)
 
+    # update read state for the author
     await app.db.execute("""
     UPDATE user_read_state
     SET last_message_id = $1
@@ -203,54 +281,8 @@ async def create_message(channel_id):
     """, message_id, channel_id, user_id)
 
     if ctype == ChannelType.GUILD_TEXT:
-        # calculate the user ids we'll bump the mention count for
-        uids = set()
-
-        # first is extracting user mentions
-        for mention in payload['mentions']:
-            uids.add(int(mention['id']))
-
-        # then role mentions
-        for role_mention in payload['mention_roles']:
-            role_id = int(role_mention)
-            member_ids = await app.storage.get_role_members(role_id)
-
-            for member_id in member_ids:
-                uids.add(member_id)
-
-        # at-here only updates the state
-        # for the users that have a state
-        # in the channel.
-        if mentions_here:
-            uids = []
-            await app.db.execute("""
-            UPDATE user_read_state
-            SET mention_count = mention_count + 1
-            WHERE channel_id = $1
-            """, channel_id)
-
-        # at-here updates the read state
-        # for all users, including the ones
-        # that might not have read permissions
-        # to the channel.
-        if mentions_everyone:
-            uids = []
-
-            member_ids = await app.storage.get_member_ids(guild_id)
-
-            await app.db.executemany("""
-            UPDATE user_read_state
-            SET mention_count = mention_count + 1
-            WHERE channel_id = $1 AND user_id = $2
-            """, [(channel_id, uid) for uid in member_ids])
-
-        for user_id in uids:
-            await app.db.execute("""
-            UPDATE user_read_state
-            SET mention_count = mention_count + 1
-            WHERE user_id = $1
-              AND channel_id = $2
-            """, user_id, channel_id)
+        await _guild_text_mentions(payload, guild_id,
+                                   mentions_everyone, mentions_here)
 
     return jsonify(payload)
 

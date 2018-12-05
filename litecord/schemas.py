@@ -12,6 +12,7 @@ from .enums import (
     MessageNotifications, ChannelType, VerificationLevel
 )
 
+from litecord.embed.schemas import EMBED_OBJECT
 
 log = Logger(__name__)
 
@@ -371,6 +372,12 @@ MESSAGE_CREATE = {
     'content': {'type': 'string', 'minlength': 1, 'maxlength': 2000},
     'nonce': {'type': 'snowflake', 'required': False},
     'tts': {'type': 'boolean', 'required': False},
+
+    'embed': {
+        'type': 'dict',
+        'schema': EMBED_OBJECT,
+        'required': False
+    }
 
     # TODO: file, embed, payload_json
 }

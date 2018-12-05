@@ -50,6 +50,8 @@ from litecord.presence import PresenceManager
 from litecord.images import IconManager
 from litecord.jobs import JobManager
 
+from litecord.utils import LitecordJSONEncoder
+
 # setup logbook
 handler = StreamHandler(sys.stdout, level=logbook.INFO)
 handler.push_application()
@@ -70,6 +72,9 @@ def make_app():
 
     # always keep websockets on INFO
     logging.getLogger('websockets').setLevel(logbook.INFO)
+
+    # use our custom json encoder for custom data types
+    app.json_encoder = LitecordJSONEncoder
 
     return app
 
