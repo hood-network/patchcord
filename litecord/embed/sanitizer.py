@@ -5,7 +5,6 @@ litecord.embed.sanitizer
 """
 from typing import Dict, Any
 
-from mmh3 import hash128
 from logbook import Logger
 from quart import current_app as app
 
