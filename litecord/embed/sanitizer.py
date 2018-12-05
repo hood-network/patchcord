@@ -13,7 +13,7 @@ Embed = Dict[str, Any]
 
 def sanitize_embed(embed: Embed) -> Embed:
     """Sanitize an embed object.
-    
+
     This is non-complex sanitization as it doesn't
     need the app object.
     """
