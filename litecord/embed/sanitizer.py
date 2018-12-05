@@ -4,6 +4,8 @@ litecord.embed.sanitizer
     such as type: rich
 """
 from typing import Dict, Any
+
+from mmh3 import hash128
 from logbook import Logger
 from quart import current_app as app
 
@@ -68,6 +70,24 @@ def proxify(url) -> str:
     )
 
 
+async def fetch_metadata(url) -> dict:
+    """Fetch metadata for a url."""
+    parsed = url.parsed
+
+    md_path = f'{parsed.scheme}/{parsed.netloc}/{parsed.path}'
+    md_base_url = app.config.MEDIA_PROXY
+
+    proto = 'https' if app.config.IS_SSL else 'http'
+
+    request_url = f'{proto}://{md_base_url}/meta/{md_path}'
+
+    async with app.session.get(request_url) as resp:
+        if resp.status != 200:
+            return
+
+        return await resp.json()
+
+
 async def fill_embed(embed: Embed) -> Embed:
     """Fill an embed with more information."""
     embed = sanitize_embed(embed)
@@ -81,8 +101,13 @@ async def fill_embed(embed: Embed) -> Embed:
             proxify(embed['author']['icon_url'])
 
     if path_exists(embed, 'image.url'):
-        # TODO: width, height
-        embed['image']['proxy_url'] = \
-            proxify(embed['image']['url'])
+        image_url = embed['image']['url']
+
+        meta = await fetch_metadata(image_url)
+        embed['image']['proxy_url'] = proxify(image_url)
+
+        if meta and meta['image']:
+            embed['image']['width'] = meta['width']
+            embed['image']['height'] = meta['height']
 
     return embed

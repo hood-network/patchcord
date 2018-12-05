@@ -14,7 +14,6 @@ Cerberus = "==1.2"
 quart = {editable = true,ref = "e23714d5",git = "https://gitlab.com/pgjones/quart"}
 pillow = "*"
 aiohttp = "==3.4.4"
-mmh3 = "*"
 
 [dev-packages]
 pytest = "==3.10.1"
