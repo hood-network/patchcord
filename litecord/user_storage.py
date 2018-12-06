@@ -288,3 +288,16 @@ class UserStorage:
         """, user_id)
 
         return [row['guild_id'] for row in guild_ids]
+
+    async def get_mutual_guilds(self, user_id: int, peer_id: int) -> List[int]:
+        """Get a list of guilds two separate users
+        have in common."""
+        mutual_guilds = await self.db.fetch("""
+        SELECT guild_id FROM members WHERE user_id = $1
+        INTERSECT
+        SELECT guild_id FROM members WHERE user_id = $2
+        """, user_id, peer_id)
+
+        mutual_guilds = [r['guild_id'] for r in mutual_guilds]
+
+        return mutual_guilds

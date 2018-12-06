@@ -373,14 +373,7 @@ async def get_profile(peer_id: int):
     WHERE id = $1
     """, peer_id)
 
-    # this is a rad sql query
-    mutual_guilds = await app.db.fetch("""
-    SELECT guild_id FROM members WHERE user_id = $1
-    INTERSECT
-    SELECT guild_id FROM members WHERE user_id = $2
-    """, user_id, peer_id)
-
-    mutual_guilds = [r['guild_id'] for r in mutual_guilds]
+    mutual_guilds = await app.user_storage.get_mutual_guilds(user_id, peer_id)
     mutual_res = []
 
     # ascending sorting
