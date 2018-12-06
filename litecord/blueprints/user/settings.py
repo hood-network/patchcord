@@ -1,5 +1,3 @@
-import json
-
 from quart import Blueprint, jsonify, request, current_app as app
 
 from litecord.auth import token_check
