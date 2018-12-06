@@ -389,7 +389,7 @@ GW_ACTIVITY = {
         'type': 'dict',
         'required': False,
         'schema': {
-            'start': {'type': 'number', 'required': True},
+            'start': {'type': 'number', 'required': False},
             'end': {'type': 'number', 'required': False},
         },
     },
