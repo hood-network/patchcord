@@ -14,6 +14,7 @@ from litecord.schemas import validate, MESSAGE_CREATE
 from litecord.utils import pg_set_json
 
 from litecord.embed.sanitizer import fill_embed, proxify, fetch_metadata
+from litecord.blueprints.channel.dm_checks import dm_pre_check
 
 
 log = Logger(__name__)
@@ -306,6 +307,10 @@ async def _create_message(channel_id):
     j = validate(await request.get_json(), MESSAGE_CREATE)
 
     # TODO: check connection to the gateway
+
+    if ctype == ChannelType.DM:
+        # guild_id is the dm's peer_id
+        await dm_pre_check(user_id, channel_id, guild_id)
 
     can_everyone = await channel_perm_check(
         user_id, channel_id, 'mention_everyone', False
