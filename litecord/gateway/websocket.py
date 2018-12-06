@@ -398,25 +398,24 @@ class GatewayWebsocket:
             # are just silently dropped.
             return
 
-        if status is None:
-            status = {
-                'afk': False,
+        default_status = {
+            'afk': False,
 
-                # TODO: fetch status from settings
-                'status': 'online',
-                'game': None,
+            # TODO: fetch status from settings
+            'status': 'online',
+            'game': None,
 
-                # TODO: this
-                'since': 0,
-            }
-
-            self.state.presence = status
+            # TODO: this
+            'since': 0,
+        }
 
         try:
             status = validate(status, GW_STATUS_UPDATE)
         except BadRequest as err:
             log.warning(f'Invalid status update: {err}')
             return
+
+        status = {**status, **default_status}
 
         # try to extract game from activities
         # when game not provided
