@@ -448,7 +448,10 @@ class GatewayWebsocket:
         # close the websocket
         self._hb_start((46 + 3) * 1000)
         cliseq = payload.get('d')
-        self.state.last_seq = cliseq
+
+        if self.state:
+            self.state.last_seq = cliseq
+
         await self.send_op(OP.HEARTBEAT_ACK, None)
 
     async def _connect_ratelimit(self, user_id: int):
