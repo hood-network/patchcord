@@ -264,7 +264,7 @@ async def get_mutual_friends(peer_id: int):
                     for rel in peer_rels if rel['type'] == _friend}
 
     # get the intersection, then map them to Storage.get_user() calls
-    mutual_ids = user_friends | peer_friends
+    mutual_ids = user_friends & peer_friends
 
     mutual_friends = []
 
