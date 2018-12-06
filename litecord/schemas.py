@@ -254,7 +254,7 @@ GUILD_UPDATE = {
         'required': False
     },
     'region': {'type': 'voice_region', 'required': False},
-    'icon': {'type': 'b64_icon', 'required': False},
+    'icon': {'type': 'b64_icon', 'required': False, 'nullable': True},
     'splash': {'type': 'b64_icon', 'required': False, 'nullable': True},
 
     'verification_level': {
