@@ -425,6 +425,8 @@ class GatewayWebsocket:
                 game = status['activities'][0]
             except (KeyError, IndexError):
                 game = None
+        else:
+            game = status['game']
 
         # construct final status
         status = {
