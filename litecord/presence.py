@@ -85,7 +85,7 @@ class PresenceManager:
                 'guild_id': str(guild_id),
 
                 # basic presence
-                'status': state.presence['status'],
+                'status': state.presence.get('status', 'online'),
 
                 # game is an activity object, for rich presence
                 'game': game,
