@@ -25,8 +25,6 @@ async def patch_current_settings():
     user_id = await token_check()
     j = validate(await request.get_json(), USER_SETTINGS)
 
-    json_fields = ['guild_positions', 'restricted_guilds']
-
     for key in j:
         val = j[key]
 
