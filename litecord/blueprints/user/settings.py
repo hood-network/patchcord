@@ -36,7 +36,6 @@ async def patch_current_settings():
         # force postgres to update to jsonb
         # when the fields ARE jsonb.
         if key in json_fields:
-            val = json.dumps(val)
             jsonb_cnv = '::jsonb'
 
         await app.db.execute(f"""
