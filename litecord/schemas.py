@@ -380,60 +380,57 @@ MESSAGE_CREATE = {
 
 
 GW_ACTIVITY = {
-    'type': 'dict',
-    'schema': {
-        'name': {'type': 'string', 'required': True},
-        'type': {'type': 'activity_type', 'required': True},
+    'name': {'type': 'string', 'required': True},
+    'type': {'type': 'activity_type', 'required': True},
 
-        'url': {'type': 'string', 'required': False, 'nullable': True},
+    'url': {'type': 'string', 'required': False, 'nullable': True},
 
-        'timestamps': {
-            'type': 'dict',
-            'required': False,
-            'schema': {
-                'start': {'type': 'number', 'required': True},
-                'end': {'type': 'number', 'required': False},
-            },
+    'timestamps': {
+        'type': 'dict',
+        'required': False,
+        'schema': {
+            'start': {'type': 'number', 'required': True},
+            'end': {'type': 'number', 'required': False},
         },
+    },
 
-        'application_id': {'type': 'snowflake', 'required': False,
-                           'nullable': False},
-        'details': {'type': 'string', 'required': False, 'nullable': True},
-        'state': {'type': 'string', 'required': False, 'nullable': True},
+    'application_id': {'type': 'snowflake', 'required': False,
+                       'nullable': False},
+    'details': {'type': 'string', 'required': False, 'nullable': True},
+    'state': {'type': 'string', 'required': False, 'nullable': True},
 
-        'party': {
-            'type': 'dict',
-            'required': False,
-            'schema': {
-                'id': {'type': 'snowflake', 'required': False},
-                'size': {'type': 'list', 'required': False},
-            }
-        },
+    'party': {
+        'type': 'dict',
+        'required': False,
+        'schema': {
+            'id': {'type': 'snowflake', 'required': False},
+            'size': {'type': 'list', 'required': False},
+        }
+    },
 
-        'assets': {
-            'type': 'dict',
-            'required': False,
-            'schema': {
-                'large_image': {'type': 'snowflake', 'required': False},
-                'large_text': {'type': 'string', 'required': False},
-                'small_image': {'type': 'snowflake', 'required': False},
-                'small_text': {'type': 'string', 'required': False},
-            }
-        },
+    'assets': {
+        'type': 'dict',
+        'required': False,
+        'schema': {
+            'large_image': {'type': 'snowflake', 'required': False},
+            'large_text': {'type': 'string', 'required': False},
+            'small_image': {'type': 'snowflake', 'required': False},
+            'small_text': {'type': 'string', 'required': False},
+        }
+    },
 
-        'secrets': {
-            'type': 'dict',
-            'required': False,
-            'schema': {
-                'join': {'type': 'string', 'required': False},
-                'spectate': {'type': 'string', 'required': False},
-                'match': {'type': 'string', 'required': False},
-            }
-        },
+    'secrets': {
+        'type': 'dict',
+        'required': False,
+        'schema': {
+            'join': {'type': 'string', 'required': False},
+            'spectate': {'type': 'string', 'required': False},
+            'match': {'type': 'string', 'required': False},
+        }
+    },
 
-        'instance': {'type': 'boolean', 'required': False},
-        'flags': {'type': 'number', 'required': False},
-    }
+    'instance': {'type': 'boolean', 'required': False},
+    'flags': {'type': 'number', 'required': False},
 }
 
 GW_STATUS_UPDATE = {
