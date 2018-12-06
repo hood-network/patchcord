@@ -84,10 +84,6 @@ class LitecordValidator(Validator):
 
     def _validate_type_status_external(self, value: str) -> bool:
         statuses = StatusType.values()
-
-        # clients should send INVISIBLE instead of OFFLINE
-        statuses.remove(StatusType.OFFLINE.value)
-
         return value in statuses
 
     def _validate_type_explicit(self, value: str) -> bool:
@@ -441,12 +437,13 @@ GW_ACTIVITY = {
 }
 
 GW_STATUS_UPDATE = {
-    'status': {'type': 'status_external', 'required': False},
+    'status': {'type': 'status_external', 'required': False,
+               'default': 'online'},
     'activities': {
         'type': 'list', 'required': False, 'schema': GW_ACTIVITY},
     'afk': {'type': 'boolean', 'required': False},
 
-    'since': {'type': 'number', 'required': True, 'nullable': True},
+    'since': {'type': 'number', 'required': False, 'nullable': True},
     'game': {
         'type': 'dict',
         'required': False,

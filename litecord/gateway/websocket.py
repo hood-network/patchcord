@@ -415,7 +415,7 @@ class GatewayWebsocket:
         try:
             status = validate(status, GW_STATUS_UPDATE)
         except BadRequest as err:
-            log.warning(f'Invalid payload: {err}')
+            log.warning(f'Invalid status update: {err}')
             return
 
         # try to extract game from activities
