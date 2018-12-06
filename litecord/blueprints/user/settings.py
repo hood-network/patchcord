@@ -1,3 +1,5 @@
+import json
+
 from quart import Blueprint, jsonify, request, current_app as app
 
 from litecord.auth import token_check
@@ -29,16 +31,10 @@ async def patch_current_settings():
 
     for key in j:
         val = j[key]
-        jsonb_cnv = ''
 
-        # force postgres to update to jsonb
-        # when the fields ARE jsonb.
-        if key in json_fields:
-            jsonb_cnv = '::jsonb'
-
-        await app.db.execute(f"""
+        await app.storage.execute_with_json(f"""
         UPDATE user_settings
-        SET {key}=$1{jsonb_cnv}
+        SET {key}=$1
         WHERE id = $2
         """, val, user_id)
 
