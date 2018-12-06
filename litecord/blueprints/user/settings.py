@@ -31,13 +31,17 @@ async def patch_current_settings():
 
     for key in j:
         val = j[key]
+        jsonb_cnv = ''
 
+        # force postgres to update to jsonb
+        # when the fields ARE jsonb.
         if key in json_fields:
             val = json.dumps(val)
+            jsonb_cnv = '::jsonb'
 
         await app.db.execute(f"""
         UPDATE user_settings
-        SET {key}=$1
+        SET {key}=$1{jsonb_cnv}
         WHERE id = $2
         """, val, user_id)
 
