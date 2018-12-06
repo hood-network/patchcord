@@ -22,8 +22,16 @@ async def dm_pre_check(user_id: int, channel_id: int, peer_id: int):
     if blockrow is not None:
         raise ForbiddenDM()
 
+    # check if theyre friends
+    friends = await app.user_storage.are_friends_with(user_id, peer_id)
+
+    # if they're mutual friends, we don't do mutual guild checking
+    if friends:
+        return
+
     # now comes the fun part, which is guild settings.
     mutual_guilds = await app.user_storage.get_mutual_guilds(user_id, peer_id)
+    mutual_guilds = set(mutual_guilds)
 
     # user_settings.restricted_guilds gives us the dms a user doesn't
     # want dms from, so we use that setting from both user and peer

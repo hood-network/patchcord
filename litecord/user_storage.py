@@ -301,3 +301,31 @@ class UserStorage:
         mutual_guilds = [r['guild_id'] for r in mutual_guilds]
 
         return mutual_guilds
+
+    async def are_friends_with(self, user_id: int, peer_id: int) -> bool:
+        """Return if two people are friends.
+
+        This returns false even if there is a friend request.
+        """
+        return await self.db.fetchval("""
+        SELECT
+            (
+                SELECT EXISTS(
+                    SELECT rel_type
+                    FROM relationships
+                    WHERE user_id = $1
+                      AND peer_id = $2
+                      AND rel_type = 1
+                )
+            )
+            AND
+            (
+                SELECT EXISTS(
+                    SELECT rel_type
+                    FROM relationships
+                    WHERE user_id = $2
+                      AND peer_id = $1
+                      AND rel_type = 1
+                )
+            )
+        """, user_id, peer_id)
