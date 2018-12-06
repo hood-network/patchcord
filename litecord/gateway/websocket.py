@@ -409,13 +409,13 @@ class GatewayWebsocket:
             'since': 0,
         }
 
+        status = {**(status or {}), **default_status}
+
         try:
             status = validate(status, GW_STATUS_UPDATE)
         except BadRequest as err:
             log.warning(f'Invalid status update: {err}')
             return
-
-        status = {**status, **default_status}
 
         # try to extract game from activities
         # when game not provided
