@@ -126,6 +126,10 @@ async def make_friend(user_id: int, peer_id: int,
     return
 
 
+class RelationshipFailed(BadRequest):
+    error_code = 80004
+
+
 @bp.route('/@me/relationships', methods=['POST'])
 async def post_relationship():
     user_id = await token_check()
@@ -135,7 +139,7 @@ async def post_relationship():
                                         str(j['discriminator']))
 
     if not uid:
-        return '', 404
+        raise RelationshipFailed()
 
     res = await make_friend(user_id, uid)
 
