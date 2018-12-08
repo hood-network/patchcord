@@ -23,6 +23,7 @@ from asyncpg import UniqueViolationError
 from ..auth import token_check
 from ..schemas import validate, RELATIONSHIP, SPECIFIC_FRIEND
 from ..enums import RelationshipType
+from litecord.errors import BadRequest
 
 
 bp = Blueprint('relationship', __name__)
@@ -149,6 +150,10 @@ class RelationshipFailed(BadRequest):
     error_code = 80004
 
 
+class RelationshipBlocked(BadRequest):
+    error_code = 80001
+
+
 @bp.route('/@me/relationships', methods=['POST'])
 async def post_relationship():
     user_id = await token_check()
@@ -162,9 +167,8 @@ async def post_relationship():
 
     res = await make_friend(user_id, uid)
 
-    # NOTE: don't know what status code should I send
     if res is None:
-        return '', 500
+        raise RelationshipBlocked()
 
     return '', 204
 
