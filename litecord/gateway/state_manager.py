@@ -227,7 +227,6 @@ class StateManager:
             )
 
         log.info('made {} shutdown tasks', len(tasks))
-
         return tasks
 
     def close(self):

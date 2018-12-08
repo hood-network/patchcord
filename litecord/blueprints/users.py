@@ -490,10 +490,9 @@ async def _del_from_table(table: str, user_id: int):
 @bp.route('/@me/delete', methods=['POST'])
 async def delete_account():
     """Delete own account.
-
-    There isn't any inherent need to dispatch
-    events to connected users, so this is mostly
-    DB operations.
+    
+    This removes the account from all tables and
+    forces all currently connected clients to reconnect.
     """
     user_id = await token_check()
 
@@ -524,6 +523,10 @@ async def delete_account():
 
     new_username = f'Deleted User {rand_hex()}'
 
+    # by using a random hex in password_hash
+    # we break attempts at using the default '123' password hash
+    # to issue valid tokens for deleted users.
+
     await app.db.execute("""
     UPDATE users
     SET
@@ -535,10 +538,10 @@ async def delete_account():
         flags = 0,
         premium_since = NULL,
         phone = '',
-        password_hash = '123'
+        password_hash = $2
     WHERE
-        id = $2
-    """, new_username, user_id)
+        id = $3
+    """, new_username, rand_hex(32), user_id)
 
     # remove the user from various tables
     await _del_from_table('user_settings', user_id)
@@ -562,5 +565,20 @@ async def delete_account():
     await _del_from_table('members', user_id)
     await _del_from_table('member_roles', user_id)
     await _del_from_table('channel_overwrites', user_id)
+
+    # after removing the user from all tables, we need to force
+    # all known user states to reconnect, causing the user to not
+    # be online anymore.
+    user_states = app.state_manager.user_states(user_id)
+
+    for state in user_states:
+        # make it unable to resume
+        app.state_manager.remove(state)
+
+        if not state.ws:
+            continue
+
+        # force a close, 4000 should make the client reconnect.
+        await state.ws.close(4000)
 
     return '', 204
