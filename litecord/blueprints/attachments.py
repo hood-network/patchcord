@@ -48,7 +48,7 @@ async def _resize_gif(attach_id: int, resized_path: Path,
 
 
 FORMAT_HARDCODE = {
-    'jpg': 'jpeg'
+    'jpg': 'jpeg',
     'jpe': 'jpeg'
 }
 
