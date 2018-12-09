@@ -35,7 +35,6 @@ from litecord.utils import pg_set_json
 
 from litecord.embed.sanitizer import fill_embed, proxify, fetch_metadata
 from litecord.blueprints.channel.dm_checks import dm_pre_check
-from litecord.images import get_ext
 
 
 log = Logger(__name__)
