@@ -52,6 +52,21 @@ CREATE TABLE IF NOT EXISTS instance_invites (
 );
 
 
+-- main attachments table
+CREATE TABLE IF NOT EXISTS attachments (
+    id bigint PRIMARY KEY,
+
+    filename text NOT NULL,
+    filesize integer,
+
+    image boolean DEFAULT FALSE,
+
+    -- only not null if image=true
+    height integer DEFAULT NULL,
+    width integer DEFAULT NULL,
+);
+
+
 CREATE TABLE IF NOT EXISTS icons (
     -- can be 'user', 'guild', 'emoji'
     scope text NOT NULL,
