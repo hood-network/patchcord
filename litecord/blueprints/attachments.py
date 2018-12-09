@@ -21,7 +21,8 @@ from quart import Blueprint
 
 bp = Blueprint(__name__)
 
-@bp.route('/<channel_id:int>/<message_id:int>/<filename:int>.<ext>',
+@bp.route('/attachments'
+          '/<channel_id:int>/<message_id:int>/<filename:int>.<ext>',
           methods=['GET'])
 async def _get_attachment(channel_id: int, message_id: int,
                           filename: str, ext: str):

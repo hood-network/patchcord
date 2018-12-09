@@ -34,7 +34,8 @@ import config
 
 from litecord.blueprints import (
     gateway, auth, users, guilds, channels, webhooks, science,
-    voice, invites, relationships, dms, icons, nodeinfo, static
+    voice, invites, relationships, dms, icons, nodeinfo, static,
+    attachments
 )
 
 # those blueprints are separated from the "main" ones
@@ -131,6 +132,7 @@ def set_blueprints(app_):
         fake_store: None,
 
         icons: -1,
+        attachments: -1,
         nodeinfo: -1,
         static: -1
     }
