@@ -456,7 +456,9 @@ GW_STATUS_UPDATE = {
     'status': {'type': 'status_external', 'required': False,
                'default': 'online'},
     'activities': {
-        'type': 'list', 'required': False, 'schema': GW_ACTIVITY},
+        'type': 'list', 'required': False,
+        'schema': {'type': 'dict', 'schema': GW_ACTIVITY}
+    },
     'afk': {'type': 'boolean', 'required': False},
 
     'since': {'type': 'number', 'required': False, 'nullable': True},
