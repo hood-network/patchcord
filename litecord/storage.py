@@ -31,6 +31,7 @@ from litecord.blueprints.user.billing import PLAN_ID_TO_TYPE
 
 from litecord.types import timestamp_
 from litecord.utils import pg_set_json
+from litecord.embed.sanitizer import proxify
 
 
 log = Logger(__name__)
@@ -636,6 +637,34 @@ class Storage:
         # they were defined in the first loop.
         return list(map(react_stats.get, emoji))
 
+    async def get_attachments(self, message_id: int) -> List[Dict[str, Any]]:
+        """Get a list of attachment objects tied to the message."""
+        attachment_ids = await self.db.fetch("""
+        SELECT attachment_id
+        FROM message_attachments
+        WHERE message_id = $1
+        """, message_id)
+
+        res = []
+
+        for attachment_id in attachment_ids:
+            row = await self.db.fetchrow("""
+            SELECT id::text, filename, filesize, image, height, width
+            FROM attachments
+            WHERE id = $1
+            """, attachment_id)
+
+            drow = dict(row)
+
+            drow['size'] = drow['filesize']
+            drow.pop('size')
+
+            # TODO: url, proxy_url
+
+            res.append(drow)
+
+        return res
+
     async def get_message(self, message_id: int, user_id=None) -> Dict:
         """Get a single message's payload."""
         row = await self.fetchrow_with_json("""
@@ -703,7 +732,7 @@ class Storage:
         res.pop('author_id')
 
         # TODO: res['attachments']
-        res['attachments'] = []
+        res['attachments'] = await self.get_attachments(message_id)
 
         # TODO: res['member'] for partial member data
         #  of the author

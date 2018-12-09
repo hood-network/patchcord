@@ -388,6 +388,8 @@ async def _add_attachment(message_id: int, attachment_file) -> int:
         attachment_id, attachment_file.filename, file_size,
         is_image, img_width, img_height)
 
+    # TODO: save a file
+
     # add the newly created attachment to the message
     await app.db.execute("""
     INSERT INTO message_attachments (message_id, attachment_id)
