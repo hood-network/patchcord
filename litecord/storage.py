@@ -668,11 +668,9 @@ class Storage:
             proto = 'https' if self.app.config['IS_SSL'] else 'http'
             main_url = self.app.config['MAIN_URL']
 
-            attachment_ext = get_ext(row['mime'])
-
             drow['url'] = (f'{proto}://{main_url}/attachments/'
                            f'{row["channel_id"]}/{row["message_id"]}/'
-                           f'{row["filename"]}.{attachment_ext}')
+                           f'{row["filename"]}')
 
             # NOTE: since the url comes from the instance itself
             # i think proxy_url=url is valid.
