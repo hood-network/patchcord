@@ -31,6 +31,8 @@ from .dms import bp as dms
 from .icons import bp as icons
 from .nodeinfo import bp as nodeinfo
 from .static import bp as static
+from .attachments import bp as attachments
+
 __all__ = ['gateway', 'auth', 'users', 'guilds', 'channels',
            'webhooks', 'science', 'voice', 'invites', 'relationships',
-           'dms', 'icons', 'nodeinfo', 'static']
+           'dms', 'icons', 'nodeinfo', 'static', 'attachments']

@@ -19,10 +19,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from quart import Blueprint
 
-bp = Blueprint(__name__)
+bp = Blueprint('attachments', __name__)
 
 @bp.route('/attachments'
-          '/<channel_id:int>/<message_id:int>/<filename:int>.<ext>',
+          '/<int:channel_id>/<int:message_id>/<filename>.<ext>',
           methods=['GET'])
 async def _get_attachment(channel_id: int, message_id: int,
                           filename: str, ext: str):
