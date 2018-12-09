@@ -56,6 +56,11 @@ CREATE TABLE IF NOT EXISTS instance_invites (
 CREATE TABLE IF NOT EXISTS attachments (
     id bigint PRIMARY KEY,
 
+    -- keeping channel_id and message_id
+    -- make a way "better" attachment url.
+    channel_id bigint REFERENCES channels (id),
+    message_id bigint REFERENCES messages (id),
+
     filename text NOT NULL,
     filesize integer,
 
@@ -632,12 +637,6 @@ CREATE TABLE IF NOT EXISTS messages (
     nonce bigint default 0,
 
     message_type int NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS message_attachments (
-    message_id bigint REFERENCES messages (id),
-    attachment bigint REFERENCES attachments (id),
-    PRIMARY KEY (message_id, attachment)
 );
 
 CREATE TABLE IF NOT EXISTS message_reactions (
