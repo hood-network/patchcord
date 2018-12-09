@@ -377,7 +377,9 @@ async def _add_attachment(message_id: int, channel_id: int,
         # open with pillow, extract image size
         image = Image.open(attachment_file.stream)
         img_width, img_height = image.size
-        image.close()
+
+        # NOTE: DO NOT close the image, as closing the image will
+        # also close the stream.
 
         # reset it to 0 for later usage
         attachment_file.stream.seek(0)
@@ -397,7 +399,7 @@ async def _add_attachment(message_id: int, channel_id: int,
 
     ext = filename.split('.')[-1]
 
-    with open(f'attachments/{attachment_id}.{ext}') as attach_file:
+    with open(f'attachments/{attachment_id}.{ext}', 'wb') as attach_file:
         attach_file.write(attachment_file.stream.read())
 
     log.debug('written {} bytes for attachment id {}',

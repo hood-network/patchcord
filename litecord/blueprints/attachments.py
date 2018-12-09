@@ -27,4 +27,4 @@ bp = Blueprint('attachments', __name__)
 async def _get_attachment(channel_id: int, message_id: int,
                           filename: str, ext: str):
     # TODO: get the attachment id with given metadata
-    return
+    return '', 204

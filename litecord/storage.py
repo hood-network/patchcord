@@ -645,11 +645,13 @@ class Storage:
         WHERE message_id = $1
         """, message_id)
 
+        attachment_ids = [r['id'] for r in attachment_ids]
+
         res = []
 
         for attachment_id in attachment_ids:
             row = await self.db.fetchrow("""
-            SELECT id::text, message_id, channel_id, mime
+            SELECT id::text, message_id, channel_id,
                    filename, filesize, image, height, width
             FROM attachments
             WHERE id = $1
@@ -659,7 +661,6 @@ class Storage:
 
             drow.pop('message_id')
             drow.pop('channel_id')
-            drow.pop('mime')
 
             drow['size'] = drow['filesize']
             drow.pop('size')
