@@ -47,6 +47,22 @@ async def _resize_gif(attach_id: int, resized_path: Path,
     return str(resized_path)
 
 
+FORMAT_HARDCODE = {
+    'jpg': 'jpeg'
+    'jpe': 'jpeg'
+}
+
+
+def to_format(ext: str) -> str:
+    """Return a proper format string for Pillow consumption."""
+    ext = ext.lower()
+
+    if ext in FORMAT_HARDCODE:
+        return FORMAT_HARDCODE[ext]
+
+    return ext
+
+
 async def _resize(image, attach_id: int, ext: str,
                   width: int, height: int) -> str:
     """Resize an image."""
@@ -70,7 +86,7 @@ async def _resize(image, attach_id: int, ext: str,
 
     # NOTE: this is the same resize mode for icons.
     resized = image.resize((width, height), resample=Image.LANCZOS)
-    resized.save(resized_path_s, format=ext)
+    resized.save(resized_path_s, format=to_format(ext))
 
     return resized_path_s
 
