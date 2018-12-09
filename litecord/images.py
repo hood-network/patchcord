@@ -49,7 +49,7 @@ MIMES = {
 }
 
 
-def _get_ext(mime: str) -> str:
+def get_ext(mime: str) -> str:
     if mime in EXTENSIONS:
         return EXTENSIONS[mime]
 
@@ -57,7 +57,7 @@ def _get_ext(mime: str) -> str:
     return extensions[0].strip('.')
 
 
-def _get_mime(ext: str):
+def get_mime(ext: str):
     if ext in MIMES:
         return MIMES[ext]
 
@@ -74,7 +74,7 @@ class Icon:
     @property
     def as_path(self) -> str:
         """Return a filesystem path for the given icon."""
-        ext = _get_ext(self.mime)
+        ext = get_ext(self.mime)
         return str(IMAGE_FOLDER / f'{self.key}_{self.icon_hash}.{ext}')
 
     @property
@@ -83,7 +83,7 @@ class Icon:
 
     @property
     def extension(self) -> str:
-        return _get_ext(self.mime)
+        return get_ext(self.mime)
 
 
 class ImageError(Exception):
@@ -201,7 +201,7 @@ class IconManager:
         self.storage = app.storage
 
     async def _convert_ext(self, icon: Icon, target: str):
-        target_mime = _get_mime(target)
+        target_mime = get_mime(target)
         log.info('converting from {} to {}', icon.mime, target_mime)
 
         target_path = IMAGE_FOLDER / f'{icon.key}_{icon.icon_hash}.{target}'
@@ -328,7 +328,7 @@ class IconManager:
         data_fd = BytesIO(raw_data)
 
         # get an extension for the given data uri
-        extension = _get_ext(mime)
+        extension = get_ext(mime)
 
         if 'bsize' in kwargs and len(raw_data) > kwargs['bsize']:
             return _invalid(kwargs)

@@ -35,6 +35,7 @@ from litecord.utils import pg_set_json
 
 from litecord.embed.sanitizer import fill_embed, proxify, fetch_metadata
 from litecord.blueprints.channel.dm_checks import dm_pre_check
+from litecord.images import get_ext
 
 
 log = Logger(__name__)
@@ -347,7 +348,8 @@ def _check_content(payload: dict, files: list):
         raise BadRequest('No content has been provided.')
 
 
-async def _add_attachment(message_id: int, attachment_file) -> int:
+async def _add_attachment(message_id: int, channel_id: int,
+                          attachment_file) -> int:
     """Add an attachment to a message.
 
     Parameters
@@ -359,9 +361,11 @@ async def _add_attachment(message_id: int, attachment_file) -> int:
     """
 
     attachment_id = get_snowflake()
+    filename = attachment_file.filename
 
     # understand file info
-    is_image = attachment_file.mimetype.startswith('image/')
+    mime = attachment_file.mimetype
+    is_image = mime.startswith('image/')
 
     img_width, img_height = None, None
 
@@ -381,20 +385,23 @@ async def _add_attachment(message_id: int, attachment_file) -> int:
     await app.db.execute(
         """
         INSERT INTO attachments
-            (id, filename, filesize, image, height, width)
+            (id, channel_id, message_id,
+             filename, filesize,
+             image, height, width)
         VALUES
-            ($1, $2, $3, $4, $5, $6)
+            ($1, $2, $3, $4, $5, $6, $7, $8)
         """,
-        attachment_id, attachment_file.filename, file_size,
+        attachment_id, channel_id, message_id,
+        filename, file_size,
         is_image, img_width, img_height)
 
-    # TODO: save a file
+    ext = filename.split('.')[-1]
 
-    # add the newly created attachment to the message
-    await app.db.execute("""
-    INSERT INTO message_attachments (message_id, attachment_id)
-    VALUES ($1, $2)
-    """, message_id, attachment_id)
+    with open(f'attachments/{attachment_id}.{ext}') as attach_file:
+        attach_file.write(attachment_file.stream.read())
+
+    log.debug('written {} bytes for attachment id {}',
+              file_size, attachment_id)
 
     return attachment_id
 
@@ -450,7 +457,7 @@ async def _create_message(channel_id):
 
     # for each file given, we add it as an attachment
     for pre_attachment in files:
-        await _add_attachment(message_id, pre_attachment)
+        await _add_attachment(message_id, channel_id, pre_attachment)
 
     payload = await app.storage.get_message(message_id, user_id)
 

@@ -220,7 +220,7 @@ def init_app_managers(app):
     app.ratelimiter = RatelimitManager(app.config.get('_testing'))
     app.state_manager = StateManager()
 
-    app.storage = Storage(app.db)
+    app.storage = Storage(app)
     app.user_storage = UserStorage(app.storage)
 
     app.icons = IconManager(app)

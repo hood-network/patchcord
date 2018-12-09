@@ -31,7 +31,6 @@ from litecord.blueprints.user.billing import PLAN_ID_TO_TYPE
 
 from litecord.types import timestamp_
 from litecord.utils import pg_set_json
-from litecord.embed.sanitizer import proxify
 
 
 log = Logger(__name__)
@@ -65,8 +64,9 @@ def _filter_recipients(recipients: List[Dict[str, Any]], user_id: int):
 
 class Storage:
     """Class for common SQL statements."""
-    def __init__(self, db):
-        self.db = db
+    def __init__(self, app):
+        self.app = app
+        self.db = app.db
         self.presence = None
 
     async def fetchrow_with_json(self, query: str, *args):
@@ -649,15 +649,34 @@ class Storage:
 
         for attachment_id in attachment_ids:
             row = await self.db.fetchrow("""
-            SELECT id::text, filename, filesize, image, height, width
+            SELECT id::text, message_id, channel_id, mime
+                   filename, filesize, image, height, width
             FROM attachments
             WHERE id = $1
             """, attachment_id)
 
             drow = dict(row)
 
+            drow.pop('message_id')
+            drow.pop('channel_id')
+            drow.pop('mime')
+
             drow['size'] = drow['filesize']
             drow.pop('size')
+
+            # construct attachment url
+            proto = 'https' if self.app.config['IS_SSL'] else 'http'
+            main_url = self.app.config['MAIN_URL']
+
+            attachment_ext = get_ext(row['mime'])
+
+            drow['url'] = (f'{proto}://{main_url}/attachments/'
+                           f'{row["channel_id"]}/{row["message_id"]}/'
+                           f'{row["filename"]}.{attachment_ext}')
+
+            # NOTE: since the url comes from the instance itself
+            # i think proxy_url=url is valid.
+            drow['proxy_url'] = drow['url']
 
             # TODO: url, proxy_url
 
