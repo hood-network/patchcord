@@ -389,7 +389,7 @@ async def _add_attachment(message_id: int, channel_id: int,
         INSERT INTO attachments
             (id, channel_id, message_id,
              filename, filesize,
-             image, height, width)
+             image, width, height)
         VALUES
             ($1, $2, $3, $4, $5, $6, $7, $8)
         """,

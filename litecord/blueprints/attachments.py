@@ -17,14 +17,26 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from quart import Blueprint
+from quart import Blueprint, send_file, current_app as app
 
 bp = Blueprint('attachments', __name__)
 
 @bp.route('/attachments'
-          '/<int:channel_id>/<int:message_id>/<filename>.<ext>',
+          '/<int:channel_id>/<int:message_id>/<filename>',
           methods=['GET'])
 async def _get_attachment(channel_id: int, message_id: int,
-                          filename: str, ext: str):
-    # TODO: get the attachment id with given metadata
-    return '', 204
+                          filename: str):
+    attach_id = await app.db.fetchval("""
+    SELECT id
+    FROM attachments
+    WHERE channel_id = $1
+      AND message_id = $2
+      AND filename = $3
+    """, channel_id, message_id, filename)
+
+    if attach_id is None:
+        return '', 404
+
+    ext = filename.split('.')[-1]
+
+    return await send_file(f'./attachments/{attach_id}.{ext}')
