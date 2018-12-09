@@ -640,8 +640,8 @@ class Storage:
     async def get_attachments(self, message_id: int) -> List[Dict[str, Any]]:
         """Get a list of attachment objects tied to the message."""
         attachment_ids = await self.db.fetch("""
-        SELECT attachment_id
-        FROM message_attachments
+        SELECT id
+        FROM attachments
         WHERE message_id = $1
         """, message_id)
 
