@@ -18,10 +18,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import re
+import json
 
+from PIL import Image
 from quart import Blueprint, request, current_app as app, jsonify
 from logbook import Logger
-
 
 from litecord.blueprints.auth import token_check
 from litecord.blueprints.checks import channel_check, channel_perm_check
@@ -311,9 +312,95 @@ async def process_url_embed(config, storage, dispatcher, session, payload: dict)
         'channel', channel_id, 'MESSAGE_UPDATE', update_payload)
 
 
+async def _msg_input() -> tuple:
+    """Extract the json input and any file information
+    the client gave to us in the request.
+
+    This only applies to create message route.
+    """
+    form = await request.form
+    request_json = await request.get_json() or {}
+
+    # NOTE: embed isn't set on form data
+    json_from_form = {
+        'content': form.get('content', ''),
+        'nonce': form.get('nonce', '0'),
+        'tts': json.loads(form.get('tts', 'false')),
+    }
+
+    json_from_form.update(request_json)
+
+    files = await request.files
+    # we don't really care about the given fields on the files dict
+    return json_from_form, [v for k, v in files.items()]
+
+
+def _check_content(payload: dict, files: list):
+    """Check if there is actually any content being sent to us."""
+    has_content = bool(payload.get('content', ''))
+    has_embed = 'embed' in payload
+    has_files = len(files) > 0
+
+    has_total_content = has_content or has_embed or has_files
+
+    if not has_total_content:
+        raise BadRequest('No content has been provided.')
+
+
+async def _add_attachment(message_id: int, attachment_file) -> int:
+    """Add an attachment to a message.
+
+    Parameters
+    ----------
+    message_id: int
+        The ID of the message getting the attachment.
+    attachment_file: quart.FileStorage
+        quart FileStorage instance of the file.
+    """
+
+    attachment_id = get_snowflake()
+
+    # understand file info
+    is_image = attachment_file.mimetype.startswith('image/')
+
+    img_width, img_height = None, None
+
+    # extract file size
+    # TODO: this is probably inneficient
+    file_size = attachment_file.stream.getbuffer().nbytes
+
+    if is_image:
+        # open with pillow, extract image size
+        image = Image.open(attachment_file.stream)
+        img_width, img_height = image.size
+        image.close()
+
+        # reset it to 0 for later usage
+        attachment_file.stream.seek(0)
+
+    await app.db.execute(
+        """
+        INSERT INTO attachments
+            (id, filename, filesize, image, height, width)
+        VALUES
+            ($1, $2, $3, $4, $5, $6)
+        """,
+        attachment_id, attachment_file.filename, file_size,
+        is_image, img_width, img_height)
+
+    # add the newly created attachment to the message
+    await app.db.execute("""
+    INSERT INTO message_attachments (message_id, attachment_id)
+    VALUES ($1, $2)
+    """, message_id, attachment_id)
+
+    return attachment_id
+
+
 @bp.route('/<int:channel_id>/messages', methods=['POST'])
 async def _create_message(channel_id):
     """Create a message."""
+
     user_id = await token_check()
     ctype, guild_id = await channel_check(user_id, channel_id)
 
@@ -323,7 +410,11 @@ async def _create_message(channel_id):
         await channel_perm_check(user_id, channel_id, 'send_messages')
         actual_guild_id = guild_id
 
-    j = validate(await request.get_json(), MESSAGE_CREATE)
+    payload_json, files = await _msg_input()
+    j = validate(payload_json, MESSAGE_CREATE)
+
+    print(payload_json, files)
+    _check_content(payload_json, files)
 
     # TODO: check connection to the gateway
 
@@ -354,6 +445,10 @@ async def _create_message(channel_id):
             'embeds': ([await fill_embed(j['embed'])]
                        if 'embed' in j else []),
         })
+
+    # for each file given, we add it as an attachment
+    for pre_attachment in files:
+        await _add_attachment(message_id, pre_attachment)
 
     payload = await app.storage.get_message(message_id, user_id)
 
