@@ -384,7 +384,7 @@ MEMBER_UPDATE = {
 
 
 MESSAGE_CREATE = {
-    'content': {'type': 'string', 'minlength': 1, 'maxlength': 2000},
+    'content': {'type': 'string', 'minlength': 0, 'maxlength': 2000},
     'nonce': {'type': 'snowflake', 'required': False},
     'tts': {'type': 'boolean', 'required': False},
 

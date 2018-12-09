@@ -52,6 +52,26 @@ CREATE TABLE IF NOT EXISTS instance_invites (
 );
 
 
+-- main attachments table
+CREATE TABLE IF NOT EXISTS attachments (
+    id bigint PRIMARY KEY,
+
+    -- keeping channel_id and message_id
+    -- make a way "better" attachment url.
+    channel_id bigint REFERENCES channels (id),
+    message_id bigint REFERENCES messages (id),
+
+    filename text NOT NULL,
+    filesize integer,
+
+    image boolean DEFAULT FALSE,
+
+    -- only not null if image=true
+    height integer DEFAULT NULL,
+    width integer DEFAULT NULL,
+);
+
+
 CREATE TABLE IF NOT EXISTS icons (
     -- can be 'user', 'guild', 'emoji'
     scope text NOT NULL,
@@ -617,12 +637,6 @@ CREATE TABLE IF NOT EXISTS messages (
     nonce bigint default 0,
 
     message_type int NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS message_attachments (
-    message_id bigint REFERENCES messages (id),
-    attachment bigint REFERENCES attachments (id),
-    PRIMARY KEY (message_id, attachment)
 );
 
 CREATE TABLE IF NOT EXISTS message_reactions (

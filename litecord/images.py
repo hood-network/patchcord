@@ -49,7 +49,7 @@ MIMES = {
 }
 
 
-def _get_ext(mime: str) -> str:
+def get_ext(mime: str) -> str:
     if mime in EXTENSIONS:
         return EXTENSIONS[mime]
 
@@ -57,7 +57,7 @@ def _get_ext(mime: str) -> str:
     return extensions[0].strip('.')
 
 
-def _get_mime(ext: str):
+def get_mime(ext: str):
     if ext in MIMES:
         return MIMES[ext]
 
@@ -74,7 +74,7 @@ class Icon:
     @property
     def as_path(self) -> str:
         """Return a filesystem path for the given icon."""
-        ext = _get_ext(self.mime)
+        ext = get_ext(self.mime)
         return str(IMAGE_FOLDER / f'{self.key}_{self.icon_hash}.{ext}')
 
     @property
@@ -83,7 +83,7 @@ class Icon:
 
     @property
     def extension(self) -> str:
-        return _get_ext(self.mime)
+        return get_ext(self.mime)
 
 
 class ImageError(Exception):
@@ -194,6 +194,65 @@ def _try_unlink(path: str):
         pass
 
 
+async def resize_gif(raw_data: bytes, target: tuple) -> tuple:
+    """Resize a GIF image."""
+    # generate a temporary file to call gifsticle to and from.
+    input_fd, input_path = tempfile.mkstemp(suffix='.gif')
+    _, output_path = tempfile.mkstemp(suffix='.gif')
+
+    input_handler = os.fdopen(input_fd, 'wb')
+
+    # make sure its valid image data
+    data_fd = BytesIO(raw_data)
+    image = Image.open(data_fd)
+    image.close()
+
+    log.info('resizing a GIF from {} to {}',
+             image.size, target)
+
+    # insert image info on input_handler
+    # close it to make it ready for consumption by gifsicle
+    input_handler.write(raw_data)
+    input_handler.close()
+
+    # call gifsicle under subprocess
+    log.debug('input: {}', input_path)
+    log.debug('output: {}', output_path)
+
+    process = await asyncio.create_subprocess_shell(
+        f'gifsicle --resize {target[0]}x{target[1]} '
+        f'{input_path} > {output_path}',
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+
+    # run it, etc.
+    out, err = await process.communicate()
+
+    log.debug('out + err from gifsicle: {}', out + err)
+
+    # write over an empty data_fd
+    data_fd = BytesIO()
+    output_handler = open(output_path, 'rb')
+    data_fd.write(output_handler.read())
+
+    # close unused handlers
+    output_handler.close()
+
+    # delete the files we created with mkstemp
+    _try_unlink(input_path)
+    _try_unlink(output_path)
+
+    # reseek, save to raw_data, reseek again.
+    # TODO: remove raw_data altogether as its inefficient
+    # to have two representations of the same bytes
+    data_fd.seek(0)
+    raw_data = data_fd.read()
+    data_fd.seek(0)
+
+    return data_fd, raw_data
+
+
 class IconManager:
     """Main icon manager."""
     def __init__(self, app):
@@ -201,7 +260,7 @@ class IconManager:
         self.storage = app.storage
 
     async def _convert_ext(self, icon: Icon, target: str):
-        target_mime = _get_mime(target)
+        target_mime = get_mime(target)
         log.info('converting from {} to {}', icon.mime, target_mime)
 
         target_path = IMAGE_FOLDER / f'{icon.key}_{icon.icon_hash}.{target}'
@@ -257,65 +316,6 @@ class IconManager:
         return await self.generic_get(
             'guild', guild_id, icon_hash, **kwargs)
 
-    async def _resize_gif(self, scope: str, key,
-                          raw_data: bytes, target: tuple) -> tuple:
-        """Resize a GIF image."""
-        # generate a temporary file to call gifsticle to and from.
-        input_fd, input_path = tempfile.mkstemp(suffix='.gif')
-        _, output_path = tempfile.mkstemp(suffix='.gif')
-
-        input_handler = os.fdopen(input_fd, 'wb')
-
-        # make sure its valid image data
-        data_fd = BytesIO(raw_data)
-        image = Image.open(data_fd)
-        image.close()
-
-        log.info('resizing a GIF from {} to {}',
-                 image.size, target)
-
-        # insert image info on input_handler
-        # close it to make it ready for consumption by gifsicle
-        input_handler.write(raw_data)
-        input_handler.close()
-
-        # call gifsicle under subprocess
-        log.debug('input: {}', input_path)
-        log.debug('output: {}', output_path)
-
-        process = await asyncio.create_subprocess_shell(
-            f'gifsicle --resize {target[0]}x{target[1]} '
-            f'{input_path} > {output_path}',
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-
-        # run it, etc.
-        await process.communicate()
-
-        # write over an empty data_fd
-        data_fd = BytesIO()
-        output_handler = open(output_path, 'rb')
-        data_fd.write(output_handler.read())
-
-        # close unused handlers
-        output_handler.close()
-
-        # delete the files we created with mkstemp
-        _try_unlink(input_path)
-        _try_unlink(output_path)
-
-        # reseek, save to raw_data, reseek again.
-        # TODO: remove raw_data altogether as its inefficient
-        # to have two representations of the same bytes
-        data_fd.seek(0)
-        raw_data = data_fd.read()
-        data_fd.seek(0)
-
-
-        return data_fd, raw_data
-
-
     async def put(self, scope: str, key: str,
                   b64_data: str, **kwargs) -> Icon:
         """Insert an icon."""
@@ -328,7 +328,7 @@ class IconManager:
         data_fd = BytesIO(raw_data)
 
         # get an extension for the given data uri
-        extension = _get_ext(mime)
+        extension = get_ext(mime)
 
         if 'bsize' in kwargs and len(raw_data) > kwargs['bsize']:
             return _invalid(kwargs)
@@ -336,8 +336,7 @@ class IconManager:
         # size management is different for gif files
         # as they're composed of multiple frames.
         if 'size' in kwargs and mime == 'image/gif':
-            data_fd, raw_data = await self._resize_gif(
-                scope, key, raw_data, kwargs['size'])
+            data_fd, raw_data = await resize_gif(raw_data, kwargs['size'])
         elif 'size' in kwargs:
             image = Image.open(data_fd)
 

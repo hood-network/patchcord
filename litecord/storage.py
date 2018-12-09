@@ -64,8 +64,9 @@ def _filter_recipients(recipients: List[Dict[str, Any]], user_id: int):
 
 class Storage:
     """Class for common SQL statements."""
-    def __init__(self, db):
-        self.db = db
+    def __init__(self, app):
+        self.app = app
+        self.db = app.db
         self.presence = None
 
     async def fetchrow_with_json(self, query: str, *args):
@@ -636,6 +637,52 @@ class Storage:
         # they were defined in the first loop.
         return list(map(react_stats.get, emoji))
 
+    async def get_attachments(self, message_id: int) -> List[Dict[str, Any]]:
+        """Get a list of attachment objects tied to the message."""
+        attachment_ids = await self.db.fetch("""
+        SELECT id
+        FROM attachments
+        WHERE message_id = $1
+        """, message_id)
+
+        attachment_ids = [r['id'] for r in attachment_ids]
+
+        res = []
+
+        for attachment_id in attachment_ids:
+            row = await self.db.fetchrow("""
+            SELECT id::text, message_id, channel_id,
+                   filename, filesize, image, height, width
+            FROM attachments
+            WHERE id = $1
+            """, attachment_id)
+
+            drow = dict(row)
+
+            drow.pop('message_id')
+            drow.pop('channel_id')
+
+            drow['size'] = drow['filesize']
+            drow.pop('size')
+
+            # construct attachment url
+            proto = 'https' if self.app.config['IS_SSL'] else 'http'
+            main_url = self.app.config['MAIN_URL']
+
+            drow['url'] = (f'{proto}://{main_url}/attachments/'
+                           f'{row["channel_id"]}/{row["message_id"]}/'
+                           f'{row["filename"]}')
+
+            # NOTE: since the url comes from the instance itself
+            # i think proxy_url=url is valid.
+            drow['proxy_url'] = drow['url']
+
+            # TODO: url, proxy_url
+
+            res.append(drow)
+
+        return res
+
     async def get_message(self, message_id: int, user_id=None) -> Dict:
         """Get a single message's payload."""
         row = await self.fetchrow_with_json("""
@@ -703,7 +750,7 @@ class Storage:
         res.pop('author_id')
 
         # TODO: res['attachments']
-        res['attachments'] = []
+        res['attachments'] = await self.get_attachments(message_id)
 
         # TODO: res['member'] for partial member data
         #  of the author
