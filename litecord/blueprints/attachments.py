@@ -22,15 +22,34 @@ from pathlib import Path
 from quart import Blueprint, send_file, current_app as app, request
 from PIL import Image
 
+from litecord.images import resize_gif
+
 bp = Blueprint('attachments', __name__)
 ATTACHMENTS = Path.cwd() / 'attachments'
 
 
-async def _resize(image, attach_id: str, ext: str,
+async def _resize_gif(attach_id: int, resized_path: Path,
+                      width: int, height: int) -> str:
+    """Resize a GIF attachment."""
+
+    # get original gif bytes
+    orig_path = ATTACHMENTS / f'{attach_id}.gif'
+    orig_bytes = orig_path.read_bytes()
+
+    # give them and the target size to the
+    # image module's resize_gif
+
+    _data_fd, raw_data = await resize_gif(orig_bytes, (width, height))
+
+    # write raw_data to the destination
+    resized_path.write_bytes(raw_data)
+
+    return str(resized_path)
+
+
+async def _resize(image, attach_id: int, ext: str,
                   width: int, height: int) -> str:
     """Resize an image."""
-    # TODO: gif support
-
     # check if we have it on the folder
     resized_path = ATTACHMENTS / f'{attach_id}_{width}_{height}.{ext}'
 
@@ -43,6 +62,11 @@ async def _resize(image, attach_id: str, ext: str,
 
     # if we dont, we need to generate it off the
     # given image instance.
+
+    # the process is different for gif files because we need
+    # gifsicle. doing it manually is too troublesome.
+    if ext == 'gif':
+        return await _resize_gif(attach_id, resized_path, width, height)
 
     # NOTE: this is the same resize mode for icons.
     resized = image.resize((width, height), resample=Image.LANCZOS)
