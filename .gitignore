@@ -105,5 +105,6 @@ venv.bak/
 
 config.py
 images/*
+attachments/*
 
 .DS_Store
