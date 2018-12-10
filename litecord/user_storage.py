@@ -211,6 +211,23 @@ class UserStorage:
 
         return res
 
+    async def _get_chan_overrides(self, user_id: int, guild_id: int) -> List:
+        chan_overrides = []
+
+        overrides = await self.db.fetch("""
+        SELECT channel_id::text, muted, message_notifications
+        FROM guild_settings_channel_overrides
+        WHERE
+            user_id = $1
+        AND guild_id = $2
+        """, user_id, guild_id)
+
+        for chan_row in overrides:
+            dcrow = dict(chan_row)
+            chan_overrides.append(dcrow)
+
+        return chan_overrides
+
     async def get_guild_settings_one(self, user_id: int,
                                      guild_id: int) -> dict:
         """Get guild settings information for a single guild."""
@@ -231,25 +248,7 @@ class UserStorage:
 
         gid = int(row['guild_id'])
         drow = dict(row)
-
-        chan_overrides = {}
-
-        overrides = await self.db.fetch("""
-        SELECT channel_id::text, muted, message_notifications
-        FROM guild_settings_channel_overrides
-        WHERE
-            user_id = $1
-        AND guild_id = $2
-        """, user_id, gid)
-
-        for chan_row in overrides:
-            dcrow = dict(chan_row)
-
-            chan_id = dcrow['channel_id']
-            dcrow.pop('channel_id')
-
-            chan_overrides[chan_id] = dcrow
-
+        chan_overrides = await self._get_chan_overrides(user_id, gid)
         return {**drow, **{
             'channel_overrides': chan_overrides
         }}
@@ -271,26 +270,7 @@ class UserStorage:
             gid = int(row['guild_id'])
             drow = dict(row)
 
-            chan_overrides = {}
-
-            overrides = await self.db.fetch("""
-            SELECT channel_id::text, muted, message_notifications
-            FROM guild_settings_channel_overrides
-            WHERE
-                user_id = $1
-            AND guild_id = $2
-            """, user_id, gid)
-
-            for chan_row in overrides:
-                dcrow = dict(chan_row)
-
-                # channel_id isn't on the value of the dict
-                # so we query it (for the key) then pop
-                # from the value
-                chan_id = dcrow['channel_id']
-                dcrow.pop('channel_id')
-
-                chan_overrides[chan_id] = dcrow
+            chan_overrides = await self._get_chan_overrides(user_id, gid)
 
             res.append({**drow, **{
                 'channel_overrides': chan_overrides
