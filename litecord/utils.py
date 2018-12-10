@@ -158,3 +158,18 @@ async def pg_set_json(con):
         decoder=json.loads,
         schema='pg_catalog'
     )
+
+
+def yield_chunks(input_list: list, chunk_size: int):
+    """Yield successive n-sized chunks from l.
+
+    Taken from https://stackoverflow.com/a/312464.
+
+    Modified to make linter happy (variable name changes,
+    typing, comments).
+    """
+
+    # range accepts step param, so we use that to
+    # make the chunks
+    for idx in range(0, len(input_list), chunk_size):
+        yield input_list[idx:idx + chunk_size]
