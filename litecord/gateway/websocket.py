@@ -146,9 +146,13 @@ class GatewayWebsocket:
     async def _chunked_send(self, data: bytes, chunk_size: int):
         """Split data in chunk_size-big chunks and send them
         over the websocket."""
+        log.debug('zlib-stream: chunking {} bytes into {}-byte chunks',
+                  len(data), chunk_size)
+
         total_chunks = 0
         for chunk in yield_chunks(data, chunk_size):
             total_chunks += 1
+            log.debug('zlib-stream: chunk {}', total_chunks)
             await self.ws.send(chunk)
 
         log.debug('zlib-stream: sent {} chunks', total_chunks)
