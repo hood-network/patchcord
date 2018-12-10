@@ -164,6 +164,15 @@ class GatewayWebsocket:
         log.debug('zlib-stream: length {} -> compressed ({} + {})',
                   len(encoded), len(data1), len(data2))
 
+        if not data1:
+            # if data1 is nothing, that might cause problems
+            # to clients, since they'll receive an empty message
+            data1 = bytes([data2[0]])
+            data2 = data2[1:]
+
+            log.debug('zlib-stream: len(data1) == 0, remaking as ({} + {})',
+                      len(data1), len(data2))
+
         # NOTE: the old approach was ws.send(data1 + data2).
         #  I changed this to a chunked send of data1 and data2
         #  because that can bring some problems to the network
