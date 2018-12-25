@@ -89,7 +89,7 @@ async def _process_user_payments(app, user_id: int):
         # create_payment does not call any Stripe
         # or BrainTree APIs at all, since we'll just
         # give it as free.
-        await create_payment(sub_id, app)
+        await create_payment(sub_id, app.db)
     else:
         log.debug('sid={}, missing {} days',
                   sub_id, threshold - delta.days)
