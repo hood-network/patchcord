@@ -70,7 +70,9 @@ def _snowflake(timestamp: int) -> Snowflake:
     global _generated_ids
 
     # bits 0-12 encode _generated_ids (size 12)
-    genid_b = '{0:012b}'.format(_generated_ids)
+
+    # modulo'd to prevent overflows
+    genid_b = '{0:012b}'.format(_generated_ids % 4096)
 
     # bits 12-17 encode PROCESS_ID (size 5)
     procid_b = '{0:05b}'.format(PROCESS_ID)
