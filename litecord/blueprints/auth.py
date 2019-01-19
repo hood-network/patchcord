@@ -18,6 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import base64
+import secrets
 
 import itsdangerous
 import bcrypt
@@ -26,6 +27,7 @@ from quart import Blueprint, jsonify, request, current_app as app
 from litecord.auth import token_check, create_user
 from litecord.schemas import validate, REGISTER, REGISTER_WITH_INVITE
 from litecord.errors import BadRequest
+from litecord.snowflake import get_snowflake
 from .invites import use_invite
 
 
@@ -170,3 +172,14 @@ async def verify_user():
 async def _logout():
     """Called by the client to logout."""
     return '', 204
+
+
+@bp.route('/fingerprint', methods=['POST'])
+async def _fingerprint():
+    """No idea what this route is about."""
+    fingerprint_id = get_snowflake()
+    fingerprint = f'{fingerprint_id}.{secrets.token_urlsafe(32)}'
+
+    return jsonify({
+        'fingerprint': fingerprint
+    })
