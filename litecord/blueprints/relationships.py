@@ -147,10 +147,12 @@ async def make_friend(user_id: int, peer_id: int,
 
 
 class RelationshipFailed(BadRequest):
+    """Exception for general relationship errors."""
     error_code = 80004
 
 
 class RelationshipBlocked(BadRequest):
+    """Exception for when the peer has blocked the user."""
     error_code = 80001
 
 
@@ -163,12 +165,12 @@ async def post_relationship():
                                         str(j['discriminator']))
 
     if not uid:
-        raise RelationshipFailed()
+        raise RelationshipFailed('No users with DiscordTag exist')
 
     res = await make_friend(user_id, uid)
 
     if res is None:
-        raise RelationshipBlocked()
+        raise RelationshipBlocked('Can not friend user due to block')
 
     return '', 204
 
