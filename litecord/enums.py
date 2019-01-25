@@ -101,6 +101,17 @@ class MessageType(EasyEnum):
     GUILD_MEMBER_JOIN = 7
 
 
+SYS_MESSAGES = (
+    MessageType.RECIPIENT_ADD,
+    MessageType.RECIPIENT_REMOVE,
+    MessageType.CALL,
+    MessageType.CHANNEL_NAME_CHANGE,
+    MessageType.CHANNEL_ICON_CHANGE,
+    MessageType.CHANNEL_PINNED_MESSAGE,
+    MessageType.GUILD_MEMBER_JOIN
+)
+
+
 class MessageActivityType(EasyEnum):
     JOIN = 1
     SPECTATE = 2

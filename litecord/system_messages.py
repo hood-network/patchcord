@@ -42,7 +42,7 @@ async def _handle_pin_msg(app, channel_id, pinned_id, author_id):
 
 
 async def send_sys_message(app, channel_id: int, m_type: MessageType,
-                           *args, **kwargs):
+                           *args, **kwargs) -> int:
     """Send a system message."""
     handler = {
         MessageType.CHANNEL_PINNED_MESSAGE: _handle_pin_msg,
@@ -55,3 +55,5 @@ async def send_sys_message(app, channel_id: int, m_type: MessageType,
     await app.dispatcher.dispatch(
         'channel', channel_id, 'MESSAGE_CREATE', message
     )
+
+    return message_id

@@ -25,9 +25,15 @@ from litecord.snowflake import snowflake_datetime
 from litecord.types import timestamp_
 
 from litecord.system_messages import send_sys_message
-from litecord.enums import MessageType
+from litecord.enums import MessageType, SYS_MESSAGES
+from litecord.errors import BadRequest
 
 bp = Blueprint('channel_pins', __name__)
+
+
+class SysMsgInvalidAction(BadRequest):
+    """Invalid action on a system message."""
+    error_code = 50021
 
 
 @bp.route('/<int:channel_id>/pins', methods=['GET'])
@@ -61,6 +67,16 @@ async def add_pin(channel_id, message_id):
     _ctype, guild_id = await channel_check(user_id, channel_id)
 
     await channel_perm_check(user_id, channel_id, 'manage_messages')
+
+    mtype = await app.db.fetchval("""
+    SELECT message_type
+    FROM messages
+    WHERE id = $1
+    """, message_id)
+
+    if mtype in SYS_MESSAGES:
+        raise SysMsgInvalidAction(
+            'Cannot execute action on a system message')
 
     await app.db.execute("""
     INSERT INTO channel_pins (channel_id, message_id)
