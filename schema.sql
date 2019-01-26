@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS attachments (
 
     -- only not null if image=true
     height integer DEFAULT NULL,
-    width integer DEFAULT NULL,
+    width integer DEFAULT NULL
 );
 
 
