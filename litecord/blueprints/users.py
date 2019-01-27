@@ -117,7 +117,7 @@ async def _try_reroll(user_id, preferred_username: str = None):
             existing_uid = await app.db.fetchrow("""
             SELECT user_id
             FROM users
-            WHERE preferred_username = $1 AND discriminator = $2
+            WHERE username = $1 AND discriminator = $2
             """, preferred_username, reroll)
 
             if not existing_uid:
