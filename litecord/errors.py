@@ -17,11 +17,71 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
+ERR_MSG_MAP = {
+    10001: 'Unknown account',
+    10002: 'Unknown application',
+    10003: 'Unknown channel',
+    10004: 'Unknown guild',
+    10005: 'Unknown integration',
+    10006: 'Unknown invite',
+    10007: 'Unknown member',
+    10008: 'Unknown message',
+    10009: 'Unknown overwrite',
+    10010: 'Unknown provider',
+    10011: 'Unknown role',
+    10012: 'Unknown token',
+    10013: 'Unknown user',
+    10014: 'Unknown Emoji',
+    10015: 'Unknown Webhook',
+    20001: 'Bots cannot use this endpoint',
+    20002: 'Only bots can use this endpoint',
+    30001: 'Maximum number of guilds reached (100)',
+    30002: 'Maximum number of friends reached (1000)',
+    30003: 'Maximum number of pins reached (50)',
+    30005: 'Maximum number of guild roles reached (250)',
+    30010: 'Maximum number of reactions reached (20)',
+    30013: 'Maximum number of guild channels reached (500)',
+    40001: 'Unauthorized',
+    50001: 'Missing access',
+    50002: 'Invalid account type',
+    50003: 'Cannot execute action on a DM channel',
+    50004: 'Widget Disabled',
+    50005: 'Cannot edit a message authored by another user',
+    50006: 'Cannot send an empty message',
+    50007: 'Cannot send messages to this user',
+    50008: 'Cannot send messages in a voice channel',
+    50009: 'Channel verification level is too high',
+    50010: 'OAuth2 application does not have a bot',
+    50011: 'OAuth2 application limit reached',
+    50012: 'Invalid OAuth state',
+    50013: 'Missing permissions',
+    50014: 'Invalid authentication token',
+    50015: 'Note is too long',
+    50016: ('Provided too few or too many messages to delete. Must provide at '
+            'least 2 and fewer than 100 messages to delete.'),
+    50019: 'A message can only be pinned to the channel it was sent in',
+    50020: 'Invite code is either invalid or taken.',
+    50021: 'Cannot execute action on a system message',
+    50025: 'Invalid OAuth2 access token',
+    50034: 'A message provided was too old to bulk delete',
+    50035: 'Invalid Form Body',
+    50036: 'An invite was accepted to a guild the application\'s bot is not in',
+    50041: 'Invalid API version',
+    90001: 'Reaction blocked',
+}
+
 class LitecordError(Exception):
+    """Base class for litecord errors"""
     status_code = 500
 
     @property
-    def message(self):
+    def message(self) -> str:
+        """Get an error's message string."""
+        err_code = getattr(self, 'error_code', None)
+
+        if err_code is not None:
+            return ERR_MSG_MAP.get(err_code) or self.args[0]
+
         try:
             return self.args[0]
         except IndexError:
@@ -29,6 +89,8 @@ class LitecordError(Exception):
 
     @property
     def json(self):
+        """Get any specific extra JSON keys to insert
+        on the error response."""
         return self.args[1]
 
 
