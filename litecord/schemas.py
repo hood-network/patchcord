@@ -179,7 +179,8 @@ REGISTER = {
     'invite': {'type': 'string', 'required': False, 'nullable': True},        # optional
     'fingerprint': {'type': 'string', 'required': False, 'nullable': True},   # these are sent by official client
     'captcha_key': {'type': 'string', 'required': False, 'nullable': True},
-    'consent': {'type': 'boolean'}
+    'consent': {'type': 'boolean'},
+    'gift_code_sku_id': {'type': 'string', 'required': False, 'nullable': True}
 }
 
 # only used by us, not discord, hence 'invcode' (to separate from discord)

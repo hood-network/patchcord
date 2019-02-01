@@ -119,6 +119,10 @@ async def fetch_metadata(url, *, config=None, session=None) -> dict:
 
     async with session.get(request_url) as resp:
         if resp.status != 200:
+            body = await resp.text()
+
+            log.warning('failed to generate meta for {!r}: {} {!r}',
+                        url, resp.status, body)
             return
 
         return await resp.json()

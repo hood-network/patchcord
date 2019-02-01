@@ -272,6 +272,9 @@ async def process_url_embed(config, storage, dispatcher, session, payload: dict)
         img_proxy_url = proxify(url, config=config)
         meta = await fetch_metadata(url, config=config, session=session)
 
+        if meta is None:
+            continue
+
         if not meta['image']:
             continue
 
