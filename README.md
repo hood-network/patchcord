@@ -53,6 +53,12 @@ Requirements:
 $ git clone https://gitlab.com/litecord/litecord.git && cd litecord
 ```
 
+### Install packages
+
+```sh
+$ pipenv install --dev
+```
+
 ### Setting up the database
 
 It's recommended to create a separate user for the `litecord` database.
@@ -78,12 +84,6 @@ Copy the `config.example.py` file and edit it to configure your instance:
 ```sh
 $ cp config.example.py config.py
 $ $EDITOR config.py
-```
-
-### Install packages
-
-```sh
-$ pipenv install --dev
 ```
 
 ## Running
