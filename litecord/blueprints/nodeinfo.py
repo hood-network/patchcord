@@ -29,14 +29,16 @@ async def _dummy_nodeinfo_index():
 
     return jsonify({
         'links': [{
+            'href': f'{proto}://{main_url}/nodeinfo/2.0.json',
+            'rel': 'http://nodeinfo.diaspora.software/ns/schema/2.0'
+        }, {
             'href': f'{proto}://{main_url}/nodeinfo/2.1.json',
             'rel': 'http://nodeinfo.diaspora.software/ns/schema/2.1'
         }]
     })
 
 
-@bp.route('/nodeinfo/2.1.json')
-async def _dummy_nodeinfo():
+async def fetch_nodeinfo_20():
     usercount = await app.db.fetchval("""
     SELECT COUNT(*)
     FROM users
@@ -47,7 +49,7 @@ async def _dummy_nodeinfo():
     FROM messages
     """)
 
-    return jsonify({
+    return {
         'metadata': {
             'features': [
                 'discord_api'
@@ -64,7 +66,6 @@ async def _dummy_nodeinfo():
         'software': {
             'name': 'litecord',
             'version': 'litecord v0',
-            'repository': 'https://gitlab.com/litecord/litecord',
         },
 
         'services': {
@@ -78,5 +79,23 @@ async def _dummy_nodeinfo():
                 'total': usercount
             }
         },
-        'version': '2.1',
-    })
+        'version': '2.0',
+    }
+
+
+@bp.route('/nodeinfo/2.0.json')
+async def _nodeinfo_20():
+    """Handler for nodeinfo 2.0."""
+    raw_nodeinfo = await fetch_nodeinfo_20()
+    return jsonify(raw_nodeinfo)
+
+
+@bp.route('/nodeinfo/2.1.json')
+async def _nodeinfo_21():
+    """Handler for nodeinfo 2.1."""
+    raw_nodeinfo = await fetch_nodeinfo_20()
+
+    raw_nodeinfo['software']['repository'] = 'https://gitlab.com/litecord/litecord'
+    raw_nodeinfo['version'] = '2.1'
+
+    return jsonify(raw_nodeinfo)
