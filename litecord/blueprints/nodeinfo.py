@@ -29,13 +29,13 @@ async def _dummy_nodeinfo_index():
 
     return jsonify({
         'links': [{
-            'href': f'{proto}://{main_url}/nodeinfo/2.0.json',
-            'rel': 'http://nodeinfo.diaspora.software/ns/schema/2.0'
+            'href': f'{proto}://{main_url}/nodeinfo/2.1.json',
+            'rel': 'http://nodeinfo.diaspora.software/ns/schema/2.1'
         }]
     })
 
 
-@bp.route('/nodeinfo/2.0.json')
+@bp.route('/nodeinfo/2.1.json')
 async def _dummy_nodeinfo():
     usercount = await app.db.fetchval("""
     SELECT COUNT(*)
@@ -64,6 +64,7 @@ async def _dummy_nodeinfo():
         'software': {
             'name': 'litecord',
             'version': 'litecord v0',
+            'repository': 'https://gitlab.com/litecord/litecord',
         },
 
         'services': {
@@ -77,5 +78,5 @@ async def _dummy_nodeinfo():
                 'total': usercount
             }
         },
-        'version': '2.0',
+        'version': '2.1',
     })
