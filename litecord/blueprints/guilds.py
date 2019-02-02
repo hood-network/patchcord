@@ -43,11 +43,8 @@ async def create_guild_settings(guild_id: int, user_id: int):
     """Create guild settings for the user
     joining the guild."""
 
-    await app.db.execute("""
-    INSERT INTO guild_settings (user_id, guild_id)
-    VALUES ($1, $2)
-    """, user_id, guild_id)
-
+    # new guild_settings are based off the currently
+    # set guild settings (for the guild)
     m_notifs = await app.db.fetchval("""
     SELECT default_message_notifications
     FROM guilds
@@ -55,10 +52,11 @@ async def create_guild_settings(guild_id: int, user_id: int):
     """, guild_id)
 
     await app.db.execute("""
-    UPDATE guild_settings
-    SET message_notifications = $1
-    WHERE user_id = $2 AND guild_id = $3
-    """, m_notifs, user_id, guild_id)
+    INSERT INTO guild_settings
+        (user_id, guild_id, message_notifications)
+    VALUES
+        ($1, $2, $3)
+    """, user_id, guild_id, m_notifs)
 
 
 async def add_member(guild_id: int, user_id: int):
