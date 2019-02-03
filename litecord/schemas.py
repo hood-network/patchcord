@@ -35,7 +35,7 @@ from litecord.embed.schemas import EMBED_OBJECT
 
 log = Logger(__name__)
 
-USERNAME_REGEX = re.compile(r'^[a-zA-Z0-9_]{2,19}$', re.A)
+USERNAME_REGEX = re.compile(r'^[a-zA-Z0-9_ ]{2,30}$', re.A)
 EMAIL_REGEX = re.compile(r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$',
                          re.A)
 DATA_REGEX = re.compile(r'data\:image/(png|jpeg|gif);base64,(.+)', re.A)
