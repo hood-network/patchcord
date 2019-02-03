@@ -310,7 +310,9 @@ async def get_me_guilds():
 
         partial = dict(partial)
 
-        partial['permissions'] = await base_permissions(user_id, guild_id)
+        user_perms = await base_permissions(user_id, guild_id)
+        partial['permissions'] = user_perms.binary
+
         partial['owner'] = partial['owner_id'] == user_id
 
         partial.pop('owner_id')
