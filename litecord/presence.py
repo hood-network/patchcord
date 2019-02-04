@@ -78,11 +78,11 @@ async def _pres(storage, user_id: int, status_obj: dict) -> dict:
 
 class PresenceManager:
     """Presence related functions."""
-    def __init__(self, storage, user_storage, state_manager, dispatcher):
-        self.storage = storage
-        self.user_storage = user_storage
-        self.state_manager = state_manager
-        self.dispatcher = dispatcher
+    def __init__(self, app):
+        self.storage = app.storage
+        self.user_storage = app.user_storage
+        self.state_manager = app.state_manager
+        self.dispatcher = app.dispatcher
 
     async def guild_presences(self, member_ids: List[int],
                               guild_id: int) -> List[Dict[Any, str]]:

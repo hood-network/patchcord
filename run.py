@@ -227,12 +227,7 @@ def init_app_managers(app_):
     app_.icons = IconManager(app)
 
     app_.dispatcher = EventDispatcher(app)
-
-    # TODO: only pass app
-    app_.presence = PresenceManager(
-        app.storage, app.user_storage,
-        app.state_manager, app.dispatcher
-    )
+    app_.presence = PresenceManager(app_)
 
     app_.storage.presence = app.presence
 
