@@ -159,21 +159,22 @@ async def app_before_request():
 
 @app.after_request
 async def app_after_request(resp):
+    """Handle CORS headers."""
     origin = request.headers.get('Origin', '*')
     resp.headers['Access-Control-Allow-Origin'] = origin
-
-    resp.headers['Access-Control-Allow-Headers'] = ('*, X-Super-Properties, '
-                                                    'X-Fingerprint, '
-                                                    'X-Context-Properties, '
-                                                    'X-Failed-Requests, '
-                                                    'X-Debug-Options, '
-                                                    'Content-Type, '
-                                                    'Authorization, '
-                                                    'Origin, '
-                                                    'If-None-Match')
-    # resp.headers['Access-Control-Allow-Methods'] = '*'
+    resp.headers['Access-Control-Allow-Headers'] = (
+        '*, X-Super-Properties, '
+        'X-Fingerprint, '
+        'X-Context-Properties, '
+        'X-Failed-Requests, '
+        'X-Debug-Options, '
+        'Content-Type, '
+        'Authorization, '
+        'Origin, '
+        'If-None-Match'
+    )
     resp.headers['Access-Control-Allow-Methods'] = \
-        resp.headers.get('allow', '*')
+            resp.headers.get('allow', '*')
 
     return resp
 
@@ -203,40 +204,40 @@ async def app_set_ratelimit_headers(resp):
     return resp
 
 
-async def init_app_db(app):
+async def init_app_db(app_):
     """Connect to databases.
 
     Also spawns the job scheduler.
     """
     log.info('db connect')
-    app.db = await asyncpg.create_pool(**app.config['POSTGRES'])
+    app_.db = await asyncpg.create_pool(**app.config['POSTGRES'])
 
-    app.sched = JobManager()
+    app_.sched = JobManager()
 
 
-def init_app_managers(app):
+def init_app_managers(app_):
     """Initialize singleton classes."""
-    app.loop = asyncio.get_event_loop()
-    app.ratelimiter = RatelimitManager(app.config.get('_testing'))
-    app.state_manager = StateManager()
+    app_.loop = asyncio.get_event_loop()
+    app_.ratelimiter = RatelimitManager(app.config.get('_testing'))
+    app_.state_manager = StateManager()
 
-    app.storage = Storage(app)
-    app.user_storage = UserStorage(app.storage)
+    app_.storage = Storage(app)
+    app_.user_storage = UserStorage(app.storage)
 
-    app.icons = IconManager(app)
+    app_.icons = IconManager(app)
 
-    app.dispatcher = EventDispatcher(app)
+    app_.dispatcher = EventDispatcher(app)
 
     # TODO: only pass app
-    app.presence = PresenceManager(
+    app_.presence = PresenceManager(
         app.storage, app.user_storage,
         app.state_manager, app.dispatcher
     )
 
-    app.storage.presence = app.presence
+    app_.storage.presence = app.presence
 
 
-async def api_index(app):
+async def api_index(app_):
     to_find = {}
     found = []
 
@@ -252,7 +253,7 @@ async def api_index(app):
             method = method.strip()
             to_find[(path, method)] = name
 
-    for rule in app.url_map.rules:
+    for rule in app_.url_map.rules:
         path = rule.rule
 
         # convert the path to the discord_endpoints file's style
@@ -289,10 +290,10 @@ async def api_index(app):
     log.debug('missing: {}', missing)
 
 
-async def post_app_start(app):
+async def post_app_start(app_):
     # we'll need to start a billing job
-    app.sched.spawn(payment_job(app))
-    app.sched.spawn(api_index(app))
+    app_.sched.spawn(payment_job(app_))
+    app_.sched.spawn(api_index(app_))
 
 
 @app.before_serving
