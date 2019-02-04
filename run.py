@@ -218,18 +218,18 @@ async def init_app_db(app_):
 def init_app_managers(app_):
     """Initialize singleton classes."""
     app_.loop = asyncio.get_event_loop()
-    app_.ratelimiter = RatelimitManager(app.config.get('_testing'))
+    app_.ratelimiter = RatelimitManager(app_.config.get('_testing'))
     app_.state_manager = StateManager()
 
-    app_.storage = Storage(app)
-    app_.user_storage = UserStorage(app.storage)
+    app_.storage = Storage(app_)
+    app_.user_storage = UserStorage(app_.storage)
 
-    app_.icons = IconManager(app)
+    app_.icons = IconManager(app_)
 
-    app_.dispatcher = EventDispatcher(app)
+    app_.dispatcher = EventDispatcher(app_)
     app_.presence = PresenceManager(app_)
 
-    app_.storage.presence = app.presence
+    app_.storage.presence = app_.presence
 
 
 async def api_index(app_):
