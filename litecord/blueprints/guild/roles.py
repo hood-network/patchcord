@@ -33,6 +33,7 @@ from litecord.schemas import (
 
 from litecord.snowflake import get_snowflake
 from litecord.utils import dict_get
+from litecord.permissions import get_role_perms
 
 DEFAULT_EVERYONE_PERMS = 104324161
 log = Logger(__name__)
@@ -71,8 +72,9 @@ async def create_role(guild_id, name: str, **kwargs):
     """Create a role in a guild."""
     new_role_id = get_snowflake()
 
-    # TODO: use @everyone's perm number
-    default_perms = dict_get(kwargs, 'default_perms', DEFAULT_EVERYONE_PERMS)
+    everyone_perms = await get_role_perms(guild_id, guild_id)
+    default_perms = dict_get(kwargs, 'default_perms',
+                             everyone_perms.binary)
 
     # update all roles so that we have space for pos 1, but without
     # sending GUILD_ROLE_UPDATE for everyone
