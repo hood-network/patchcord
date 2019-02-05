@@ -21,10 +21,12 @@ import base64
 import itsdangerous
 import bcrypt
 from litecord.blueprints.auth import create_user, make_token
+from litecord.blueprints.users import delete_user
 from litecord.enums import UserFlags
 
 
-async def find_user(username, discrim, ctx):
+async def find_user(username, discrim, ctx) -> int:
+    """Get a user ID via the username/discrim pair."""
     return await ctx.db.fetchval("""
     SELECT id
     FROM users
@@ -53,8 +55,12 @@ async def adduser(ctx, args):
     uid, _ = await create_user(args.username, args.email,
                                args.password, ctx.db, ctx.loop)
 
+    user = await ctx.storage.get_user(uid)
+
     print('created!')
     print(f'\tuid: {uid}')
+    print(f'\tusername: {user["username"]}')
+    print(f'\tdiscrim: {user["discriminator"]}')
 
 
 async def make_staff(ctx, args):
@@ -88,6 +94,31 @@ async def generate_bot_token(ctx, args):
     print(make_token(args.user_id, password_hash))
 
 
+async def del_user(ctx, args):
+    """Delete a user."""
+    uid = await find_user(args.username, args.discrim, ctx)
+
+    if uid is None:
+        print('user not found')
+        return
+
+    user = await ctx.storage.get_user(uid)
+
+    print(f'\tuid: {user["user_id"]}')
+    print(f'\tuname: {user["username"]}')
+    print(f'\tdiscrim: {user["discriminator"]}')
+
+    print('\n you sure you want to delete user? press Y (uppercase)')
+    confirm = input()
+
+    if confirm != 'Y':
+        print('not confirmed')
+        return
+
+    await delete_user(uid)
+    print('ok')
+
+
 def setup(subparser):
     setup_test_parser = subparser.add_parser(
         'adduser',
@@ -109,23 +140,25 @@ def setup(subparser):
         description=make_staff.__doc__
     )
 
+    staff_parser.add_argument('username')
     staff_parser.add_argument(
-        'username'
-    )
-    staff_parser.add_argument(
-        'discrim', help='the discriminator of the user'
-    )
+        'discrim', help='the discriminator of the user')
 
     staff_parser.set_defaults(func=make_staff)
+
+    del_user_parser = subparser.add_parser(
+        'deluser', help='delete a single user')
+
+    del_user_parser.add_argument('username')
+    del_user_parser.add_argument('discriminator')
+
+    del_user_parser.set_defaults(func=del_user)
 
     token_parser = subparser.add_parser(
         'generate_token',
         help='generate a token for specified bot',
-        description=generate_bot_token.__doc__
-    )
+        description=generate_bot_token.__doc__)
 
-    token_parser.add_argument(
-        'user_id'
-    )
+    token_parser.add_argument('user_id')
 
     token_parser.set_defaults(func=generate_bot_token)

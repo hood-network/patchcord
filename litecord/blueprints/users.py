@@ -477,19 +477,88 @@ def rand_hex(length: int = 8) -> str:
     return urandom(length).hex()[:length]
 
 
-async def _del_from_table(table: str, user_id: int):
+async def _del_from_table(db, table: str, user_id: int):
+    """Delete a row from a table."""
     column = {
         'channel_overwrites': 'target_user',
         'user_settings': 'id'
     }.get(table, 'user_id')
 
-    res = await app.db.execute(f"""
+    res = await db.execute(f"""
     DELETE FROM {table}
     WHERE {column} = $1
     """, user_id)
 
     log.info('Deleting uid {} from {}, res: {!r}',
              user_id, table, res)
+
+
+async def delete_user(user_id, *, db=None):
+    """Delete a user. Does not disconnect the user."""
+    if db is None:
+        db = app.db
+
+    new_username = f'Deleted User {rand_hex()}'
+
+    # by using a random hex in password_hash
+    # we break attempts at using the default '123' password hash
+    # to issue valid tokens for deleted users.
+
+    await db.execute("""
+    UPDATE users
+    SET
+        username = $1,
+        email = NULL,
+        mfa_enabled = false,
+        verified = false,
+        avatar = NULL,
+        flags = 0,
+        premium_since = NULL,
+        phone = '',
+        password_hash = $2
+    WHERE
+        id = $3
+    """, new_username, rand_hex(32), user_id)
+
+    # remove the user from various tables
+    await _del_from_table(db, 'user_settings', user_id)
+    await _del_from_table(db, 'user_payment_sources', user_id)
+    await _del_from_table(db, 'user_subscriptions', user_id)
+    await _del_from_table(db, 'user_payments', user_id)
+    await _del_from_table(db, 'user_read_state', user_id)
+    await _del_from_table(db, 'guild_settings', user_id)
+    await _del_from_table(db, 'guild_settings_channel_overrides', user_id)
+
+    await db.execute("""
+    DELETE FROM relationships
+    WHERE user_id = $1 OR peer_id = $1
+    """, user_id)
+
+    # DMs are still maintained, but not the state.
+    await _del_from_table(db, 'dm_channel_state', user_id)
+
+    # TODO: group DMs
+
+    await _del_from_table(db, 'members', user_id)
+    await _del_from_table(db, 'member_roles', user_id)
+    await _del_from_table(db, 'channel_overwrites', user_id)
+
+
+async def _force_disconnect(user_id):
+    # after removing the user from all tables, we need to force
+    # all known user states to reconnect, causing the user to not
+    # be online anymore.
+    user_states = app.state_manager.user_states(user_id)
+
+    for state in user_states:
+        # make it unable to resume
+        app.state_manager.remove(state)
+
+        if not state.ws:
+            continue
+
+        # force a close, 4000 should make the client reconnect.
+        await state.ws.close(4000)
 
 
 @bp.route('/@me/delete', methods=['POST'])
@@ -526,64 +595,7 @@ async def delete_account():
     if not await check_password(pwd_hash, password):
         raise Unauthorized('password does not match')
 
-    new_username = f'Deleted User {rand_hex()}'
-
-    # by using a random hex in password_hash
-    # we break attempts at using the default '123' password hash
-    # to issue valid tokens for deleted users.
-
-    await app.db.execute("""
-    UPDATE users
-    SET
-        username = $1,
-        email = NULL,
-        mfa_enabled = false,
-        verified = false,
-        avatar = NULL,
-        flags = 0,
-        premium_since = NULL,
-        phone = '',
-        password_hash = $2
-    WHERE
-        id = $3
-    """, new_username, rand_hex(32), user_id)
-
-    # remove the user from various tables
-    await _del_from_table('user_settings', user_id)
-    await _del_from_table('user_payment_sources', user_id)
-    await _del_from_table('user_subscriptions', user_id)
-    await _del_from_table('user_payments', user_id)
-    await _del_from_table('user_read_state', user_id)
-    await _del_from_table('guild_settings', user_id)
-    await _del_from_table('guild_settings_channel_overrides', user_id)
-
-    await app.db.execute("""
-    DELETE FROM relationships
-    WHERE user_id = $1 OR peer_id = $1
-    """, user_id)
-
-    # DMs are still maintained, but not the state.
-    await _del_from_table('dm_channel_state', user_id)
-
-    # TODO: group DMs
-
-    await _del_from_table('members', user_id)
-    await _del_from_table('member_roles', user_id)
-    await _del_from_table('channel_overwrites', user_id)
-
-    # after removing the user from all tables, we need to force
-    # all known user states to reconnect, causing the user to not
-    # be online anymore.
-    user_states = app.state_manager.user_states(user_id)
-
-    for state in user_states:
-        # make it unable to resume
-        app.state_manager.remove(state)
-
-        if not state.ws:
-            continue
-
-        # force a close, 4000 should make the client reconnect.
-        await state.ws.close(4000)
+    await delete_user(user_id)
+    await _force_disconnect(user_id)
 
     return '', 204
