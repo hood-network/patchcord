@@ -33,7 +33,11 @@ async def setup_tests(ctx, _args):
             ctx.loop
         )
 
-        print(f'created {name} user: {uid}')
+        discrim = await ctx.db.fetchval("""
+        SELECT discriminator FROM users WHERE id = $1
+        """, uid)
+
+        print(f'created {name} {discrim} user: {uid}')
 
         if name == 'admin':
             await set_user_staff(uid, ctx)
