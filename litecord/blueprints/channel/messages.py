@@ -19,6 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import re
 import json
+import asyncio
 
 from PIL import Image
 from quart import Blueprint, request, current_app as app, jsonify
@@ -248,7 +249,11 @@ async def _guild_text_mentions(payload: dict, guild_id: int,
         """, user_id, channel_id)
 
 
-async def process_url_embed(config, storage, dispatcher, session, payload: dict):
+async def process_url_embed(config, storage, dispatcher,
+                            session, payload: dict, *, delay=0):
+    """Process URLs in a message and generate embeds based on that."""
+    await asyncio.sleep(delay)
+
     message_id = int(payload['id'])
     channel_id = int(payload['channel_id'])
 
@@ -472,9 +477,13 @@ async def _create_message(channel_id):
     await app.dispatcher.dispatch('channel', channel_id,
                                   'MESSAGE_CREATE', payload)
 
+    # spawn url processor for embedding of images
     app.sched.spawn(
-        process_url_embed(app.config, app.storage, app.dispatcher, app.session,
-                          payload))
+        process_url_embed(
+            app.config, app.storage, app.dispatcher, app.session,
+            payload
+        )
+    )
 
     # update read state for the author
     await app.db.execute("""
@@ -493,7 +502,7 @@ async def _create_message(channel_id):
 @bp.route('/<int:channel_id>/messages/<int:message_id>', methods=['PATCH'])
 async def edit_message(channel_id, message_id):
     user_id = await token_check()
-    _ctype, guild_id = await channel_check(user_id, channel_id)
+    _ctype, _guild_id = await channel_check(user_id, channel_id)
 
     author_id = await app.db.fetchval("""
     SELECT author_id FROM messages
@@ -505,6 +514,7 @@ async def edit_message(channel_id, message_id):
 
     j = await request.get_json()
     updated = 'content' in j or 'embed' in j
+    old_message = await app.storage.get_message(message_id)
 
     if 'content' in j:
         await app.db.execute("""
@@ -513,7 +523,35 @@ async def edit_message(channel_id, message_id):
         WHERE messages.id = $2
         """, j['content'], message_id)
 
-    # TODO: update embed
+    if 'embed' in j:
+        embeds = [await fill_embed(j['embed'])]
+
+        await app.db.execute("""
+        UPDATE messages
+        SET embeds=$1
+        WHERE messages.id = $2
+        """, embeds, message_id)
+
+        # do not spawn process_url_embed since we already have embeds.
+    elif 'content' in j:
+        # if there weren't any embed changes BUT
+        # we had a content change, we dispatch process_url_embed but with
+        # an artificial delay.
+        
+        # the artificial delay keeps consistency between the events, since
+        # it makes more sense for the MESSAGE_UPDATE with new content to come
+        # BEFORE the MESSAGE_UPDATE with the new embeds (based on content)
+        app.sched.spawn(
+            process_url_embed(
+                app.config, app.storage, app.dispatcher, app.session,
+                {
+                    'id': message_id,
+                    'channel_id': channel_id,
+                    'content': j['content'],
+                    'embeds': old_message['embeds']
+                }, delay=0.2
+            )
+        )
 
     # only set new timestamp upon actual update
     if updated:
