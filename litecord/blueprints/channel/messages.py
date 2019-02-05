@@ -426,7 +426,6 @@ async def _create_message(channel_id):
     payload_json, files = await _msg_input()
     j = validate(payload_json, MESSAGE_CREATE)
 
-    print(payload_json, files)
     _check_content(payload_json, files)
 
     # TODO: check connection to the gateway
