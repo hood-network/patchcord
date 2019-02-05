@@ -291,6 +291,16 @@ class UserStorage:
     async def get_mutual_guilds(self, user_id: int, peer_id: int) -> List[int]:
         """Get a list of guilds two separate users
         have in common."""
+        if user_id == peer_id:
+            # if we are trying to query the mutual guilds with ourselves, we
+            # only need to give the list of guilds we are on.
+
+            # doing the INTERSECT has some edge-cases that can fuck up testing,
+            # such as a user querying its own profile card while they are
+            # not in any guilds.
+
+            return await self.get_user_guilds(user_id) or [0]
+
         mutual_guilds = await self.db.fetch("""
         SELECT guild_id FROM members WHERE user_id = $1
         INTERSECT

@@ -495,7 +495,7 @@ async def _del_from_table(table: str, user_id: int):
 @bp.route('/@me/delete', methods=['POST'])
 async def delete_account():
     """Delete own account.
-    
+
     This removes the account from all tables and
     forces all currently connected clients to reconnect.
     """
