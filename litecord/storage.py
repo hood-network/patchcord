@@ -677,16 +677,29 @@ class Storage:
             # i think proxy_url=url is valid.
             drow['proxy_url'] = drow['url']
 
-            # TODO: url, proxy_url
-
             res.append(drow)
 
         return res
 
+    async def _inject_author(self, res):
+        """Inject a pseudo-user object when the message is made by a webhook."""
+        author_id, webhook_id = res['author_id'], res['webhook_id']
+
+        if author_id is not None:
+            res['author'] = await self.get_user(res['author_id'])
+        elif webhook_id is not None:
+            res['author'] = {
+                'id': webhook_id,
+                'username': 'a',
+                'avatar': None
+            }
+
+        res.pop('author_id')
+
     async def get_message(self, message_id: int, user_id=None) -> Dict:
         """Get a single message's payload."""
         row = await self.fetchrow_with_json("""
-        SELECT id::text, channel_id::text, author_id, content,
+        SELECT id::text, channel_id::text, author_id, webhook_id, content,
             created_at AS timestamp, edited_at AS edited_timestamp,
             tts, mention_everyone, nonce, message_type, embeds
         FROM messages
@@ -745,11 +758,8 @@ class Storage:
 
         res['reactions'] = await self.get_reactions(message_id, user_id)
 
-        # TODO: handle webhook authors
-        res['author'] = await self.get_user(res['author_id'])
-        res.pop('author_id')
+        await self._inject_author(res)
 
-        # TODO: res['attachments']
         res['attachments'] = await self.get_attachments(message_id)
 
         # TODO: res['member'] for partial member data

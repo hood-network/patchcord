@@ -48,7 +48,7 @@ class ChannelDispatcher(DispatcherWithState):
             # if we are dispatching to a guild channel,
             # we should only dispatch to the states / shards
             # that are connected to the guild (via their shard id).
-            
+
             # if we aren't, we just get all states tied to the user.
             # TODO: make a fetch_states that fetches shards
             #        - with id 0 (count any) OR
