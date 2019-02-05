@@ -102,8 +102,14 @@ async def _patch_emoji(guild_id, emoji_id):
     await guild_perm_check(user_id, guild_id, 'manage_emojis')
 
     j = validate(await request.get_json(), PATCH_EMOJI)
+    emoji = await app.storage.get_emoji(emoji_id)
 
-    # TODO: check if it actually updated anything
+    # if emoji.name is still the same, we don't update anything
+    # or send ane events, just return the same emoji we'd send
+    # as if we updated it.
+    if j['name'] == emoji['name']:
+        return jsonify(emoji)
+
     await app.db.execute("""
     UPDATE guild_emoji
     SET name = $1
