@@ -17,9 +17,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
+import re
+import secrets
 import datetime
-import base64
-import os
 
 from quart import Blueprint, request, current_app as app, jsonify
 from logbook import Logger
@@ -52,12 +52,8 @@ def gen_inv_code() -> str:
 
     This is a primitive and does not guarantee uniqueness.
     """
-    # TODO: should we really be depending on os.urandom?
-    raw = os.urandom(7)
-    raw = base64.b64encode(raw).decode()
-
-    raw = raw.replace('/', '')
-    raw = raw.replace('+', '')
+    raw = secrets.token_urlsafe(10)
+    raw = re.sub(r'\/|\+|\-|\_', '', raw)
 
     return raw[:7]
 
