@@ -246,6 +246,17 @@ async def _update_guild(guild_id):
 
     channel_fields = ['afk_channel_id', 'system_channel_id']
     for field in [f for f in channel_fields if f in j]:
+        # setting to null should remove the link between the afk/sys channel
+        # to the guild.
+        if j[field] is None:
+            await app.db.execute(f"""
+            UPDATE guilds
+            SET {field} = NULL
+            WHERE id = $1
+            """, guild_id)
+
+            continue
+
         chan = await app.storage.get_channel(int(j[field]))
 
         if chan is None:
