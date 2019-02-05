@@ -378,12 +378,15 @@ async def get_library():
 async def get_profile(peer_id: int):
     """Get a user's profile."""
     user_id = await token_check()
-
-    # TODO: check if they have any mutual guilds,
-    # and return empty profile if they don't.
     peer = await app.storage.get_user(peer_id)
 
     if not peer:
+        return '', 404
+
+    mutuals = await app.user_storage.get_mutual_guilds(user_id, peer_id)
+
+    # don't return a proper card if no guilds are being shared.
+    if not mutuals:
         return '', 404
 
     # actual premium status is determined by that
