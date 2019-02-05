@@ -302,10 +302,14 @@ CHAN_OVERWRITE = {
 }
 
 
-CHAN_UPDATE = {
+CHAN_CREATE = {
     'name': {
         'type': 'string', 'minlength': 2,
-        'maxlength': 100, 'required': False},
+        'maxlength': 100, 'required': True
+    },
+
+    'type': {'coerce': ChannelType,
+             'default': ChannelType.GUILD_TEXT},
 
     'position': {'coerce': int, 'required': False},
 
@@ -337,9 +341,15 @@ CHAN_UPDATE = {
     },
 
     'parent_id': {'coerce': int, 'required': False, 'nullable': True}
-
-
 }
+
+
+CHAN_UPDATE = {**CHAN_CREATE, **{
+    'name': {
+        'type': 'string', 'minlength': 2,
+        'maxlength': 100, 'required': False},
+
+}}
 
 
 ROLE_CREATE = {

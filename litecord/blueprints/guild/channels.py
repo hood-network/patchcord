@@ -26,7 +26,7 @@ from litecord.enums import ChannelType
 from litecord.blueprints.guild.roles import gen_pairs
 
 from litecord.schemas import (
-    validate, ROLE_UPDATE_POSITION
+    validate, ROLE_UPDATE_POSITION, CHAN_CREATE
 )
 from litecord.blueprints.checks import (
     guild_check, guild_owner_check, guild_perm_check
@@ -98,7 +98,7 @@ async def get_guild_channels(guild_id):
 async def create_channel(guild_id):
     """Create a channel in a guild."""
     user_id = await token_check()
-    j = await request.get_json()
+    j = validate(await request.get_json(), CHAN_CREATE)
 
     await guild_check(user_id, guild_id)
     await guild_perm_check(user_id, guild_id, 'manage_channels')
