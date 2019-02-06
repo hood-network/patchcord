@@ -308,8 +308,8 @@ CHAN_CREATE = {
         'maxlength': 100, 'required': True
     },
 
-    'type': {'coerce': ChannelType,
-             'default': ChannelType.GUILD_TEXT},
+    'type': {'type': 'channel_type',
+             'default': ChannelType.GUILD_TEXT.value},
 
     'position': {'coerce': int, 'required': False},
 
