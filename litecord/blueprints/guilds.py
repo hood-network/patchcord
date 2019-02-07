@@ -128,7 +128,11 @@ async def create_guild():
 
     guild_id = get_snowflake()
 
-    image = await put_guild_icon(guild_id, j['icon'])
+    if 'icon' in j:
+        image = await put_guild_icon(guild_id, j['icon'])
+        image = image.icon_hash
+    else:
+        image = None
 
     await app.db.execute(
         """
@@ -136,7 +140,7 @@ async def create_guild():
             verification_level, default_message_notifications,
             explicit_content_filter)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-        """, guild_id, j['name'], j['region'], image.icon_hash, user_id,
+        """, guild_id, j['name'], j['region'], image, user_id,
         j.get('verification_level', 0),
         j.get('default_message_notifications', 0),
         j.get('explicit_content_filter', 0))
