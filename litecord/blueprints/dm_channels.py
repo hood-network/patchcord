@@ -21,16 +21,16 @@ from quart import Blueprint, request, current_app as app, jsonify
 from logbook import Logger
 
 log = Logger(__name__)
-bp = Blueprint('dms', __name__)
+bp = Blueprint('dm_channels', __name__)
 
 
-@bp.route('/<dm_chan:int>/receipients/<int:user_id>', methods=['PUT'])
+@bp.route('/<int:dm_chan>/receipients/<int:user_id>', methods=['PUT'])
 async def add_to_group_dm(dm_chan, user_id):
     """Adds a member to a group dm OR creates a group dm."""
     pass
 
 
-@bp.route('/<dm_chan:int>/recipients/<user_id:int>', methods=['DELETE'])
+@bp.route('/<int:dm_chan>/recipients/<int:user_id>', methods=['DELETE'])
 async def remove_from_group_dm(dm_chan, user_id):
     """Remove users from group dm."""
     pass
