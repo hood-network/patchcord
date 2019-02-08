@@ -353,6 +353,33 @@ class Storage:
 
         return list(map(_overwrite_convert, overwrite_rows))
 
+    async def _gdm_recipient_ids(self, channel_id: int) -> List[int]:
+        """Get the list of user IDs that are recipients of the
+        given Group DM."""
+        user_ids = await self.db.fetch("""
+        SELECT member_id
+        FROM group_dm_members
+        JOIN users
+          ON member_id = users.id
+        WHERE group_dm_members.id = $1
+        ORDER BY username DESC
+        """, channel_id)
+
+        return [r['member_id'] for r in user_ids]
+
+    async def _gdm_recipients(self, channel_id: int) -> List[int]:
+        """Get the list of users that are recipients of the
+        given Group DM."""
+        recipients = await self._gdm_recipient_ids(channel_id)
+        res = []
+
+        for user_id in recipients:
+            res.append(
+                await self.get_user(user_id)
+            )
+
+        return res
+
     async def get_channel(self, channel_id: int) -> Dict[str, Any]:
         """Fetch a single channel's information."""
         chan_type = await self.get_chan_type(channel_id)
@@ -401,8 +428,17 @@ class Storage:
             drow['id'] = str(drow['id'])
             return drow
         elif ctype == ChannelType.GROUP_DM:
-            # TODO: group dms
-            pass
+            gdm_row = await self.db.fetchrow("""
+            SELECT id, owner_id::text, name, icon
+            FROM group_dm_channels
+            WHERE id = $1
+            """, channel_id)
+
+            drow = dict(gdm_row)
+            recipients 
+            drow['recipients'] = await self._gdm_recipients(channel_id)
+
+            return drow
 
         return None
 

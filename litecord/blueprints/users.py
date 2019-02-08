@@ -384,9 +384,10 @@ async def get_profile(peer_id: int):
         return '', 404
 
     mutuals = await app.user_storage.get_mutual_guilds(user_id, peer_id)
+    friends = await app.user_storage.are_friends_with(user_id, peer_id)
 
     # don't return a proper card if no guilds are being shared.
-    if not mutuals:
+    if not mutuals and not friends:
         return '', 404
 
     # actual premium status is determined by that

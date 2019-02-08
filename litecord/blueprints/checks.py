@@ -87,7 +87,13 @@ async def channel_check(user_id, channel_id, *,
         return ctype, peer_id
 
     if ctype == ChannelType.GROUP_DM:
-        return ctype
+        owner_id = await app.db.fetchval("""
+        SELECT owner_id
+        FROM group_dm_channels
+        WHERE id = $1
+        """, channel_id)
+
+        return ctype, owner_id
 
 
 async def guild_perm_check(user_id, guild_id, permission: str):
