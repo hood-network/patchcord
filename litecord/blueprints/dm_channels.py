@@ -20,6 +20,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 from quart import Blueprint, request, current_app as app, jsonify
 from logbook import Logger
 
+from litecord.blueprints.auth import token_check
+from litecord.blueprints.checks import channel_check
+from litecord.enums import ChannelType
+
 log = Logger(__name__)
 bp = Blueprint('dm_channels', __name__)
 
@@ -27,10 +31,17 @@ bp = Blueprint('dm_channels', __name__)
 @bp.route('/<int:dm_chan>/receipients/<int:user_id>', methods=['PUT'])
 async def add_to_group_dm(dm_chan, user_id):
     """Adds a member to a group dm OR creates a group dm."""
-    pass
+    user_id = await token_check()
+    ctype = await channel_check(
+        user_id, dm_chan,
+        only=[ChannelType.DM, ChannelType.GROUP_DM]
+    )
 
 
 @bp.route('/<int:dm_chan>/recipients/<int:user_id>', methods=['DELETE'])
 async def remove_from_group_dm(dm_chan, user_id):
     """Remove users from group dm."""
-    pass
+    user_id = await token_check()
+    ctype = await channel_check(
+        user_id, dm_chan, only=ChannelType.GROUP_DM
+    )
