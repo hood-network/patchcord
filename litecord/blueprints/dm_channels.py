@@ -24,9 +24,49 @@ from litecord.blueprints.auth import token_check
 from litecord.blueprints.checks import channel_check
 from litecord.enums import ChannelType
 from litecord.errors import BadRequest, Forbidden
+from litecord.snowflake import get_snowflake
 
 log = Logger(__name__)
 bp = Blueprint('dm_channels', __name__)
+
+
+async def _gdm_create(user_id, peer_id) -> int:
+    """Create a group dm, given two users.
+
+    Returns the new GDM id.
+    """
+    channel_id = get_snowflake()
+
+    # TODO
+
+    return channel_id
+
+
+async def _gdm_add_recipient(channel_id: int, peer_id: int, *, user_id=None):
+    """Add a recipient to a Group DM.
+
+    Dispatches:
+     - A system message with the join (depending of user_id)
+     - A CHANNEL_CREATE to the peer.
+     - A CHANNEL_UPDATE to all remaining recipients.
+    """
+
+    # TODO
+    pass
+
+
+async def _gdm_remove_recipient(channel_id: int, peer_id: int, *, user_id=None):
+    """Remove a member from a GDM.
+
+    Dispatches:
+     - A system message with the leave or forced removal (depending if user_id)
+        exists or not.
+     - A CHANNEL_DELETE to the peer.
+     - A CHANNEL_UPDATE to all remaining recipients.
+    """
+
+    # TODO
+    pass
 
 
 @bp.route('/<int:dm_chan>/receipients/<int:peer_id>', methods=['PUT'])

@@ -353,7 +353,7 @@ class Storage:
 
         return list(map(_overwrite_convert, overwrite_rows))
 
-    async def _gdm_recipient_ids(self, channel_id: int) -> List[int]:
+    async def gdm_recipient_ids(self, channel_id: int) -> List[int]:
         """Get the list of user IDs that are recipients of the
         given Group DM."""
         user_ids = await self.db.fetch("""
@@ -370,7 +370,7 @@ class Storage:
     async def _gdm_recipients(self, channel_id: int) -> List[int]:
         """Get the list of users that are recipients of the
         given Group DM."""
-        recipients = await self._gdm_recipient_ids(channel_id)
+        recipients = await self.gdm_recipient_ids(channel_id)
         res = []
 
         for user_id in recipients:
@@ -435,7 +435,6 @@ class Storage:
             """, channel_id)
 
             drow = dict(gdm_row)
-            recipients 
             drow['recipients'] = await self._gdm_recipients(channel_id)
 
             return drow
