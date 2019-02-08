@@ -36,9 +36,24 @@ async def get_me_relationships():
         await app.user_storage.get_relationships(user_id))
 
 
+async def _dispatch_single_pres(user_id, presence: dict):
+    await app.dispatcher.dispatch(
+        'user', user_id, 'PRESENCE_UPDATE', presence
+    )
+
+
 async def _unsub_friend(user_id, peer_id):
     await app.dispatcher.unsub('friend', user_id, peer_id)
     await app.dispatcher.unsub('friend', peer_id, user_id)
+
+    # dispatch presence update to the user and peer about
+    # eachother's presence.
+    user_pres, peer_pres = await app.presence.friend_presences(
+        [user_id, peer_id]
+    )
+
+    await _dispatch_single_pres(user_id, peer_pres)
+    await _dispatch_single_pres(peer_id, user_pres)
 
 
 async def _sub_friend(user_id, peer_id):
