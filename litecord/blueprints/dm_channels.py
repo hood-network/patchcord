@@ -30,6 +30,20 @@ log = Logger(__name__)
 bp = Blueprint('dm_channels', __name__)
 
 
+async def _raw_gdm_add(channel_id, user_id):
+    await app.db.execute("""
+    INSERT INTO group_dm_members (id, member_id)
+    VALUES ($1, $2)
+    """, channel_id, user_id)
+
+
+async def _raw_gdm_remove(channel_id, user_id):
+    await app.db.execute("""
+    DELETE FROM group_dm_members
+    WHERE id = $1 AND member_id = $2
+    """, channel_id, user_id)
+
+
 async def _gdm_create(user_id, peer_id) -> int:
     """Create a group dm, given two users.
 
@@ -37,7 +51,24 @@ async def _gdm_create(user_id, peer_id) -> int:
     """
     channel_id = get_snowflake()
 
-    # TODO
+    await app.db.execute("""
+    INSERT INTO channels (id, channel_type)
+    VALUES ($1, $2)
+    """, channel_id, ChannelType.GROUP_DM.value)
+
+    await app.db.execute("""
+    INSERT INTO group_dm_channels (id, owner_id, name, icon)
+    VALUES ($1, $2, NULL, NULL)
+    """, channel_id, user_id)
+
+    await _raw_gdm_add(channel_id, user_id)
+    await _raw_gdm_add(channel_id, peer_id)
+
+    await app.dispatcher.sub('channel', channel_id, user_id)
+    await app.dispatcher.sub('channel', channel_id, peer_id)
+
+    chan = await app.storage.get_channel(channel_id)
+    await app.dispatcher.dispatch('channel', 'CHANNEL_CREATE', chan)
 
     return channel_id
 
@@ -50,9 +81,11 @@ async def _gdm_add_recipient(channel_id: int, peer_id: int, *, user_id=None):
      - A CHANNEL_CREATE to the peer.
      - A CHANNEL_UPDATE to all remaining recipients.
     """
+    await _raw_gdm_add(channel_id, peer_id)
 
-    # TODO
-    pass
+    chan = await app.storage.get_channel(channel_id)
+    await app.dispatcher.dispatch('user', user_id, 'CHANNEL_CREATE', chan)
+    await app.dispatcher.dispatch('channel', channel_id, 'CHANNEL_UPDATE', chan)
 
 
 async def _gdm_remove_recipient(channel_id: int, peer_id: int, *, user_id=None):
@@ -64,9 +97,11 @@ async def _gdm_remove_recipient(channel_id: int, peer_id: int, *, user_id=None):
      - A CHANNEL_DELETE to the peer.
      - A CHANNEL_UPDATE to all remaining recipients.
     """
+    await _raw_gdm_remove(channel_id, peer_id)
 
-    # TODO
-    pass
+    chan = await app.storage.get_channel(channel_id)
+    await app.dispatcher.dispatch('user', user_id, 'CHANNEL_DELETE', chan)
+    await app.dispatcher.dispatch('channel', channel_id, 'CHANNEL_UPDATE', chan)
 
 
 @bp.route('/<int:dm_chan>/receipients/<int:peer_id>', methods=['PUT'])

@@ -437,17 +437,24 @@ class GatewayWebsocket:
             by GuildDispatcher.sub
         """
         user_id = self.state.user_id
-
         guild_ids = await self._guild_ids()
-        log.info('subscribing to {} guilds', len(guild_ids))
-        await self.ext.dispatcher.sub_many('guild', user_id, guild_ids)
 
         # subscribe the user to all dms they have OPENED.
         dms = await self.user_storage.get_dms(user_id)
         dm_ids = [int(dm['id']) for dm in dms]
 
+        # fetch all group dms the user is a member of.
+        gdm_ids = await self.user_storage.get_gdms_internal(user_id)
+
+        log.info('subscribing to {} guilds', len(guild_ids))
         log.info('subscribing to {} dms', len(dm_ids))
-        await self.ext.dispatcher.sub_many('channel', user_id, dm_ids)
+        log.info('subscribing to {} group dms', len(gdm_ids))
+
+        await self.ext.dispatcher.mass_sub(user_id, [
+            ('guild', guild_ids),
+            ('channel', dm_ids),
+            ('channel', gdm_ids)
+        ])
 
         if not self.state.bot:
             # subscribe to all friends
