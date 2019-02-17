@@ -436,6 +436,7 @@ class Storage:
             """, channel_id)
 
             drow = dict(gdm_row)
+            drow['type'] = chan_type
             drow['recipients'] = await self._gdm_recipients(channel_id)
             drow['last_message_id'] = await self.chan_last_message_str(
                 channel_id

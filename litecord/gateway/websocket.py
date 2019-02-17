@@ -372,11 +372,16 @@ class GatewayWebsocket:
             # user, fetch info
             uready = await self._user_ready()
 
+        private_channels = (
+            await self.user_storage.get_dms(user_id) + 
+            await self.user_storage.get_gdms(user_id)
+        )
+
         await self.dispatch('READY', {**{
             'v': 6,
             'user': user,
 
-            'private_channels': await self.user_storage.get_dms(user_id),
+            'private_channels': private_channels,
 
             'guilds': guilds,
             'session_id': self.state.session_id,

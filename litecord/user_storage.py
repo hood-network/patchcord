@@ -348,3 +348,16 @@ class UserStorage:
         """, user_id)
 
         return [r['id'] for r in rows]
+
+    async def get_gdms(self, user_id) -> List[Dict[str, Any]]:
+        """Get list of group DMs a user is in."""
+        gdm_ids = await self.get_gdms_internal(user_id)
+
+        res = []
+
+        for gdm_id in gdm_ids:
+            res.append(
+                await self.storage.get_channel(gdm_id)
+            )
+
+        return res
