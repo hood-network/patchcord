@@ -68,7 +68,7 @@ async def _gdm_create(user_id, peer_id) -> int:
     await app.dispatcher.sub('channel', channel_id, peer_id)
 
     chan = await app.storage.get_channel(channel_id)
-    await app.dispatcher.dispatch('channel', 'CHANNEL_CREATE', chan)
+    await app.dispatcher.dispatch('channel', channel_id, 'CHANNEL_CREATE', chan)
 
     return channel_id
 
