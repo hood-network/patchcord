@@ -161,21 +161,18 @@ def parse_data_uri(string) -> tuple:
 def _gen_update_sql(scope: str) -> str:
     field = {
         'user': 'avatar',
-        'guild': 'icon'
+        'guild': 'icon',
+        'channel-icons': 'icon',
     }[scope]
 
     table = {
         'user': 'users',
-        'guild': 'guilds'
-    }[scope]
-
-    col = {
-        'user': 'id',
-        'guild': 'id'
+        'guild': 'guilds',
+        'channel-icons': 'group_dm_channels'
     }[scope]
 
     return f"""
-    SELECT {field} FROM {table} WHERE {col} = $1
+    SELECT {field} FROM {table} WHERE id = $1
     """
 
 

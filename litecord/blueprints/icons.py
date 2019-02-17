@@ -76,3 +76,9 @@ async def _get_user_avatar(user_id, avatar_file):
 # @bp.route('/app-icons/<int:application_id>/<icon_hash>.<ext>')
 async def get_app_icon(application_id, icon_hash, ext):
     pass
+
+
+@bp.route('/channel-icons/<int:channel_id>/<icon_file>', methods=['GET'])
+async def _get_gdm_icon(guild_id: int, icon_file: str):
+    icon_hash, ext = splitext_(icon_file)
+    return await send_icon('channel-icons', guild_id, icon_hash, ext=ext)
