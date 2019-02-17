@@ -26,7 +26,7 @@ from litecord.auth import token_check
 from litecord.enums import ChannelType, GUILD_CHANS
 from litecord.errors import ChannelNotFound
 from litecord.schemas import (
-    validate, CHAN_UPDATE, CHAN_OVERWRITE, SEARCH_CHANNEL
+    validate, CHAN_UPDATE, CHAN_OVERWRITE, SEARCH_CHANNEL, GROUP_DM_UPDATE
 )
 
 from litecord.blueprints.checks import channel_check, channel_perm_check
@@ -405,6 +405,26 @@ async def _update_voice_channel(channel_id: int, j: dict):
     await _common_guild_chan(channel_id, j)
 
 
+async def _update_group_dm(channel_id: int, j: dict):
+    if 'name' in j:
+        await app.db.execute("""
+        UPDATE group_dm_channels
+        SET name = $1
+        WHERE id = $2
+        """, j['name'], channel_id)
+
+    if 'icon' in j:
+        new_icon = await app.icons.update(
+            'channel-icons', channel_id, j['icon'], always_icon=True
+        )
+
+        await app.db.execute("""
+        UPDATE group_dm_channels
+        SET icon = $1
+        WHERE id = $2
+        """, new_icon, channel_id)
+
+
 @bp.route('/<int:channel_id>', methods=['PUT', 'PATCH'])
 async def update_channel(channel_id):
     """Update a channel's information"""
@@ -427,7 +447,7 @@ async def update_channel(channel_id):
     update_handler = {
         ChannelType.GUILD_TEXT: _update_text_channel,
         ChannelType.GUILD_VOICE: _update_voice_channel,
-        # ChannelType.GROUP_DM: _update_group_dm,
+        ChannelType.GROUP_DM: _update_group_dm,
     }[ctype]
 
     if is_guild:
