@@ -104,7 +104,7 @@ async def _gdm_remove_recipient(channel_id: int, peer_id: int, *, user_id=None):
     await app.dispatcher.dispatch('channel', channel_id, 'CHANNEL_UPDATE', chan)
 
 
-@bp.route('/<int:dm_chan>/receipients/<int:peer_id>', methods=['PUT'])
+@bp.route('/<int:dm_chan>/recipients/<int:peer_id>', methods=['PUT'])
 async def add_to_group_dm(dm_chan, peer_id):
     """Adds a member to a group dm OR creates a group dm."""
     user_id = await token_check()
