@@ -422,7 +422,7 @@ async def _update_group_dm(channel_id: int, j: dict):
         UPDATE group_dm_channels
         SET icon = $1
         WHERE id = $2
-        """, new_icon, channel_id)
+        """, new_icon.icon_hash, channel_id)
 
 
 @bp.route('/<int:channel_id>', methods=['PUT', 'PATCH'])
