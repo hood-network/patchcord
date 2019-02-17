@@ -66,7 +66,7 @@ async def channel_check(user_id, channel_id, *,
 
     ctype = ChannelType(chan_type)
 
-    if not isinstance(only, list):
+    if only and not isinstance(only, list):
         only = [only]
 
     if only and ctype not in only:
