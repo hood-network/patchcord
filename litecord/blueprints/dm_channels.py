@@ -22,9 +22,10 @@ from logbook import Logger
 
 from litecord.blueprints.auth import token_check
 from litecord.blueprints.checks import channel_check
-from litecord.enums import ChannelType
+from litecord.enums import ChannelType, MessageType
 from litecord.errors import BadRequest, Forbidden
 from litecord.snowflake import get_snowflake
+from litecord.system_messages import send_sys_message
 
 log = Logger(__name__)
 bp = Blueprint('dm_channels', __name__)
@@ -87,6 +88,12 @@ async def _gdm_add_recipient(channel_id: int, peer_id: int, *, user_id=None):
     await app.dispatcher.dispatch('user', peer_id, 'CHANNEL_CREATE', chan)
     await app.dispatcher.dispatch('channel', channel_id, 'CHANNEL_UPDATE', chan)
 
+    if user_id:
+        await send_sys_message(
+            app, channel_id, MessageType.RECIPIENT_ADD,
+            user_id, peer_id
+        )
+
 
 async def _gdm_remove_recipient(channel_id: int, peer_id: int, *, user_id=None):
     """Remove a member from a GDM.
@@ -101,7 +108,18 @@ async def _gdm_remove_recipient(channel_id: int, peer_id: int, *, user_id=None):
 
     chan = await app.storage.get_channel(channel_id)
     await app.dispatcher.dispatch('user', peer_id, 'CHANNEL_DELETE', chan)
-    await app.dispatcher.dispatch('channel', channel_id, 'CHANNEL_UPDATE', chan)
+    await app.dispatcher.dispatch(
+        'channel', channel_id, 'CHANNEL_RECIPIENT_REMOVE', {
+            'channel_id': str(channel_id),
+            'user': await app.storage.get_user(peer_id)
+        }
+    )
+
+    if user_id:
+        await send_sys_message(
+            app, channel_id, MessageType.RECIPIENT_REMOVE,
+            user_id, peer_id
+        )
 
 
 @bp.route('/<int:dm_chan>/recipients/<int:peer_id>', methods=['PUT'])
