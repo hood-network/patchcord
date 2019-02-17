@@ -23,13 +23,14 @@ from quart import Blueprint, request, current_app as app, jsonify
 from logbook import Logger
 
 from litecord.auth import token_check
-from litecord.enums import ChannelType, GUILD_CHANS
+from litecord.enums import ChannelType, GUILD_CHANS, MessageType
 from litecord.errors import ChannelNotFound
 from litecord.schemas import (
     validate, CHAN_UPDATE, CHAN_OVERWRITE, SEARCH_CHANNEL, GROUP_DM_UPDATE
 )
 
 from litecord.blueprints.checks import channel_check, channel_perm_check
+from litecord.system_messages import send_sys_message
 
 log = Logger(__name__)
 bp = Blueprint('channels', __name__)
@@ -405,13 +406,17 @@ async def _update_voice_channel(channel_id: int, j: dict):
     await _common_guild_chan(channel_id, j)
 
 
-async def _update_group_dm(channel_id: int, j: dict):
+async def _update_group_dm(channel_id: int, j: dict, author_id: int):
     if 'name' in j:
         await app.db.execute("""
         UPDATE group_dm_channels
         SET name = $1
         WHERE id = $2
         """, j['name'], channel_id)
+
+        await send_sys_message(
+            app, channel_id, MessageType.CHANNEL_NAME_CHANGE, author_id
+        )
 
     if 'icon' in j:
         new_icon = await app.icons.update(
@@ -423,6 +428,10 @@ async def _update_group_dm(channel_id: int, j: dict):
         SET icon = $1
         WHERE id = $2
         """, new_icon.icon_hash, channel_id)
+
+        await send_sys_message(
+            app, channel_id, MessageType.CHANNEL_ICON_CHANGE, author_id
+        )
 
 
 @bp.route('/<int:channel_id>', methods=['PUT', 'PATCH'])
