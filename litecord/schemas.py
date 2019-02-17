@@ -581,6 +581,14 @@ CREATE_GROUP_DM = {
     },
 }
 
+GROUP_DM_UPDATE = {
+    'name': {
+        'type': 'guild_name',
+        'required': False
+    },
+    'icon': {'type': 'b64_icon', 'required': False, 'nullable': True},
+}
+
 SPECIFIC_FRIEND = {
     'username': {'type': 'username'},
     'discriminator': {'type': 'discriminator'}

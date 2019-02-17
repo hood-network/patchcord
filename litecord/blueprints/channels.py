@@ -23,13 +23,14 @@ from quart import Blueprint, request, current_app as app, jsonify
 from logbook import Logger
 
 from litecord.auth import token_check
-from litecord.enums import ChannelType, GUILD_CHANS
+from litecord.enums import ChannelType, GUILD_CHANS, MessageType
 from litecord.errors import ChannelNotFound
 from litecord.schemas import (
-    validate, CHAN_UPDATE, CHAN_OVERWRITE, SEARCH_CHANNEL
+    validate, CHAN_UPDATE, CHAN_OVERWRITE, SEARCH_CHANNEL, GROUP_DM_UPDATE
 )
 
 from litecord.blueprints.checks import channel_check, channel_perm_check
+from litecord.system_messages import send_sys_message
 
 log = Logger(__name__)
 bp = Blueprint('channels', __name__)
@@ -405,31 +406,73 @@ async def _update_voice_channel(channel_id: int, j: dict):
     await _common_guild_chan(channel_id, j)
 
 
+async def _update_group_dm(channel_id: int, j: dict, author_id: int):
+    if 'name' in j:
+        await app.db.execute("""
+        UPDATE group_dm_channels
+        SET name = $1
+        WHERE id = $2
+        """, j['name'], channel_id)
+
+        await send_sys_message(
+            app, channel_id, MessageType.CHANNEL_NAME_CHANGE, author_id
+        )
+
+    if 'icon' in j:
+        new_icon = await app.icons.update(
+            'channel-icons', channel_id, j['icon'], always_icon=True
+        )
+
+        await app.db.execute("""
+        UPDATE group_dm_channels
+        SET icon = $1
+        WHERE id = $2
+        """, new_icon.icon_hash, channel_id)
+
+        await send_sys_message(
+            app, channel_id, MessageType.CHANNEL_ICON_CHANGE, author_id
+        )
+
+
 @bp.route('/<int:channel_id>', methods=['PUT', 'PATCH'])
 async def update_channel(channel_id):
     """Update a channel's information"""
     user_id = await token_check()
     ctype, guild_id = await channel_check(user_id, channel_id)
 
-    if ctype not in GUILD_CHANS:
-        raise ChannelNotFound('Can not edit non-guild channels.')
+    if ctype not in (ChannelType.GUILD_TEXT, ChannelType.GUILD_VOICE,
+                     ChannelType.GROUP_DM):
+        raise ChannelNotFound('unable to edit unsupported chan type')
 
-    await channel_perm_check(user_id, channel_id, 'manage_channels')
-    j = validate(await request.get_json(), CHAN_UPDATE)
+    is_guild = ctype in GUILD_CHANS
 
-    # TODO: categories?
+    if is_guild:
+        await channel_perm_check(user_id, channel_id, 'manage_channels')
+
+    j = validate(await request.get_json(),
+                 CHAN_UPDATE if is_guild else GROUP_DM_UPDATE)
+
+    # TODO: categories
     update_handler = {
         ChannelType.GUILD_TEXT: _update_text_channel,
         ChannelType.GUILD_VOICE: _update_voice_channel,
+        ChannelType.GROUP_DM: _update_group_dm,
     }[ctype]
 
-    await _update_channel_common(channel_id, guild_id, j)
-    await update_handler(channel_id, j)
+    if is_guild:
+        await _update_channel_common(channel_id, guild_id, j)
+
+    await update_handler(channel_id, j, user_id)
 
     chan = await app.storage.get_channel(channel_id)
 
+    if is_guild:
+        await app.dispatcher.dispatch(
+            'guild', guild_id, 'CHANNEL_UPDATE', chan)
+    else:
+        await app.dispatcher.dispatch(
+            'channel', channel_id, 'CHANNEL_UPDATE', chan)
 
-    await app.dispatcher.dispatch('guild', guild_id, 'CHANNEL_UPDATE', chan)
     return jsonify(chan)
 
 

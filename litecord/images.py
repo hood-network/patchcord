@@ -161,21 +161,18 @@ def parse_data_uri(string) -> tuple:
 def _gen_update_sql(scope: str) -> str:
     field = {
         'user': 'avatar',
-        'guild': 'icon'
+        'guild': 'icon',
+        'channel-icons': 'icon',
     }[scope]
 
     table = {
         'user': 'users',
-        'guild': 'guilds'
-    }[scope]
-
-    col = {
-        'user': 'id',
-        'guild': 'id'
+        'guild': 'guilds',
+        'channel-icons': 'group_dm_channels'
     }[scope]
 
     return f"""
-    SELECT {field} FROM {table} WHERE {col} = $1
+    SELECT {field} FROM {table} WHERE id = $1
     """
 
 
@@ -277,6 +274,9 @@ class IconManager:
 
     async def generic_get(self, scope, key, icon_hash, **kwargs) -> Icon:
         """Get any icon."""
+        if icon_hash is None:
+            return None
+
         log.debug('GET {} {} {}', scope, key, icon_hash)
         key = str(key)
 
@@ -405,6 +405,12 @@ class IconManager:
 
         await self.storage.db.execute("""
         UPDATE guilds
+        SET icon = NULL
+        WHERE icon = $1
+        """, icon.icon_hash)
+
+        await self.storage.db.execute("""
+        UPDATE group_dm_channels
         SET icon = NULL
         WHERE icon = $1
         """, icon.icon_hash)

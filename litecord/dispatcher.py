@@ -103,6 +103,15 @@ class EventDispatcher:
         for key in keys:
             await self.subscribe(backend_str, key, identifier)
 
+    async def mass_sub(self, identifier: Any,
+                       backends: List[tuple]):
+        """Mass subscribe to many backends at once."""
+        for backend_str, keys in backends:
+            log.debug('subscribing {} to {} keys in backend {}',
+                      identifier, len(keys), backend_str)
+
+            await self.sub_many(backend_str, identifier, keys)
+
     async def dispatch(self, backend_str: str, key: Any, *args, **kwargs):
         """Dispatch an event to the backend.
 

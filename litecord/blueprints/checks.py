@@ -17,6 +17,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
+from typing import Union, List
+
 from quart import current_app as app
 
 from litecord.enums import ChannelType, GUILD_CHANS
@@ -53,15 +55,22 @@ async def guild_owner_check(user_id: int, guild_id: int):
         raise Forbidden('You are not the owner of the guild')
 
 
-async def channel_check(user_id, channel_id):
+async def channel_check(user_id, channel_id, *,
+                        only: Union[ChannelType, List[ChannelType]] = None):
     """Check if the current user is authorized
     to read the channel's information."""
     chan_type = await app.storage.get_chan_type(channel_id)
 
     if chan_type is None:
-        raise ChannelNotFound(f'channel type not found')
+        raise ChannelNotFound('channel type not found')
 
     ctype = ChannelType(chan_type)
+
+    if only and not isinstance(only, list):
+        only = [only]
+
+    if only and ctype not in only:
+        raise ChannelNotFound('invalid channel type')
 
     if ctype in GUILD_CHANS:
         guild_id = await app.db.fetchval("""
@@ -76,6 +85,15 @@ async def channel_check(user_id, channel_id):
     if ctype == ChannelType.DM:
         peer_id = await app.storage.get_dm_peer(channel_id, user_id)
         return ctype, peer_id
+
+    if ctype == ChannelType.GROUP_DM:
+        owner_id = await app.db.fetchval("""
+        SELECT owner_id
+        FROM group_dm_channels
+        WHERE id = $1
+        """, channel_id)
+
+        return ctype, owner_id
 
 
 async def guild_perm_check(user_id, guild_id, permission: str):

@@ -77,14 +77,14 @@ class LitecordError(Exception):
     @property
     def message(self) -> str:
         """Get an error's message string."""
-        err_code = getattr(self, 'error_code', None)
-
-        if err_code is not None:
-            return ERR_MSG_MAP.get(err_code) or self.args[0]
-
         try:
             return self.args[0]
         except IndexError:
+            err_code = getattr(self, 'error_code', None)
+
+            if err_code is not None:
+                return ERR_MSG_MAP.get(err_code) or self.args[0]
+
             return repr(self)
 
     @property
