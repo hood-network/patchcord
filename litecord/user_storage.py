@@ -357,7 +357,7 @@ class UserStorage:
 
         for gdm_id in gdm_ids:
             res.append(
-                await self.storage.get_channel(gdm_id)
+                await self.storage.get_channel(gdm_id, user_id=user_id)
             )
 
         return res
