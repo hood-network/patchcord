@@ -87,6 +87,7 @@ async def _gdm_add_recipient(channel_id: int, peer_id: int, *, user_id=None):
     chan = await app.storage.get_channel(channel_id)
     await app.dispatcher.dispatch('user', peer_id, 'CHANNEL_CREATE', chan)
     await app.dispatcher.dispatch('channel', channel_id, 'CHANNEL_UPDATE', chan)
+    await app.dispatcher.sub('channel', peer_id)
 
     if user_id:
         await send_sys_message(
@@ -114,6 +115,8 @@ async def _gdm_remove_recipient(channel_id: int, peer_id: int, *, user_id=None):
             'user': await app.storage.get_user(peer_id)
         }
     )
+
+    await app.dispatcher.unsub('channel', peer_id)
 
     if user_id:
         await send_sys_message(
@@ -155,8 +158,8 @@ async def add_to_group_dm(dm_chan, peer_id):
     )
 
 
-@bp.route('/<int:dm_chan>/recipients/<int:user_id>', methods=['DELETE'])
-async def remove_from_group_dm(dm_chan, user_id):
+@bp.route('/<int:dm_chan>/recipients/<int:peer_id>', methods=['DELETE'])
+async def remove_from_group_dm(dm_chan, peer_id):
     """Remove users from group dm."""
     user_id = await token_check()
     _ctype, owner_id = await channel_check(
@@ -166,5 +169,5 @@ async def remove_from_group_dm(dm_chan, user_id):
     if owner_id != user_id:
         raise Forbidden('You are now the owner of the group DM')
 
-    await _gdm_remove_recipient(dm_chan, user_id)
+    await _gdm_remove_recipient(dm_chan, peer_id)
     return '', 204
