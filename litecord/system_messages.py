@@ -106,7 +106,7 @@ async def _handle_gdm_name_edit(app, channel_id, author_id):
         """,
         new_id, channel_id, author_id,
         gdm_name,
-        MessageType.RECIPIENT_ADD.value
+        MessageType.CHANNEL_NAME_CHANGE.value
     )
 
     return new_id

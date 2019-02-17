@@ -462,7 +462,7 @@ async def update_channel(channel_id):
     if is_guild:
         await _update_channel_common(channel_id, guild_id, j)
 
-    await update_handler(channel_id, j)
+    await update_handler(channel_id, j, user_id)
 
     chan = await app.storage.get_channel(channel_id)
 
