@@ -26,6 +26,7 @@ from litecord.enums import ChannelType, MessageType
 from litecord.errors import BadRequest, Forbidden
 from litecord.snowflake import get_snowflake
 from litecord.system_messages import send_sys_message
+from litecord.pubsub.channel import gdm_recipient_view
 
 log = Logger(__name__)
 bp = Blueprint('dm_channels', __name__)
@@ -85,8 +86,14 @@ async def _gdm_add_recipient(channel_id: int, peer_id: int, *, user_id=None):
     await _raw_gdm_add(channel_id, peer_id)
 
     chan = await app.storage.get_channel(channel_id)
-    await app.dispatcher.dispatch('user', peer_id, 'CHANNEL_CREATE', chan)
-    await app.dispatcher.dispatch('channel', channel_id, 'CHANNEL_UPDATE', chan)
+
+    # the reasoning behind gdm_recipient_view is in its docstring.
+    await app.dispatcher.dispatch(
+        'user', peer_id, 'CHANNEL_CREATE', gdm_recipient_view(chan, peer_id))
+
+    await app.dispatcher.dispatch(
+        'channel', channel_id, 'CHANNEL_UPDATE', chan)
+
     await app.dispatcher.sub('channel', peer_id)
 
     if user_id:
@@ -108,15 +115,17 @@ async def _gdm_remove_recipient(channel_id: int, peer_id: int, *, user_id=None):
     await _raw_gdm_remove(channel_id, peer_id)
 
     chan = await app.storage.get_channel(channel_id)
-    await app.dispatcher.dispatch('user', peer_id, 'CHANNEL_DELETE', chan)
+    await app.dispatcher.dispatch(
+        'user', peer_id, 'CHANNEL_DELETE', gdm_recipient_view(chan, user_id))
+
+    await app.dispatcher.unsub('channel', peer_id)
+
     await app.dispatcher.dispatch(
         'channel', channel_id, 'CHANNEL_RECIPIENT_REMOVE', {
             'channel_id': str(channel_id),
             'user': await app.storage.get_user(peer_id)
         }
     )
-
-    await app.dispatcher.unsub('channel', peer_id)
 
     if user_id:
         await send_sys_message(

@@ -28,7 +28,7 @@ from litecord.utils import index_by_func
 log = Logger(__name__)
 
 
-def _recipient_view(orig: dict, user_id: int) -> dict:
+def gdm_recipient_view(orig: dict, user_id: int) -> dict:
     """Create a copy of the original channel object that doesn't
     show the user we are dispatching it to.
 
@@ -91,7 +91,7 @@ class ChannelDispatcher(DispatcherWithState):
                 # we edit the channel payload so it doesn't show
                 # the user as a recipient
 
-                new_data = _recipient_view(data, user_id)
+                new_data = gdm_recipient_view(data, user_id)
                 cur_sess = await self._dispatch_states(
                     states, event, new_data)
             else:
