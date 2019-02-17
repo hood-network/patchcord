@@ -22,8 +22,30 @@ from typing import Any
 from logbook import Logger
 
 from .dispatcher import DispatcherWithState
+from litecord.enums import ChannelType
+from litecord.utils import index_by_func
 
 log = Logger(__name__)
+
+
+def _recipient_view(orig: dict, user_id: int) -> dict:
+    """Create a copy of the original channel object that doesn't
+    show the user we are dispatching it to.
+
+    this only applies to group dms and discords' api design that says
+    a group dms' recipients must not show the original user.
+    """
+    # make a copy or the original channel object
+    data = dict(orig)
+
+    idx = index_by_func(
+        lambda user: user['id'] == str(user_id),
+        data['recipients']
+    )
+
+    data['recipients'].pop(idx)
+
+    return data
 
 
 class ChannelDispatcher(DispatcherWithState):
@@ -62,7 +84,19 @@ class ChannelDispatcher(DispatcherWithState):
                 await self.unsub(channel_id, user_id)
                 continue
 
-            cur_sess = await self._dispatch_states(states, event, data)
+            cur_sess = 0
+
+            if event in ('CHANNEL_CREATE', 'CHANNEL_UPDATE') \
+                and data.get('type') == ChannelType.GROUP_DM.value:
+                # we edit the channel payload so it doesn't show
+                # the user as a recipient
+
+                new_data = _recipient_view(data, user_id)
+                cur_sess = await self._dispatch_states(
+                    states, event, new_data)
+            else:
+                cur_sess = await self._dispatch_states(
+                    states, event, data)
 
             sessions.extend(cur_sess)
             dispatched += len(cur_sess)
