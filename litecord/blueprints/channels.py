@@ -31,6 +31,9 @@ from litecord.schemas import (
 
 from litecord.blueprints.checks import channel_check, channel_perm_check
 from litecord.system_messages import send_sys_message
+from litecord.blueprints.dm_channels import (
+    gdm_add_recipient, gdm_remove_recipient, gdm_destroy
+)
 
 log = Logger(__name__)
 bp = Blueprint('channels', __name__)
@@ -211,6 +214,8 @@ async def close_channel(channel_id):
 
         await app.dispatcher.dispatch_guild(
             guild_id, 'CHANNEL_DELETE', chan)
+
+        await app.dispatcher.remove('channel', channel_id)
         return jsonify(chan)
 
     if ctype == ChannelType.DM:
@@ -234,8 +239,17 @@ async def close_channel(channel_id):
         return jsonify(chan)
 
     if ctype == ChannelType.GROUP_DM:
-        # TODO: group dm
-        pass
+        await gdm_remove_recipient(channel_id, user_id)
+
+        gdm_count = await app.db.fetchval("""
+        SELECT COUNT(*)
+        FROM group_dm_members
+        WHERE id = $1
+        """, channel_id)
+
+        if gdm_count == 0:
+            # destroy dm
+            await gdm_destroy(channel_id)
 
     raise ChannelNotFound()
 

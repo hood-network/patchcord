@@ -75,7 +75,7 @@ async def _gdm_create(user_id, peer_id) -> int:
     return channel_id
 
 
-async def _gdm_add_recipient(channel_id: int, peer_id: int, *, user_id=None):
+async def gdm_add_recipient(channel_id: int, peer_id: int, *, user_id=None):
     """Add a recipient to a Group DM.
 
     Dispatches:
@@ -96,6 +96,7 @@ async def _gdm_add_recipient(channel_id: int, peer_id: int, *, user_id=None):
 
     await app.dispatcher.sub('channel', peer_id)
 
+    # TODO: if not user id, userid=peerid
     if user_id:
         await send_sys_message(
             app, channel_id, MessageType.RECIPIENT_ADD,
@@ -103,7 +104,7 @@ async def _gdm_add_recipient(channel_id: int, peer_id: int, *, user_id=None):
         )
 
 
-async def _gdm_remove_recipient(channel_id: int, peer_id: int, *, user_id=None):
+async def gdm_remove_recipient(channel_id: int, peer_id: int, *, user_id=None):
     """Remove a member from a GDM.
 
     Dispatches:
@@ -134,6 +135,32 @@ async def _gdm_remove_recipient(channel_id: int, peer_id: int, *, user_id=None):
         )
 
 
+async def gdm_destroy(channel_id):
+    """Destroy a Group DM."""
+    chan = await app.storage.get_channel(channel_id)
+
+    await app.db.execute("""
+    DELETE FROM group_dm_members
+    WHERE id = $1
+    """, channel_id)
+
+    await app.db.execute("""
+    DELETE FROM group_dm_channels
+    WHERE id = $1
+    """, channel_id)
+
+    await app.db.execute("""
+    DELETE FROM channels
+    WHERE id = $1
+    """, channel_id)
+
+    await app.dispatcher.dispatch(
+        'channel', channel_id, 'CHANNEL_DELETE', chan
+    )
+
+    await app.dispatcher.remove('channel', channel_id)
+
+
 @bp.route('/<int:dm_chan>/recipients/<int:peer_id>', methods=['PUT'])
 async def add_to_group_dm(dm_chan, peer_id):
     """Adds a member to a group dm OR creates a group dm."""
@@ -160,7 +187,7 @@ async def add_to_group_dm(dm_chan, peer_id):
             user_id, other_id
         )
 
-    await _gdm_add_recipient(dm_chan, peer_id, user_id=user_id)
+    await gdm_add_recipient(dm_chan, peer_id, user_id=user_id)
 
     return jsonify(
         await app.storage.get_channel(dm_chan)
@@ -178,5 +205,5 @@ async def remove_from_group_dm(dm_chan, peer_id):
     if owner_id != user_id:
         raise Forbidden('You are now the owner of the group DM')
 
-    await _gdm_remove_recipient(dm_chan, peer_id)
+    await gdm_remove_recipient(dm_chan, peer_id)
     return '', 204
