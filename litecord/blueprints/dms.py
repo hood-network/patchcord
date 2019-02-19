@@ -30,6 +30,10 @@ from ..snowflake import get_snowflake
 
 from .auth import token_check
 
+from litecord.blueprints.dm_channels import (
+    gdm_create, gdm_add_recipient
+)
+
 log = Logger(__name__)
 bp = Blueprint('dms', __name__)
 
@@ -122,5 +126,10 @@ async def create_group_dm(p_user_id: int):
         # its a group dm with 1 user... a dm!
         return await create_dm(user_id, int(recipients[0]))
 
-    # TODO: group dms
-    return 'group dms not implemented', 500
+    # create a group dm with multiple users
+    channel_id = await gdm_create(user_id, recipients[0])
+
+    for recipient in recipients[1:]:
+        await gdm_add_recipient(channel_id, recipient)
+
+    return jsonify(await app.storage.get_channel(channel_id))

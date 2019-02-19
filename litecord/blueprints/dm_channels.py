@@ -46,7 +46,7 @@ async def _raw_gdm_remove(channel_id, user_id):
     """, channel_id, user_id)
 
 
-async def _gdm_create(user_id, peer_id) -> int:
+async def gdm_create(user_id, peer_id) -> int:
     """Create a group dm, given two users.
 
     Returns the new GDM id.
@@ -183,7 +183,7 @@ async def add_to_group_dm(dm_chan, peer_id):
         raise BadRequest('Cant insert peer into dm')
 
     if ctype == ChannelType.DM:
-        dm_chan = await _gdm_create(
+        dm_chan = await gdm_create(
             user_id, other_id
         )
 
