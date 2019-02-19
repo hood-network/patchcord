@@ -482,7 +482,8 @@ async def _del_from_table(db, table: str, user_id: int):
     """Delete a row from a table."""
     column = {
         'channel_overwrites': 'target_user',
-        'user_settings': 'id'
+        'user_settings': 'id',
+        'group_dm_members': 'member_id'
     }.get(table, 'user_id')
 
     res = await db.execute(f"""
@@ -538,7 +539,9 @@ async def delete_user(user_id, *, db=None):
     # DMs are still maintained, but not the state.
     await _del_from_table(db, 'dm_channel_state', user_id)
 
-    # TODO: group DMs
+    # NOTE: we don't delete the group dms the user is an owner of...
+    # TODO: group dm owner reassign when the owner leaves a gdm
+    await _del_from_table(db, 'group_dm_members', user_id)
 
     await _del_from_table(db, 'members', user_id)
     await _del_from_table(db, 'member_roles', user_id)
