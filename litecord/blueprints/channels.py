@@ -32,7 +32,7 @@ from litecord.schemas import (
 from litecord.blueprints.checks import channel_check, channel_perm_check
 from litecord.system_messages import send_sys_message
 from litecord.blueprints.dm_channels import (
-    gdm_add_recipient, gdm_remove_recipient, gdm_destroy
+    gdm_remove_recipient, gdm_destroy
 )
 
 log = Logger(__name__)
