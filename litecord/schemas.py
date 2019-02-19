@@ -88,7 +88,6 @@ class LitecordValidator(Validator):
             return False
 
     def _validate_type_voice_region(self, value: str) -> bool:
-        # TODO: complete this list
         return value.lower() in ('brazil', 'us-east', 'us-west',
                                  'us-south', 'russia')
 
@@ -394,6 +393,8 @@ MEMBER_UPDATE = {
 }
 
 
+# NOTE: things such as payload_json are parsed at the handler
+# for creating a message.
 MESSAGE_CREATE = {
     'content': {'type': 'string', 'minlength': 0, 'maxlength': 2000},
     'nonce': {'type': 'snowflake', 'required': False},
@@ -404,8 +405,6 @@ MESSAGE_CREATE = {
         'schema': EMBED_OBJECT,
         'required': False
     }
-
-    # TODO: file, embed, payload_json
 }
 
 

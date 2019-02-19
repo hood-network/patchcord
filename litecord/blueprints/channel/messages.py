@@ -336,10 +336,15 @@ async def _msg_input() -> tuple:
         'tts': json.loads(form.get('tts', 'false')),
     }
 
+    payload_json = json.loads(form.get('payload_json', '{}'))
+
     json_from_form.update(request_json)
+    json_from_form.update(payload_json)
 
     files = await request.files
-    # we don't really care about the given fields on the files dict
+
+    # we don't really care about the given fields on the files dict, so
+    # we only extract the values
     return json_from_form, [v for k, v in files.items()]
 
 
