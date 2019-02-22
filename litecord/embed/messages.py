@@ -137,6 +137,8 @@ async def process_url_embed(config, storage, dispatcher,
         if not embed:
             continue
 
+        new_embeds.append(embed)
+
     # update if we got embeds
     if not new_embeds:
         return
