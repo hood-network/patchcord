@@ -128,8 +128,35 @@ async def fetch_metadata(url, *, config=None, session=None) -> dict:
         return await resp.json()
 
 
+async def fetch_embed(parsed, *, config=None, session=None) -> dict:
+    """Fetch an embed"""
+
+    if session is None:
+        session = app.session
+
+    if config is None:
+        config = app.config
+
+    # TODO: handle query string
+    md_path = f'{parsed.scheme}/{parsed.netloc}{parsed.path}'
+
+    md_base_url = config['MEDIA_PROXY']
+    secure = 's' if config['IS_SSL'] else ''
+
+    request_url = f'http{secure}://{md_base_url}/embed/{md_path}'
+
+    async with session.get(request_url) as resp:
+        if resp.status != 200:
+            body = await resp.text()
+            log.warning('failed to embed {!r}, {} {!r}',
+                        parsed, resp.status, body)
+            return
+
+        return await resp.json()
+
+
 async def fill_embed(embed: Embed) -> Embed:
-    """Fill an embed with more information."""
+    """Fill an embed with more information, such as proxy URLs."""
     embed = sanitize_embed(embed)
 
     if path_exists(embed, 'footer.icon_url'):
