@@ -3,10 +3,21 @@
 Litecord is an open source, [clean-room design][clean-room] reimplementation of
 Discord's HTTP API and Gateway in Python 3.
 
-This project is a rewrite of [litecord-reference].
+This project is a rewrite of [litecord-reference] and [litecord serviced].
 
 [clean-room]: https://en.wikipedia.org/wiki/Clean_room_design
 [litecord-reference]: https://gitlab.com/luna/litecord-reference
+[litecord serviced]: https://github.com/litecord
+
+## Wait, two other Litecords?
+
+The first version is litecord-reference, written in Python and used MongoDB
+as storage. It was rewritten into "litecord serviced" so that other developers
+could help writing it, defining a clear protocol between components
+(litebridge). Sadly, it didn't take off, so I (Luna), that wrote the other two,
+took a shot at writing it again. It works.
+
+**This is "Litecord" / "litecord".** There are *no* rewrites planned.
 
 ## Project Goals
 
@@ -20,10 +31,24 @@ This project is a rewrite of [litecord-reference].
 ## Caveats
 
 - Unit testing is incomplete.
-- Currently, there are no plans to support voice chat.
+- Currently, there are no plans to support voice chat, or the Discord Store.
 - You must figure out how to connect to a Litecord instance. Litecord will not
   distribute official client code from Discord nor provide ways to modify the
   official client.
+
+## Implementation status, AKA "Does it work?"
+
+Approximately 80% of the REST API is reimplemented in Litecord. A wild guess
+for the Gateway / Websockets API is 95%. Reminder that those do not count voice
+specific components, but do count things the official client uses, such as
+[lazy guilds](https://luna.gitlab.io/discord-unofficial-docs/lazy_guilds.html).
+
+Tracking routes such as `/api/science` have dummy implementations so they don't
+crash the client. They do not store any information given by the client.
+
+Also consider that reimplementing the Discord API is kind-of a moving target, as
+Discord can implement parts of the API that aren't documented at any point in
+time.
 
 ## Liability
 
