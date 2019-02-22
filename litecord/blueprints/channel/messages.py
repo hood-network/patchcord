@@ -17,9 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-import re
 import json
-import asyncio
 
 from PIL import Image
 from quart import Blueprint, request, current_app as app, jsonify
@@ -34,7 +32,8 @@ from litecord.snowflake import get_snowflake
 from litecord.schemas import validate, MESSAGE_CREATE
 from litecord.utils import pg_set_json
 
-from litecord.embed.sanitizer import fill_embed, proxify, fetch_metadata
+from litecord.embed.sanitizer import fill_embed
+from litecord.embed.messages import process_url_embed
 from litecord.blueprints.channel.dm_checks import dm_pre_check
 
 
@@ -247,77 +246,6 @@ async def _guild_text_mentions(payload: dict, guild_id: int,
         WHERE user_id = $1
             AND channel_id = $2
         """, user_id, channel_id)
-
-
-async def process_url_embed(config, storage, dispatcher,
-                            session, payload: dict, *, delay=0):
-    """Process URLs in a message and generate embeds based on that."""
-    await asyncio.sleep(delay)
-
-    message_id = int(payload['id'])
-    channel_id = int(payload['channel_id'])
-
-    # if we already have embeds
-    # we shouldn't add our own.
-    embeds = payload['embeds']
-
-    if embeds:
-        log.debug('url processor: ignoring existing embeds @ mid {}',
-                  message_id)
-        return
-
-    # use regex to get URLs
-    urls = re.findall(r'(https?://\S+)', payload['content'])
-    urls = urls[:5]
-
-    new_embeds = []
-
-    # fetch metadata for each url
-    for url in urls:
-        img_proxy_url = proxify(url, config=config)
-        meta = await fetch_metadata(url, config=config, session=session)
-
-        if meta is None:
-            continue
-
-        if not meta['image']:
-            continue
-
-        new_embeds.append({
-            'type': 'image',
-            'url': url,
-            'thumbnail': {
-                'width': meta['width'],
-                'height': meta['height'],
-                'url': url,
-                'proxy_url': img_proxy_url
-            }
-        })
-
-    # update if we got embeds
-    if not new_embeds:
-        return
-
-    log.debug('made {} thumbnail embeds for mid {}',
-              len(new_embeds), message_id)
-
-    await storage.execute_with_json("""
-    UPDATE messages
-    SET embeds = $1
-    WHERE messages.id = $2
-    """, new_embeds, message_id)
-
-    update_payload = {
-        'id': str(message_id),
-        'channel_id': str(channel_id),
-        'embeds': new_embeds,
-    }
-
-    if 'guild_id' in payload:
-        update_payload['guild_id'] = payload['guild_id']
-
-    await dispatcher.dispatch(
-        'channel', channel_id, 'MESSAGE_UPDATE', update_payload)
 
 
 async def _msg_input() -> tuple:
@@ -542,7 +470,7 @@ async def edit_message(channel_id, message_id):
         # if there weren't any embed changes BUT
         # we had a content change, we dispatch process_url_embed but with
         # an artificial delay.
-        
+
         # the artificial delay keeps consistency between the events, since
         # it makes more sense for the MESSAGE_UPDATE with new content to come
         # BEFORE the MESSAGE_UPDATE with the new embeds (based on content)
