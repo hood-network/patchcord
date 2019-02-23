@@ -127,7 +127,7 @@ async def process_url_embed(config, storage, dispatcher,
     for url in urls:
         parsed = urllib.parse.urlparse(url)
         path = Path(parsed.path)
-        extension = path.name.split('.')[-1]
+        extension = path.suffix.lstrip('.')
 
         if extension in MEDIA_EXTENSIONS:
             embed = await insert_media_meta(url, config, session)
