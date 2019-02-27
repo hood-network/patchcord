@@ -161,6 +161,17 @@ async def gdm_destroy(channel_id):
     await app.dispatcher.remove('channel', channel_id)
 
 
+async def gdm_is_member(channel_id: int, user_id: int) -> bool:
+    """Return if the given user is a member of the Group DM."""
+    row = await app.db.fetchval("""
+    SELECT id
+    FROM group_dm_members
+    WHERE id = $1 AND member_id = $2
+    """, channel_id, user_id)
+
+    return row is not None
+
+
 @bp.route('/<int:dm_chan>/recipients/<int:peer_id>', methods=['PUT'])
 async def add_to_group_dm(dm_chan, peer_id):
     """Adds a member to a group dm OR creates a group dm."""

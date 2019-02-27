@@ -35,6 +35,8 @@ from litecord.blueprints.checks import (
     channel_check, channel_perm_check, guild_check, guild_perm_check
 )
 
+from litecord.blueprints.dm_channels import gdm_is_member, gdm_add_recipient
+
 log = Logger(__name__)
 bp = Blueprint('invites', __name__)
 
@@ -80,33 +82,41 @@ async def invite_precheck(user_id: int, guild_id: int):
         raise InvalidInvite('You are banned.')
 
 
-async def use_invite(user_id, invite_code):
-    """Try using an invite"""
-    inv = await app.db.fetchrow("""
-    SELECT guild_id, created_at, max_age, uses, max_uses
-    FROM invites
-    WHERE code = $1
-    """, invite_code)
+async def invite_precheck_gdm(user_id: int, channel_id: int):
+    """pre-checks in a group dm."""
+    is_member = await gdm_is_member(channel_id, user_id)
 
-    if inv is None:
-        raise UnknownInvite('Unknown invite')
+    if is_member:
+        raise BadRequest('You are already in the Group DM')
 
-    if inv['max_age'] is not 0:
-        now = datetime.datetime.utcnow()
-        delta_sec = (now - inv['created_at']).total_seconds()
 
-        if delta_sec > inv['max_age']:
-            await delete_invite(invite_code)
-            raise InvalidInvite('Invite is expired')
+async def _inv_check_age(inv: dict):
+    if inv['max_age'] is 0:
+        return
 
-        if inv['max_uses'] is not -1 and inv['uses'] > inv['max_uses']:
-            await delete_invite(invite_code)
-            raise InvalidInvite('Too many uses')
+    now = datetime.datetime.utcnow()
+    delta_sec = (now - inv['created_at']).total_seconds()
 
-    # TODO: if group dm invite, guild_id is null.
-    guild_id = inv['guild_id']
-    await invite_precheck(user_id, guild_id)
+    if delta_sec > inv['max_age']:
+        await delete_invite(inv['code'])
+        raise InvalidInvite('Invite is expired')
 
+    if inv['max_uses'] is not -1 and inv['uses'] > inv['max_uses']:
+        await delete_invite(inv['code'])
+        raise InvalidInvite('Too many uses')
+
+
+async def _guild_add_member(guild_id: int, user_id: int):
+    """Add a user to a guild.
+
+    Dispatches:
+     - GUILD_MEMBER_ADD to all members.
+     - lazy guild events for member add.
+     - subscribes the peer to the guild.
+     - dispatches a GUILD_CREATE to the peer.
+    """
+
+    # TODO: system message for member join
     await app.db.execute("""
     INSERT INTO members (user_id, guild_id)
     VALUES ($1, $2)
@@ -119,12 +129,6 @@ async def use_invite(user_id, invite_code):
     INSERT INTO member_roles (user_id, guild_id, role_id)
     VALUES ($1, $2, $3)
     """, user_id, guild_id, guild_id)
-
-    await app.db.execute("""
-    UPDATE invites
-    SET uses = uses + 1
-    WHERE code = $1
-    """, invite_code)
 
     # tell current members a new member came up
     member = await app.storage.get_member_data_one(guild_id, user_id)
@@ -148,6 +152,38 @@ async def use_invite(user_id, invite_code):
     guild = await app.storage.get_guild_full(guild_id, user_id, 250)
     await app.dispatcher.dispatch_user_guild(
         user_id, guild_id, 'GUILD_CREATE', guild)
+
+
+async def use_invite(user_id, invite_code):
+    """Try using an invite"""
+    inv = await app.db.fetchrow("""
+    SELECT code, channel_id, guild_id, created_at,
+           max_age, uses, max_uses
+    FROM invites
+    WHERE code = $1
+    """, invite_code)
+
+    if inv is None:
+        raise UnknownInvite('Unknown invite')
+
+    await _inv_check_age(inv)
+
+    # NOTE: if group dm invite, guild_id is null.
+    guild_id = inv['guild_id']
+
+    if guild_id is None:
+        channel_id = inv['channel_id']
+        await invite_precheck_gdm(user_id, inv['channel_id'])
+        await gdm_add_recipient(channel_id, user_id)
+    else:
+        await invite_precheck(user_id, guild_id)
+        await _guild_add_member(guild_id, user_id)
+
+    await app.db.execute("""
+    UPDATE invites
+    SET uses = uses + 1
+    WHERE code = $1
+    """, invite_code)
 
 
 @bp.route('/channels/<int:channel_id>/invites', methods=['POST'])
