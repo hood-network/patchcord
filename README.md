@@ -96,19 +96,18 @@ $ createdb litecord
 $ psql -f schema.sql litecord
 ```
 
-Then, you should run database migrations:
-
-```sh
-$ pipenv run ./manage.py migrate
-```
-
-### Configuring
-
-Copy the `config.example.py` file and edit it to configure your instance:
+Copy the `config.example.py` file and edit it to configure your instance (
+postgres credentials, etc):
 
 ```sh
 $ cp config.example.py config.py
 $ $EDITOR config.py
+```
+
+Then, you should run database migrations:
+
+```sh
+$ pipenv run ./manage.py migrate
 ```
 
 ## Running
