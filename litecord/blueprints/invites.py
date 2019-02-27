@@ -103,6 +103,7 @@ async def use_invite(user_id, invite_code):
             await delete_invite(invite_code)
             raise InvalidInvite('Too many uses')
 
+    # TODO: if group dm invite, guild_id is null.
     guild_id = inv['guild_id']
     await invite_precheck(user_id, guild_id)
 
@@ -151,24 +152,28 @@ async def use_invite(user_id, invite_code):
 
 @bp.route('/channels/<int:channel_id>/invites', methods=['POST'])
 async def create_invite(channel_id):
+    """Create an invite to a channel."""
     user_id = await token_check()
-
     j = validate(await request.get_json(), INVITE)
-    _ctype, guild_id = await channel_check(user_id, channel_id)
 
+    chantype, maybe_guild_id = await channel_check(user_id, channel_id)
+    chantype = ChannelType(chantype)
+
+    # NOTE: this works on group dms, since it returns ALL_PERMISSIONS on
+    # non-guild channels.
     await channel_perm_check(user_id, channel_id, 'create_invites')
 
-    chantype = await app.storage.get_chan_type(channel_id)
-
-    # can't create invites for channels that aren't text
-    # or voice.
-
-    # TODO: once group dms are in, this should change to account.
-    if chantype not in (ChannelType.GUILD_TEXT.value,
-                        ChannelType.GUILD_VOICE.value):
+    if chantype not in (ChannelType.GUILD_TEXT,
+                        ChannelType.GUILD_VOICE,
+                        ChannelType.GROUP_DM):
         raise BadRequest('Invalid channel type')
 
     invite_code = gen_inv_code()
+
+    if chantype in (ChannelType.GUILD_TEXT, ChannelType.GUILD_VOICE):
+        guild_id = maybe_guild_id
+    else:
+        guild_id = None
 
     await app.db.execute(
         """
