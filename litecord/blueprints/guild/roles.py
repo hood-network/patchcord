@@ -20,7 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 from typing import List, Dict
 
 from quart import Blueprint, request, current_app as app, jsonify
-from logging import Logger
+from logbook import Logger
 
 from litecord.auth import token_check
 
