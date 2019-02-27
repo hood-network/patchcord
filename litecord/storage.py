@@ -847,10 +847,13 @@ class Storage:
         WHERE id = $1
         """, invite['guild_id'])
 
-        dinv['guild'] = dict(guild)
+        if guild:
+            dinv['guild'] = dict(guild)
 
-        # TODO: query actual guild features
-        dinv['guild']['features'] = []
+            # TODO: query actual guild features
+            dinv['guild']['features'] = []
+        else:
+            dinv['guild'] = {}
 
         chan = await self.get_channel(invite['channel_id'])
         dinv['channel'] = {
