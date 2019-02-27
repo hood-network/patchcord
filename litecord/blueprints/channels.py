@@ -533,7 +533,9 @@ async def channel_ack(user_id, guild_id, channel_id, message_id: int = None):
                 'channel_id': str(channel_id)
             })
     else:
-        # TODO: use ChannelDispatcher
+        # we don't use ChannelDispatcher here because since
+        # guild_id is None, all user devices are already subscribed
+        # to the given channel (a dm or a group dm)
         await app.dispatcher.dispatch_user(
             user_id, 'MESSAGE_ACK', {
                 'message_id': str(message_id),
