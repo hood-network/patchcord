@@ -83,6 +83,12 @@ GUILD_CHANS = (ChannelType.GUILD_TEXT,
                ChannelType.GUILD_CATEGORY)
 
 
+VOICE_CHANNELS = (
+    ChannelType.DM, ChannelType.GUILD_VOICE,
+    ChannelType.GUILD_CATEGORY
+)
+
+
 class ActivityType(EasyEnum):
     PLAYING = 0
     STREAMING = 1

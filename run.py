@@ -70,6 +70,7 @@ from litecord.dispatcher import EventDispatcher
 from litecord.presence import PresenceManager
 from litecord.images import IconManager
 from litecord.jobs import JobManager
+from litecord.voice.manager import VoiceManager
 
 from litecord.utils import LitecordJSONEncoder
 
@@ -231,6 +232,8 @@ def init_app_managers(app_):
     app_.presence = PresenceManager(app_)
 
     app_.storage.presence = app_.presence
+
+    app_.voice = VoiceManager(app_)
 
 
 async def api_index(app_):

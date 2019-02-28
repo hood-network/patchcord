@@ -30,12 +30,12 @@ from logbook import Logger
 import earl
 
 from litecord.auth import raw_token_check
-from litecord.enums import RelationshipType
+from litecord.enums import RelationshipType, ChannelType, VOICE_CHANNELS
 from litecord.schemas import validate, GW_STATUS_UPDATE
 from litecord.utils import (
     task_wrapper, LitecordJSONEncoder, yield_chunks
 )
-from litecord.permissions import get_permissions
+from litecord.permissions import get_permissions, ALL_PERMISSIONS
 
 from litecord.gateway.opcodes import OP
 from litecord.gateway.state import GatewayState
@@ -48,14 +48,17 @@ from litecord.gateway.errors import (
 )
 
 log = Logger(__name__)
+
 WebsocketProperties = collections.namedtuple(
     'WebsocketProperties', 'v encoding compress zctx tasks'
 )
 
 WebsocketObjects = collections.namedtuple(
-    'WebsocketObjects', ('db', 'state_manager', 'storage',
-                         'loop', 'dispatcher', 'presence', 'ratelimiter',
-                         'user_storage')
+    'WebsocketObjects', (
+        'db', 'state_manager', 'storage',
+        'loop', 'dispatcher', 'presence', 'ratelimiter',
+        'user_storage', 'voice'
+    )
 )
 
 
@@ -113,7 +116,7 @@ class GatewayWebsocket:
         self.ext = WebsocketObjects(
             app.db, app.state_manager, app.storage, app.loop,
             app.dispatcher, app.presence, app.ratelimiter,
-            app.user_storage
+            app.user_storage, app.voice
         )
 
         self.storage = self.ext.storage
@@ -598,16 +601,93 @@ class GatewayWebsocket:
         # setting new presence to state
         await self.update_status(presence)
 
+    @property
+    def voice_key(self):
+        """Voice state key."""
+        return (self.state.user_id, self.state.session_id)
+
+    async def _voice_check(self, guild_id: int, channel_id: int):
+        """Check if the user can join the given guild/channel pair."""
+        guild = None
+        if guild_id:
+            guild = await self.storage.get_guild(guild_id)
+
+        channel = await self.storage.get_channel(channel_id)
+        ctype = ChannelType(channel['type'])
+
+        if ctype not in VOICE_CHANNELS:
+            return
+
+        if guild and channel.get(['guild_id']) != guild['id']:
+            return
+
+        is_guild_voice = ctype == ChannelType.GUILD_VOICE
+
+        states = await self.ext.voice.state_count(channel_id)
+        perms = (ALL_PERMISSIONS
+                 if not is_guild_voice else
+                 await get_permissions(self.state.user_id,
+                                       channel_id, storage=self.storage)
+                )
+
+        is_full = states >= channel['user_limit']
+        is_bot = self.state.bot
+
+        is_manager = perms.bits.manage_channels
+
+        # if the channel is full AND:
+        #  - user is not a bot
+        #  - user is not manage channels
+        # then it fails
+        if not is_bot and not is_manager and is_full:
+            return
+
+        # all checks passed.
+        return True
+
+    async def _move_voice(self, guild_id, channel_id):
+        """Move an existing voice state to the given target."""
+        if channel_id is None:
+            return await self.ext.voice.del_state(self.voice_key)
+
+        if not await self._voice_check(guild_id, channel_id):
+            return
+
+        await self.ext.voice.move_state(
+            self.voice_key, guild_id, channel_id)
+
+    async def _create_voice(self, guild_id, channel_id):
+        """Create a voice state."""
+        if not await self._voice_check(guild_id, channel_id):
+            return
+
+        await self.ext.voice.create_state(self.voice_key, guild_id, channel_id)
+
     async def handle_4(self, payload: Dict[str, Any]):
         """Handle OP 4 Voice Status Update."""
         data = payload['d']
-        # for now, ignore
-        log.debug('got VSU cid={} gid={} deaf={} mute={} video={}',
-                  data.get('channel_id'),
-                  data.get('guild_id'),
-                  data.get('self_deaf'),
-                  data.get('self_mute'),
-                  data.get('self_video'))
+
+        if not self.state:
+            return
+
+        try:
+            channel_id = int(data['channel_id'])
+            guild_id = int(data['guild_id'])
+
+            # TODO: fetch from settings if not provided
+            # self_deaf = bool(data['self_deaf'])
+            # self_mute = bool(data['self_mute'])
+
+            # NOTE: self_video is NOT handled.
+        except (KeyError, ValueError):
+            pass
+
+        # fetch an existing voice state
+        user_id, session_id = self.state.user_id, self.state.session_id
+        voice_state = await self.ext.voice.fetch_state(user_id, session_id)
+
+        func = self._move_voice if voice_state else self._create_voice
+        await func(guild_id, channel_id)
 
     async def _handle_5(self, payload: Dict[str, Any]):
         """Handle OP 5 Voice Server Ping.
