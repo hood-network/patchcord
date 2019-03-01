@@ -340,6 +340,9 @@ class IconManager:
         elif 'size' in kwargs:
             image = Image.open(data_fd)
 
+            if mime == 'image/jpeg':
+                image = image.convert("RGB")
+
             want = kwargs['size']
 
             log.info('resizing from {} to {}',
