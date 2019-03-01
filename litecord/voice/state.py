@@ -41,6 +41,9 @@ class VoiceState:
         """Generate JSON-serializable version, given a user ID."""
         self_dict = asdict(self)
 
+        if user_id is None:
+            return self_dict
+
         # state.suppress is defined by the user
         # that is currently viewing the state.
 

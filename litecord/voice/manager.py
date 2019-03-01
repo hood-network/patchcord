@@ -33,8 +33,8 @@ log = Logger(__name__)
 def _construct_state(state_dict: dict) -> VoiceState:
     """Create a VoiceState instance out of a dictionary with the
     VoiceState fields as keys."""
-    fields = fields(VoiceState)
-    args = [state_dict[field.name] for field in fields]
+    state_fields = fields(VoiceState)
+    args = [state_dict[field.name] for field in state_fields]
     return VoiceState(*args)
 
 

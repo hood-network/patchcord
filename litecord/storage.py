@@ -535,6 +535,27 @@ class Storage:
 
         return list(map(dict, roledata))
 
+    async def guild_voice_states(self, guild_id: int,
+                                 user_id=None) -> List[Dict[str, Any]]:
+        """Get a list of voice states for the given guild."""
+        channel_ids = await self.get_channel_ids(guild_id)
+
+        res = []
+
+        for channel_id in channel_ids:
+            states = await self.app.voice.fetch_states(channel_id, user_id)
+
+            jsonified = [s.as_json_for(user_id) for s in states]
+
+            # discord does NOT insert guild_id to voice states on the
+            # guild voice state list.
+            for state in jsonified:
+                state.pop('guild_id')
+
+            res.extend(jsonified)
+
+        return res
+
     async def get_guild_extra(self, guild_id: int,
                               user_id=None, large=None) -> Dict:
         """Get extra information about a guild."""
@@ -575,9 +596,7 @@ class Storage:
             ),
 
             'emojis': await self.get_guild_emojis(guild_id),
-
-            # TODO: voice state management
-            'voice_states': [],
+            'voice_states': await self.guild_voice_states(guild_id),
         }}
 
     async def get_guild_full(self, guild_id: int,
