@@ -133,8 +133,18 @@ class MissingPermissions(Forbidden):
 class WebsocketClose(Exception):
     @property
     def code(self):
+        from_class = getattr(self, 'close_code', None)
+
+        if from_class:
+            return from_class
+
         return self.args[0]
 
     @property
     def reason(self):
+        from_class = getattr(self, 'close_code', None)
+
+        if from_class:
+            return self.args[0]
+
         return self.args[1]

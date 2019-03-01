@@ -20,6 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import urllib.parse
 from litecord.voice.websocket import VoiceWebsocket
 
+
 async def voice_websocket_handler(app, ws, url):
     """Main handler to instantiate a VoiceWebsocket
     with the given url."""
@@ -30,13 +31,12 @@ async def voice_websocket_handler(app, ws, url):
     try:
         gw_version = args['v'][0]
     except (KeyError, IndexError):
-        gw_version = '3'
+        gw_version = '4'
 
-    if gw_version not in ('1', '2', '3'):
+    if gw_version not in ('1', '2', '3', '4'):
         return await ws.close(1000, 'Invalid gateway version')
 
-    # TODO: select a different VoiceWebsocket runner depending on
-    # version. however i do not have docs on voice websockets
-    # earlier than v3.
+    # TODO: select a different VoiceWebsocket runner depending on the selected
+    # version.
     vws = VoiceWebsocket(ws, app)
     await vws.run()
