@@ -38,6 +38,7 @@ class Config:
     # will hit the websocket.
     # e.g 'gateway.example.com' for reverse proxies.
     WEBSOCKET_URL = 'localhost:5001'
+    VOICE_WEBSOCKET_URL = 'localhost:5002'
 
     # Where to host the websocket?
     # (a local address the server will bind to)

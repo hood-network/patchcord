@@ -29,7 +29,7 @@ bp = Blueprint('gateway', __name__)
 def get_gw():
     """Get the gateway's web"""
     proto = 'wss://' if app.config['IS_SSL'] else 'ws://'
-    return f'{proto}{app.config["WEBSOCKET_URL"]}/ws'
+    return f'{proto}{app.config["WEBSOCKET_URL"]}'
 
 
 @bp.route('/gateway')

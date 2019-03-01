@@ -17,10 +17,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-import urllib.urlparse
+import urllib.parse
 from litecord.voice.websocket import VoiceWebsocket
 
-async def voice_websocket_handle(app, ws, url):
+async def voice_websocket_handler(app, ws, url):
     """Main handler to instantiate a VoiceWebsocket
     with the given url."""
     args = urllib.parse.parse_qs(

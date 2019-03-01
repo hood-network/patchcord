@@ -24,7 +24,7 @@ import asyncpg
 import logbook
 import logging
 import websockets
-from quart import Quart, g, jsonify, request
+from quart import Quart, jsonify, request
 from logbook import StreamHandler, Logger
 from logbook.compat import redirect_logging
 from aiohttp import ClientSession
@@ -299,7 +299,6 @@ async def post_app_start(app_):
 
 def start_websocket(host, port, ws_handler) -> asyncio.Future:
     """Start a websocket. Returns the websocket future"""
-    host, port = app.config['WS_HOST'], app.config['WS_PORT']
     log.info(f'starting websocket at {host} {port}')
 
     async def _wrapper(ws, url):
@@ -315,12 +314,12 @@ async def app_before_serving():
     log.info('opening db')
     await init_app_db(app)
 
-    g.app = app
-    g.loop = asyncio.get_event_loop()
+    loop = asyncio.get_event_loop()
 
     app.session = ClientSession()
 
     init_app_managers(app)
+    await post_app_start(app)
 
     # start gateway websocket and voice websocket
     ws_fut = start_websocket(
@@ -333,8 +332,6 @@ async def app_before_serving():
         voice_websocket_handler
     )
 
-
-    await post_app_start(app)
     await ws_fut
     await vws_fut
 
