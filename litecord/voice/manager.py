@@ -61,6 +61,16 @@ class VoiceManager:
         # by this, so i'll just use dict().
         return dict(self.states[channel_id])
 
+    async def get_state(self, voice_key: VoiceKey) -> VoiceState:
+        """Get a single VoiceState for a user in a channel. Returns None
+        if no VoiceState is found."""
+        channel_id, user_id = voice_key
+
+        try:
+            return self.states[channel_id][user_id]
+        except KeyError:
+            return None
+
     async def del_state(self, voice_key: VoiceKey):
         """Delete a given voice state."""
         chan_id, user_id = voice_key

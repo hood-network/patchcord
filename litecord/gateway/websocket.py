@@ -691,6 +691,15 @@ class GatewayWebsocket:
 
     async def _create_voice(self, guild_id, channel_id, _state, data):
         """Create a voice state."""
+
+        # if we are trying to create a voice state pointing torwards
+        # nowhere, we ignore it.
+
+        # NOTE: HOWEVER, shouldn't we update the users' settings for
+        # self_mute and self_deaf?
+        if channel_id is None:
+            return
+
         # we ignore the given existing state as it'll be basically
         # none, lol.
 
@@ -711,10 +720,8 @@ class GatewayWebsocket:
         channel_id = int_(data.get('channel_id'))
         guild_id = int_(data.get('guild_id'))
 
-
         # fetch an existing voice state
-        user_id, session_id = self.state.user_id, self.state.session_id
-        voice_state = await self.ext.voice.fetch_state(user_id, session_id)
+        voice_state = await self.ext.voice.get_state(self.voice_key)
 
         func = self._move_voice if voice_state else self._create_voice
         await func(guild_id, channel_id, voice_state, data)
