@@ -47,7 +47,7 @@ from litecord.gateway.errors import (
     DecodeError, UnknownOPCode, InvalidShard, ShardingRequired
 )
 
-from litecord.storage import int_, bool_
+from litecord.storage import int_
 
 log = Logger(__name__)
 
