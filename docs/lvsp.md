@@ -66,7 +66,7 @@ Sent by the server when a connection is established.
 | field | type | description |
 | --: | :-- | :-- |
 | heartbeat\_interval | integer | amount of milliseconds to heartbeat with |
-| nonce | string | random 10-character string used as a message in HMAC authentication |
+| nonce | string | random 10-character string used in authentication |
 
 ## IDENTIFY message
 
@@ -74,7 +74,7 @@ Sent by the client to identify itself.
 
 | field | type | description |
 | --: | :-- | :-- |
-| token | string | `HMAC(SHA256, key=[secret shared between server and client]), data=[nonce from HELLO]` |
+| token | string | `HMAC(SHA256, key=[secret shared between server and client]), message=[nonce from HELLO]` |
 
 ## RESUME message
 
