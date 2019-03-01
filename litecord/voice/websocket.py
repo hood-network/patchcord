@@ -18,9 +18,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import json
-from dataclasses import dataclass, asdict, field
+from dataclasses import dataclass, asdict
 
-import websockets.errors
+import websockets.exceptions
 from logbook import Logger
 
 from litecord.voice.opcodes import VoiceOP
