@@ -47,6 +47,8 @@ from litecord.gateway.errors import (
     DecodeError, UnknownOPCode, InvalidShard, ShardingRequired
 )
 
+from litecord.storage import int_, bool_
+
 log = Logger(__name__)
 
 WebsocketProperties = collections.namedtuple(
@@ -645,23 +647,60 @@ class GatewayWebsocket:
         # all checks passed.
         return True
 
-    async def _move_voice(self, guild_id, channel_id):
+    async def _vsu_get_prop(self, state, data):
+        """Get voice state properties from data, fallbacking to
+        user settings."""
+        try:
+            # TODO: fetch from settings if not provided
+            self_deaf = bool(data['self_deaf'])
+            self_mute = bool(data['self_mute'])
+        except (KeyError, ValueError):
+            pass
+
+        return {
+            'deaf': state.deaf,
+            'mute': state.mute,
+            'self_deaf': self_deaf,
+            'self_mute': self_mute,
+        }
+
+    async def _move_voice(self, guild_id, channel_id, state, data):
         """Move an existing voice state to the given target."""
+        # first case: consider when the user is leaving the
+        # voice channel.
         if channel_id is None:
             return await self.ext.voice.del_state(self.voice_key)
 
+        # second case: an update of voice state while being in
+        # the same channel
+        if channel_id == state.channel_id:
+            # we are moving to the same channel, so a simple update
+            # to the self_deaf / self_mute should suffice.
+            prop = await self._vsu_get_prop(state, data)
+            return await self.ext.voice.update_state(
+                self.voice_key, prop)
+
+        # third case: moving between channels, check if the
+        # user can join the targeted channel first
         if not await self._voice_check(guild_id, channel_id):
             return
 
+        # if they can join, move the state to there.
         await self.ext.voice.move_state(
             self.voice_key, guild_id, channel_id)
 
-    async def _create_voice(self, guild_id, channel_id):
+    async def _create_voice(self, guild_id, channel_id, _state, data):
         """Create a voice state."""
+        # we ignore the given existing state as it'll be basically
+        # none, lol.
+
+        # check if we can join the channel
         if not await self._voice_check(guild_id, channel_id):
             return
 
-        await self.ext.voice.create_state(self.voice_key, guild_id, channel_id)
+        # if yes, create the state
+        await self.ext.voice.create_state(
+            self.voice_key, guild_id, channel_id, data)
 
     async def handle_4(self, payload: Dict[str, Any]):
         """Handle OP 4 Voice Status Update."""
@@ -670,24 +709,16 @@ class GatewayWebsocket:
         if not self.state:
             return
 
-        try:
-            channel_id = int(data['channel_id'])
-            guild_id = int(data['guild_id'])
+        channel_id = int_(data.get('channel_id'))
+        guild_id = int_(data.get('guild_id'))
 
-            # TODO: fetch from settings if not provided
-            # self_deaf = bool(data['self_deaf'])
-            # self_mute = bool(data['self_mute'])
-
-            # NOTE: self_video is NOT handled.
-        except (KeyError, ValueError):
-            pass
 
         # fetch an existing voice state
         user_id, session_id = self.state.user_id, self.state.session_id
         voice_state = await self.ext.voice.fetch_state(user_id, session_id)
 
         func = self._move_voice if voice_state else self._create_voice
-        await func(guild_id, channel_id)
+        await func(guild_id, channel_id, voice_state, data)
 
     async def _handle_5(self, payload: Dict[str, Any]):
         """Handle OP 5 Voice Server Ping.
