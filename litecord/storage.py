@@ -58,6 +58,8 @@ def int_(val):
 
 def bool_(val):
     return maybe(int, val)
+
+
 def _filter_recipients(recipients: List[Dict[str, Any]], user_id: int):
     """Filter recipients in a list of recipients, removing
     the one that is reundant (ourselves)."""
