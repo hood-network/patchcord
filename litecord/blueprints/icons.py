@@ -27,7 +27,6 @@ async def send_icon(scope, key, icon_hash, **kwargs):
     """Send an icon."""
     icon = await app.icons.generic_get(
         scope, key, icon_hash, **kwargs)
-
     if not icon:
         return '', 404
 

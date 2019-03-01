@@ -407,6 +407,9 @@ async def _create_message(channel_id):
         await _dm_pre_dispatch(channel_id, user_id)
         await _dm_pre_dispatch(channel_id, guild_id)
 
+    if payload['webhook_id'] == None:
+        payload.pop('webhook_id', None)
+
     await app.dispatcher.dispatch('channel', channel_id,
                                   'MESSAGE_CREATE', payload)
 
