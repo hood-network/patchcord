@@ -61,7 +61,6 @@ from litecord.blueprints.user.billing_job import (
 from litecord.ratelimits.handler import ratelimit_handler
 from litecord.ratelimits.main import RatelimitManager
 
-from litecord.gateway import websocket_handler
 from litecord.errors import LitecordError
 from litecord.gateway.state_manager import StateManager
 from litecord.storage import Storage
@@ -71,6 +70,9 @@ from litecord.presence import PresenceManager
 from litecord.images import IconManager
 from litecord.jobs import JobManager
 from litecord.voice.manager import VoiceManager
+
+from litecord.gateway import websocket_handler
+from litecord.voice.websocket_starter import voice_websocket_handler
 
 from litecord.utils import LitecordJSONEncoder
 
@@ -295,6 +297,19 @@ async def post_app_start(app_):
     app_.sched.spawn(api_index(app_))
 
 
+def start_websocket(host, port, ws_handler) -> asyncio.Future:
+    """Start a websocket. Returns the websocket future"""
+    host, port = app.config['WS_HOST'], app.config['WS_PORT']
+    log.info(f'starting websocket at {host} {port}')
+
+    async def _wrapper(ws, url):
+        # We wrap the main websocket_handler
+        # so we can pass quart's app object.
+        await ws_handler(app, ws, url)
+
+    return websockets.serve(_wrapper, host, port)
+
+
 @app.before_serving
 async def app_before_serving():
     log.info('opening db')
@@ -307,19 +322,21 @@ async def app_before_serving():
 
     init_app_managers(app)
 
-    # start the websocket, etc
-    host, port = app.config['WS_HOST'], app.config['WS_PORT']
-    log.info(f'starting websocket at {host} {port}')
+    # start gateway websocket and voice websocket
+    ws_fut = start_websocket(
+        app.config['WS_HOST'], app.config['WS_PORT'],
+        websocket_handler
+    )
 
-    async def _wrapper(ws, url):
-        # We wrap the main websocket_handler
-        # so we can pass quart's app object.
-        await websocket_handler(app, ws, url)
+    vws_fut = start_websocket(
+        app.config['VWS_HOST'], app.config['VWS_PORT'],
+        voice_websocket_handler
+    )
 
-    ws_future = websockets.serve(_wrapper, host, port)
 
     await post_app_start(app)
-    await ws_future
+    await ws_fut
+    await vws_fut
 
 
 @app.after_serving

@@ -44,6 +44,11 @@ class Config:
     WS_HOST = 'localhost'
     WS_PORT = 5001
 
+    #: Where to host the VOICE websocket?
+    #  (a local address the server will bind to)
+    VWS_HOST = 'localhost'
+    VWS_PORT = 5003
+
     # Postgres credentials
     POSTGRES = {}
 

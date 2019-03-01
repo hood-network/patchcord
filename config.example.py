@@ -52,6 +52,11 @@ class Config:
     WS_HOST = '0.0.0.0'
     WS_PORT = 5001
 
+    #: Where to host the VOICE websocket?
+    #  (a local address the server will bind to)
+    VWS_HOST = 'localhost'
+    VWS_PORT = 5003
+
     #: Mediaproxy URL on the internet
     #  mediaproxy is made to prevent client IPs being leaked.
     MEDIA_PROXY = 'localhost:5002'
