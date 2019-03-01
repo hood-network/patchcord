@@ -274,8 +274,6 @@ class IconManager:
 
     async def generic_get(self, scope, key, icon_hash, **kwargs) -> Icon:
         """Get any icon."""
-        if icon_hash is None:
-            return None
 
         log.debug('GET {} {} {}', scope, key, icon_hash)
         key = str(key)
