@@ -46,7 +46,7 @@ class EmbedURL:
 
 EMBED_FOOTER = {
     'text': {
-        'type': 'string', 'minlength': 1, 'maxlength': 128, 'required': True},
+        'type': 'string', 'minlength': 1, 'maxlength': 1024, 'required': True},
 
     'icon_url': {
         'coerce': EmbedURL, 'required': False,
@@ -65,7 +65,7 @@ EMBED_THUMBNAIL = EMBED_IMAGE
 
 EMBED_AUTHOR = {
     'name': {
-        'type': 'string', 'minlength': 1, 'maxlength': 128, 'required': False
+        'type': 'string', 'minlength': 1, 'maxlength': 256, 'required': False
     },
     'url': {
         'coerce': EmbedURL, 'required': False,
@@ -79,10 +79,10 @@ EMBED_AUTHOR = {
 
 EMBED_FIELD = {
     'name': {
-        'type': 'string', 'minlength': 1, 'maxlength': 128, 'required': True
+        'type': 'string', 'minlength': 1, 'maxlength': 256, 'required': True
     },
     'value': {
-        'type': 'string', 'minlength': 1, 'maxlength': 128, 'required': True
+        'type': 'string', 'minlength': 1, 'maxlength': 1024, 'required': True
     },
     'inline': {
         'type': 'boolean', 'required': False, 'default': True,
@@ -91,10 +91,10 @@ EMBED_FIELD = {
 
 EMBED_OBJECT = {
     'title': {
-        'type': 'string', 'minlength': 1, 'maxlength': 128, 'required': False},
+        'type': 'string', 'minlength': 1, 'maxlength': 256, 'required': False},
     # NOTE: type set by us
     'description': {
-        'type': 'string', 'minlength': 1, 'maxlength': 1024, 'required': False,
+        'type': 'string', 'minlength': 1, 'maxlength': 2048, 'required': False,
     },
     'url': {
         'coerce': EmbedURL, 'required': False,
