@@ -686,8 +686,8 @@ class GatewayWebsocket:
             return
 
         # if they can join, move the state to there.
-        await self.ext.voice.move_state(
-            self.voice_key, guild_id, channel_id)
+        # this will delete the old one and construct a new one.
+        await self.ext.voice.move_channels(self.voice_key, channel_id)
 
     async def _create_voice(self, guild_id, channel_id, _state, data):
         """Create a voice state."""
@@ -699,8 +699,7 @@ class GatewayWebsocket:
             return
 
         # if yes, create the state
-        await self.ext.voice.create_state(
-            self.voice_key, guild_id, channel_id, data)
+        await self.ext.voice.create_state(self.voice_key, channel_id, data)
 
     async def handle_4(self, payload: Dict[str, Any]):
         """Handle OP 4 Voice Status Update."""
