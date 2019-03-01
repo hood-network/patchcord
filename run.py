@@ -72,7 +72,6 @@ from litecord.jobs import JobManager
 from litecord.voice.manager import VoiceManager
 
 from litecord.gateway import websocket_handler
-from litecord.voice.websocket_starter import voice_websocket_handler
 
 from litecord.utils import LitecordJSONEncoder
 
@@ -323,19 +322,14 @@ async def app_before_serving():
     init_app_managers(app)
     await post_app_start(app)
 
-    # start gateway websocket and voice websocket
+    # start gateway websocket
+    # voice websocket is handled by the voice server
     ws_fut = start_websocket(
         app.config['WS_HOST'], app.config['WS_PORT'],
         websocket_handler
     )
 
-    vws_fut = start_websocket(
-        app.config['VWS_HOST'], app.config['VWS_PORT'],
-        voice_websocket_handler
-    )
-
     await ws_fut
-    await vws_fut
 
 
 @app.after_serving

@@ -29,29 +29,18 @@ sys.path.append(os.getcwd())
 
 from run import app as main_app, set_blueprints
 
-# pytest-sanic's unused_tcp_port can't be called twice since
-# pytest fixtures etc etc.
-def _unused_port():
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        sock.bind(('127.0.0.1', 0))
-        return sock.getsockname()[1]
-
 
 @pytest.fixture(name='app')
-def _test_app(event_loop):
+def _test_app(unused_tcp_port, event_loop):
     set_blueprints(main_app)
     main_app.config['_testing'] = True
 
     # reassign an unused tcp port for websockets
     # since the config might give a used one.
-    ws_port, vws_port = _unused_port(), _unused_port()
-    print(ws_port, vws_port)
+    ws_port = unused_tcp_port
 
     main_app.config['WS_PORT'] = ws_port
     main_app.config['WEBSOCKET_URL'] = f'localhost:{ws_port}'
-
-    main_app.config['VWS_PORT'] = vws_port
-    main_app.config['VOICE_WEBSOCKET_URL'] = f'localhost:{vws_port}'
 
     # make sure we're calling the before_serving hooks
     event_loop.run_until_complete(main_app.startup())

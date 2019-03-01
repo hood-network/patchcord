@@ -38,17 +38,11 @@ class Config:
     # will hit the websocket.
     # e.g 'gateway.example.com' for reverse proxies.
     WEBSOCKET_URL = 'localhost:5001'
-    VOICE_WEBSOCKET_URL = 'localhost:5002'
 
     # Where to host the websocket?
     # (a local address the server will bind to)
     WS_HOST = 'localhost'
     WS_PORT = 5001
-
-    #: Where to host the VOICE websocket?
-    #  (a local address the server will bind to)
-    VWS_HOST = 'localhost'
-    VWS_PORT = 5003
 
     # Postgres credentials
     POSTGRES = {}
