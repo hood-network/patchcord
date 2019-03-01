@@ -311,10 +311,12 @@ def start_websocket(host, port, ws_handler) -> asyncio.Future:
 
 @app.before_serving
 async def app_before_serving():
+    """Callback for variable setup.
+
+    Also sets up the websocket handlers.
+    """
     log.info('opening db')
     await init_app_db(app)
-
-    loop = asyncio.get_event_loop()
 
     app.session = ClientSession()
 
