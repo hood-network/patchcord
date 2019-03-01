@@ -17,7 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from typing import Tuple
+from typing import Tuple, Dict
 from collections import defaultdict
 from dataclasses import fields
 
@@ -51,6 +51,15 @@ class VoiceManager:
     async def state_count(self, channel_id: int) -> int:
         """Get the current amount of voice states in a channel."""
         return len(self.states[channel_id])
+
+    async def fetch_states(self, channel_id: int) -> Dict[int, VoiceState]:
+        """Fetch the states of the given channel."""
+        # NOTE: maybe we *could* optimize by just returning a reference to the
+        # states dict instead of calling dict()...
+
+        # however I'm really worried about state inconsistencies caused
+        # by this, so i'll just use dict().
+        return dict(self.states[channel_id])
 
     async def del_state(self, voice_key: VoiceKey):
         """Delete a given voice state."""

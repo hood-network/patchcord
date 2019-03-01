@@ -543,9 +543,9 @@ class Storage:
         res = []
 
         for channel_id in channel_ids:
-            states = await self.app.voice.fetch_states(channel_id, user_id)
+            states = await self.app.voice.fetch_states(channel_id)
 
-            jsonified = [s.as_json_for(user_id) for s in states]
+            jsonified = [s.as_json_for(user_id) for s in states.values()]
 
             # discord does NOT insert guild_id to voice states on the
             # guild voice state list.
