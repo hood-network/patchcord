@@ -26,6 +26,7 @@ from logbook import Logger
 from litecord.permissions import get_permissions
 from litecord.enums import ChannelType, VOICE_CHANNELS
 from litecord.voice.state import VoiceState
+from litecord.voice.lvsp_manager import LVSPManager
 
 
 VoiceKey = Tuple[int, int]
@@ -47,8 +48,8 @@ class VoiceManager:
 
         # double dict, first key is guild/channel id, second key is user id
         self.states = defaultdict(dict)
+        self.lvsp = LVSPManager(app, self)
 
-        # TODO: hold voice server LVSP connections
         # TODO: map channel ids to voice servers
 
     async def can_join(self, user_id: int, channel_id: int) -> int:
