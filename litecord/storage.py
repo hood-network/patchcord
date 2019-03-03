@@ -1015,3 +1015,12 @@ class Storage:
         """, role_id)
 
         return [r['id'] for r in rows]
+
+    async def all_voice_regions(self) -> List[Dict[str, Any]]:
+        """Return a list of all voice regions."""
+        rows = await self.db.fetch("""
+        SELECT id, name, vip, deprecated, custom
+        FROM voice_regions
+        """)
+
+        return list(map(dict, rows))
