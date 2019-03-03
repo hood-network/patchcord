@@ -46,6 +46,10 @@ class LVSPManager:
         WHERE deprecated = false
         """)
 
+        if not regions:
+            log.warning('no regions are setup')
+            return
+
         for region in regions:
             self.app.loop.create_task(
                 self._spawn_region(region)
