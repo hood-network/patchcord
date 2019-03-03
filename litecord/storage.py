@@ -943,7 +943,7 @@ class Storage:
 
         return dm_chan
 
-    async def guild_from_channel(self, channel_id: int):
+    async def guild_from_channel(self, channel_id: int) -> int:
         """Get the guild id coming from a channel id."""
         return await self.db.fetchval("""
         SELECT guild_id

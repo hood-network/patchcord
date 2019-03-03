@@ -30,12 +30,12 @@ from logbook import Logger
 import earl
 
 from litecord.auth import raw_token_check
-from litecord.enums import RelationshipType, ChannelType, VOICE_CHANNELS
+from litecord.enums import RelationshipType, ChannelType
 from litecord.schemas import validate, GW_STATUS_UPDATE
 from litecord.utils import (
     task_wrapper, LitecordJSONEncoder, yield_chunks
 )
-from litecord.permissions import get_permissions, ALL_PERMISSIONS
+from litecord.permissions import get_permissions
 
 from litecord.gateway.opcodes import OP
 from litecord.gateway.state import GatewayState
@@ -603,49 +603,9 @@ class GatewayWebsocket:
         # setting new presence to state
         await self.update_status(presence)
 
-    @property
-    def voice_key(self):
+    def voice_key(self, channel_id: int, guild_id: int):
         """Voice state key."""
         return (self.state.user_id, self.state.session_id)
-
-    async def _voice_check(self, guild_id: int, channel_id: int):
-        """Check if the user can join the given guild/channel pair."""
-        guild = None
-        if guild_id:
-            guild = await self.storage.get_guild(guild_id)
-
-        channel = await self.storage.get_channel(channel_id)
-        ctype = ChannelType(channel['type'])
-
-        if ctype not in VOICE_CHANNELS:
-            return
-
-        if guild and channel.get(['guild_id']) != guild['id']:
-            return
-
-        is_guild_voice = ctype == ChannelType.GUILD_VOICE
-
-        states = await self.ext.voice.state_count(channel_id)
-        perms = (ALL_PERMISSIONS
-                 if not is_guild_voice else
-                 await get_permissions(self.state.user_id,
-                                       channel_id, storage=self.storage)
-                )
-
-        is_full = states >= channel['user_limit']
-        is_bot = self.state.bot
-
-        is_manager = perms.bits.manage_channels
-
-        # if the channel is full AND:
-        #  - user is not a bot
-        #  - user is not manage channels
-        # then it fails
-        if not is_bot and not is_manager and is_full:
-            return
-
-        # all checks passed.
-        return True
 
     async def _vsu_get_prop(self, state, data):
         """Get voice state properties from data, fallbacking to
@@ -664,52 +624,6 @@ class GatewayWebsocket:
             'self_mute': self_mute,
         }
 
-    async def _move_voice(self, guild_id, channel_id, state, data):
-        """Move an existing voice state to the given target."""
-        # first case: consider when the user is leaving the
-        # voice channel.
-        if channel_id is None:
-            return await self.ext.voice.del_state(self.voice_key)
-
-        # second case: an update of voice state while being in
-        # the same channel
-        if channel_id == state.channel_id:
-            # we are moving to the same channel, so a simple update
-            # to the self_deaf / self_mute should suffice.
-            prop = await self._vsu_get_prop(state, data)
-            return await self.ext.voice.update_state(
-                self.voice_key, prop)
-
-        # third case: moving between channels, check if the
-        # user can join the targeted channel first
-        if not await self._voice_check(guild_id, channel_id):
-            return
-
-        # if they can join, move the state to there.
-        # this will delete the old one and construct a new one.
-        await self.ext.voice.move_channels(self.voice_key, channel_id)
-
-    async def _create_voice(self, guild_id, channel_id, _state, data):
-        """Create a voice state."""
-
-        # if we are trying to create a voice state pointing torwards
-        # nowhere, we ignore it.
-
-        # NOTE: HOWEVER, shouldn't we update the users' settings for
-        # self_mute and self_deaf?
-        if channel_id is None:
-            return
-
-        # we ignore the given existing state as it'll be basically
-        # none, lol.
-
-        # check if we can join the channel
-        if not await self._voice_check(guild_id, channel_id):
-            return
-
-        # if yes, create the state
-        await self.ext.voice.create_state(self.voice_key, channel_id, data)
-
     async def handle_4(self, payload: Dict[str, Any]):
         """Handle OP 4 Voice Status Update."""
         data = payload['d']
@@ -720,11 +634,54 @@ class GatewayWebsocket:
         channel_id = int_(data.get('channel_id'))
         guild_id = int_(data.get('guild_id'))
 
-        # fetch an existing voice state
-        voice_state = await self.ext.voice.get_state(self.voice_key)
+        # if its null and null, disconnect the user from any voice
+        # TODO: maybe just leave from DMs? idk...
+        if channel_id is None and guild_id is None:
+            await self.ext.voice.leave_all(self.state.user_id)
 
-        func = self._move_voice if voice_state else self._create_voice
-        await func(guild_id, channel_id, voice_state, data)
+        # if guild is not none but channel is, we are leaving
+        # a guild's channel
+        if channel_id is None:
+            await self.ext.voice.leave(guild_id, self.state.user_id)
+
+        # fetch an existing state given user and guild OR user and channel
+        chan_type = ChannelType(
+            await self.storage.get_chan_type(channel_id)
+        )
+
+        state_id2 = channel_id
+
+        if chan_type == ChannelType.GUILD_VOICE:
+            state_id2 = guild_id
+
+        # a voice state key is a Tuple[int, int]
+        #  - [0] is the user id
+        #  - [1] is the channel id or guild id
+
+        # the old approach was a (user_id, session_id), but
+        # that does not work.
+
+        # this works since users can be connected to many channels
+        # using a single gateway websocket connection. HOWEVER,
+        # they CAN NOT enter two channels in a single guild.
+
+        # this state id format takes care of that.
+        voice_key = (self.state.user_id, state_id2)
+        voice_state = await self.ext.voice.get_state(voice_key)
+
+        if voice_state is None:
+            await self.ext.voice.create_state(voice_key)
+
+        same_guild = guild_id == voice_state.guild_id
+        same_channel = channel_id == voice_state.channel_id
+
+        prop = await self._vsu_get_prop(voice_state, data)
+
+        if same_guild and same_channel:
+            await self.ext.voice.update_state(voice_state, prop)
+
+        if same_guild and not same_channel:
+            await self.ext.voice.move_state(voice_state, channel_id)
 
     async def _handle_5(self, payload: Dict[str, Any]):
         """Handle OP 5 Voice Server Ping.

@@ -23,6 +23,7 @@ from dataclasses import dataclass, asdict
 @dataclass
 class VoiceState:
     """Represents a voice state."""
+    guild_id: int
     channel_id: int
     user_id: int
     session_id: str
@@ -31,6 +32,11 @@ class VoiceState:
     self_deaf: bool
     self_mute: bool
     suppressed_by: int
+
+    @property
+    def key(self):
+        """Get the second part of a key identifying a state."""
+        return self.channel_id if self.guild_id is None else self.guild_id
 
     @property
     def as_json(self):
