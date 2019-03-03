@@ -28,7 +28,6 @@ LVSP runs over a *long-lived* websocket with TLS. The encoding is JSON.
 | 4 | HEARTBEAT | client |
 | 5 | HEARTBEAT\_ACK | server |
 | 6 | INFO | client / server |
-| 7 | VST\_REQUEST | client |
 
 ## Message structure
 
@@ -41,6 +40,9 @@ snowflake type: A string encoding a Discord Snowflake.
 | --: | :-- | :-- |
 | op | integer, opcode | operator code | 
 | d | map[string, any] | message data |
+| s | Optional[int] | sequence number |
+
+ - The `s` field is explained in the `RESUME` message.
 
 ## High level overview
 
@@ -87,12 +89,27 @@ The server will resend its data, then send a READY message.
 | token | string | same value from IDENTIFY.token |
 | seq | integer | last sequence number to resume from |
 
+### Sequence numbers
+
+Sequence numbers are used to resume a failed connection back and make the
+voice server replay its missing events to the client.
+
+They are **positive** integers, **starting from 0.** There is no default
+upper limit. A "long int" type in languages will probably be enough for most
+use cases.
+
+Replayable messages MUST have sequence numbers embedded into the message
+itself with a `s` field. The field lives at the root of the message, alongside
+`op` and `d`.
+
 ## READY message
 
-**TODO:** does READY need any information?
+ - The `health` field is described with more detail in the `HEARTBEAT_ACK`
+    message.
 
 | field | type | description |
 | --: | :-- | :-- |
+| `health` | Health | server health |
 
 ## HEARTBEAT message
 
@@ -100,8 +117,6 @@ Sent by the client as a keepalive / health monitoring method.
 
 The server MUST reply with a HEARTBEAT\_ACK message back in a reasonable
 time period.
-
-**TODO:** specify sequence numbers in INFO messages
 
 | field | type | description |
 | --: | :-- | :-- |
@@ -111,60 +126,73 @@ time period.
 
 Sent by the server in reply to a HEARTBEAT message coming from the client.
 
-**TODO:** add sequence numbers to ACK
+The `health` field determines how well is the server's overall health. It is a
+float going from 0 to 1, where 0 is the worst health possible, and 1 is the
+best health possible.
+
+Servers SHOULD use the same algorithm to determine health, it CAN be based off:
+ - Machine resource usage (RAM, CPU, etc), however they're too general and can
+    be unreliable.
+ - Total users connected.
+ - Total bandwidth used in some X amount of time.
+
+Among others.
 
 | field | type | description |
 | --: | :-- | :-- |
 | s | integer | sequence number |
+| health | float | server health |
 
 ## INFO message
 
-Sent by either client or server on creation of update of a given object (
-such as a channel's bitrate setting or a user joining a channel).
+Sent by either client or a server to send information between eachother.
+The INFO message is extensible in which many request / response scenarios
+are laid on.
 
 | field | type | description |
 | --: | :-- | :-- |
 | type | InfoType | info type |
-| info | Union[ChannelInfo, VoiceInfo] | info object |
+| data | Any | info data, varies depending on InfoType |
 
-### IntoType Enum
+### InfoType Enum
 
 | value | name | description |
 | --: | :-- | :-- |
-| 0 | CHANNEL | channel information |
-| 1 | VST | Voice State |
+| 0 | CHANNEL\_REQ | channel assignment request |
+| 1 | CHANNEL\_ASSIGN | channel assignment reply |
+| 2 | CHANNEL\_UPDATE | channel update |
+| 3 | CHANNEL\_DESTROY | channel destroy |
+| 4 | VST\_CREATE | voice state create request |
+| 5 | VST\_UPDATE | voice state update |
+| 6 | VST\_LEAVE | voice state leave |
 
-### ChannelInfo object
+**TODO:** finish all infos
 
-| field | type | description |
-| --: | :-- | :-- |
-| id | snowflake | channel id |
-| bitrate | integer | channel bitrate |
+### CHANNEL\_REQ
 
-### VoiceInfo object
+Request a channel to be created inside the voice server.
 
-| field | type | description |
-| --: | :-- | :-- |
-| user\_id | snowflake | user id |
-| channel\_id | snowflake | channel id |
-| session\_id | string | session id |
-| deaf | boolean | deaf status |
-| mute | boolean | mute status |
-| self\_deaf | boolean | self-deaf status |
-| self\_mute | boolean | self-mute status |
-| suppress | boolean | supress status |
+The Server MUST reply back with a CHANNEL\_ASSIGN when resources are
+allocated for the channel.
 
-## VST\_REQUEST message
+**TODO:** fields
 
-Sent by the client to request the creation of a voice state in the voice server.
+### CHANNEL\_ASSIGN
 
-**TODO:** verify correctness of this behavior.
+Sent by the Server to signal the successful creation of a voice channel.
 
-**TODO:** add logic on client connection
+**TODO:** fields
 
-The server SHALL send an INFO message containing the respective VoiceInfo data.
+### CHANNEL\_UPDATE
 
-| field | type | description |
-| --: | :-- | :-- |
-| user\_id | snowflake | user id for the voice state |
-| channel\_id | snowflake | channel id for the voice state |
+Sent by the client to signal an update to the properties of a channel,
+such as its bitrate.
+
+**TODO:** fields
+
+### CHANNEL\_DESTROY
+
+Sent by the client to signal the destruction of a voice channel. Be it
+a channel being deleted, or all members in it leaving.
+
+**TODO:** fields
