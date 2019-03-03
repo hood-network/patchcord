@@ -637,12 +637,12 @@ class GatewayWebsocket:
         # if its null and null, disconnect the user from any voice
         # TODO: maybe just leave from DMs? idk...
         if channel_id is None and guild_id is None:
-            await self.ext.voice.leave_all(self.state.user_id)
+            return await self.ext.voice.leave_all(self.state.user_id)
 
         # if guild is not none but channel is, we are leaving
         # a guild's channel
         if channel_id is None:
-            await self.ext.voice.leave(guild_id, self.state.user_id)
+            return await self.ext.voice.leave(guild_id, self.state.user_id)
 
         # fetch an existing state given user and guild OR user and channel
         chan_type = ChannelType(

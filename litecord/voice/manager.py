@@ -170,7 +170,7 @@ class VoiceManager:
         # a list of tasks to run that actually do the deletion by themselves
         # instead of us generating a delete. then only start running them later
         # on.
-        for sec_key_id, states in dict(self.states):
+        for sec_key_id, states in dict(self.states).items():
             for state in states:
                 if state.user_id != user_id:
                     continue
