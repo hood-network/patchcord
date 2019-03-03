@@ -126,7 +126,7 @@ time period.
 
 Sent by the server in reply to a HEARTBEAT message coming from the client.
 
-The `health` field determines how well is the server's overall health. It is a
+The `health` field is a measure of the servers's overall health. It is a
 float going from 0 to 1, where 0 is the worst health possible, and 1 is the
 best health possible.
 
