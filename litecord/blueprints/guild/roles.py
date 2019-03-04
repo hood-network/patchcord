@@ -257,13 +257,16 @@ def gen_pairs(list_of_changes: List[Dict[str, int]],
         # position we want to change to
         element_2 = current_state.get(new_pos_1)
 
+        if element_2 is None:
+            continue
+
         # if there is, is that existing channel being
         # swapped to another position?
         new_pos_2 = preferred_state.get(element_2)
 
         # if its being swapped to leave space, add it
         # to the pairs list
-        if element_2 and new_pos_2:
+        if new_pos_2 is not None:
             pairs.append(
                 ((element_1, new_pos_1), (element_2, new_pos_2))
             )

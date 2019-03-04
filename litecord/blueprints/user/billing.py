@@ -148,8 +148,6 @@ async def get_payment_source(user_id: int, source_id: int, db=None) -> dict:
     if not db:
         db = app.db
 
-    source = {}
-
     source_type = await db.fetchval("""
     SELECT source_type
     FROM user_payment_sources
