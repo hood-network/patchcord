@@ -40,11 +40,13 @@ class LVSPManager:
     async def _spawn(self):
         """Spawn LVSPConnection for each region."""
 
-        regions = await self.app.db.fetchval("""
+        regions = await self.app.db.fetch("""
         SELECT id
         FROM voice_regions
         WHERE deprecated = false
         """)
+
+        regions = [r['id'] for r in regions]
 
         if not regions:
             log.warning('no regions are setup')
