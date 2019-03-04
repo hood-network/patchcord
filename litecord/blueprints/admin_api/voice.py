@@ -29,7 +29,7 @@ bp = Blueprint('voice_admin', __name__)
 @bp.route('/regions/<region>', methods=['GET'])
 async def get_region_servers(region):
     """Return a list of all servers for a region."""
-    _user_id = await admin_check()
+    await admin_check()
     servers = await app.voice.voice_server_list(region)
     return jsonify(servers)
 
@@ -37,7 +37,7 @@ async def get_region_servers(region):
 @bp.route('/regions', methods=['PUT'])
 async def insert_new_region():
     """Create a voice region."""
-    _user_id = await admin_check()
+    await admin_check()
     j = validate(await request.get_json(), VOICE_REGION)
 
     j['id'] = j['id'].lower()
@@ -55,7 +55,7 @@ async def insert_new_region():
 @bp.route('/regions/<region>/servers', methods=['PUT'])
 async def put_region_server(region):
     """Insert a voice server to a region"""
-    _user_id = await admin_check()
+    await admin_check()
     j = validate(await request.get_json(), VOICE_SERVER)
 
     await app.db.execute("""
@@ -69,7 +69,7 @@ async def put_region_server(region):
 @bp.route('/regions/<region>/deprecate', methods=['PUT'])
 async def deprecate_region(region):
     """Deprecate a voice region."""
-    _user_id = await admin_check()
+    await admin_check()
 
     # TODO: write this
     await app.voice.disable_region(region)
