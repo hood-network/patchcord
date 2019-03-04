@@ -17,11 +17,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
+import asyncpg
 from quart import Blueprint, jsonify, current_app as app, request
 
 from litecord.auth import admin_check
 from litecord.schemas import validate
 from litecord.admin_schemas import VOICE_SERVER, VOICE_REGION
+from litecord.errors import BadRequest
 
 bp = Blueprint('voice_admin', __name__)
 
@@ -58,10 +60,13 @@ async def put_region_server(region):
     await admin_check()
     j = validate(await request.get_json(), VOICE_SERVER)
 
-    await app.db.execute("""
-    INSERT INTO voice_servers (hostname, region)
-    VALUES ($1, $2)
-    """, j['hostname'], region)
+    try:
+        await app.db.execute("""
+        INSERT INTO voice_servers (hostname, region_id)
+        VALUES ($1, $2)
+        """, j['hostname'], region)
+    except asyncpg.UniqueViolationError:
+        raise BadRequest('voice server already exists with given hostname')
 
     return '', 204
 
