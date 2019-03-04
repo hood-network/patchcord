@@ -38,7 +38,7 @@ def _majority_region_count(regions: list) -> str:
 
 async def _choose_random_region() -> str:
     """Give a random voice region."""
-    regions = await app.db.fetchval("""
+    regions = await app.db.fetch("""
     SELECT id
     FROM voice_regions
     """)
@@ -55,7 +55,7 @@ async def _majority_region_any(user_id) -> str:
     """Calculate the most likely region to make the user happy, but
     this is based on the guilds the user is IN, instead of the guilds
     the user owns."""
-    guilds = await app.storage.get_user_guilds(user_id)
+    guilds = await app.user_storage.get_user_guilds(user_id)
 
     if not guilds:
         return await _choose_random_region()
@@ -101,7 +101,7 @@ async def voice_regions():
     user_id = await token_check()
 
     best_region = await majority_region(user_id)
-    regions = await app.storage.get_all_regions()
+    regions = await app.storage.all_voice_regions()
 
     for region in regions:
         region['optimal'] = region['id'] == best_region
