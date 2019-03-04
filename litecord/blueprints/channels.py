@@ -393,7 +393,7 @@ async def _common_guild_chan(channel_id, j: dict):
         """, j[field], channel_id)
 
 
-async def _update_text_channel(channel_id: int, j: dict):
+async def _update_text_channel(channel_id: int, j: dict, _user_id: int):
     # first do the specific ones related to guild_text_channels
     for field in [field for field in j.keys()
                   if field in ('topic', 'rate_limit_per_user')]:
@@ -406,7 +406,7 @@ async def _update_text_channel(channel_id: int, j: dict):
     await _common_guild_chan(channel_id, j)
 
 
-async def _update_voice_channel(channel_id: int, j: dict):
+async def _update_voice_channel(channel_id: int, j: dict, _user_id: int):
     # first do the specific ones in guild_voice_channels
     for field in [field for field in j.keys()
                   if field in ('bitrate', 'user_limit')]:

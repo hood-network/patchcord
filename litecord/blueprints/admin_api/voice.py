@@ -19,12 +19,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import asyncpg
 from quart import Blueprint, jsonify, current_app as app, request
+from logbook import Logger
 
 from litecord.auth import admin_check
 from litecord.schemas import validate
 from litecord.admin_schemas import VOICE_SERVER, VOICE_REGION
 from litecord.errors import BadRequest
 
+log = Logger(__name__)
 bp = Blueprint('voice_admin', __name__)
 
 
@@ -49,9 +51,20 @@ async def insert_new_region():
     VALUES ($1, $2, $3, $4, $5)
     """, j['id'], j['name'], j['vip'], j['deprecated'], j['custom'])
 
-    return jsonify(
-        await app.storage.all_voice_regions()
-    )
+    regions = await app.storage.all_voice_regions()
+    region_count = len(regions)
+
+    # if region count is 1, this is the first region to be created,
+    # so we should update all guilds to that region
+    if region_count == 1:
+        res = await app.db.execute("""
+        UPDATE guilds
+        SET region = $1
+        """, j['id'])
+
+        log.info('updating guilds to first voice region: {}', res)
+
+    return jsonify(regions)
 
 
 @bp.route('/regions/<region>/servers', methods=['PUT'])
@@ -86,3 +99,31 @@ async def deprecate_region(region):
     """, region)
 
     return '', 204
+
+
+async def guild_region_check(app_):
+    """Check all guilds for voice region inconsistencies.
+
+    Since the voice migration caused all guilds.region columns
+    to become NULL, we need to remove such NULLs if we have more
+    than one region setup.
+    """
+
+    regions = await app_.storage.all_voice_regions()
+
+    if not regions:
+        log.info('region check: no regions to move guilds to')
+        return
+
+    res = await app_.db.execute("""
+    UPDATE guilds
+    SET region = (
+        SELECT id
+        FROM voice_regions
+        OFFSET floor(random()*$1)
+        LIMIT 1
+    )
+    WHERE region = NULL
+    """, len(regions))
+
+    log.info('region check: updating guild.region=null: {!r}', res)

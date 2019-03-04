@@ -60,6 +60,8 @@ from litecord.blueprints.admin_api import (
     voice as voice_admin
 )
 
+from litecord.blueprints.admin_api.voice import guild_region_check
+
 from litecord.ratelimits.handler import ratelimit_handler
 from litecord.ratelimits.main import RatelimitManager
 
@@ -298,6 +300,7 @@ async def post_app_start(app_):
     # we'll need to start a billing job
     app_.sched.spawn(payment_job(app_))
     app_.sched.spawn(api_index(app_))
+    app_.sched.spawn(guild_region_check(app_))
 
 
 def start_websocket(host, port, ws_handler) -> asyncio.Future:
