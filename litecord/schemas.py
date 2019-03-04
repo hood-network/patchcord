@@ -147,7 +147,7 @@ class LitecordValidator(Validator):
 
 
 def validate(reqjson: Union[Dict, List], schema: Dict,
-             raise_err: bool = True) -> Union[Dict, List]:
+             raise_err: bool = True) -> Dict:
     """Validate a given document (user-input) and give
     the correct document as a result.
     """

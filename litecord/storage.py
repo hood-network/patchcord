@@ -17,7 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 from logbook import Logger
 
@@ -77,7 +77,7 @@ class Storage:
         self.db = app.db
         self.presence = None
 
-    async def fetchrow_with_json(self, query: str, *args):
+    async def fetchrow_with_json(self, query: str, *args) -> Any:
         """Fetch a single row with JSON/JSONB support."""
         # the pool by itself doesn't have
         # set_type_codec, so we must set it manually
@@ -86,19 +86,19 @@ class Storage:
             await pg_set_json(con)
             return await con.fetchrow(query, *args)
 
-    async def fetch_with_json(self, query: str, *args):
+    async def fetch_with_json(self, query: str, *args) -> List[Any]:
         """Fetch many rows with JSON/JSONB support."""
         async with self.db.acquire() as con:
             await pg_set_json(con)
             return await con.fetch(query, *args)
 
-    async def execute_with_json(self, query: str, *args):
+    async def execute_with_json(self, query: str, *args) -> str:
         """Execute a SQL statement with JSON/JSONB support."""
         async with self.db.acquire() as con:
             await pg_set_json(con)
             return await con.execute(query, *args)
 
-    async def get_user(self, user_id, secure=False) -> Dict[str, Any]:
+    async def get_user(self, user_id, secure=False) -> Optional[Dict[str, Any]]:
         """Get a single user payload."""
         user_id = int(user_id)
 
@@ -115,7 +115,7 @@ class Storage:
         """, user_id)
 
         if not user_row:
-            return
+            return None
 
         duser = dict(user_row)
 
@@ -141,7 +141,7 @@ class Storage:
         """Search a user"""
         if len(discriminator) < 4:
             # how do we do this in f-strings again..?
-            discriminator = '%04d' % discriminator
+            discriminator = '%04d' % int(discriminator)
 
         return await self.db.fetchval("""
         SELECT id FROM users
@@ -219,12 +219,12 @@ class Storage:
         }
 
     async def get_member_data_one(self, guild_id: int,
-                                  member_id: int) -> Dict[str, Any]:
+                                  member_id: int) -> Optional[Dict[str, Any]]:
         """Get data about one member in a guild."""
         basic = await self._member_basic(guild_id, member_id)
 
         if not basic:
-            return
+            return None
 
         return await self._member_dict(basic, guild_id, member_id)
 
@@ -376,7 +376,7 @@ class Storage:
         return [r['member_id'] for r in user_ids]
 
     async def _gdm_recipients(self, channel_id: int,
-                              reference_id: int = None) -> List[int]:
+                              reference_id: int = None) -> List[Dict]:
         """Get the list of users that are recipients of the
         given Group DM."""
         recipients = await self.gdm_recipient_ids(channel_id)
@@ -392,7 +392,8 @@ class Storage:
 
         return res
 
-    async def get_channel(self, channel_id: int, **kwargs) -> Dict[str, Any]:
+    async def get_channel(self, channel_id: int,
+                          **kwargs) -> Optional[Dict[str, Any]]:
         """Fetch a single channel's information."""
         chan_type = await self.get_chan_type(channel_id)
         ctype = ChannelType(chan_type)
@@ -501,7 +502,7 @@ class Storage:
         return channels
 
     async def get_role(self, role_id: int,
-                       guild_id: int = None) -> Dict[str, Any]:
+                       guild_id: int = None) -> Optional[Dict[str, Any]]:
         """get a single role's information."""
 
         guild_field = 'AND guild_id = $2' if guild_id else ''
@@ -519,7 +520,7 @@ class Storage:
         """, *args)
 
         if not row:
-            return
+            return None
 
         return dict(row)
 
@@ -769,7 +770,8 @@ class Storage:
 
         res.pop('author_id')
 
-    async def get_message(self, message_id: int, user_id=None) -> Dict:
+    async def get_message(self, message_id: int,
+                          user_id: Optional[int] = None) -> Optional[Dict]:
         """Get a single message's payload."""
         row = await self.fetchrow_with_json("""
         SELECT id::text, channel_id::text, author_id, webhook_id, content,
@@ -780,7 +782,7 @@ class Storage:
         """, message_id)
 
         if not row:
-            return
+            return None
 
         res = dict(row)
         res['nonce'] = str(res['nonce'])
@@ -915,7 +917,8 @@ class Storage:
             'approximate_member_count': len(mids),
         }
 
-    async def get_invite_metadata(self, invite_code: str) -> Dict[str, Any]:
+    async def get_invite_metadata(self,
+                                  invite_code: str) -> Optional[Dict[str, Any]]:
         """Fetch invite metadata (max_age and friends)."""
         invite = await self.db.fetchrow("""
         SELECT code, inviter, created_at, uses,
@@ -925,7 +928,7 @@ class Storage:
         """, invite_code)
 
         if invite is None:
-            return
+            return None
 
         dinv = dict_(invite)
         inviter = await self.get_user(invite['inviter'])
@@ -966,7 +969,7 @@ class Storage:
 
         return parties[0]
 
-    async def get_emoji(self, emoji_id: int) -> Dict:
+    async def get_emoji(self, emoji_id: int) -> Optional[Dict[str, Any]]:
         """Get a single emoji."""
         row = await self.db.fetchrow("""
         SELECT id::text, name, animated, managed,
@@ -976,7 +979,7 @@ class Storage:
         """, emoji_id)
 
         if not row:
-            return
+            return None
 
         drow = dict(row)
 

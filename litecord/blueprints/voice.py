@@ -17,6 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
+from typing import Optional
 from collections import Counter
 from random import choice
 
@@ -36,7 +37,7 @@ def _majority_region_count(regions: list) -> str:
     return region
 
 
-async def _choose_random_region() -> str:
+async def _choose_random_region() -> Optional[str]:
     """Give a random voice region."""
     regions = await app.db.fetch("""
     SELECT id
@@ -51,7 +52,7 @@ async def _choose_random_region() -> str:
     return choice(regions)
 
 
-async def _majority_region_any(user_id) -> str:
+async def _majority_region_any(user_id) -> Optional[str]:
     """Calculate the most likely region to make the user happy, but
     this is based on the guilds the user is IN, instead of the guilds
     the user owns."""
@@ -79,7 +80,7 @@ async def _majority_region_any(user_id) -> str:
     return most_common
 
 
-async def majority_region(user_id) -> str:
+async def majority_region(user_id: int) -> Optional[str]:
     """Given a user ID, give the most likely region for the user to be
     happy with."""
     regions = await app.db.fetch("""

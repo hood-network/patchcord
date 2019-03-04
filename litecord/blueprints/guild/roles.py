@@ -17,7 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from typing import List, Dict
+from typing import List, Dict, Tuple
 
 from quart import Blueprint, request, current_app as app, jsonify
 from logbook import Logger
@@ -184,10 +184,11 @@ async def _role_pairs_update(guild_id: int, pairs: list):
         await _role_update_dispatch(role_1, guild_id)
         await _role_update_dispatch(role_2, guild_id)
 
+PairList = List[Tuple[Tuple[int, int], Tuple[int, int]]]
 
 def gen_pairs(list_of_changes: List[Dict[str, int]],
               current_state: Dict[int, int],
-              blacklist: List[int] = None) -> List[tuple]:
+              blacklist: List[int] = None) -> PairList:
     """Generate a list of pairs that, when applied to the database,
     will generate the desired state given in list_of_changes.
 
@@ -262,7 +263,7 @@ def gen_pairs(list_of_changes: List[Dict[str, int]],
 
         # if its being swapped to leave space, add it
         # to the pairs list
-        if new_pos_2:
+        if element_2 and new_pos_2:
             pairs.append(
                 ((element_1, new_pos_1), (element_2, new_pos_2))
             )

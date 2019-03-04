@@ -17,9 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-"""
-litecord.pubsub.dispatcher: main dispatcher class
-"""
+from typing import List
 from collections import defaultdict
 
 from logbook import Logger
@@ -82,7 +80,8 @@ class Dispatcher:
         """
         raise NotImplementedError
 
-    async def _dispatch_states(self, states: list, event: str, data) -> int:
+    async def _dispatch_states(self, states: list, event: str,
+                               data) -> List[str]:
         """Dispatch an event to a list of states."""
         res = []
 

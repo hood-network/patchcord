@@ -18,6 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import time
+from typing import List
 
 from quart import Blueprint, request, current_app as app, jsonify
 from logbook import Logger
@@ -262,7 +263,7 @@ async def _update_pos(channel_id, pos: int):
     """, pos, channel_id)
 
 
-async def _mass_chan_update(guild_id, channel_ids: int):
+async def _mass_chan_update(guild_id, channel_ids: List[int]):
     for channel_id in channel_ids:
         chan = await app.storage.get_channel(channel_id)
         await app.dispatcher.dispatch(
@@ -337,7 +338,7 @@ async def _update_channel_common(channel_id, guild_id: int, j: dict):
     if 'position' in j:
         channel_data = await app.storage.get_channel_data(guild_id)
 
-        chans = [None * len(channel_data)]
+        chans = [None] * len(channel_data)
         for chandata in channel_data:
             chans.insert(chandata['position'], int(chandata['id']))
 

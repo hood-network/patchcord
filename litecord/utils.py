@@ -20,7 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import asyncio
 import json
 from logbook import Logger
-from typing import Any
+from typing import Any, Iterable
 from quart.json import JSONEncoder
 
 log = Logger(__name__)
@@ -160,7 +160,7 @@ async def pg_set_json(con):
     )
 
 
-def yield_chunks(input_list: list, chunk_size: int):
+def yield_chunks(input_list: Iterable, chunk_size: int):
     """Yield successive n-sized chunks from l.
 
     Taken from https://stackoverflow.com/a/312464.

@@ -235,7 +235,7 @@ class GatewayWebsocket:
             's': None
         })
 
-    def _check_ratelimit(self, key: str, ratelimit_key: str):
+    def _check_ratelimit(self, key: str, ratelimit_key):
         ratelimit = self.ext.ratelimiter.get_ratelimit(f'_ws.{key}')
         bucket = ratelimit.get_bucket(ratelimit_key)
         return bucket.update_rate_limit()
@@ -292,7 +292,7 @@ class GatewayWebsocket:
 
         await self.send(payload)
 
-    async def _make_guild_list(self) -> List[int]:
+    async def _make_guild_list(self) -> List[Dict[str, Any]]:
         user_id = self.state.user_id
 
         guild_ids = await self._guild_ids()
@@ -772,7 +772,7 @@ class GatewayWebsocket:
 
         await self._resume(range(seq, state.seq))
 
-    async def _req_guild_members(self, guild_id: str, user_ids: List[int],
+    async def _req_guild_members(self, guild_id, user_ids: List[int],
                                  query: str, limit: int):
         try:
             guild_id = int(guild_id)
