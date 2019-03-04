@@ -54,8 +54,10 @@ from litecord.blueprints.user import (
     user_settings, user_billing, fake_store
 )
 
-from litecord.blueprints.user.billing_job import (
-    payment_job
+from litecord.blueprints.user.billing_job import payment_job
+
+from litecord.blueprints.admin_api import (
+    voice as voice_admin
 )
 
 from litecord.ratelimits.handler import ratelimit_handler
@@ -137,7 +139,9 @@ def set_blueprints(app_):
         icons: -1,
         attachments: -1,
         nodeinfo: -1,
-        static: -1
+        static: -1,
+
+        voice_admin: '/admin/voice'
     }
 
     for bp, suffix in bps.items():

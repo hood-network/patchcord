@@ -181,3 +181,13 @@ class VoiceManager:
     async def leave(self, guild_id: int, user_id: int):
         """Make a user leave a channel IN A GUILD."""
         await self.del_state((guild_id, user_id))
+
+    async def voice_server_list(self, region: str):
+        """Get a list of voice server objects"""
+        rows = await self.app.db.fetch("""
+        SELECT hostname, last_health
+        FROM voice_servers
+        WHERE region_id = $1
+        """, region)
+
+        return list(map(dict, rows))
