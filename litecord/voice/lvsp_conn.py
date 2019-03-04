@@ -130,11 +130,22 @@ class LVSPConnection:
                 # TODO: error codes in LVSP
                 raise Exception('invalid op code')
 
+    async def start(self):
+        """Try to start a websocket connection."""
+        try:
+            self.conn = await websockets.connect(f'wss://{self.hostname}')
+        except Exception as e:
+            log.exception('failed to start lvsp conn to {}', self.hostname)
+
     async def run(self):
         """Start the websocket."""
-        self.conn = await websockets.connect(f'wss://{self.hostname}')
+        await self.start()
 
         try:
+            if not self.conn:
+                log.error('failed to start lvsp connection, stopping')
+                return
+
             await self._loop()
         except websockets.exceptions.ConnectionClosed as err:
             log.warning('conn close, {}, err={}', self._log_id, err)
