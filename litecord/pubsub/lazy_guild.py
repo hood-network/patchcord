@@ -1443,10 +1443,10 @@ class LazyGuildDispatcher(Dispatcher):
 
             # remove it from guild map as well
             guild_id = gml.guild_id
-            self.guild_map[guild_id].pop(channel_id)
+            self.guild_map[guild_id].remove(channel_id)
 
             gml.close()
-        except KeyError:
+        except (KeyError, ValueError):
             pass
 
     async def chan_update(self, channel_id: int):
