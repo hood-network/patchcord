@@ -153,11 +153,72 @@ class VoiceManager:
     async def move_channels(self, old_voice_key: VoiceKey, channel_id: int):
         """Move a user between channels."""
         await self.del_state(old_voice_key)
-        await self.create_state(old_voice_key, channel_id, {})
+        await self.create_state(old_voice_key, {'channel_id': channel_id})
 
-    async def create_state(self, voice_key: VoiceKey, channel_id: int,
-                           data: dict):
-        pass
+    async def _create_ctx_guild(self, guild_id, channel_id):
+        # get a voice server
+        server = await self.lvsp.get_server(guild_id)
+        conn = self.lvsp.get_conn(server)
+        chan = await self.app.storage.get_channel(channel_id)
+
+        # TODO: this, but properly
+        # TODO: when the server sends a reply to CHAN_REQ, we need to update
+        # LVSPManager.guild_servers.
+        await conn.send_info('CHAN_REQ', {
+            'guild_id': str(guild_id),
+            'channel_id': str(channel_id),
+
+            'channel_properties': {
+                'bitrate': chan['bitrate']
+            }
+        })
+
+    async def _start_voice_guild(self, voice_key: VoiceKey, data: dict):
+        """Start a voice context in a guild."""
+        user_id, guild_id = voice_key
+        channel_id = int(data['channel_id'])
+
+        existing_states = self.states[voice_key]
+        channel_exists = any(
+            state.channel_id == channel_id for state in existing_states)
+
+        if not channel_exists:
+            await self._create_ctx_guild(guild_id, channel_id)
+
+    async def create_state(self, voice_key: VoiceKey, data: dict):
+        """Creates (or tries to create) a voice state.
+
+        Depending on the VoiceKey given, it will use the guild's voice
+        region or assign one based on the starter of a call, or the owner of
+        a Group DM.
+
+        Once a region is assigned, it'll choose the best voice server
+        and send a request to it.
+        """
+
+        # TODO: handle CALL events.
+
+        # compare if this voice key is for a guild or a channel
+        _uid, id2 = voice_key
+        guild = await self.app.storage.get_guild(id2)
+
+        # if guild not found, then we are dealing with a dm or group dm
+        if not guild:
+            ctype = await self.app.storage.get_chan_type(id2)
+            ctype = ChannelType(ctype)
+
+            if ctype == ChannelType.GROUP_DM:
+                # await self._start_voice_dm()
+                pass
+            elif ctype == ChannelType.DM:
+                # await self._start_voice_gdm()
+                pass
+
+            return
+
+        # if guild found, then data.channel_id exists, and we treat it
+        # as a guild
+        # await self._start_voice_guild()
 
     async def leave_all(self, user_id: int) -> int:
         """Leave all voice channels."""

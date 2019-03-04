@@ -18,6 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import ctypes
+from typing import Optional
 
 from quart import current_app as app
 

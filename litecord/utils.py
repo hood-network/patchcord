@@ -19,7 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import asyncio
 import json
-from typing import Any, Iterable, Optional, Indexable
+from typing import Any, Iterable, Optional, Sequence
 
 from logbook import Logger
 from quart.json import JSONEncoder
@@ -27,7 +27,7 @@ from quart.json import JSONEncoder
 log = Logger(__name__)
 
 
-async def async_map(function, iterable) -> list:
+async def async_map(function, iterable: Iterable) -> list:
     """Map a coroutine to an iterable."""
     res = []
 
@@ -52,7 +52,7 @@ def dict_get(mapping, key, default):
     return mapping.get(key) or default
 
 
-def index_by_func(function, indexable: Indexable) -> Optional[int]:
+def index_by_func(function, indexable: Sequence[Any]) -> Optional[int]:
     """Search in an idexable and return the index number
     for an iterm that has func(item) = True."""
     for index, item in enumerate(indexable):
@@ -161,7 +161,7 @@ async def pg_set_json(con):
     )
 
 
-def yield_chunks(input_list: Iterable, chunk_size: int):
+def yield_chunks(input_list: Sequence[Any], chunk_size: int):
     """Yield successive n-sized chunks from l.
 
     Taken from https://stackoverflow.com/a/312464.

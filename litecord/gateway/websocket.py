@@ -670,7 +670,7 @@ class GatewayWebsocket:
         voice_state = await self.ext.voice.get_state(voice_key)
 
         if voice_state is None:
-            await self.ext.voice.create_state(voice_key)
+            return await self.ext.voice.create_state(voice_key)
 
         same_guild = guild_id == voice_state.guild_id
         same_channel = channel_id == voice_state.channel_id
@@ -678,10 +678,10 @@ class GatewayWebsocket:
         prop = await self._vsu_get_prop(voice_state, data)
 
         if same_guild and same_channel:
-            await self.ext.voice.update_state(voice_state, prop)
+            return await self.ext.voice.update_state(voice_state, prop)
 
         if same_guild and not same_channel:
-            await self.ext.voice.move_state(voice_state, channel_id)
+            return await self.ext.voice.move_state(voice_state, channel_id)
 
     async def _handle_5(self, payload: Dict[str, Any]):
         """Handle OP 5 Voice Server Ping.

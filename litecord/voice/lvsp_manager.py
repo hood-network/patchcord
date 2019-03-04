@@ -17,6 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
+from typing import Optional
 from collections import defaultdict
 
 from logbook import Logger
@@ -34,7 +35,15 @@ class LVSPManager:
         self.app = app
         self.voice = voice
 
-        self.servers = defaultdict(dict)
+        # map servers to LVSPConnection
+        self.conns = {}
+
+        # maps regions to server hostnames
+        self.servers = defaultdict(list)
+
+        # maps guilds to server hostnames
+        self.guild_servers = {}
+
         self.app.loop.create_task(self._spawn())
 
     async def _spawn(self):
@@ -71,10 +80,11 @@ class LVSPManager:
             return
 
         servers = [r['hostname'] for r in servers]
+        self.servers[region] = servers
 
         for hostname in servers:
             conn = LVSPConnection(self, region, hostname)
-            self.servers[region][hostname] = conn
+            self.conns[hostname] = conn
 
             self.app.loop.create_task(
                 conn.run()
@@ -83,6 +93,47 @@ class LVSPManager:
     async def del_conn(self, conn):
         """Delete a connection from the connection pool."""
         try:
-            self.servers[conn.region].pop(conn.hostname)
+            self.servers[conn.region].remove(conn.hostname)
         except KeyError:
             pass
+
+        try:
+            self.conns.pop(conn.hostname)
+        except KeyError:
+            pass
+
+    async def guild_region(self, guild_id: int) -> Optional[str]:
+        """Return the voice region of a guild."""
+        return await self.app.db.fetchval("""
+        SELECT region
+        FROM guilds
+        WHERE id = $1
+        """, guild_id)
+
+    def get_health(self, hostname: str) -> float:
+        """Get voice server health, given hostname."""
+        try:
+            conn = self.conns[hostname]
+        except KeyError:
+            return -1
+
+        return conn.health
+
+    async def get_server(self, guild_id: int) -> str:
+        """Get a voice server for the given guild, assigns
+        one if there isn't any."""
+
+        try:
+            hostname = self.guild_servers[guild_id]
+        except KeyError:
+            region = await self.guild_region(guild_id)
+
+            # sort connected servers by health
+            sorted_servers = sorted(
+                self.servers[region],
+                self.get_health,
+            )
+
+            hostname = sorted_servers[0]
+
+        return hostname

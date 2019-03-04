@@ -38,6 +38,7 @@ class LVSPConnection:
         self.hostname = hostname
 
         self.conn = None
+        self.health = 0.5
 
         self._hb_task = None
         self._hb_interval = None
@@ -98,6 +99,8 @@ class LVSPConnection:
 
     async def _update_health(self, new_health: float):
         """Update the health value of a given voice server."""
+        self.health = new_health
+
         await self.app.db.execute("""
         UPDATE voice_servers
         SET health = $1
