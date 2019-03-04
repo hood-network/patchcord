@@ -134,7 +134,7 @@ class LVSPConnection:
         """Try to start a websocket connection."""
         try:
             self.conn = await websockets.connect(f'wss://{self.hostname}')
-        except Exception as e:
+        except Exception:
             log.exception('failed to start lvsp conn to {}', self.hostname)
 
     async def run(self):
