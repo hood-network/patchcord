@@ -28,7 +28,7 @@ lazy guilds:
 
 import asyncio
 from collections import defaultdict
-from typing import Any, List, Dict, Union, Optional, Iterable, Tuple
+from typing import Any, List, Dict, Union, Optional, Iterable, Iterator, Tuple
 from dataclasses import dataclass, asdict, field
 
 from logbook import Logger
@@ -113,7 +113,7 @@ class MemberList:
             yield group, self.data[group.gid]
 
     @property
-    def iter_non_empty(self) -> Generator[Tuple[GroupInfo, List[int]]]:
+    def iter_non_empty(self) -> Iterator[Tuple[GroupInfo, List[int]]]:
         """Only iterate through non-empty groups.
 
         Note that while the offline group can be empty, it is always

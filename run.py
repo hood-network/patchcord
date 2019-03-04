@@ -75,7 +75,7 @@ from litecord.images import IconManager
 from litecord.jobs import JobManager
 from litecord.voice.manager import VoiceManager
 
-from litecord.gateway import websocket_handler
+from litecord.gateway.gateway import websocket_handler
 
 from litecord.utils import LitecordJSONEncoder
 
