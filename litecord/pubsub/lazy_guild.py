@@ -28,7 +28,9 @@ lazy guilds:
 
 import asyncio
 from collections import defaultdict
-from typing import Any, List, Dict, Union, Optional, Iterable, Iterator, Tuple
+from typing import (
+    Any, List, Dict, Union, Optional, Iterable, Iterator, Tuple, Set
+)
 from dataclasses import dataclass, asdict, field
 
 from logbook import Logger
@@ -265,7 +267,7 @@ class GuildMemberList:
 
         #: store the states that are subscribed to the list.
         #  type is {session_id: set[list]}
-        self.state = defaultdict(set)
+        self.state: Dict[str, Set[List[int, int]]] = defaultdict(set)
 
         self._list_lock = asyncio.Lock()
 
@@ -589,7 +591,7 @@ class GuildMemberList:
         except KeyError:
             return None
 
-    async def _dispatch_sess(self, session_ids: List[str],
+    async def _dispatch_sess(self, session_ids: Iterable[str],
                              operations: List[Operation]):
         """Dispatch a GUILD_MEMBER_LIST_UPDATE to the
         given session ids."""
@@ -613,11 +615,12 @@ class GuildMemberList:
         }
 
         states = map(self._get_state, session_ids)
-        states = filter(lambda state: state is not None, states)
-
         dispatched = []
 
         for state in states:
+            if state is None:
+                continue
+
             await state.ws.dispatch(
                 'GUILD_MEMBER_LIST_UPDATE', payload)
 
@@ -625,7 +628,7 @@ class GuildMemberList:
 
         return dispatched
 
-    async def _resync(self, session_ids: List[int],
+    async def _resync(self, session_ids: List[str],
                       item_index: int) -> List[str]:
         """Send a SYNC event to all states that are subscribed to an item.
 
@@ -661,7 +664,7 @@ class GuildMemberList:
 
         return result
 
-    async def _resync_by_item(self, item_index: int):
+    async def _resync_by_item(self, item_index: Optional[int]):
         """Resync but only giving the item index."""
         if item_index is None:
             return []
@@ -1339,7 +1342,10 @@ class GuildMemberList:
         log.debug('there are {} session ids to resync (for item {})',
                   len(sess_ids_resync), role_item_index)
 
-        return await self._resync(sess_ids_resync, role_item_index)
+        if role_item_index is not None:
+            return await self._resync(sess_ids_resync, role_item_index)
+
+        return []
 
     async def chan_update(self):
         """Called then a channel's data has been updated."""

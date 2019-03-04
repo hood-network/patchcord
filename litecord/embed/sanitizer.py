@@ -22,7 +22,7 @@ litecord.embed.sanitizer
     sanitize embeds by giving common values
     such as type: rich
 """
-from typing import Dict, Any
+from typing import Dict, Any, Optional, Union, List
 
 from logbook import Logger
 from quart import current_app as app
@@ -44,7 +44,7 @@ def sanitize_embed(embed: Embed) -> Embed:
     }}
 
 
-def path_exists(embed: Embed, components: str):
+def path_exists(embed: Embed, components_in: Union[List[str], str]):
     """Tell if a given path exists in an embed (or any dictionary).
 
     The components string is formatted like this:
@@ -54,10 +54,10 @@ def path_exists(embed: Embed, components: str):
     """
 
     # get the list of components given
-    if isinstance(components, str):
-        components = components.split('.')
+    if isinstance(components_in, str):
+        components = components_in.split('.')
     else:
-        components = list(components)
+        components = list(components_in)
 
     # if there are no components, we reached the end of recursion
     # and can return true
@@ -96,7 +96,7 @@ def proxify(url, *, config=None) -> str:
     )
 
 
-async def fetch_metadata(url, *, config=None, session=None) -> dict:
+async def fetch_metadata(url, *, config=None, session=None) -> Optional[Dict]:
     """Fetch metadata for a url."""
 
     if session is None:
@@ -123,7 +123,7 @@ async def fetch_metadata(url, *, config=None, session=None) -> dict:
 
             log.warning('failed to generate meta for {!r}: {} {!r}',
                         url, resp.status, body)
-            return
+            return None
 
         return await resp.json()
 

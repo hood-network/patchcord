@@ -127,7 +127,7 @@ class PresenceManager:
 
         # shards that are in lazy guilds with 'everyone'
         # enabled
-        in_lazy = []
+        in_lazy: List[str] = []
 
         for member_list in lists:
             session_ids = await member_list.pres_update(

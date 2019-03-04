@@ -84,7 +84,7 @@ class ChannelDispatcher(DispatcherWithState):
                 await self.unsub(channel_id, user_id)
                 continue
 
-            cur_sess = 0
+            cur_sess = []
 
             if event in ('CHANNEL_CREATE', 'CHANNEL_UPDATE') \
                 and data.get('type') == ChannelType.GROUP_DM.value:

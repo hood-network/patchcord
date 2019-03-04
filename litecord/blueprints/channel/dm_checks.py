@@ -58,11 +58,11 @@ async def dm_pre_check(user_id: int, channel_id: int, peer_id: int):
     user_settings = await app.user_storage.get_user_settings(user_id)
     peer_settings = await app.user_storage.get_user_settings(peer_id)
 
-    restricted_user = [int(v) for v in user_settings['restricted_guilds']]
-    restricted_peer = [int(v) for v in peer_settings['restricted_guilds']]
+    restricted_user_ = [int(v) for v in user_settings['restricted_guilds']]
+    restricted_peer_ = [int(v) for v in peer_settings['restricted_guilds']]
 
-    restricted_user = set(restricted_user)
-    restricted_peer = set(restricted_peer)
+    restricted_user = set(restricted_user_)
+    restricted_peer = set(restricted_peer_)
 
     mutual_guilds -= restricted_user
     mutual_guilds -= restricted_peer

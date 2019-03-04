@@ -19,8 +19,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import asyncio
 import json
+from typing import Any, Iterable, Optional, Indexable
+
 from logbook import Logger
-from typing import Any, Iterable
 from quart.json import JSONEncoder
 
 log = Logger(__name__)
@@ -51,7 +52,7 @@ def dict_get(mapping, key, default):
     return mapping.get(key) or default
 
 
-def index_by_func(function, indexable: iter) -> int:
+def index_by_func(function, indexable: Indexable) -> Optional[int]:
     """Search in an idexable and return the index number
     for an iterm that has func(item) = True."""
     for index, item in enumerate(indexable):
@@ -66,7 +67,7 @@ def _u(val):
     return val % 0x100000000
 
 
-def mmh3(key: str, seed: int = 0):
+def mmh3(inp_str: str, seed: int = 0):
     """MurMurHash3 implementation.
 
     This seems to match Discord's JavaScript implementaiton.
@@ -74,7 +75,7 @@ def mmh3(key: str, seed: int = 0):
     Based off
       https://github.com/garycourt/murmurhash-js/blob/master/murmurhash3_gc.js
     """
-    key = [ord(c) for c in key]
+    key = [ord(c) for c in inp_str]
 
     remainder = len(key) & 3
     bytecount = len(key) - remainder
