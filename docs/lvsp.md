@@ -209,3 +209,41 @@ Sent by the client to signal the destruction of a voice channel. Be it
 a channel being deleted, or all members in it leaving.
 
 Same data as CHANNEL\_ASSIGN.
+
+## Common logic scenarios
+
+### User joins an unitialized voice channel
+
+Since the channel is unitialized, both logic on initialization AND
+user join is here.
+
+ - Client will send a CHANNEL\_REQ.
+ - Client MAY send a VST\_CREATE right after as well.
+ - The Server MUST process CHANNEL\_REQ first, so the Server can keep
+    a lock on channel operations while it is initialized.
+ - Reply with CHANNEL\_ASSIGN once initialization is done.
+ - Process VST\_CREATE **TODO**
+
+### Updating a voice channel
+
+ - Client sends CHANNEL\_UPDATE.
+ - Server DOES NOT reply.
+
+### Destroying a voice channel
+
+ - Client sends CHANNEL\_DESTROY.
+ - Server MUST disconnect any users currently connected with its
+    voice websocket.
+
+### User joining an (initialized) voice channel
+
+ - Client sends VST\_CREATE
+ - **TODO**
+
+### User moves a channel
+
+**TODO**
+
+### User leaves a channel
+
+**TODO**
