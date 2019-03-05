@@ -763,12 +763,13 @@ class Storage:
 
         return res
 
-    async def _inject_author(self, res):
+    async def _inject_author(self, res: dict):
         """Inject a pseudo-user object when the message is made by a webhook."""
         author_id, webhook_id = res['author_id'], res['webhook_id']
 
         if author_id is not None:
             res['author'] = await self.get_user(res['author_id'])
+            res.pop('webhook_id')
         elif webhook_id is not None:
             res['author'] = {
                 'id': webhook_id,
