@@ -171,11 +171,33 @@ class Storage:
         return drow
 
     async def _member_basic(self, guild_id: int, member_id: int):
-        return await self.db.fetchrow("""
-        SELECT user_id, nickname, joined_at, deafened, muted
+        row = await self.db.fetchrow("""
+        SELECT user_id, nickname, joined_at,
+               deafened AS deaf, muted AS mute
         FROM members
         WHERE guild_id = $1 and user_id = $2
         """, guild_id, member_id)
+
+        if row is None:
+            return None
+
+        row = dict(row)
+        row['joined_at'] = timestamp_(row['joined_at'])
+        return row
+
+    async def _member_basic_with_roles(self, guild_id: int,
+                                       member_id: int):
+        basic = await self._member_basic(guild_id, member_id)
+
+        if basic is None:
+            return None
+
+        basic = dict(basic)
+        roles = await self.get_member_role_ids(guild_id, member_id)
+
+        return {**basic, **{
+            'roles': roles
+        }}
 
     async def get_member_role_ids(self, guild_id: int,
                                   member_id: int) -> List[str]:
@@ -203,6 +225,7 @@ class Storage:
 
     async def _member_dict(self, row, guild_id, member_id) -> Dict[str, Any]:
         roles = await self.get_member_role_ids(guild_id, member_id)
+
         return {
             'user': await self.get_user(member_id),
             'nick': row['nickname'],
@@ -211,9 +234,9 @@ class Storage:
             # the user since it is known that everyone has
             # that role.
             'roles': roles,
-            'joined_at': timestamp_(row['joined_at']),
-            'deaf': row['deafened'],
-            'mute': row['muted'],
+            'joined_at': row['joined_at'],
+            'deaf': row['deaf'],
+            'mute': row['mute'],
         }
 
     async def get_member_data_one(self, guild_id: int,
@@ -244,7 +267,8 @@ class Storage:
     async def get_member_data(self, guild_id: int) -> List[Dict[str, Any]]:
         """Get member information on a guild."""
         members_basic = await self.db.fetch("""
-        SELECT user_id, nickname, joined_at, deafened, muted
+        SELECT user_id, nickname, joined_at,
+               deafened AS deaf, muted AS mute
         FROM members
         WHERE guild_id = $1
         """, guild_id)
@@ -849,8 +873,12 @@ class Storage:
 
         res['attachments'] = await self.get_attachments(message_id)
 
-        # TODO: res['member'] for partial member data
-        #  of the author
+        # if message is not from a dm, guild_id is None and so, _member_basic
+        # will just return None
+        res['member'] = await self._member_basic_with_roles(guild_id, user_id)
+
+        if res['member'] is None:
+            res.pop('member')
 
         pin_id = await self.db.fetchval("""
         SELECT message_id
