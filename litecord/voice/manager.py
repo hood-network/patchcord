@@ -156,24 +156,19 @@ class VoiceManager:
         await self.create_state(old_voice_key, {'channel_id': channel_id})
 
     async def _lvsp_info_guild(self, guild_id, info_type, info_data):
-        hostname = await self.lvsp.get_server(guild_id)
+        hostname = await self.lvsp.get_guild_server(guild_id)
         conn = self.lvsp.get_conn(hostname)
-
-        # TODO: impl send_info
         await conn.send_info(info_type, info_data)
 
     async def _create_ctx_guild(self, guild_id, channel_id):
         chan = await self.app.storage.get_channel(channel_id)
 
-        # TODO: this, but properly
-        # TODO: when the server sends a reply to CHAN_REQ, we need to update
-        # LVSPManager.guild_servers.
-        await self._lvsp_info_guild(guild_id, 'CHAN_REQ', {
+        await self._lvsp_info_guild(guild_id, 'CHANNEL_REQ', {
             'guild_id': str(guild_id),
             'channel_id': str(channel_id),
 
             'channel_properties': {
-                'bitrate': chan['bitrate']
+                'bitrate': chan.get('bitrate', 96)
             }
         })
 

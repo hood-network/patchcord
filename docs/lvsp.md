@@ -175,24 +175,37 @@ Request a channel to be created inside the voice server.
 The Server MUST reply back with a CHANNEL\_ASSIGN when resources are
 allocated for the channel.
 
-**TODO:** fields
+| field | type | description |
+| --: | :-- | :-- |
+| channel\_id | snowflake | channel id |
+| guild\_id | Optional[snowflake] | guild id, not provided if dm / group dm |
+| channel\_properties | ChannelProperties | channel properties |
+
+#### ChannelProperties
+
+| field | type | description |
+| --: | :-- | :-- |
+| bitrate | integer | channel bitrate |
 
 ### CHANNEL\_ASSIGN
 
 Sent by the Server to signal the successful creation of a voice channel.
 
-**TODO:** fields
+| field | type | description |
+| --: | :-- | :-- |
+| channel\_id | snowflake | channel id |
+| guild\_id | Optional[snowflake] | guild id, not provided if dm / group dm |
 
 ### CHANNEL\_UPDATE
 
 Sent by the client to signal an update to the properties of a channel,
 such as its bitrate.
 
-**TODO:** fields
+Same data as CHANNEL\_REQ.
 
 ### CHANNEL\_DESTROY
 
 Sent by the client to signal the destruction of a voice channel. Be it
 a channel being deleted, or all members in it leaving.
 
-**TODO:** fields
+Same data as CHANNEL\_ASSIGN.

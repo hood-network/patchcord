@@ -26,3 +26,16 @@ class OPCodes:
     heartbeat = 4
     heartbeat_ack = 5
     info = 6
+
+
+InfoTable = {
+    'CHANNEL_REQ': 0,
+    'CHANNEL_ASSIGN': 1,
+    'CHANNEL_UPDATE': 2,
+    'CHANNEL_DESTROY': 3,
+    'VST_CREATE': 4,
+    'VST_UPDATE': 5,
+    'VST_LEAVE': 6,
+}
+
+InfoReverse = {v: k for k, v in InfoTable.items()}

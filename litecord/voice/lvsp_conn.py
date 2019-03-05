@@ -19,11 +19,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import json
 import asyncio
+from typing import Dict
 
 import websockets
 from logbook import Logger
 
-from litecord.voice.lvsp_opcodes import OPCodes as OP
+from litecord.voice.lvsp_opcodes import OPCodes as OP, InfoTable, InfoReverse
 
 log = Logger(__name__)
 
@@ -63,6 +64,16 @@ class LVSPConnection:
         await self.send({
             'op': opcode,
             'd': data
+        })
+
+    async def send_info(self, info_type: str, info_data: Dict):
+        """Send an INFO message down the websocket."""
+        await self.send({
+            'op': OP.info,
+            'd': {
+                'type': InfoTable[info_type.upper()],
+                'data': info_data
+            }
         })
 
     async def _heartbeater(self, hb_interval: int):
@@ -120,6 +131,35 @@ class LVSPConnection:
         self._stop_hb()
         await self._update_health(msg['health'])
         self._start_hb()
+
+    async def _handle_6(self, msg):
+        """Handle INFO messages."""
+        info = msg['d']
+        info_type_str = InfoReverse[info['type']].lower()
+
+        try:
+            info_handler = getattr(self, f'_handle_info_{info_type_str}')
+        except AttributeError:
+            return
+
+        await info_handler(info['data'])
+
+    async def _handle_info_channel_assign(self, data: dict):
+        """called by the server once we got a channel assign."""
+        try:
+            channel_id = data['channel_id']
+            channel_id = int(channel_id)
+        except (TypeError, ValueError):
+            return
+
+        try:
+            guild_id = data['guild_id']
+            guild_id = int(guild_id)
+        except (TypeError, ValueError):
+            guild_id = None
+
+        main_key = guild_id if guild_id is not None else channel_id
+        await self.lvsp.assign(main_key, self.hostname)
 
     async def _loop(self):
         while True:

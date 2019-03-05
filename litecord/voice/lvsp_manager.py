@@ -41,8 +41,8 @@ class LVSPManager:
         # maps regions to server hostnames
         self.servers = defaultdict(list)
 
-        # maps guilds to server hostnames
-        self.guild_servers = {}
+        # maps Union[GuildID, DMId, GroupDMId] to server hostnames
+        self.assign = {}
 
         self.app.loop.create_task(self._spawn())
 
@@ -119,12 +119,12 @@ class LVSPManager:
 
         return conn.health
 
-    async def get_server(self, guild_id: int) -> str:
+    async def get_guild_server(self, guild_id: int) -> str:
         """Get a voice server for the given guild, assigns
-        one if there isn't any."""
+        one if there isn't any"""
 
         try:
-            hostname = self.guild_servers[guild_id]
+            hostname = self.assign[guild_id]
         except KeyError:
             region = await self.guild_region(guild_id)
 
@@ -137,3 +137,7 @@ class LVSPManager:
             hostname = sorted_servers[0]
 
         return hostname
+
+    async def assign_conn(self, key: int, hostname: str):
+        """Assign a connection to a given key in the assign map"""
+        self.assign[key] = hostname
