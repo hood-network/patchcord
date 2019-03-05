@@ -670,7 +670,7 @@ class GatewayWebsocket:
         voice_state = await self.ext.voice.get_state(voice_key)
 
         if voice_state is None:
-            return await self.ext.voice.create_state(voice_key)
+            return await self.ext.voice.create_state(voice_key, data)
 
         same_guild = guild_id == voice_state.guild_id
         same_channel = channel_id == voice_state.channel_id

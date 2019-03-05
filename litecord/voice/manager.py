@@ -157,6 +157,10 @@ class VoiceManager:
 
     async def _lvsp_info_guild(self, guild_id, info_type, info_data):
         hostname = await self.lvsp.get_guild_server(guild_id)
+        if hostname is None:
+            log.error('no voice server for guild id {}', guild_id)
+            return
+
         conn = self.lvsp.get_conn(hostname)
         await conn.send_info(info_type, info_data)
 

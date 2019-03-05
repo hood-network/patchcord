@@ -119,7 +119,7 @@ class LVSPManager:
 
         return conn.health
 
-    async def get_guild_server(self, guild_id: int) -> str:
+    async def get_guild_server(self, guild_id: int) -> Optional[str]:
         """Get a voice server for the given guild, assigns
         one if there isn't any"""
 
@@ -131,10 +131,13 @@ class LVSPManager:
             # sort connected servers by health
             sorted_servers = sorted(
                 self.servers[region],
-                self.get_health,
+                key=self.get_health
             )
 
-            hostname = sorted_servers[0]
+            try:
+                hostname = sorted_servers[0]
+            except IndexError:
+                return None
 
         return hostname
 
