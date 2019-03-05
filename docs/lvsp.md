@@ -6,15 +6,6 @@ Voice Websocket Discord and Voice UDP connections.
 
 LVSP runs over a *long-lived* websocket with TLS. The encoding is JSON.
 
-**TODO:** common logic scenarios:
- - initializing a voice channel
- - updating a voice channel
- - destroying a voice channel
- - user joining to a voice channel
- - user joining to a voice channel (while also initializing it, e.g
-    first member in the channel)
- - user leaving a voice channel
-
 ## OP code table
 
 "client" is litecord. "server" is the voice server.
