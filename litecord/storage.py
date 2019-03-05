@@ -638,8 +638,10 @@ class Storage:
         return [r[0] for r in rows]
 
     async def _msg_regex(self, regex, func, content) -> List[Dict]:
-        res = []
+        if content is None:
+            return []
 
+        res = []
         for match in regex.finditer(content):
             found_id = match.group(1)
 
@@ -797,6 +799,9 @@ class Storage:
 
         res['type'] = res['message_type']
         res.pop('message_type')
+
+        if res['content'] is None:
+            res['content'] = ""
 
         channel_id = int(row['channel_id'])
         content = row['content']

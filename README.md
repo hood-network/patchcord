@@ -31,7 +31,7 @@ took a shot at writing it again. It works.
 ## Caveats
 
 - Unit testing is incomplete.
-- Currently, there are no plans to support voice chat, or the Discord Store.
+- Currently, there are no plans to support video in voice chats, or the Discord Store.
 - You must figure out how to connect to a Litecord instance. Litecord will not
   distribute official client code from Discord nor provide ways to modify the
   official client.

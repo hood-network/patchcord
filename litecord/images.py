@@ -287,8 +287,6 @@ class IconManager:
     async def generic_get(self, scope, key, icon_hash,
                           **kwargs) -> Optional[Icon]:
         """Get any icon."""
-        if icon_hash is None:
-            return None
 
         log.debug('GET {} {} {}', scope, key, icon_hash)
         key = str(key)
@@ -359,6 +357,9 @@ class IconManager:
             data_fd, raw_data = await resize_gif(raw_data, kwargs['size'])
         elif 'size' in kwargs:
             image = Image.open(data_fd)
+
+            if mime == 'image/jpeg':
+                image = image.convert("RGB")
 
             want = kwargs['size']
 

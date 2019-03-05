@@ -37,6 +37,10 @@ class Color:
         """Give the actual RGB integer encoding this color."""
         return int('%02x%02x%02x' % (self.red, self.green, self.blue), 16)
 
+    @property
+    def to_json(self):
+        return self.value
+
     def __int__(self):
         return self.value
 
