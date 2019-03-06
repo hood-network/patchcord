@@ -31,9 +31,6 @@ snowflake type: A string encoding a Discord Snowflake.
 | --: | :-- | :-- |
 | op | integer, opcode | operator code | 
 | d | map[string, any] | message data |
-| s | Optional[int] | sequence number |
-
- - The `s` field is explained in the `RESUME` message.
 
 ## High level overview
 
@@ -42,13 +39,13 @@ snowflake type: A string encoding a Discord Snowflake.
  - if RESUME, process incoming messages as they were post-ready
  - receive READY
  - start HEARTBEAT'ing
- - send INFO / VSU\_REQUEST messages as needed
+ - send INFO messages as needed
 
 ## Error codes
 
 | code | meaning | 
 | --: | :-- |
-| 4000 | general error. Reconnect |
+| 4000 | general error. reconnect |
 | 4001 | authentication failure |
 | 4002 | decode error, given message failed to decode as json |
 
@@ -69,30 +66,6 @@ Sent by the client to identify itself.
 | --: | :-- | :-- |
 | token | string | `HMAC(SHA256, key=[secret shared between server and client]), message=[nonce from HELLO]` |
 
-## RESUME message
-
-Sent by the client to resume itself from a failed websocket connection.
-
-The server will resend its data, then send a READY message.
-
-| field | type | description |
-| --: | :-- | :-- |
-| token | string | same value from IDENTIFY.token |
-| seq | integer | last sequence number to resume from |
-
-### Sequence numbers
-
-Sequence numbers are used to resume a failed connection back and make the
-voice server replay its missing events to the client.
-
-They are **positive** integers, **starting from 0.** There is no default
-upper limit. A "long int" type in languages will probably be enough for most
-use cases.
-
-Replayable messages MUST have sequence numbers embedded into the message
-itself with a `s` field. The field lives at the root of the message, alongside
-`op` and `d`.
-
 ## READY message
 
  - The `health` field is described with more detail in the `HEARTBEAT_ACK`
@@ -109,9 +82,7 @@ Sent by the client as a keepalive / health monitoring method.
 The server MUST reply with a HEARTBEAT\_ACK message back in a reasonable
 time period.
 
-| field | type | description |
-| --: | :-- | :-- |
-| s | integer | sequence number |
+There are no other fields in this message.
 
 ## HEARTBEAT\_ACK message
 
@@ -131,7 +102,6 @@ Among others.
 
 | field | type | description |
 | --: | :-- | :-- |
-| s | integer | sequence number |
 | health | float | server health |
 
 ## INFO message
@@ -139,6 +109,8 @@ Among others.
 Sent by either client or a server to send information between eachother.
 The INFO message is extensible in which many request / response scenarios
 are laid on.
+
+*This message type MUST be replayable.*
 
 | field | type | description |
 | --: | :-- | :-- |
