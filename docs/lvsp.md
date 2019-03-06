@@ -157,8 +157,6 @@ are laid on.
 | 5 | VST\_UPDATE | voice state update |
 | 6 | VST\_LEAVE | voice state leave |
 
-**TODO:** finish all infos
-
 ### CHANNEL\_REQ
 
 Request a channel to be created inside the voice server.
@@ -190,21 +188,32 @@ Same data as CHANNEL\_ASSIGN, but without `token`.
 
 ### VST\_CREATE
 
-**TODO**
+Sent by the client to create a voice state.
 
 | field | type | description |
 | --: | :-- | :-- |
 | user\_id | snowflake | user id |
 | channel\_id | snowflake | channel id |
-| guild\_id | Optional[snowflake] | guild id |
+| guild\_id | Optional[snowflake] | guild id. not provided if dm / group dm |
 
 ### VST\_DONE
 
-**TODO**
+Sent by the server to indicate the success of a VST\_CREATE.
+
+Has the same fields as VST\_CREATE, but with extras:
+
+| field | type | description |
+| --: | :-- | :-- |
+| session\_id | string | session id for the voice state |
 
 ### VST\_DESTROY
 
-**TODO**
+Sent by the client when a user is leaving a channel OR moving between channels
+in a guild. More on state transitions later on.
+
+| field | type | description |
+| --: | :-- | :-- |
+| session\_id | string | session id for the voice state |
 
 ## Common logic scenarios
 
@@ -218,7 +227,7 @@ user join is here.
  - The Server MUST process CHANNEL\_REQ first, so the Server can keep
     a lock on channel operations while it is initialized.
  - Reply with CHANNEL\_ASSIGN once initialization is done.
- - Process VST\_CREATE **TODO**
+ - Process VST\_CREATE
 
 ### Updating a voice channel
 
@@ -236,10 +245,12 @@ user join is here.
  - Client sends VST\_CREATE
  - Server sends VST\_DONE
 
-### User moves a channel
-
-**TODO**
-
 ### User leaves a channel
 
-**TODO**
+ - Client sends VST\_DESTROY with the old fields
+
+### User moves a channel
+
+ - Client sends VST\_DESTROY with the old fields
+ - Client sends VST\_CREATE with the new fields
+ - Server sends VST\_DONE
