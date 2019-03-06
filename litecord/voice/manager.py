@@ -165,15 +165,9 @@ class VoiceManager:
         await conn.send_info(info_type, info_data)
 
     async def _create_ctx_guild(self, guild_id, channel_id):
-        chan = await self.app.storage.get_channel(channel_id)
-
         await self._lvsp_info_guild(guild_id, 'CHANNEL_REQ', {
             'guild_id': str(guild_id),
             'channel_id': str(channel_id),
-
-            'channel_properties': {
-                'bitrate': chan.get('bitrate', 96)
-            }
         })
 
     async def _start_voice_guild(self, voice_key: VoiceKey, data: dict):
@@ -189,7 +183,7 @@ class VoiceManager:
         if not channel_exists:
             await self._create_ctx_guild(guild_id, channel_id)
 
-        await self._lvsp_info_guild(guild_id, 'VST_REQ', {
+        await self._lvsp_info_guild(guild_id, 'VST_CREATE', {
             'user_id': str(user_id),
             'guild_id': str(guild_id),
             'channel_id': str(channel_id),

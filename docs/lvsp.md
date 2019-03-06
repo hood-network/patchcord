@@ -151,9 +151,9 @@ are laid on.
 | --: | :-- | :-- |
 | 0 | CHANNEL\_REQ | channel assignment request |
 | 1 | CHANNEL\_ASSIGN | channel assignment reply |
-| 2 | CHANNEL\_UPDATE | channel update |
-| 3 | CHANNEL\_DESTROY | channel destroy |
-| 4 | VST\_CREATE | voice state create request |
+| 2 | CHANNEL\_DESTROY | channel destroy |
+| 3 | VST\_CREATE | voice state create request |
+| 4 | VST\_DONE | voice state created |
 | 5 | VST\_UPDATE | voice state update |
 | 6 | VST\_LEAVE | voice state leave |
 
@@ -170,13 +170,6 @@ allocated for the channel.
 | --: | :-- | :-- |
 | channel\_id | snowflake | channel id |
 | guild\_id | Optional[snowflake] | guild id, not provided if dm / group dm |
-| channel\_properties | ChannelProperties | channel properties |
-
-#### ChannelProperties
-
-| field | type | description |
-| --: | :-- | :-- |
-| bitrate | integer | channel bitrate |
 
 ### CHANNEL\_ASSIGN
 
@@ -188,19 +181,30 @@ Sent by the Server to signal the successful creation of a voice channel.
 | guild\_id | Optional[snowflake] | guild id, not provided if dm / group dm |
 | token | string | authentication token |
 
-### CHANNEL\_UPDATE
-
-Sent by the client to signal an update to the properties of a channel,
-such as its bitrate.
-
-Same data as CHANNEL\_REQ.
-
 ### CHANNEL\_DESTROY
 
 Sent by the client to signal the destruction of a voice channel. Be it
 a channel being deleted, or all members in it leaving.
 
 Same data as CHANNEL\_ASSIGN, but without `token`.
+
+### VST\_CREATE
+
+**TODO**
+
+| field | type | description |
+| --: | :-- | :-- |
+| user\_id | snowflake | user id |
+| channel\_id | snowflake | channel id |
+| guild\_id | Optional[snowflake] | guild id |
+
+### VST\_DONE
+
+**TODO**
+
+### VST\_DESTROY
+
+**TODO**
 
 ## Common logic scenarios
 
@@ -230,7 +234,7 @@ user join is here.
 ### User joining an (initialized) voice channel
 
  - Client sends VST\_CREATE
- - **TODO**
+ - Server sends VST\_DONE
 
 ### User moves a channel
 
