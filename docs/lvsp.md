@@ -186,6 +186,7 @@ Sent by the Server to signal the successful creation of a voice channel.
 | --: | :-- | :-- |
 | channel\_id | snowflake | channel id |
 | guild\_id | Optional[snowflake] | guild id, not provided if dm / group dm |
+| token | string | authentication token |
 
 ### CHANNEL\_UPDATE
 
@@ -199,7 +200,7 @@ Same data as CHANNEL\_REQ.
 Sent by the client to signal the destruction of a voice channel. Be it
 a channel being deleted, or all members in it leaving.
 
-Same data as CHANNEL\_ASSIGN.
+Same data as CHANNEL\_ASSIGN, but without `token`.
 
 ## Common logic scenarios
 
