@@ -362,12 +362,13 @@ CREATE TABLE IF NOT EXISTS guilds (
 
     region text NOT NULL REFERENCES voice_regions (id),
 
-    /* default no afk channel 
-        afk channel is voice-only.
-     */
+    features text[],
+
+    -- default no afk channel 
+    -- afk channel is voice-only.
     afk_channel_id bigint REFERENCES channels (id) DEFAULT NULL,
 
-    /* default 5 minutes */
+    -- default 5 minutes
     afk_timeout int DEFAULT 300,
     
     -- from 0 to 4
@@ -479,20 +480,6 @@ CREATE TABLE IF NOT EXISTS group_dm_members (
     id bigint REFERENCES group_dm_channels (id) ON DELETE CASCADE,
     member_id bigint REFERENCES users (id),
     PRIMARY KEY (id, member_id)
-);
-
-
-
-
-CREATE TABLE IF NOT EXISTS features (
-    id serial PRIMARY KEY,
-    feature text NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS guild_features (
-    guild_id bigint REFERENCES guilds (id) ON DELETE CASCADE,
-    feature integer REFERENCES features (id),
-    PRIMARY KEY (guild_id, feature)
 );
 
 

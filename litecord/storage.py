@@ -155,7 +155,7 @@ class Storage:
                explicit_content_filter, mfa_level,
                embed_enabled, embed_channel_id::text,
                widget_enabled, widget_channel_id::text,
-               system_channel_id::text
+               system_channel_id::text, features
         FROM guilds
         WHERE guilds.id = $1
         """, guild_id)
@@ -918,9 +918,6 @@ class Storage:
 
         if guild:
             dinv['guild'] = dict(guild)
-
-            # TODO: query actual guild features
-            dinv['guild']['features'] = []
         else:
             dinv['guild'] = {}
 
