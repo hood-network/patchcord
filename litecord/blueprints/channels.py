@@ -18,6 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import time
+from typing import List, Optional
 
 from quart import Blueprint, request, current_app as app, jsonify
 from logbook import Logger
@@ -262,8 +263,11 @@ async def _update_pos(channel_id, pos: int):
     """, pos, channel_id)
 
 
-async def _mass_chan_update(guild_id, channel_ids: int):
+async def _mass_chan_update(guild_id, channel_ids: List[Optional[int]]):
     for channel_id in channel_ids:
+        if channel_id is None:
+            continue
+
         chan = await app.storage.get_channel(channel_id)
         await app.dispatcher.dispatch(
             'guild', guild_id, 'CHANNEL_UPDATE', chan)
@@ -337,7 +341,7 @@ async def _update_channel_common(channel_id, guild_id: int, j: dict):
     if 'position' in j:
         channel_data = await app.storage.get_channel_data(guild_id)
 
-        chans = [None * len(channel_data)]
+        chans = [None] * len(channel_data)
         for chandata in channel_data:
             chans.insert(chandata['position'], int(chandata['id']))
 
@@ -393,7 +397,7 @@ async def _common_guild_chan(channel_id, j: dict):
         """, j[field], channel_id)
 
 
-async def _update_text_channel(channel_id: int, j: dict):
+async def _update_text_channel(channel_id: int, j: dict, _user_id: int):
     # first do the specific ones related to guild_text_channels
     for field in [field for field in j.keys()
                   if field in ('topic', 'rate_limit_per_user')]:
@@ -406,7 +410,7 @@ async def _update_text_channel(channel_id: int, j: dict):
     await _common_guild_chan(channel_id, j)
 
 
-async def _update_voice_channel(channel_id: int, j: dict):
+async def _update_voice_channel(channel_id: int, j: dict, _user_id: int):
     # first do the specific ones in guild_voice_channels
     for field in [field for field in j.keys()
                   if field in ('bitrate', 'user_limit')]:

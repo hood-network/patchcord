@@ -28,7 +28,9 @@ lazy guilds:
 
 import asyncio
 from collections import defaultdict
-from typing import Any, List, Dict, Union
+from typing import (
+    Any, List, Dict, Union, Optional, Iterable, Iterator, Tuple, Set
+)
 from dataclasses import dataclass, asdict, field
 
 from logbook import Logger
@@ -39,7 +41,7 @@ from litecord.permissions import (
 )
 from litecord.utils import index_by_func
 from litecord.utils import mmh3
-
+from litecord.gateway.state import GatewayState
 
 log = Logger(__name__)
 
@@ -113,7 +115,7 @@ class MemberList:
             yield group, self.data[group.gid]
 
     @property
-    def iter_non_empty(self) -> tuple:
+    def iter_non_empty(self) -> Iterator[Tuple[GroupInfo, List[int]]]:
         """Only iterate through non-empty groups.
 
         Note that while the offline group can be empty, it is always
@@ -265,7 +267,7 @@ class GuildMemberList:
 
         #: store the states that are subscribed to the list.
         #  type is {session_id: set[list]}
-        self.state = defaultdict(set)
+        self.state: Dict[str, Set[List[int, int]]] = defaultdict(set)
 
         self._list_lock = asyncio.Lock()
 
@@ -359,7 +361,7 @@ class GuildMemberList:
         # then the final perms for that role if
         # any overwrite exists in the channel
         final_perms = overwrite_find_mix(
-            role_perms, self.list.overwrites, group.gid)
+            role_perms, self.list.overwrites, int(group.gid))
 
         # update the group's permissions
         # with the mixed ones
@@ -423,7 +425,7 @@ class GuildMemberList:
 
     async def _get_group_for_member(self, member_id: int,
                                     roles: List[Union[str, int]],
-                                    status: str) -> GroupID:
+                                    status: str) -> Optional[GroupID]:
         """Return a fitting group ID for the member."""
         member_roles = list(map(int, roles))
 
@@ -463,15 +465,15 @@ class GuildMemberList:
             self.list.members[member_id] = member
             self.list.data[group_id].append(member_id)
 
-    def _display_name(self, member_id: int) -> str:
+    def _display_name(self, member_id: int) -> Optional[str]:
         """Get the display name for a given member.
 
         This is more efficient than the old function (not method) of same
         name, as we dont need to pass nickname information to it.
         """
-        member = self.list.members.get(member_id)
-
-        if not member_id:
+        try:
+            member = self.list.members[member_id]
+        except KeyError:
             return None
 
         username = member['user']['username']
@@ -578,7 +580,7 @@ class GuildMemberList:
         if not self.state:
             self._set_empty_list()
 
-    def _get_state(self, session_id: str):
+    def _get_state(self, session_id: str) -> Optional[GatewayState]:
         """Get the state for a session id.
 
         Wrapper for :meth:`StateManager.fetch_raw`
@@ -589,7 +591,7 @@ class GuildMemberList:
         except KeyError:
             return None
 
-    async def _dispatch_sess(self, session_ids: List[str],
+    async def _dispatch_sess(self, session_ids: Iterable[str],
                              operations: List[Operation]):
         """Dispatch a GUILD_MEMBER_LIST_UPDATE to the
         given session ids."""
@@ -613,11 +615,12 @@ class GuildMemberList:
         }
 
         states = map(self._get_state, session_ids)
-        states = filter(lambda state: state is not None, states)
-
         dispatched = []
 
         for state in states:
+            if state is None:
+                continue
+
             await state.ws.dispatch(
                 'GUILD_MEMBER_LIST_UPDATE', payload)
 
@@ -625,7 +628,8 @@ class GuildMemberList:
 
         return dispatched
 
-    async def _resync(self, session_ids: int, item_index: int) -> List[str]:
+    async def _resync(self, session_ids: List[str],
+                      item_index: int) -> List[str]:
         """Send a SYNC event to all states that are subscribed to an item.
 
         Returns
@@ -660,7 +664,7 @@ class GuildMemberList:
 
         return result
 
-    async def _resync_by_item(self, item_index: int):
+    async def _resync_by_item(self, item_index: Optional[int]):
         """Resync but only giving the item index."""
         if item_index is None:
             return []
@@ -729,7 +733,7 @@ class GuildMemberList:
         # send SYNCs to the state that requested
         await self._dispatch_sess([session_id], ops)
 
-    def _get_item_index(self, user_id: Union[str, int]) -> int:
+    def _get_item_index(self, user_id: Union[str, int]) -> Optional[int]:
         """Get the item index a user is on."""
         # NOTE: this is inefficient
         user_id = int(user_id)
@@ -749,7 +753,7 @@ class GuildMemberList:
 
         return None
 
-    def _get_group_item_index(self, group_id: GroupID) -> int:
+    def _get_group_item_index(self, group_id: GroupID) -> Optional[int]:
         """Get the item index a group is on."""
         index = 0
 
@@ -773,7 +777,7 @@ class GuildMemberList:
 
         return False
 
-    def _get_subs(self, item_index: int) -> filter:
+    def _get_subs(self, item_index: int) -> Iterable[str]:
         """Get the list of subscribed states to a given item."""
         return filter(
             lambda sess_id: self._is_subbed(item_index, sess_id),
@@ -1141,7 +1145,7 @@ class GuildMemberList:
         # when bots come along.
         self.list.data[new_group.gid] = []
 
-    def _get_role_as_group_idx(self, role_id: int) -> int:
+    def _get_role_as_group_idx(self, role_id: int) -> Optional[int]:
         """Get a group index representing the given role id.
 
         Returns
@@ -1338,7 +1342,10 @@ class GuildMemberList:
         log.debug('there are {} session ids to resync (for item {})',
                   len(sess_ids_resync), role_item_index)
 
-        return await self._resync(sess_ids_resync, role_item_index)
+        if role_item_index is not None:
+            return await self._resync(sess_ids_resync, role_item_index)
+
+        return []
 
     async def chan_update(self):
         """Called then a channel's data has been updated."""
@@ -1443,10 +1450,10 @@ class LazyGuildDispatcher(Dispatcher):
 
             # remove it from guild map as well
             guild_id = gml.guild_id
-            self.guild_map[guild_id].pop(channel_id)
+            self.guild_map[guild_id].remove(channel_id)
 
             gml.close()
-        except KeyError:
+        except (KeyError, ValueError):
             pass
 
     async def chan_update(self, channel_id: int):

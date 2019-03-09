@@ -68,7 +68,7 @@ async def get_members(guild_id):
 
 
 async def _update_member_roles(guild_id: int, member_id: int,
-                               wanted_roles: list):
+                               wanted_roles: set):
     """Update the roles a member has."""
 
     # first, fetch all current roles

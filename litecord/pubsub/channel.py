@@ -17,7 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from typing import Any
+from typing import Any, List
 
 from logbook import Logger
 
@@ -54,13 +54,13 @@ class ChannelDispatcher(DispatcherWithState):
     VAL_TYPE = int
 
     async def dispatch(self, channel_id,
-                       event: str, data: Any):
+                       event: str, data: Any) -> List[str]:
         """Dispatch an event to a channel."""
         # get everyone who is subscribed
         # and store the number of states we dispatched the event to
         user_ids = self.state[channel_id]
         dispatched = 0
-        sessions = []
+        sessions: List[str] = []
 
         # making a copy of user_ids since
         # we'll modify it later on.
@@ -84,7 +84,7 @@ class ChannelDispatcher(DispatcherWithState):
                 await self.unsub(channel_id, user_id)
                 continue
 
-            cur_sess = 0
+            cur_sess = []
 
             if event in ('CHANNEL_CREATE', 'CHANNEL_UPDATE') \
                 and data.get('type') == ChannelType.GROUP_DM.value:

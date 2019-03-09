@@ -217,7 +217,8 @@ async def _guild_text_mentions(payload: dict, guild_id: int,
     # for the users that have a state
     # in the channel.
     if mentions_here:
-        uids = []
+        uids = set()
+
         await app.db.execute("""
         UPDATE user_read_state
         SET mention_count = mention_count + 1
@@ -229,7 +230,7 @@ async def _guild_text_mentions(payload: dict, guild_id: int,
     # that might not have read permissions
     # to the channel.
     if mentions_everyone:
-        uids = []
+        uids = set()
 
         member_ids = await app.storage.get_member_ids(guild_id)
 
@@ -406,9 +407,6 @@ async def _create_message(channel_id):
         # guild id here is the peer's ID.
         await _dm_pre_dispatch(channel_id, user_id)
         await _dm_pre_dispatch(channel_id, guild_id)
-
-    if payload['webhook_id'] == None:
-        payload.pop('webhook_id', None)
 
     await app.dispatcher.dispatch('channel', channel_id,
                                   'MESSAGE_CREATE', payload)

@@ -22,6 +22,7 @@ import mimetypes
 import asyncio
 import base64
 import tempfile
+from typing import Optional
 
 from dataclasses import dataclass
 from hashlib import sha256
@@ -67,22 +68,33 @@ def get_mime(ext: str):
 @dataclass
 class Icon:
     """Main icon class"""
-    key: str
-    icon_hash: str
-    mime: str
+    key: Optional[str]
+    icon_hash: Optional[str]
+    mime: Optional[str]
 
     @property
-    def as_path(self) -> str:
+    def as_path(self) -> Optional[str]:
         """Return a filesystem path for the given icon."""
+        if self.mime is None:
+            return None
+
         ext = get_ext(self.mime)
         return str(IMAGE_FOLDER / f'{self.key}_{self.icon_hash}.{ext}')
 
     @property
-    def as_pathlib(self) -> str:
+    def as_pathlib(self) -> Optional[Path]:
+        """Get a Path instance of this icon."""
+        if self.as_path is None:
+            return None
+
         return Path(self.as_path)
 
     @property
-    def extension(self) -> str:
+    def extension(self) -> Optional[str]:
+        """Get the extension of this icon."""
+        if self.mime is None:
+            return None
+
         return get_ext(self.mime)
 
 
@@ -91,7 +103,7 @@ class ImageError(Exception):
     pass
 
 
-def to_raw(data_type: str, data: str) -> bytes:
+def to_raw(data_type: str, data: str) -> Optional[bytes]:
     """Given a data type in the data URI and data,
     give the raw bytes being encoded."""
     if data_type == 'base64':
@@ -176,7 +188,7 @@ def _gen_update_sql(scope: str) -> str:
     """
 
 
-def _invalid(kwargs: dict):
+def _invalid(kwargs: dict) -> Optional[Icon]:
     """Send an invalid value."""
     if not kwargs.get('always_icon', False):
         return None
@@ -272,7 +284,8 @@ class IconManager:
 
         return Icon(icon.key, icon.icon_hash, target_mime)
 
-    async def generic_get(self, scope, key, icon_hash, **kwargs) -> Icon:
+    async def generic_get(self, scope, key, icon_hash,
+                          **kwargs) -> Optional[Icon]:
         """Get any icon."""
 
         log.debug('GET {} {} {}', scope, key, icon_hash)
@@ -300,8 +313,15 @@ class IconManager:
 
         icon = Icon(icon_row['key'], icon_row['hash'], icon_row['mime'])
 
+        # ensure we aren't messing with NULLs everywhere.
+        if icon.as_pathlib is None:
+            return None
+
         if not icon.as_pathlib.exists():
             await self.delete(icon)
+            return None
+
+        if icon.extension is None:
             return None
 
         if 'ext' in kwargs and kwargs['ext'] != icon.extension:

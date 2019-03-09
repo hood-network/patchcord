@@ -17,7 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 from logbook import Logger
 
@@ -52,11 +52,17 @@ def str_(val):
     return maybe(str, val)
 
 
-def _filter_recipients(recipients: List[Dict[str, Any]], user_id: int):
+def int_(val):
+    return maybe(int, val)
+
+
+def bool_(val):
+    return maybe(int, val)
+
+
+def _filter_recipients(recipients: List[Dict[str, Any]], user_id: str):
     """Filter recipients in a list of recipients, removing
     the one that is reundant (ourselves)."""
-    user_id = str(user_id)
-
     return list(filter(
         lambda recipient: recipient['id'] != user_id,
         recipients))
@@ -69,7 +75,7 @@ class Storage:
         self.db = app.db
         self.presence = None
 
-    async def fetchrow_with_json(self, query: str, *args):
+    async def fetchrow_with_json(self, query: str, *args) -> Any:
         """Fetch a single row with JSON/JSONB support."""
         # the pool by itself doesn't have
         # set_type_codec, so we must set it manually
@@ -78,19 +84,19 @@ class Storage:
             await pg_set_json(con)
             return await con.fetchrow(query, *args)
 
-    async def fetch_with_json(self, query: str, *args):
+    async def fetch_with_json(self, query: str, *args) -> List[Any]:
         """Fetch many rows with JSON/JSONB support."""
         async with self.db.acquire() as con:
             await pg_set_json(con)
             return await con.fetch(query, *args)
 
-    async def execute_with_json(self, query: str, *args):
+    async def execute_with_json(self, query: str, *args) -> str:
         """Execute a SQL statement with JSON/JSONB support."""
         async with self.db.acquire() as con:
             await pg_set_json(con)
             return await con.execute(query, *args)
 
-    async def get_user(self, user_id, secure=False) -> Dict[str, Any]:
+    async def get_user(self, user_id, secure=False) -> Optional[Dict[str, Any]]:
         """Get a single user payload."""
         user_id = int(user_id)
 
@@ -107,7 +113,7 @@ class Storage:
         """, user_id)
 
         if not user_row:
-            return
+            return None
 
         duser = dict(user_row)
 
@@ -133,14 +139,14 @@ class Storage:
         """Search a user"""
         if len(discriminator) < 4:
             # how do we do this in f-strings again..?
-            discriminator = '%04d' % discriminator
+            discriminator = '%04d' % int(discriminator)
 
         return await self.db.fetchval("""
         SELECT id FROM users
         WHERE username = $1 AND discriminator = $2
         """, username, discriminator)
 
-    async def get_guild(self, guild_id: int, user_id=None) -> Dict:
+    async def get_guild(self, guild_id: int, user_id=None) -> Optional[Dict]:
         """Get gulid payload."""
         row = await self.db.fetchrow("""
         SELECT id::text, owner_id::text, name, icon, splash,
@@ -155,7 +161,7 @@ class Storage:
         """, guild_id)
 
         if not row:
-            return
+            return None
 
         drow = dict(row)
 
@@ -165,14 +171,36 @@ class Storage:
         return drow
 
     async def _member_basic(self, guild_id: int, member_id: int):
-        return await self.db.fetchrow("""
-        SELECT user_id, nickname, joined_at, deafened, muted
+        row = await self.db.fetchrow("""
+        SELECT user_id, nickname, joined_at,
+               deafened AS deaf, muted AS mute
         FROM members
         WHERE guild_id = $1 and user_id = $2
         """, guild_id, member_id)
 
+        if row is None:
+            return None
+
+        row = dict(row)
+        row['joined_at'] = timestamp_(row['joined_at'])
+        return row
+
+    async def _member_basic_with_roles(self, guild_id: int,
+                                       member_id: int):
+        basic = await self._member_basic(guild_id, member_id)
+
+        if basic is None:
+            return None
+
+        basic = dict(basic)
+        roles = await self.get_member_role_ids(guild_id, member_id)
+
+        return {**basic, **{
+            'roles': roles
+        }}
+
     async def get_member_role_ids(self, guild_id: int,
-                                  member_id: int) -> List[int]:
+                                  member_id: int) -> List[str]:
         """Get a list of role IDs that are on a member."""
         roles = await self.db.fetch("""
         SELECT role_id::text
@@ -197,6 +225,7 @@ class Storage:
 
     async def _member_dict(self, row, guild_id, member_id) -> Dict[str, Any]:
         roles = await self.get_member_role_ids(guild_id, member_id)
+
         return {
             'user': await self.get_user(member_id),
             'nick': row['nickname'],
@@ -205,18 +234,18 @@ class Storage:
             # the user since it is known that everyone has
             # that role.
             'roles': roles,
-            'joined_at': timestamp_(row['joined_at']),
-            'deaf': row['deafened'],
-            'mute': row['muted'],
+            'joined_at': row['joined_at'],
+            'deaf': row['deaf'],
+            'mute': row['mute'],
         }
 
     async def get_member_data_one(self, guild_id: int,
-                                  member_id: int) -> Dict[str, Any]:
+                                  member_id: int) -> Optional[Dict[str, Any]]:
         """Get data about one member in a guild."""
         basic = await self._member_basic(guild_id, member_id)
 
         if not basic:
-            return
+            return None
 
         return await self._member_dict(basic, guild_id, member_id)
 
@@ -238,7 +267,8 @@ class Storage:
     async def get_member_data(self, guild_id: int) -> List[Dict[str, Any]]:
         """Get member information on a guild."""
         members_basic = await self.db.fetch("""
-        SELECT user_id, nickname, joined_at, deafened, muted
+        SELECT user_id, nickname, joined_at,
+               deafened AS deaf, muted AS mute
         FROM members
         WHERE guild_id = $1
         """, guild_id)
@@ -314,6 +344,7 @@ class Storage:
             return {**row, **dict(vrow)}
 
         log.warning('unknown channel type: {}', chan_type)
+        return row
 
     async def get_chan_type(self, channel_id: int) -> int:
         """Get the channel type integer, given channel ID."""
@@ -368,7 +399,7 @@ class Storage:
         return [r['member_id'] for r in user_ids]
 
     async def _gdm_recipients(self, channel_id: int,
-                              reference_id: int = None) -> List[int]:
+                              reference_id: int = None) -> List[Dict]:
         """Get the list of users that are recipients of the
         given Group DM."""
         recipients = await self.gdm_recipient_ids(channel_id)
@@ -378,13 +409,17 @@ class Storage:
             if user_id == reference_id:
                 continue
 
-            res.append(
-                await self.get_user(user_id)
-            )
+            user = await self.get_user(user_id)
+
+            if user is None:
+                continue
+
+            res.append(user)
 
         return res
 
-    async def get_channel(self, channel_id: int, **kwargs) -> Dict[str, Any]:
+    async def get_channel(self, channel_id: int,
+                          **kwargs) -> Optional[Dict[str, Any]]:
         """Fetch a single channel's information."""
         chan_type = await self.get_chan_type(channel_id)
         ctype = ChannelType(chan_type)
@@ -493,7 +528,7 @@ class Storage:
         return channels
 
     async def get_role(self, role_id: int,
-                       guild_id: int = None) -> Dict[str, Any]:
+                       guild_id: int = None) -> Optional[Dict[str, Any]]:
         """get a single role's information."""
 
         guild_field = 'AND guild_id = $2' if guild_id else ''
@@ -511,7 +546,7 @@ class Storage:
         """, *args)
 
         if not row:
-            return
+            return None
 
         return dict(row)
 
@@ -526,6 +561,27 @@ class Storage:
         """, guild_id)
 
         return list(map(dict, roledata))
+
+    async def guild_voice_states(self, guild_id: int,
+                                 user_id=None) -> List[Dict[str, Any]]:
+        """Get a list of voice states for the given guild."""
+        channel_ids = await self.get_channel_ids(guild_id)
+
+        res = []
+
+        for channel_id in channel_ids:
+            states = await self.app.voice.fetch_states(channel_id)
+
+            jsonified = [s.as_json_for(user_id) for s in states.values()]
+
+            # discord does NOT insert guild_id to voice states on the
+            # guild voice state list.
+            for state in jsonified:
+                state.pop('guild_id')
+
+            res.extend(jsonified)
+
+        return res
 
     async def get_guild_extra(self, guild_id: int,
                               user_id=None, large=None) -> Dict:
@@ -567,18 +623,20 @@ class Storage:
             ),
 
             'emojis': await self.get_guild_emojis(guild_id),
-
-            # TODO: voice state management
-            'voice_states': [],
+            'voice_states': await self.guild_voice_states(guild_id),
         }}
 
-    async def get_guild_full(self, guild_id: int,
-                             user_id: int, large_count: int = 250) -> Dict:
+    async def get_guild_full(self, guild_id: int, user_id: int,
+                             large_count: int = 250) -> Optional[Dict]:
         """Get full information on a guild.
 
         This is a very expensive operation.
         """
         guild = await self.get_guild(guild_id, user_id)
+
+        if guild is None:
+            return None
+
         extra = await self.get_guild_extra(guild_id, user_id, large_count)
 
         return {**guild, **extra}
@@ -729,12 +787,13 @@ class Storage:
 
         return res
 
-    async def _inject_author(self, res):
+    async def _inject_author(self, res: dict):
         """Inject a pseudo-user object when the message is made by a webhook."""
         author_id, webhook_id = res['author_id'], res['webhook_id']
 
         if author_id is not None:
             res['author'] = await self.get_user(res['author_id'])
+            res.pop('webhook_id')
         elif webhook_id is not None:
             res['author'] = {
                 'id': webhook_id,
@@ -744,7 +803,8 @@ class Storage:
 
         res.pop('author_id')
 
-    async def get_message(self, message_id: int, user_id=None) -> Dict:
+    async def get_message(self, message_id: int,
+                          user_id: Optional[int] = None) -> Optional[Dict]:
         """Get a single message's payload."""
         row = await self.fetchrow_with_json("""
         SELECT id::text, channel_id::text, author_id, webhook_id, content,
@@ -755,7 +815,7 @@ class Storage:
         """, message_id)
 
         if not row:
-            return
+            return None
 
         res = dict(row)
         res['nonce'] = str(res['nonce'])
@@ -813,8 +873,12 @@ class Storage:
 
         res['attachments'] = await self.get_attachments(message_id)
 
-        # TODO: res['member'] for partial member data
-        #  of the author
+        # if message is not from a dm, guild_id is None and so, _member_basic
+        # will just return None
+        res['member'] = await self._member_basic_with_roles(guild_id, user_id)
+
+        if res['member'] is None:
+            res.pop('member')
 
         pin_id = await self.db.fetchval("""
         SELECT message_id
@@ -832,7 +896,7 @@ class Storage:
 
         return res
 
-    async def get_invite(self, invite_code: str) -> dict:
+    async def get_invite(self, invite_code: str) -> Optional[Dict]:
         """Fetch invite information given its code."""
         invite = await self.db.fetchrow("""
         SELECT code, guild_id, channel_id
@@ -861,6 +925,10 @@ class Storage:
             dinv['guild'] = {}
 
         chan = await self.get_channel(invite['channel_id'])
+
+        if chan is None:
+            return None
+
         dinv['channel'] = {
             'id': chan['id'],
             'name': chan['name'],
@@ -893,7 +961,8 @@ class Storage:
             'approximate_member_count': len(mids),
         }
 
-    async def get_invite_metadata(self, invite_code: str) -> Dict[str, Any]:
+    async def get_invite_metadata(self,
+                                  invite_code: str) -> Optional[Dict[str, Any]]:
         """Fetch invite metadata (max_age and friends)."""
         invite = await self.db.fetchrow("""
         SELECT code, inviter, created_at, uses,
@@ -903,7 +972,7 @@ class Storage:
         """, invite_code)
 
         if invite is None:
-            return
+            return None
 
         dinv = dict_(invite)
         inviter = await self.get_user(invite['inviter'])
@@ -911,17 +980,18 @@ class Storage:
 
         return dinv
 
-    async def get_dm(self, dm_id: int, user_id: int = None):
+    async def get_dm(self, dm_id: int, user_id: int = None) -> Optional[Dict]:
+        """Get a DM channel."""
         dm_chan = await self.get_channel(dm_id)
 
-        if user_id:
+        if user_id and dm_chan:
             dm_chan['recipients'] = _filter_recipients(
-                dm_chan['recipients'], user_id
+                dm_chan['recipients'], str(user_id)
             )
 
         return dm_chan
 
-    async def guild_from_channel(self, channel_id: int):
+    async def guild_from_channel(self, channel_id: int) -> int:
         """Get the guild id coming from a channel id."""
         return await self.db.fetchval("""
         SELECT guild_id
@@ -944,7 +1014,7 @@ class Storage:
 
         return parties[0]
 
-    async def get_emoji(self, emoji_id: int) -> Dict:
+    async def get_emoji(self, emoji_id: int) -> Optional[Dict[str, Any]]:
         """Get a single emoji."""
         row = await self.db.fetchrow("""
         SELECT id::text, name, animated, managed,
@@ -954,7 +1024,7 @@ class Storage:
         """, emoji_id)
 
         if not row:
-            return
+            return None
 
         drow = dict(row)
 
@@ -993,3 +1063,12 @@ class Storage:
         """, role_id)
 
         return [r['id'] for r in rows]
+
+    async def all_voice_regions(self) -> List[Dict[str, Any]]:
+        """Return a list of all voice regions."""
+        rows = await self.db.fetch("""
+        SELECT id, name, vip, deprecated, custom
+        FROM voice_regions
+        """)
+
+        return list(map(dict, rows))

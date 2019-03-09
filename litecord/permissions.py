@@ -18,6 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import ctypes
+from typing import Optional
 
 from quart import current_app as app
 
@@ -198,7 +199,8 @@ async def role_permissions(guild_id: int, role_id: int,
 
 async def compute_overwrites(base_perms: Permissions,
                              user_id, channel_id: int,
-                             guild_id: int = None, storage=None):
+                             guild_id: Optional[int] = None,
+                             storage=None):
     """Compute the permissions in the context of a channel."""
     if not storage:
         storage = app.storage
@@ -211,8 +213,12 @@ async def compute_overwrites(base_perms: Permissions,
     # list of overwrites
     overwrites = await storage.chan_overwrites(channel_id)
 
+    # if the channel isn't a guild, we should just return
+    # ALL_PERMISSIONS. the old approach was calling guild_from_channel
+    # again, but it is already passed by get_permissions(), so its
+    # redundant.
     if not guild_id:
-        guild_id = await storage.guild_from_channel(channel_id)
+        return ALL_PERMISSIONS
 
     # make it a map for better usage
     overwrites = {int(o['id']): o for o in overwrites}

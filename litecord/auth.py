@@ -29,6 +29,7 @@ from quart import request, current_app as app
 
 from litecord.errors import Forbidden, Unauthorized, BadRequest
 from litecord.snowflake import get_snowflake
+from litecord.enums import UserFlags
 
 
 log = Logger(__name__)
@@ -97,6 +98,23 @@ async def token_check():
 
     user_id = await raw_token_check(token)
     request.user_id = user_id
+    return user_id
+
+
+async def admin_check():
+    """Check if the user is an admin."""
+    user_id = await token_check()
+
+    flags = await app.db.fetchval("""
+    SELECT flags
+    FROM users
+    WHERE id = $1
+    """, user_id)
+
+    flags = UserFlags.from_int(flags)
+    if not flags.is_staff:
+        raise Unauthorized('you are not staff')
+
     return user_id
 
 

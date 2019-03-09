@@ -30,7 +30,7 @@ from logbook import Logger
 import earl
 
 from litecord.auth import raw_token_check
-from litecord.enums import RelationshipType
+from litecord.enums import RelationshipType, ChannelType
 from litecord.schemas import validate, GW_STATUS_UPDATE
 from litecord.utils import (
     task_wrapper, LitecordJSONEncoder, yield_chunks
@@ -47,15 +47,20 @@ from litecord.gateway.errors import (
     DecodeError, UnknownOPCode, InvalidShard, ShardingRequired
 )
 
+from litecord.storage import int_
+
 log = Logger(__name__)
+
 WebsocketProperties = collections.namedtuple(
     'WebsocketProperties', 'v encoding compress zctx tasks'
 )
 
 WebsocketObjects = collections.namedtuple(
-    'WebsocketObjects', ('db', 'state_manager', 'storage',
-                         'loop', 'dispatcher', 'presence', 'ratelimiter',
-                         'user_storage')
+    'WebsocketObjects', (
+        'db', 'state_manager', 'storage',
+        'loop', 'dispatcher', 'presence', 'ratelimiter',
+        'user_storage', 'voice'
+    )
 )
 
 
@@ -113,7 +118,7 @@ class GatewayWebsocket:
         self.ext = WebsocketObjects(
             app.db, app.state_manager, app.storage, app.loop,
             app.dispatcher, app.presence, app.ratelimiter,
-            app.user_storage
+            app.user_storage, app.voice
         )
 
         self.storage = self.ext.storage
@@ -230,7 +235,7 @@ class GatewayWebsocket:
             's': None
         })
 
-    def _check_ratelimit(self, key: str, ratelimit_key: str):
+    def _check_ratelimit(self, key: str, ratelimit_key):
         ratelimit = self.ext.ratelimiter.get_ratelimit(f'_ws.{key}')
         bucket = ratelimit.get_bucket(ratelimit_key)
         return bucket.update_rate_limit()
@@ -287,7 +292,7 @@ class GatewayWebsocket:
 
         await self.send(payload)
 
-    async def _make_guild_list(self) -> List[int]:
+    async def _make_guild_list(self) -> List[Dict[str, Any]]:
         user_id = self.state.user_id
 
         guild_ids = await self._guild_ids()
@@ -598,16 +603,85 @@ class GatewayWebsocket:
         # setting new presence to state
         await self.update_status(presence)
 
+    def voice_key(self, channel_id: int, guild_id: int):
+        """Voice state key."""
+        return (self.state.user_id, self.state.session_id)
+
+    async def _vsu_get_prop(self, state, data):
+        """Get voice state properties from data, fallbacking to
+        user settings."""
+        try:
+            # TODO: fetch from settings if not provided
+            self_deaf = bool(data['self_deaf'])
+            self_mute = bool(data['self_mute'])
+        except (KeyError, ValueError):
+            pass
+
+        return {
+            'deaf': state.deaf,
+            'mute': state.mute,
+            'self_deaf': self_deaf,
+            'self_mute': self_mute,
+        }
+
     async def handle_4(self, payload: Dict[str, Any]):
         """Handle OP 4 Voice Status Update."""
         data = payload['d']
-        # for now, ignore
-        log.debug('got VSU cid={} gid={} deaf={} mute={} video={}',
-                  data.get('channel_id'),
-                  data.get('guild_id'),
-                  data.get('self_deaf'),
-                  data.get('self_mute'),
-                  data.get('self_video'))
+
+        if not self.state:
+            return
+
+        channel_id = int_(data.get('channel_id'))
+        guild_id = int_(data.get('guild_id'))
+
+        # if its null and null, disconnect the user from any voice
+        # TODO: maybe just leave from DMs? idk...
+        if channel_id is None and guild_id is None:
+            return await self.ext.voice.leave_all(self.state.user_id)
+
+        # if guild is not none but channel is, we are leaving
+        # a guild's channel
+        if channel_id is None:
+            return await self.ext.voice.leave(guild_id, self.state.user_id)
+
+        # fetch an existing state given user and guild OR user and channel
+        chan_type = ChannelType(
+            await self.storage.get_chan_type(channel_id)
+        )
+
+        state_id2 = channel_id
+
+        if chan_type == ChannelType.GUILD_VOICE:
+            state_id2 = guild_id
+
+        # a voice state key is a Tuple[int, int]
+        #  - [0] is the user id
+        #  - [1] is the channel id or guild id
+
+        # the old approach was a (user_id, session_id), but
+        # that does not work.
+
+        # this works since users can be connected to many channels
+        # using a single gateway websocket connection. HOWEVER,
+        # they CAN NOT enter two channels in a single guild.
+
+        # this state id format takes care of that.
+        voice_key = (self.state.user_id, state_id2)
+        voice_state = await self.ext.voice.get_state(voice_key)
+
+        if voice_state is None:
+            return await self.ext.voice.create_state(voice_key, data)
+
+        same_guild = guild_id == voice_state.guild_id
+        same_channel = channel_id == voice_state.channel_id
+
+        prop = await self._vsu_get_prop(voice_state, data)
+
+        if same_guild and same_channel:
+            return await self.ext.voice.update_state(voice_state, prop)
+
+        if same_guild and not same_channel:
+            return await self.ext.voice.move_state(voice_state, channel_id)
 
     async def _handle_5(self, payload: Dict[str, Any]):
         """Handle OP 5 Voice Server Ping.
@@ -698,7 +772,7 @@ class GatewayWebsocket:
 
         await self._resume(range(seq, state.seq))
 
-    async def _req_guild_members(self, guild_id: str, user_ids: List[int],
+    async def _req_guild_members(self, guild_id, user_ids: List[int],
                                  query: str, limit: int):
         try:
             guild_id = int(guild_id)

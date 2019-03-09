@@ -17,13 +17,94 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from quart import Blueprint, jsonify
+from typing import Optional
+from collections import Counter
+from random import choice
+
+from quart import Blueprint, jsonify, current_app as app
+
+from litecord.blueprints.auth import token_check
 
 bp = Blueprint('voice', __name__)
 
 
+def _majority_region_count(regions: list) -> str:
+    """Return the first most common element in a given list."""
+    counter = Counter(regions)
+    common = counter.most_common(1)
+    region, _count = common[0]
+
+    return region
+
+
+async def _choose_random_region() -> Optional[str]:
+    """Give a random voice region."""
+    regions = await app.db.fetch("""
+    SELECT id
+    FROM voice_regions
+    """)
+
+    regions = [r['id'] for r in regions]
+
+    if not regions:
+        return None
+
+    return choice(regions)
+
+
+async def _majority_region_any(user_id) -> Optional[str]:
+    """Calculate the most likely region to make the user happy, but
+    this is based on the guilds the user is IN, instead of the guilds
+    the user owns."""
+    guilds = await app.user_storage.get_user_guilds(user_id)
+
+    if not guilds:
+        return await _choose_random_region()
+
+    res = []
+
+    for guild_id in guilds:
+        region = await app.db.fetchval("""
+        SELECT region
+        FROM guilds
+        WHERE id = $1
+        """, guild_id)
+
+        res.append(region)
+
+    most_common = _majority_region_count(res)
+
+    if most_common is None:
+        return await _choose_random_region()
+
+    return most_common
+
+
+async def majority_region(user_id: int) -> Optional[str]:
+    """Given a user ID, give the most likely region for the user to be
+    happy with."""
+    regions = await app.db.fetch("""
+    SELECT region
+    FROM guilds
+    WHERE owner_id = $1
+    """, user_id)
+
+    if not regions:
+        return await _majority_region_any(user_id)
+
+    regions = [r['region'] for r in regions]
+    return _majority_region_count(regions)
+
+
 @bp.route('/regions', methods=['GET'])
 async def voice_regions():
-    return jsonify([
-        {'name': 'Brazil', 'deprecated': False, 'id': 'Brazil', 'optimal': True, 'vip': True}
-    ])
+    """Return voice regions."""
+    user_id = await token_check()
+
+    best_region = await majority_region(user_id)
+    regions = await app.storage.all_voice_regions()
+
+    for region in regions:
+        region['optimal'] = region['id'] == best_region
+
+    return jsonify(regions)

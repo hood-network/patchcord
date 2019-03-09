@@ -24,7 +24,7 @@ import asyncpg
 import logbook
 import logging
 import websockets
-from quart import Quart, g, jsonify, request
+from quart import Quart, jsonify, request
 from logbook import StreamHandler, Logger
 from logbook.compat import redirect_logging
 from aiohttp import ClientSession
@@ -54,14 +54,17 @@ from litecord.blueprints.user import (
     user_settings, user_billing, fake_store
 )
 
-from litecord.blueprints.user.billing_job import (
-    payment_job
+from litecord.blueprints.user.billing_job import payment_job
+
+from litecord.blueprints.admin_api import (
+    voice as voice_admin
 )
+
+from litecord.blueprints.admin_api.voice import guild_region_check
 
 from litecord.ratelimits.handler import ratelimit_handler
 from litecord.ratelimits.main import RatelimitManager
 
-from litecord.gateway import websocket_handler
 from litecord.errors import LitecordError
 from litecord.gateway.state_manager import StateManager
 from litecord.storage import Storage
@@ -70,6 +73,9 @@ from litecord.dispatcher import EventDispatcher
 from litecord.presence import PresenceManager
 from litecord.images import IconManager
 from litecord.jobs import JobManager
+from litecord.voice.manager import VoiceManager
+
+from litecord.gateway.gateway import websocket_handler
 
 from litecord.utils import LitecordJSONEncoder
 
@@ -135,7 +141,9 @@ def set_blueprints(app_):
         icons: -1,
         attachments: -1,
         nodeinfo: -1,
-        static: -1
+        static: -1,
+
+        voice_admin: '/admin/voice'
     }
 
     for bp, suffix in bps.items():
@@ -232,6 +240,8 @@ def init_app_managers(app_):
 
     app_.storage.presence = app_.presence
 
+    app_.voice = VoiceManager(app_)
+
 
 async def api_index(app_):
     to_find = {}
@@ -290,33 +300,43 @@ async def post_app_start(app_):
     # we'll need to start a billing job
     app_.sched.spawn(payment_job(app_))
     app_.sched.spawn(api_index(app_))
+    app_.sched.spawn(guild_region_check(app_))
 
 
-@app.before_serving
-async def app_before_serving():
-    log.info('opening db')
-    await init_app_db(app)
-
-    g.app = app
-    g.loop = asyncio.get_event_loop()
-
-    app.session = ClientSession()
-
-    init_app_managers(app)
-
-    # start the websocket, etc
-    host, port = app.config['WS_HOST'], app.config['WS_PORT']
+def start_websocket(host, port, ws_handler) -> asyncio.Future:
+    """Start a websocket. Returns the websocket future"""
     log.info(f'starting websocket at {host} {port}')
 
     async def _wrapper(ws, url):
         # We wrap the main websocket_handler
         # so we can pass quart's app object.
-        await websocket_handler(app, ws, url)
+        await ws_handler(app, ws, url)
 
-    ws_future = websockets.serve(_wrapper, host, port)
+    return websockets.serve(_wrapper, host, port)
 
+
+@app.before_serving
+async def app_before_serving():
+    """Callback for variable setup.
+
+    Also sets up the websocket handlers.
+    """
+    log.info('opening db')
+    await init_app_db(app)
+
+    app.session = ClientSession()
+
+    init_app_managers(app)
     await post_app_start(app)
-    await ws_future
+
+    # start gateway websocket
+    # voice websocket is handled by the voice server
+    ws_fut = start_websocket(
+        app.config['WS_HOST'], app.config['WS_PORT'],
+        websocket_handler
+    )
+
+    await ws_fut
 
 
 @app.after_serving

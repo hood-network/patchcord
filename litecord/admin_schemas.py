@@ -17,6 +17,15 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-__all__ = ['websocket_handler']
+VOICE_SERVER = {
+    'hostname': {'type': 'string', 'maxlength': 255, 'required': True}
+}
 
-from .gateway import websocket_handler
+VOICE_REGION = {
+    'id': {'type': 'string', 'maxlength': 255, 'required': True},
+    'name': {'type': 'string', 'maxlength': 255, 'required': True},
+
+    'vip': {'type': 'boolean', 'default': False},
+    'deprecated': {'type': 'boolean', 'default': False},
+    'custom': {'type': 'boolean', 'default': False},
+}
