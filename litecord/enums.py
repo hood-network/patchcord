@@ -18,12 +18,16 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import inspect
+from typing import List, Any
 from enum import Enum, IntEnum
 
 
 class EasyEnum(Enum):
+    """Wrapper around the enum class for convenience."""
+
     @classmethod
-    def values(cls):
+    def values(cls) -> List[Any]:
+        """Return list of values for the given enum."""
         return [v.value for v in cls.__members__.values()]
 
 
@@ -210,7 +214,7 @@ class PremiumType:
     NONE = None
 
 
-class Feature(Enum):
+class Feature(EasyEnum):
     """Guild features."""
     invite_splash = 'INVITE_SPLASH'
     vip = 'VIP_REGIONS'
