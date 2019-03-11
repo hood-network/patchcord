@@ -1,4 +1,5 @@
 DROP TABLE guild_features;
 DROP TABLE features;
 
-ALTER TABLE guilds ADD COLUMN features text[];
+-- this should do the trick
+ALTER TABLE guilds ADD COLUMN features text[] NOT NULL DEFAULT '{}';
