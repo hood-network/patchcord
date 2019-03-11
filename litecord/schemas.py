@@ -28,7 +28,7 @@ from .permissions import Permissions
 from .types import Color
 from .enums import (
     ActivityType, StatusType, ExplicitFilter, RelationshipType,
-    MessageNotifications, ChannelType, VerificationLevel, Features
+    MessageNotifications, ChannelType, VerificationLevel, Feature
 )
 
 from litecord.embed.schemas import EMBED_OBJECT
@@ -144,9 +144,6 @@ class LitecordValidator(Validator):
 
     def _validate_type_nickname(self, value: str) -> bool:
         return isinstance(value, str) and (len(value) < 32)
-
-    def _validate_type_guild_feature(self, value: str) -> bool:
-        return value in Features.values()
 
 
 def validate(reqjson: Union[Dict, List], schema: Dict,
@@ -662,6 +659,6 @@ GET_MENTIONS = {
 FEATURES = {
     'features': {
         'type': 'list', 'required': True,
-        'schema': {'type': 'guild_feature'}
+        'schema': {'coerce': Feature}
     }
 }

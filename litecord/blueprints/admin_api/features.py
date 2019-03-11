@@ -16,6 +16,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
+from typing import List
 
 from quart import Blueprint, current_app as app, jsonify, request
 
@@ -25,6 +26,11 @@ from litecord.schemas import validate, FEATURES
 from litecord.enums import Feature
 
 bp = Blueprint('features_admin', __name__)
+
+
+async def _features_from_req() -> List[str]:
+    j = validate(await request.get_json(), FEATURES)
+    return [feature.value for feature in j['features']]
 
 
 async def _features(guild_id: int):
@@ -45,8 +51,7 @@ async def _update_features(guild_id: int, features: list):
 async def replace_features(guild_id: int):
     """Replace the feature list in a guild"""
     await admin_check()
-    j = validate(await request.get_json(), FEATURES)
-    features = j['features']
+    features = await _features_from_req()
 
     # yes, we need to pass it to a set and then to a list before
     # doing anything, since the api client might just
@@ -59,9 +64,8 @@ async def replace_features(guild_id: int):
 async def insert_features(guild_id: int):
     """Insert a feature on a guild."""
     await admin_check()
-    j = validate(await request.get_json(), FEATURES)
+    to_add = await _features_from_req()
 
-    to_add = j['features']
     features = await app.storage.guild_features(guild_id)
     features = set(features)
 
@@ -77,8 +81,7 @@ async def insert_features(guild_id: int):
 async def remove_feature(guild_id: int):
     """Remove a feature from a guild"""
     await admin_check()
-    j = validate(await request.get_json(), FEATURES)
-    to_remove = j['features']
+    to_remove = await _features_from_req()
     features = await app.storage.guild_features(guild_id)
 
     for feature in to_remove:
