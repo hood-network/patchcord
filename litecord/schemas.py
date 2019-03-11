@@ -655,3 +655,10 @@ GET_MENTIONS = {
     'everyone': {'coerce': bool, 'default': True},
     'guild_id': {'coerce': int, 'required': False}
 }
+
+FEATURES = {
+    'features': {
+        'type': 'list', 'required': True,
+        'schema': {'type': 'guild_feature'}
+    }
+}

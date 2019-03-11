@@ -197,12 +197,27 @@ class RelationshipType(EasyEnum):
 
 
 class MessageNotifications(EasyEnum):
+    """Message notifications"""
     ALL = 0
     MENTIONS = 1
     NOTHING = 2
 
 
 class PremiumType:
+    """Premium (Nitro) type."""
     TIER_1 = 1
     TIER_2 = 2
     NONE = None
+
+
+class Feature(Enum):
+    """Guild features."""
+    invite_splash = 'INVITE_SPLASH'
+    vip = 'VIP_REGIONS'
+    vanity = 'VANITY_URL'
+    emoji = 'MORE_EMOJI'
+    verified = 'VERIFIED'
+
+    # unknown
+    commerce = 'COMMERCE'
+    news = 'NEWS'

@@ -17,6 +17,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
+from typing import Optional
+
 # size units
 KILOBYTES = 1024
 
@@ -45,5 +47,6 @@ class Color:
         return self.value
 
 
-def timestamp_(dt):
+def timestamp_(dt) -> Optional[str]:
+    """safer version for dt.isoformat()"""
     return f'{dt.isoformat()}+00:00' if dt else None

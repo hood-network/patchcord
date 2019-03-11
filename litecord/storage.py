@@ -146,6 +146,13 @@ class Storage:
         WHERE username = $1 AND discriminator = $2
         """, username, discriminator)
 
+    async def guild_features(self, guild_id: int) -> Optional[List[str]]:
+        """Get a list of guild features for the given guild."""
+        return await self.db.fetchval("""
+        SELECT features FROM guilds
+        WHERE id = $1
+        """, guild_id)
+
     async def get_guild(self, guild_id: int, user_id=None) -> Optional[Dict]:
         """Get gulid payload."""
         row = await self.db.fetchrow("""
