@@ -145,7 +145,7 @@ def set_blueprints(app_):
         static: -1,
 
         voice_admin: '/admin/voice',
-        features_admin: '/admin/features',
+        features_admin: '/admin/guilds',
         guilds_admin: '/admin/guilds'
     }
 

@@ -659,6 +659,8 @@ GET_MENTIONS = {
 FEATURES = {
     'features': {
         'type': 'list', 'required': True,
-        'schema': {'coerce': Feature}
+
+        # using Feature doesn't seem to work with a "not callable" error.
+        'schema': {'coerce': lambda x: Feature(x)}
     }
 }
