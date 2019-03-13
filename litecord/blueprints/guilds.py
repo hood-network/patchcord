@@ -223,6 +223,12 @@ async def _update_guild(guild_id):
         """, j['name'], guild_id)
 
     if 'region' in j:
+        is_vip = app.voice.lvsp.region(j['region']).vip
+        can_vip = await app.storage.has_feature(guild_id, 'VIP_REGIONS')
+
+        if is_vip and not can_vip:
+            raise BadRequest('can not assign guild to vip-only region')
+
         await app.db.execute("""
         UPDATE guilds
         SET region = $1
