@@ -28,7 +28,7 @@ from .permissions import Permissions
 from .types import Color
 from .enums import (
     ActivityType, StatusType, ExplicitFilter, RelationshipType,
-    MessageNotifications, ChannelType, VerificationLevel, Feature
+    MessageNotifications, ChannelType, VerificationLevel
 )
 
 from litecord.embed.schemas import EMBED_OBJECT
@@ -656,14 +656,6 @@ GET_MENTIONS = {
     'guild_id': {'coerce': int, 'required': False}
 }
 
-FEATURES = {
-    'features': {
-        'type': 'list', 'required': True,
-
-        # using Feature doesn't seem to work with a "not callable" error.
-        'schema': {'coerce': lambda x: Feature(x)}
-    }
-}
 
 VANITY_URL_PATCH = {
     # TODO: put proper values in maybe an invite data type

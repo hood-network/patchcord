@@ -22,7 +22,8 @@ from quart import Blueprint, current_app as app, jsonify, request
 
 from litecord.auth import admin_check
 from litecord.errors import BadRequest
-from litecord.schemas import validate, FEATURES
+from litecord.schemas import validate
+from litecord.admin_schemas import FEATURES
 from litecord.blueprints.guilds import vanity_invite
 
 bp = Blueprint('features_admin', __name__)
