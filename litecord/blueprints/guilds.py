@@ -17,6 +17,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
+from typing import Optional
+
+from asyncpg import UniqueViolationError
 from quart import Blueprint, request, current_app as app, jsonify
 
 from litecord.blueprints.guild.channels import create_guild_channel
@@ -28,7 +31,8 @@ from ..auth import token_check
 from ..snowflake import get_snowflake
 from ..enums import ChannelType
 from ..schemas import (
-    validate, GUILD_CREATE, GUILD_UPDATE, SEARCH_CHANNEL
+    validate, GUILD_CREATE, GUILD_UPDATE, SEARCH_CHANNEL,
+    VANITY_URL_PATCH
 )
 from .channels import channel_ack
 from .checks import guild_check, guild_owner_check, guild_perm_check
@@ -373,20 +377,83 @@ async def ack_guild(guild_id):
     return '', 204
 
 
-@bp.route('/<int:guild_id>/vanity-url', methods=['GET'])
-async def get_vanity_url(guild_id: int):
-    """Get the vanity url of a guild."""
-    user_id = await token_check()
-
-    await guild_perm_check(user_id, guild_id, 'manage_guild')
-
-    inv_code = await app.db.fetchval("""
+async def _vanity_inv(guild_id) -> Optional[str]:
+    return await app.db.fetchval("""
     SELECT code FROM vanity_invites
     WHERE guild_id = $1
     """, guild_id)
 
+
+@bp.route('/<int:guild_id>/vanity-url', methods=['GET'])
+async def get_vanity_url(guild_id: int):
+    """Get the vanity url of a guild."""
+    user_id = await token_check()
+    await guild_perm_check(user_id, guild_id, 'manage_guild')
+
+    inv_code = await _vanity_inv(guild_id)
+
     if inv_code is None:
         return jsonify({'code': None})
+
+    return jsonify(
+        await app.storage.get_invite(inv_code)
+    )
+
+
+@bp.route('/<int:guild_id>/vanity-url', methods=['PATCH'])
+async def change_vanity_url(guild_id: int):
+    """Get the vanity url of a guild."""
+    user_id = await token_check()
+    await guild_perm_check(user_id, guild_id, 'manage_guild')
+
+    j = validate(await request.get_json(), VANITY_URL_PATCH)
+    inv_code = j['code']
+
+    # store old vanity in a variable to delete it from
+    # invites table
+    old_vanity = await _vanity_inv(guild_id)
+
+    # this is sad because we don't really use the things
+    # sql gives us, but i havent really found a way to put
+    # multiple ON CONFLICT clauses so we could UPDATE when
+    # guild_id_fkey fails but INSERT when code_fkey fails..
+    inv = await app.storage.get_invite(inv_code)
+    if inv:
+        raise BadRequest('invite already exists')
+
+    # TODO: this is bad, what if a guild has no channels?
+    # we should probably choose the first channel that has
+    # @everyone read messages
+    channels = await app.storage.get_channel_data(guild_id)
+    channel_id = int(channels[0]['id'])
+
+    # delete the old invite, insert new one
+    await app.db.execute("""
+    DELETE FROM invites
+    WHERE code = $1
+    """, old_vanity)
+
+    await app.db.execute(
+        """
+        INSERT INTO invites
+            (code, guild_id, channel_id, inviter, max_uses,
+            max_age, temporary)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        """,
+        inv_code, guild_id, channel_id, user_id,
+
+        # sane defaults for vanity urls.
+        0, 0, False,
+    )
+
+    await app.db.execute("""
+    INSERT INTO vanity_invites (guild_id, code)
+    VALUES ($1, $2)
+    ON CONFLICT ON CONSTRAINT vanity_invites_pkey DO
+    UPDATE
+        SET code = $2
+        WHERE vanity_invites.guild_id = $1
+    """, guild_id, inv_code)
 
     return jsonify(
         await app.storage.get_invite(inv_code)
