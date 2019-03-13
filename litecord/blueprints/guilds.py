@@ -403,6 +403,11 @@ async def get_vanity_url(guild_id: int):
 async def change_vanity_url(guild_id: int):
     """Get the vanity url of a guild."""
     user_id = await token_check()
+
+    if not await app.storage.has_feature(guild_id, 'VANITY_URL'):
+        # TODO: is this the right error
+        raise BadRequest('guild has no vanity url support')
+
     await guild_perm_check(user_id, guild_id, 'manage_guild')
 
     j = validate(await request.get_json(), VANITY_URL_PATCH)
