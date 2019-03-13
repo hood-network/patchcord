@@ -1076,3 +1076,12 @@ class Storage:
         """)
 
         return list(map(dict, rows))
+
+    async def has_feature(self, guild_id: int, feature: str) -> bool:
+        """Return if a certain guild has a certain feature."""
+        features = await self.db.fetchval("""
+        SELECT features FROM guilds
+        WHERE id = $1
+        """, guild_id)
+
+        return feature.upper() in features

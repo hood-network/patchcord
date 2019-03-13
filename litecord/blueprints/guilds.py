@@ -19,7 +19,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from typing import Optional
 
-from asyncpg import UniqueViolationError
 from quart import Blueprint, request, current_app as app, jsonify
 
 from litecord.blueprints.guild.channels import create_guild_channel
