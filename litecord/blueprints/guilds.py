@@ -413,6 +413,9 @@ async def change_vanity_url(guild_id: int):
     # invites table
     old_vanity = await _vanity_inv(guild_id)
 
+    if old_vanity == inv_code:
+        raise BadRequest('can not change to same invite')
+
     # this is sad because we don't really use the things
     # sql gives us, but i havent really found a way to put
     # multiple ON CONFLICT clauses so we could UPDATE when
