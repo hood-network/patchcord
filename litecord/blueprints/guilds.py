@@ -371,3 +371,23 @@ async def ack_guild(guild_id):
         await channel_ack(user_id, guild_id, chan_id)
 
     return '', 204
+
+
+@bp.route('/<int:guild_id>/vanity-url', methods=['GET'])
+async def get_vanity_url(guild_id: int):
+    """Get the vanity url of a guild."""
+    user_id = await token_check()
+
+    await guild_perm_check(user_id, guild_id, 'manage_guild')
+
+    inv_code = await app.db.fetchval("""
+    SELECT code FROM vanity_invites
+    WHERE guild_id = $1
+    """, guild_id)
+
+    if inv_code is None:
+        return jsonify({'code': None})
+
+    return jsonify(
+        await app.storage.get_invite(inv_code)
+    )
