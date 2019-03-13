@@ -45,6 +45,9 @@ async def _update_features(guild_id: int, features: list):
     WHERE id = $2
     """, features, guild_id)
 
+    guild = await app.storage.get_guild_full(guild_id)
+    await app.dispatcher.dispatch('guild', guild_id, 'GUILD_UPDATE', guild)
+
 
 @bp.route('/<int:guild_id>/features', methods=['PATCH'])
 async def replace_features(guild_id: int):

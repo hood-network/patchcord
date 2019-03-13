@@ -633,7 +633,7 @@ class Storage:
             'voice_states': await self.guild_voice_states(guild_id),
         }}
 
-    async def get_guild_full(self, guild_id: int, user_id: int,
+    async def get_guild_full(self, guild_id: int, user_id: Optional[int] = None,
                              large_count: int = 250) -> Optional[Dict]:
         """Get full information on a guild.
 
