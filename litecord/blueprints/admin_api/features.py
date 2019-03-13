@@ -23,6 +23,7 @@ from quart import Blueprint, current_app as app, jsonify, request
 from litecord.auth import admin_check
 from litecord.errors import BadRequest
 from litecord.schemas import validate, FEATURES
+from litecord.blueprints.guilds import vanity_invite
 
 bp = Blueprint('features_admin', __name__)
 
@@ -39,6 +40,19 @@ async def _features(guild_id: int):
 
 
 async def _update_features(guild_id: int, features: list):
+    if 'VANITY_URL' not in features:
+        existing_inv = await vanity_invite(guild_id)
+
+        await app.db.execute("""
+        DELETE FROM vanity_invites
+        WHERE guild_id = $1
+        """, guild_id)
+
+        await app.db.execute("""
+        DELETE FROM invites
+        WHERE code = $1
+        """, existing_inv)
+
     await app.db.execute("""
     UPDATE guilds
     SET features = $1
