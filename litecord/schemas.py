@@ -249,7 +249,7 @@ PARTIAL_CHANNEL_GUILD_CREATE = {
 
 GUILD_CREATE = {
     'name': {'type': 'guild_name'},
-    'region': {'type': 'voice_region'},
+    'region': {'type': 'voice_region', 'nullable': True},
     'icon': {'type': 'b64_icon', 'required': False, 'nullable': True},
 
     'verification_level': {
@@ -272,7 +272,7 @@ GUILD_UPDATE = {
         'type': 'guild_name',
         'required': False
     },
-    'region': {'type': 'voice_region', 'required': False},
+    'region': {'type': 'voice_region', 'required': False, 'nullable': True},
     'icon': {'type': 'b64_icon', 'required': False, 'nullable': True},
     'splash': {'type': 'b64_icon', 'required': False, 'nullable': True},
 
