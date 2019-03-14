@@ -175,7 +175,12 @@ REGISTER = {
     'username': {'type': 'username', 'required': True},
     'email': {'type': 'email', 'required': False},
     'password': {'type': 'string', 'minlength': 5, 'required': False},
-    'invite': {'type': 'string', 'required': False, 'nullable': True},        # optional
+
+    # invite stands for a guild invite, not an instance invite (that's on
+    # the register_with_invite handler).
+    'invite': {'type': 'string', 'required': False, 'nullable': True},
+    
+    # following fields only sent by official client
     'fingerprint': {'type': 'string', 'required': False, 'nullable': True},   # these are sent by official client
     'captcha_key': {'type': 'string', 'required': False, 'nullable': True},
     'consent': {'type': 'boolean'},
