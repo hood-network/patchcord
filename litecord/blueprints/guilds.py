@@ -260,7 +260,7 @@ async def _update_guild(guild_id):
     if 'icon' in j:
         # delete old
         new_icon = await app.icons.update(
-            'guild', guild_id, j['icon'], always_icon=True
+            'guild', guild_id, j['icon'], always_icon=True, size=(128, 128)
         )
 
         await app.db.execute("""
