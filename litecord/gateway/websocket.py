@@ -74,7 +74,16 @@ def decode_json(data: str):
 
 
 def encode_etf(payload) -> str:
-    return earl.pack(payload)
+    # The thing with encoding ETF is that with json we have LitecordJSONEncoder
+    # which takes care of converting e.g datetime objects to their ISO
+    # representation.
+
+    # so, to keep things working, i'll to a json pass on the payload, then send
+    # the decoded payload back to earl.
+
+    sanitized = encode_json(payload)
+    sanitized = decode_json(sanitized)
+    return earl.pack(sanitized)
 
 
 def _etf_decode_dict(data):

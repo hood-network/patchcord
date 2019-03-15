@@ -81,7 +81,7 @@ async def _get_guild_splash(guild_id: int, icon_file: str):
     return await send_icon('splash', guild_id, icon_hash, ext=ext)
 
 
-@bp.route('/banners/<int:channel_id>/<icon_file>', methods=['GET'])
+@bp.route('/banners/<int:guild_id>/<icon_file>', methods=['GET'])
 async def _get_guild_banner(guild_id: int, icon_file: str):
     icon_hash, ext = splitext_(icon_file)
     return await send_icon('banner', guild_id, icon_hash, ext=ext)
