@@ -238,6 +238,21 @@ async def _guild_update_icon(scope: str, guild_id: int,
     """, new_icon.icon_hash, guild_id)
 
 
+async def _guild_update_region(guild_id, region):
+    is_vip = region.vip
+    can_vip = await app.storage.has_feature(guild_id, 'VIP_REGIONS')
+
+    if is_vip and not can_vip:
+        raise BadRequest('can not assign guild to vip-only region')
+
+    await app.db.execute("""
+    UPDATE guilds
+    SET region = $1
+    WHERE id = $2
+    """, region.id, guild_id)
+
+
+
 @bp.route('/<int:guild_id>', methods=['PATCH'])
 async def _update_guild(guild_id):
     user_id = await token_check()
@@ -263,17 +278,10 @@ async def _update_guild(guild_id):
         """, j['name'], guild_id)
 
     if 'region' in j:
-        is_vip = app.voice.lvsp.region(j['region']).vip
-        can_vip = await app.storage.has_feature(guild_id, 'VIP_REGIONS')
+        region = app.voice.lvsp.region(j['region'])
 
-        if is_vip and not can_vip:
-            raise BadRequest('can not assign guild to vip-only region')
-
-        await app.db.execute("""
-        UPDATE guilds
-        SET region = $1
-        WHERE id = $2
-        """, j['region'], guild_id)
+        if region is not None:
+            await _guild_update_region(guild_id, region)
 
     if 'icon' in j:
         await _guild_update_icon(
