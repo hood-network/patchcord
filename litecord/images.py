@@ -46,6 +46,7 @@ EXTENSIONS = {
 MIMES = {
     'jpg': 'image/jpeg',
     'jpe': 'image/jpeg',
+    'jpeg': 'image/jpeg',
     'webp': 'image/webp',
 }
 
@@ -171,15 +172,23 @@ def parse_data_uri(string) -> tuple:
 
 
 def _gen_update_sql(scope: str) -> str:
+    # match a scope to (table, field)
     field = {
         'user': 'avatar',
         'guild': 'icon',
+        'splash': 'splash',
+        'banner': 'banner',
+
         'channel-icons': 'icon',
     }[scope]
 
     table = {
         'user': 'users',
+
         'guild': 'guilds',
+        'splash': 'guilds',
+        'banner': 'guilds',
+
         'channel-icons': 'group_dm_channels'
     }[scope]
 
@@ -269,6 +278,8 @@ class IconManager:
         self.storage = app.storage
 
     async def _convert_ext(self, icon: Icon, target: str):
+        target = 'jpeg' if target == 'jpg' else target
+
         target_mime = get_mime(target)
         log.info('converting from {} to {}', icon.mime, target_mime)
 
@@ -279,6 +290,10 @@ class IconManager:
 
         image = Image.open(icon.as_path)
         target_fd = target_path.open('wb')
+
+        if target == 'jpeg':
+            image = image.convert('RGB')
+
         image.save(target_fd, format=target)
         target_fd.close()
 
@@ -386,6 +401,9 @@ class IconManager:
         if scope == 'user' and mime == 'image/gif':
             icon_hash = f'a_{icon_hash}'
 
+        log.debug('PUT icon {!r} {!r} {!r} {!r}',
+                  scope, key, icon_hash, mime)
+
         await self.storage.db.execute("""
         INSERT INTO icons (scope, key, hash, mime)
         VALUES ($1, $2, $3, $4)
@@ -405,6 +423,9 @@ class IconManager:
         """Delete an icon from the database and filesystem."""
         if not icon:
             return
+
+        log.debug('DEL {}',
+                  icon)
 
         # dereference
         await self.storage.db.execute("""
@@ -428,6 +449,18 @@ class IconManager:
         UPDATE guilds
         SET icon = NULL
         WHERE icon = $1
+        """, icon.icon_hash)
+
+        await self.storage.db.execute("""
+        UPDATE guilds
+        SET splash = NULL
+        WHERE splash = $1
+        """, icon.icon_hash)
+
+        await self.storage.db.execute("""
+        UPDATE guilds
+        SET banner = NULL
+        WHERE banner = $1
         """, icon.icon_hash)
 
         await self.storage.db.execute("""
@@ -455,7 +488,11 @@ class IconManager:
         old_icon_hash = await self.storage.db.fetchval(
             _gen_update_sql(scope), key)
 
+        # converting key to str only here since from here onwards
+        # its operations on the icons table (or a dereference with
+        # the delete() method but that will work regardless)
         key = str(key)
+
         old_icon = await self.generic_get(scope, key, old_icon_hash)
         await self.delete(old_icon)
 

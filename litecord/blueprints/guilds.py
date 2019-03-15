@@ -224,7 +224,7 @@ async def _guild_update_icon(scope: str, guild_id: int,
                              icon: Optional[str], **kwargs):
     """Update icon."""
     new_icon = await app.icons.update(
-        'guild', guild_id, icon, always_icon=True, **kwargs
+        scope, guild_id, icon, always_icon=True, **kwargs
     )
 
     table = {
