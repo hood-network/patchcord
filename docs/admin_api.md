@@ -54,6 +54,19 @@ Returns a partial guild object.
 
 ## Guild features
 
+The currently supported features are:
+ - `INVITE_SPLASH`, allows custom images to be put for invites.
+ - `VIP_REGIONS`, allows a guild to use voice regions marked as VIP.
+ - `VANITY_URL`, allows a custom invite URL to be used.
+ - `MORE_EMOJI`, bumps the emoji limit from 50 to 200 (applies to static and
+    animated emoji).
+ - `VERIFIED`, adds a verified badge and a guild banner being shown on the
+    top of the channel list.
+
+Features that are not planned to be implemented:
+ - `COMMERCE`
+ - `NEWS`
+
 ### PATCH `/guilds/<guild_id>/features`
 
 Patch the entire features list. Returns the new feature list following the same
