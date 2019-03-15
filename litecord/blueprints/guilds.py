@@ -220,6 +220,24 @@ async def get_guild(guild_id):
     )
 
 
+async def _guild_update_icon(scope: str, guild_id: int,
+                             icon: Optional[str], **kwargs):
+    """Update icon."""
+    new_icon = await app.icons.update(
+        'guild', guild_id, icon, always_icon=True, **kwargs
+    )
+
+    table = {
+        'guild': 'icon',
+    }.get(scope, scope)
+
+    await app.db.execute(f"""
+    UPDATE guilds
+    SET {table} = $1
+    WHERE id = $2
+    """, new_icon.icon_hash, guild_id)
+
+
 @bp.route('/<int:guild_id>', methods=['PATCH'])
 async def _update_guild(guild_id):
     user_id = await token_check()
@@ -258,16 +276,20 @@ async def _update_guild(guild_id):
         """, j['region'], guild_id)
 
     if 'icon' in j:
-        # delete old
-        new_icon = await app.icons.update(
-            'guild', guild_id, j['icon'], always_icon=True, size=(128, 128)
-        )
+        await _guild_update_icon(
+            'guild', guild_id, j['splash'], size=(128, 128))
 
-        await app.db.execute("""
-        UPDATE guilds
-        SET icon = $1
-        WHERE id = $2
-        """, new_icon.icon_hash, guild_id)
+    if 'splash' in j:
+        if not await app.storage.has_feature(guild_id, 'INVITE_SPLASH'):
+            raise BadRequest('guild does not have INVITE_SPLASH feature')
+
+        await _guild_update_icon('splash', guild_id, j['splash'])
+
+    if 'banner' in j:
+        if not await app.storage.has_feature(guild_id, 'VERIFIED'):
+            raise BadRequest('guild is not verified')
+
+        await _guild_update_icon('banner', guild_id, j['banner'])
 
     fields = ['verification_level', 'default_message_notifications',
               'explicit_content_filter', 'afk_timeout']
