@@ -94,8 +94,8 @@ async def insert_features(guild_id: int):
     return await _features(guild_id)
 
 
-@bp.route('/<int:guild_id>/<feature>', methods=['DELETE'])
-async def remove_feature(guild_id: int):
+@bp.route('/<int:guild_id>/features', methods=['DELETE'])
+async def remove_features(guild_id: int):
     """Remove a feature from a guild"""
     await admin_check()
     to_remove = await _features_from_req()

@@ -45,3 +45,30 @@ Mark a voice region as deprecated. Disables any voice actions on guilds that are
 using the voice region.
 
 Returns empty body with 204 status code on success.
+
+## Guilds
+
+### GET `/guilds/<guild_id>`
+
+Returns a partial guild object.
+
+## Guild features
+
+### PATCH `/guilds/<guild_id>/features`
+
+Patch the entire features list. Returns the new feature list following the same
+structure as the input.
+
+| field | type | description |
+| --: | :-- | :-- |
+| features | List[string] | new list of features |
+
+### PUT `/guilds/<guild_id>/features`
+
+Insert features. Receives and returns the same structure as
+PATCH `/guilds/<guild_id>/features`.
+
+### DELETE `/guilds/<guild_id>/features`
+
+Remove features. Receives and returns the same structure as
+PATCH `/guilds/<guild_id>/features`.
