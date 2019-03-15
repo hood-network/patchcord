@@ -18,7 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from os.path import splitext
-from quart import Blueprint, current_app as app, send_file, request
+from quart import Blueprint, current_app as app, send_file
 
 bp = Blueprint('images', __name__)
 
@@ -60,10 +60,8 @@ async def _get_default_user_avatar(discrim: int):
 
 @bp.route('/avatars/<int:user_id>/<avatar_file>')
 async def _get_user_avatar(user_id, avatar_file):
-    size_int = int(request.args.get('size', '1024'))
     avatar_hash, ext = splitext_(avatar_file)
-    return await send_icon(
-        'user', user_id, avatar_hash, ext=ext)
+    return await send_icon('user', user_id, avatar_hash, ext=ext)
 
 
 # @bp.route('/app-icons/<int:application_id>/<icon_hash>.<ext>')
