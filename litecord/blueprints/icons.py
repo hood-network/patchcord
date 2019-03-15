@@ -53,11 +53,6 @@ async def _get_guild_icon(guild_id: int, icon_file: str):
     return await send_icon('guild', guild_id, icon_hash, ext=ext)
 
 
-@bp.route('/splashes/<int:guild_id>/<icon_hash>.<ext>', methods=['GET'])
-async def _get_guild_splash(guild_id: int, splash_hash: str, ext: str):
-    pass
-
-
 @bp.route('/embed/avatars/<int:discrim>.png')
 async def _get_default_user_avatar(discrim: int):
     pass
@@ -66,7 +61,6 @@ async def _get_default_user_avatar(discrim: int):
 @bp.route('/avatars/<int:user_id>/<avatar_file>')
 async def _get_user_avatar(user_id, avatar_file):
     size_int = int(request.args.get('size', '1024'))
-    print('user request size', size_int)
     avatar_hash, ext = splitext_(avatar_file)
     return await send_icon(
         'user', user_id, avatar_hash, ext=ext)
