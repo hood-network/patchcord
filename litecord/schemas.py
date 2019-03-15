@@ -280,11 +280,11 @@ GUILD_UPDATE = {
     'region': {'type': 'voice_region', 'required': False, 'nullable': True},
 
     'icon': {'type': 'b64_icon', 'required': False, 'nullable': True},
-    'splash': {'type': 'b64_icon', 'required': False, 'nullable': True},
 
     # TODO: does splash also respect when its just a string pointing to the
     # hash, just like in USER_UPDATE.avatar?
     'banner': {'type': 'string', 'required': False, 'nullable': True},
+    'splash': {'type': 'string', 'required': False, 'nullable': True},
 
     'description': {
         'type': 'string', 'required': False,

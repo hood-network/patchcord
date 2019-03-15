@@ -286,16 +286,16 @@ async def _update_guild(guild_id):
 
     if 'icon' in j:
         await _guild_update_icon(
-            'guild', guild_id, j['splash'], size=(128, 128))
+            'guild', guild_id, j['icon'], size=(128, 128))
 
-    if 'splash' in j:
+    # small guild to work with to_update()
+    guild = await app.storage.get_guild(guild_id)
+
+    if to_update(j, guild, 'splash'):
         if not await app.storage.has_feature(guild_id, 'INVITE_SPLASH'):
             raise BadRequest('guild does not have INVITE_SPLASH feature')
 
         await _guild_update_icon('splash', guild_id, j['splash'])
-
-    # small guild to work with to_update()
-    guild = await app.storage.get_guild(guild_id)
 
     if to_update(j, guild, 'banner'):
         if not await app.storage.has_feature(guild_id, 'VERIFIED'):
