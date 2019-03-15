@@ -2,7 +2,9 @@
 
 the base path is `/api/v6/admin`.
 
-## GET `/voice/regions/<region>`
+## Voice
+
+### GET `/voice/regions/<region>`
 
 Return a list of voice server objects for the region.
 
@@ -13,7 +15,7 @@ Returns empty list if the region does not exist.
 | hostname | string | the hostname of the voice server |
 | last\_health | float | the health of the voice server |
 
-## PUT `/voice/regions`
+### PUT `/voice/regions`
 
 Create a voice region.
 
@@ -27,7 +29,7 @@ Receives JSON body as input, returns a list of voice region objects as output.
 | deprecated | Optional[bool] | if voice region is deprecated, default false |
 | custom | Optional[bool] | if voice region is custom-only, default false |
 
-## PUT `/voice/regions/<region>/server`
+### PUT `/voice/regions/<region>/server`
 
 Create a voice server for a region.
 
@@ -37,7 +39,7 @@ Returns empty body with 204 status code on success.
 | --: | :-- | :-- |
 | hostname | string | the hostname of the voice server |
 
-## PUT `/voice/regions/<region>/deprecate`
+### PUT `/voice/regions/<region>/deprecate`
 
 Mark a voice region as deprecated. Disables any voice actions on guilds that are
 using the voice region.
