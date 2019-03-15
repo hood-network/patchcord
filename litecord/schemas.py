@@ -278,8 +278,16 @@ GUILD_UPDATE = {
         'required': False
     },
     'region': {'type': 'voice_region', 'required': False, 'nullable': True},
+
     'icon': {'type': 'b64_icon', 'required': False, 'nullable': True},
     'splash': {'type': 'b64_icon', 'required': False, 'nullable': True},
+    'banner': {'type': 'b64_icon', 'required': False, 'nullable': True},
+
+    'description': {
+        'type': 'string', 'required': False,
+        'minlength': 1, 'maxlength': 120,
+        'nullable': True
+    },
 
     'verification_level': {
         'type': 'verification_level', 'required': False},
