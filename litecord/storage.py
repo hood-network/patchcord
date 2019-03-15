@@ -919,7 +919,8 @@ class Storage:
 
         # fetch some guild info
         guild = await self.db.fetchrow("""
-        SELECT id::text, name, splash, icon, verification_level
+        SELECT id::text, name, icon, splash, banner, features,
+               verification_level, description
         FROM guilds
         WHERE id = $1
         """, invite['guild_id'])
