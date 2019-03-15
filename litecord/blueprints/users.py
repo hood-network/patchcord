@@ -32,7 +32,7 @@ from litecord.auth import token_check, hash_data, check_username_usage
 from litecord.blueprints.guild.mod import remove_member
 
 from litecord.enums import PremiumType
-from litecord.images import parse_data_uri, ImageError
+from litecord.images import parse_data_uri
 from litecord.permissions import base_permissions
 
 from litecord.blueprints.auth import check_password
