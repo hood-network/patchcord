@@ -108,17 +108,39 @@ async def guild_create_channels_prep(guild_id: int, channels: list):
         await create_guild_channel(guild_id, channel_id, ctype)
 
 
-async def put_guild_icon(guild_id: int, icon: str):
-    """Insert a guild icon on the icon database."""
+def sanitize_icon(icon: Optional[str]) -> Optional[str]:
+    """Return sanitized version of the given icon.
+
+    Defaults to a jpeg icon when the header isn't given.
+    """
     if icon and icon.startswith('data'):
-        encoded = icon
-    else:
-        encoded = (f'data:image/jpeg;base64,{icon}'
-                   if icon
-                   else None)
+        return icon
+
+    return (f'data:image/jpeg;base64,{icon}'
+            if icon
+            else None)
+
+
+async def _general_guild_icon(scope: str, guild_id: int,
+                              icon: str, **kwargs):
+    encoded = sanitize_icon(icon)
+
+    icon_kwargs = {
+        'always_icon': True
+    }
+
+    if 'size' in kwargs:
+        icon_kwargs['size'] = kwargs['size']
 
     return await app.icons.put(
-        'guild', guild_id, encoded, size=(128, 128), always_icon=True)
+        scope, guild_id, encoded,
+        **icon_kwargs
+    )
+
+
+async def put_guild_icon(guild_id: int, icon: Optional[str]):
+    """Insert a guild icon on the icon database."""
+    return await _general_guild_icon('guild', guild_id, icon, size=(128, 128))
 
 
 @bp.route('', methods=['POST'])
