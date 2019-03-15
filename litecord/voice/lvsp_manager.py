@@ -19,12 +19,21 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from typing import Optional
 from collections import defaultdict
+from dataclasses import dataclass
 
 from logbook import Logger
 
 from litecord.voice.lvsp_conn import LVSPConnection
 
 log = Logger(__name__)
+
+
+@dataclass
+class Region:
+    """Voice region data."""
+    id: str
+    vip: bool
+
 
 class LVSPManager:
     """Manager class for Litecord Voice Server Protocol (LVSP) connections.
@@ -44,46 +53,52 @@ class LVSPManager:
         # maps Union[GuildID, DMId, GroupDMId] to server hostnames
         self.assign = {}
 
+        # quick storage for Region dataclass instances.
+        self._regions = {}
+
         self.app.loop.create_task(self._spawn())
 
     async def _spawn(self):
         """Spawn LVSPConnection for each region."""
 
         regions = await self.app.db.fetch("""
-        SELECT id
+        SELECT id, vip
         FROM voice_regions
         WHERE deprecated = false
         """)
 
-        regions = [r['id'] for r in regions]
+        regions = [Region(r['id'], r['vip']) for r in regions]
 
         if not regions:
             log.warning('no regions are setup')
             return
 
         for region in regions:
+            # store it locally for region() function
+            self._regions[region.id] = region
+
             self.app.loop.create_task(
                 self._spawn_region(region)
             )
 
-    async def _spawn_region(self, region: str):
+    async def _spawn_region(self, region: Region):
         """Spawn a region. Involves fetching all the hostnames
         for the regions and spawning a LVSPConnection for each."""
         servers = await self.app.db.fetch("""
         SELECT hostname
         FROM voice_servers
         WHERE region_id = $1
-        """, region)
+        """, region.id)
 
         if not servers:
             log.warning('region {} does not have servers', region)
             return
 
         servers = [r['hostname'] for r in servers]
-        self.servers[region] = servers
+        self.servers[region.id] = servers
 
         for hostname in servers:
-            conn = LVSPConnection(self, region, hostname)
+            conn = LVSPConnection(self, region.id, hostname)
             self.conns[hostname] = conn
 
             self.app.loop.create_task(
@@ -144,3 +159,7 @@ class LVSPManager:
     async def assign_conn(self, key: int, hostname: str):
         """Assign a connection to a given key in the assign map"""
         self.assign[key] = hostname
+
+    def region(self, region_id: str) -> Optional[Region]:
+        """Get a :class:`Region` instance:wq:wq"""
+        return self._regions.get(region_id)

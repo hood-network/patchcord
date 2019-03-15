@@ -17,6 +17,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
+from typing import Optional
+
 from quart import Blueprint, request, current_app as app, jsonify
 
 from litecord.blueprints.guild.channels import create_guild_channel
@@ -28,10 +30,12 @@ from ..auth import token_check
 from ..snowflake import get_snowflake
 from ..enums import ChannelType
 from ..schemas import (
-    validate, GUILD_CREATE, GUILD_UPDATE, SEARCH_CHANNEL
+    validate, GUILD_CREATE, GUILD_UPDATE, SEARCH_CHANNEL,
+    VANITY_URL_PATCH
 )
 from .channels import channel_ack
 from .checks import guild_check, guild_owner_check, guild_perm_check
+from litecord.utils import to_update
 
 from litecord.errors import BadRequest
 
@@ -105,17 +109,39 @@ async def guild_create_channels_prep(guild_id: int, channels: list):
         await create_guild_channel(guild_id, channel_id, ctype)
 
 
-async def put_guild_icon(guild_id: int, icon: str):
-    """Insert a guild icon on the icon database."""
+def sanitize_icon(icon: Optional[str]) -> Optional[str]:
+    """Return sanitized version of the given icon.
+
+    Defaults to a jpeg icon when the header isn't given.
+    """
     if icon and icon.startswith('data'):
-        encoded = icon
-    else:
-        encoded = (f'data:image/jpeg;base64,{icon}'
-                   if icon
-                   else None)
+        return icon
+
+    return (f'data:image/jpeg;base64,{icon}'
+            if icon
+            else None)
+
+
+async def _general_guild_icon(scope: str, guild_id: int,
+                              icon: str, **kwargs):
+    encoded = sanitize_icon(icon)
+
+    icon_kwargs = {
+        'always_icon': True
+    }
+
+    if 'size' in kwargs:
+        icon_kwargs['size'] = kwargs['size']
 
     return await app.icons.put(
-        'guild', guild_id, encoded, size=(128, 128), always_icon=True)
+        scope, guild_id, encoded,
+        **icon_kwargs
+    )
+
+
+async def put_guild_icon(guild_id: int, icon: Optional[str]):
+    """Insert a guild icon on the icon database."""
+    return await _general_guild_icon('guild', guild_id, icon, size=(128, 128))
 
 
 @bp.route('', methods=['POST'])
@@ -195,6 +221,39 @@ async def get_guild(guild_id):
     )
 
 
+async def _guild_update_icon(scope: str, guild_id: int,
+                             icon: Optional[str], **kwargs):
+    """Update icon."""
+    new_icon = await app.icons.update(
+        scope, guild_id, icon, always_icon=True, **kwargs
+    )
+
+    table = {
+        'guild': 'icon',
+    }.get(scope, scope)
+
+    await app.db.execute(f"""
+    UPDATE guilds
+    SET {table} = $1
+    WHERE id = $2
+    """, new_icon.icon_hash, guild_id)
+
+
+async def _guild_update_region(guild_id, region):
+    is_vip = region.vip
+    can_vip = await app.storage.has_feature(guild_id, 'VIP_REGIONS')
+
+    if is_vip and not can_vip:
+        raise BadRequest('can not assign guild to vip-only region')
+
+    await app.db.execute("""
+    UPDATE guilds
+    SET region = $1
+    WHERE id = $2
+    """, region.id, guild_id)
+
+
+
 @bp.route('/<int:guild_id>', methods=['PATCH'])
 async def _update_guild(guild_id):
     user_id = await token_check()
@@ -220,26 +279,32 @@ async def _update_guild(guild_id):
         """, j['name'], guild_id)
 
     if 'region' in j:
-        await app.db.execute("""
-        UPDATE guilds
-        SET region = $1
-        WHERE id = $2
-        """, j['region'], guild_id)
+        region = app.voice.lvsp.region(j['region'])
+
+        if region is not None:
+            await _guild_update_region(guild_id, region)
 
     if 'icon' in j:
-        # delete old
-        new_icon = await app.icons.update(
-            'guild', guild_id, j['icon'], always_icon=True
-        )
+        await _guild_update_icon(
+            'guild', guild_id, j['icon'], size=(128, 128))
 
-        await app.db.execute("""
-        UPDATE guilds
-        SET icon = $1
-        WHERE id = $2
-        """, new_icon.icon_hash, guild_id)
+    # small guild to work with to_update()
+    guild = await app.storage.get_guild(guild_id)
+
+    if to_update(j, guild, 'splash'):
+        if not await app.storage.has_feature(guild_id, 'INVITE_SPLASH'):
+            raise BadRequest('guild does not have INVITE_SPLASH feature')
+
+        await _guild_update_icon('splash', guild_id, j['splash'])
+
+    if to_update(j, guild, 'banner'):
+        if not await app.storage.has_feature(guild_id, 'VERIFIED'):
+            raise BadRequest('guild is not verified')
+
+        await _guild_update_icon('banner', guild_id, j['banner'])
 
     fields = ['verification_level', 'default_message_notifications',
-              'explicit_content_filter', 'afk_timeout']
+              'explicit_content_filter', 'afk_timeout', 'description']
 
     for field in [f for f in fields if f in j]:
         await app.db.execute(f"""
@@ -371,3 +436,95 @@ async def ack_guild(guild_id):
         await channel_ack(user_id, guild_id, chan_id)
 
     return '', 204
+
+
+async def vanity_invite(guild_id: int) -> Optional[str]:
+    """Get the vanity invite for a guild."""
+    return await app.db.fetchval("""
+    SELECT code FROM vanity_invites
+    WHERE guild_id = $1
+    """, guild_id)
+
+
+@bp.route('/<int:guild_id>/vanity-url', methods=['GET'])
+async def get_vanity_url(guild_id: int):
+    """Get the vanity url of a guild."""
+    user_id = await token_check()
+    await guild_perm_check(user_id, guild_id, 'manage_guild')
+
+    inv_code = await vanity_invite(guild_id)
+
+    if inv_code is None:
+        return jsonify({'code': None})
+
+    return jsonify(
+        await app.storage.get_invite(inv_code)
+    )
+
+
+@bp.route('/<int:guild_id>/vanity-url', methods=['PATCH'])
+async def change_vanity_url(guild_id: int):
+    """Get the vanity url of a guild."""
+    user_id = await token_check()
+
+    if not await app.storage.has_feature(guild_id, 'VANITY_URL'):
+        # TODO: is this the right error
+        raise BadRequest('guild has no vanity url support')
+
+    await guild_perm_check(user_id, guild_id, 'manage_guild')
+
+    j = validate(await request.get_json(), VANITY_URL_PATCH)
+    inv_code = j['code']
+
+    # store old vanity in a variable to delete it from
+    # invites table
+    old_vanity = await vanity_invite(guild_id)
+
+    if old_vanity == inv_code:
+        raise BadRequest('can not change to same invite')
+
+    # this is sad because we don't really use the things
+    # sql gives us, but i havent really found a way to put
+    # multiple ON CONFLICT clauses so we could UPDATE when
+    # guild_id_fkey fails but INSERT when code_fkey fails..
+    inv = await app.storage.get_invite(inv_code)
+    if inv:
+        raise BadRequest('invite already exists')
+
+    # TODO: this is bad, what if a guild has no channels?
+    # we should probably choose the first channel that has
+    # @everyone read messages
+    channels = await app.storage.get_channel_data(guild_id)
+    channel_id = int(channels[0]['id'])
+
+    # delete the old invite, insert new one
+    await app.db.execute("""
+    DELETE FROM invites
+    WHERE code = $1
+    """, old_vanity)
+
+    await app.db.execute(
+        """
+        INSERT INTO invites
+            (code, guild_id, channel_id, inviter, max_uses,
+            max_age, temporary)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        """,
+        inv_code, guild_id, channel_id, user_id,
+
+        # sane defaults for vanity urls.
+        0, 0, False,
+    )
+
+    await app.db.execute("""
+    INSERT INTO vanity_invites (guild_id, code)
+    VALUES ($1, $2)
+    ON CONFLICT ON CONSTRAINT vanity_invites_pkey DO
+    UPDATE
+        SET code = $2
+        WHERE vanity_invites.guild_id = $1
+    """, guild_id, inv_code)
+
+    return jsonify(
+        await app.storage.get_invite(inv_code)
+    )

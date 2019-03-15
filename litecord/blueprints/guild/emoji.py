@@ -24,6 +24,8 @@ from litecord.blueprints.checks import guild_check, guild_perm_check
 from litecord.schemas import validate, NEW_EMOJI, PATCH_EMOJI
 from litecord.snowflake import get_snowflake
 from litecord.types import KILOBYTES
+from litecord.images import parse_data_uri
+from litecord.errors import BadRequest
 
 bp = Blueprint('guild.emoji', __name__)
 
@@ -54,6 +56,24 @@ async def _get_guild_emoji_one(guild_id, emoji_id):
     )
 
 
+async def _guild_emoji_size_check(guild_id: int, mime: str):
+    limit = 50
+    if await app.storage.has_feature(guild_id, 'MORE_EMOJI'):
+        limit = 200
+
+    # NOTE: I'm assuming you can have 200 animated emojis.
+    select_animated = mime == 'image/gif'
+
+    total_emoji = await app.db.fetchval("""
+    SELECT COUNT(*) FROM guild_emoji
+    WHERE guild_id = $1 AND animated = $2
+    """, guild_id, select_animated)
+
+    if total_emoji >= limit:
+        # TODO: really return a BadRequest? needs more looking.
+        raise BadRequest(f'too many emoji ({limit})')
+
+
 @bp.route('/<int:guild_id>/emojis', methods=['POST'])
 async def _put_emoji(guild_id):
     user_id = await token_check()
@@ -62,6 +82,11 @@ async def _put_emoji(guild_id):
     await guild_perm_check(user_id, guild_id, 'manage_emojis')
 
     j = validate(await request.get_json(), NEW_EMOJI)
+
+    # we have to parse it before passing on so that we know which
+    # size to check.
+    mime, _ = parse_data_uri(j['image'])
+    await _guild_emoji_size_check(guild_id, mime)
 
     emoji_id = get_snowflake()
 
@@ -75,6 +100,8 @@ async def _put_emoji(guild_id):
     if not icon:
         return '', 400
 
+    # TODO: better way to detect animated emoji rather than just gifs,
+    # maybe a list perhaps?
     await app.db.execute(
         """
         INSERT INTO guild_emoji
@@ -85,7 +112,8 @@ async def _put_emoji(guild_id):
         emoji_id, guild_id, user_id,
         j['name'],
         icon.icon_hash,
-        icon.mime == 'image/gif')
+        icon.mime == 'image/gif'
+    )
 
     await _dispatch_emojis(guild_id)
 

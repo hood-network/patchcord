@@ -17,8 +17,17 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from .voice import bp as voice
-from .features import bp as features
-from .guilds import bp as guilds
+from quart import Blueprint, jsonify, current_app as app
 
-__all__ = ['voice', 'features', 'guilds']
+from litecord.auth import admin_check
+
+bp = Blueprint('guilds_admin', __name__)
+
+@bp.route('/<int:guild_id>', methods=['GET'])
+async def get_guild(guild_id: int):
+    """Get a basic guild payload."""
+    await admin_check()
+
+    return jsonify(
+        await app.storage.get_guild(guild_id)
+    )

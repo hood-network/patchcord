@@ -17,6 +17,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
+from litecord.enums import Feature
+
 VOICE_SERVER = {
     'hostname': {'type': 'string', 'maxlength': 255, 'required': True}
 }
@@ -28,4 +30,13 @@ VOICE_REGION = {
     'vip': {'type': 'boolean', 'default': False},
     'deprecated': {'type': 'boolean', 'default': False},
     'custom': {'type': 'boolean', 'default': False},
+}
+
+FEATURES = {
+    'features': {
+        'type': 'list', 'required': True,
+
+        # using Feature doesn't seem to work with a "not callable" error.
+        'schema': {'coerce': lambda x: Feature(x)}
+    }
 }

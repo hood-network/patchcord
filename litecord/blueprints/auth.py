@@ -23,6 +23,7 @@ import secrets
 import itsdangerous
 import bcrypt
 from quart import Blueprint, jsonify, request, current_app as app
+from logbook import Logger
 
 from litecord.auth import token_check, create_user
 from litecord.schemas import validate, REGISTER, REGISTER_WITH_INVITE
@@ -30,7 +31,7 @@ from litecord.errors import BadRequest
 from litecord.snowflake import get_snowflake
 from .invites import use_invite
 
-
+log = Logger(__name__)
 bp = Blueprint('auth', __name__)
 
 
@@ -64,10 +65,17 @@ async def register():
     j = await request.get_json()
 
     if not 'password' in j:
-        j['password'] = 'default_password' # we need some password to make a token
+        # we need a password to generate a token.
+        # passwords are optional, so
+        j['password'] = 'default_password'
 
     j = validate(j, REGISTER)
-    email, password, username, invite = j['email'] if 'email' in j else None, j['password'], j['username'], j['invite']
+
+    # they're optional
+    email = j.get('email')
+    invite = j.get('invite')
+
+    username, password = j['username'], j['password']
 
     new_id, pwd_hash = await create_user(
         username, email, password, app.db
@@ -76,9 +84,9 @@ async def register():
     if invite:
         try:
             await use_invite(new_id, invite)
-        except Exception as e:
-            print(e)
-            pass # do nothing      
+        except Exception:
+            log.exception('failed to use invite for register {} {!r}',
+                          new_id, invite)
 
     return jsonify({
         'token': make_token(new_id, pwd_hash)

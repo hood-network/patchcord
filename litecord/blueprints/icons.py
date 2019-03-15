@@ -18,7 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from os.path import splitext
-from quart import Blueprint, current_app as app, send_file, request
+from quart import Blueprint, current_app as app, send_file
 
 bp = Blueprint('images', __name__)
 
@@ -53,11 +53,6 @@ async def _get_guild_icon(guild_id: int, icon_file: str):
     return await send_icon('guild', guild_id, icon_hash, ext=ext)
 
 
-@bp.route('/splashes/<int:guild_id>/<icon_hash>.<ext>', methods=['GET'])
-async def _get_guild_splash(guild_id: int, splash_hash: str, ext: str):
-    pass
-
-
 @bp.route('/embed/avatars/<int:discrim>.png')
 async def _get_default_user_avatar(discrim: int):
     pass
@@ -65,11 +60,8 @@ async def _get_default_user_avatar(discrim: int):
 
 @bp.route('/avatars/<int:user_id>/<avatar_file>')
 async def _get_user_avatar(user_id, avatar_file):
-    size_int = int(request.args.get('size', '1024'))
-    print('user request size', size_int)
     avatar_hash, ext = splitext_(avatar_file)
-    return await send_icon(
-        'user', user_id, avatar_hash, ext=ext)
+    return await send_icon('user', user_id, avatar_hash, ext=ext)
 
 
 # @bp.route('/app-icons/<int:application_id>/<icon_hash>.<ext>')
@@ -78,6 +70,18 @@ async def get_app_icon(application_id, icon_hash, ext):
 
 
 @bp.route('/channel-icons/<int:channel_id>/<icon_file>', methods=['GET'])
-async def _get_gdm_icon(guild_id: int, icon_file: str):
+async def _get_gdm_icon(channel_id: int, icon_file: str):
     icon_hash, ext = splitext_(icon_file)
-    return await send_icon('channel-icons', guild_id, icon_hash, ext=ext)
+    return await send_icon('channel-icons', channel_id, icon_hash, ext=ext)
+
+
+@bp.route('/splashes/<int:guild_id>/<icon_file>', methods=['GET'])
+async def _get_guild_splash(guild_id: int, icon_file: str):
+    icon_hash, ext = splitext_(icon_file)
+    return await send_icon('splash', guild_id, icon_hash, ext=ext)
+
+
+@bp.route('/banners/<int:guild_id>/<icon_file>', methods=['GET'])
+async def _get_guild_banner(guild_id: int, icon_file: str):
+    icon_hash, ext = splitext_(icon_file)
+    return await send_icon('banner', guild_id, icon_hash, ext=ext)

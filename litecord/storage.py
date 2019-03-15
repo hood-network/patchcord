@@ -146,6 +146,13 @@ class Storage:
         WHERE username = $1 AND discriminator = $2
         """, username, discriminator)
 
+    async def guild_features(self, guild_id: int) -> Optional[List[str]]:
+        """Get a list of guild features for the given guild."""
+        return await self.db.fetchval("""
+        SELECT features FROM guilds
+        WHERE id = $1
+        """, guild_id)
+
     async def get_guild(self, guild_id: int, user_id=None) -> Optional[Dict]:
         """Get gulid payload."""
         row = await self.db.fetchrow("""
@@ -155,7 +162,8 @@ class Storage:
                explicit_content_filter, mfa_level,
                embed_enabled, embed_channel_id::text,
                widget_enabled, widget_channel_id::text,
-               system_channel_id::text
+               system_channel_id::text, features,
+               banner, description
         FROM guilds
         WHERE guilds.id = $1
         """, guild_id)
@@ -626,7 +634,7 @@ class Storage:
             'voice_states': await self.guild_voice_states(guild_id),
         }}
 
-    async def get_guild_full(self, guild_id: int, user_id: int,
+    async def get_guild_full(self, guild_id: int, user_id: Optional[int] = None,
                              large_count: int = 250) -> Optional[Dict]:
         """Get full information on a guild.
 
@@ -911,16 +919,14 @@ class Storage:
 
         # fetch some guild info
         guild = await self.db.fetchrow("""
-        SELECT id::text, name, splash, icon, verification_level
+        SELECT id::text, name, icon, splash, banner, features,
+               verification_level, description
         FROM guilds
         WHERE id = $1
         """, invite['guild_id'])
 
         if guild:
             dinv['guild'] = dict(guild)
-
-            # TODO: query actual guild features
-            dinv['guild']['features'] = []
         else:
             dinv['guild'] = {}
 
@@ -1072,3 +1078,12 @@ class Storage:
         """)
 
         return list(map(dict, rows))
+
+    async def has_feature(self, guild_id: int, feature: str) -> bool:
+        """Return if a certain guild has a certain feature."""
+        features = await self.db.fetchval("""
+        SELECT features FROM guilds
+        WHERE id = $1
+        """, guild_id)
+
+        return feature.upper() in features

@@ -175,7 +175,12 @@ REGISTER = {
     'username': {'type': 'username', 'required': True},
     'email': {'type': 'email', 'required': False},
     'password': {'type': 'string', 'minlength': 5, 'required': False},
-    'invite': {'type': 'string', 'required': False, 'nullable': True},        # optional
+
+    # invite stands for a guild invite, not an instance invite (that's on
+    # the register_with_invite handler).
+    'invite': {'type': 'string', 'required': False, 'nullable': True},
+    
+    # following fields only sent by official client
     'fingerprint': {'type': 'string', 'required': False, 'nullable': True},   # these are sent by official client
     'captcha_key': {'type': 'string', 'required': False, 'nullable': True},
     'consent': {'type': 'boolean'},
@@ -273,8 +278,19 @@ GUILD_UPDATE = {
         'required': False
     },
     'region': {'type': 'voice_region', 'required': False, 'nullable': True},
+
     'icon': {'type': 'b64_icon', 'required': False, 'nullable': True},
-    'splash': {'type': 'b64_icon', 'required': False, 'nullable': True},
+
+    # TODO: does splash also respect when its just a string pointing to the
+    # hash, just like in USER_UPDATE.avatar?
+    'banner': {'type': 'string', 'required': False, 'nullable': True},
+    'splash': {'type': 'string', 'required': False, 'nullable': True},
+
+    'description': {
+        'type': 'string', 'required': False,
+        'minlength': 1, 'maxlength': 120,
+        'nullable': True
+    },
 
     'verification_level': {
         'type': 'verification_level', 'required': False},
@@ -654,4 +670,10 @@ GET_MENTIONS = {
     'roles': {'coerce': bool, 'default': True},
     'everyone': {'coerce': bool, 'default': True},
     'guild_id': {'coerce': int, 'required': False}
+}
+
+
+VANITY_URL_PATCH = {
+    # TODO: put proper values in maybe an invite data type
+    'code': {'type': 'string', 'minlength': 5, 'maxlength': 30}
 }
