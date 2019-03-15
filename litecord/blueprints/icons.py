@@ -78,6 +78,18 @@ async def get_app_icon(application_id, icon_hash, ext):
 
 
 @bp.route('/channel-icons/<int:channel_id>/<icon_file>', methods=['GET'])
-async def _get_gdm_icon(guild_id: int, icon_file: str):
+async def _get_gdm_icon(channel_id: int, icon_file: str):
     icon_hash, ext = splitext_(icon_file)
-    return await send_icon('channel-icons', guild_id, icon_hash, ext=ext)
+    return await send_icon('channel-icons', channel_id, icon_hash, ext=ext)
+
+
+@bp.route('/splashes/<int:guild_id>/<icon_file>', methods=['GET'])
+async def _get_guild_splash(guild_id: int, icon_file: str):
+    icon_hash, ext = splitext_(icon_file)
+    return await send_icon('splash', guild_id, icon_hash, ext=ext)
+
+
+@bp.route('/banners/<int:channel_id>/<icon_file>', methods=['GET'])
+async def _get_guild_banner(guild_id: int, icon_file: str):
+    icon_hash, ext = splitext_(icon_file)
+    return await send_icon('banner', guild_id, icon_hash, ext=ext)
