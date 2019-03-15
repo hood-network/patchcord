@@ -174,3 +174,8 @@ def yield_chunks(input_list: Sequence[Any], chunk_size: int):
     # make the chunks
     for idx in range(0, len(input_list), chunk_size):
         yield input_list[idx:idx + chunk_size]
+
+def to_update(j: dict, orig: dict, field: str) -> bool:
+    """Compare values to check if j[field] is actually updating
+    the value in orig[field]. Useful for icon checks."""
+    return field in j and j[field] and j[field] != orig[field]

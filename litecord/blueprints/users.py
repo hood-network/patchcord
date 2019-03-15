@@ -32,10 +32,11 @@ from litecord.auth import token_check, hash_data, check_username_usage
 from litecord.blueprints.guild.mod import remove_member
 
 from litecord.enums import PremiumType
-from litecord.images import parse_data_uri
+from litecord.images import parse_data_uri, ImageError
 from litecord.permissions import base_permissions
 
 from litecord.blueprints.auth import check_password
+from litecord.utils import to_update
 
 bp = Blueprint('user', __name__)
 log = Logger(__name__)
@@ -183,10 +184,6 @@ async def _try_discrim_patch(user_id, new_discrim: str):
         raise BadRequest('Invalid discriminator', {
             'discriminator': 'Someone already used this discriminator.'
         })
-
-
-def to_update(j: dict, user: dict, field: str):
-    return field in j and j[field] and j[field] != user[field]
 
 
 async def _check_pass(j, user):

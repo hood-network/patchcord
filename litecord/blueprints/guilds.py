@@ -35,6 +35,7 @@ from ..schemas import (
 )
 from .channels import channel_ack
 from .checks import guild_check, guild_owner_check, guild_perm_check
+from litecord.utils import to_update
 
 from litecord.errors import BadRequest
 
@@ -293,14 +294,17 @@ async def _update_guild(guild_id):
 
         await _guild_update_icon('splash', guild_id, j['splash'])
 
-    if 'banner' in j:
+    # small guild to work with to_update()
+    guild = await app.storage.get_guild(guild_id)
+
+    if to_update(j, guild, 'banner'):
         if not await app.storage.has_feature(guild_id, 'VERIFIED'):
             raise BadRequest('guild is not verified')
 
         await _guild_update_icon('banner', guild_id, j['banner'])
 
     fields = ['verification_level', 'default_message_notifications',
-              'explicit_content_filter', 'afk_timeout']
+              'explicit_content_filter', 'afk_timeout', 'description']
 
     for field in [f for f in fields if f in j]:
         await app.db.execute(f"""
