@@ -35,7 +35,7 @@ async def _create_user():
 
     j = validate(await request.get_json(), USER_CREATE)
 
-    user_id = await create_user(j['username'], j['email'], j['password'])
+    user_id, _ = await create_user(j['username'], j['email'], j['password'])
 
     return jsonify(
         await app.storage.get_user(user_id)
