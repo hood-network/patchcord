@@ -1,6 +1,13 @@
 # Litecord Admin API
 
-the base path is `/api/v6/admin`.
+Litecord's Admin API uses the same authentication methods as Discord,
+it's the same `Authorization` header, and the same token.
+
+Only users who have the staff flag set can use the Admin API. Instance
+owners can use the `./manage.py make_staff` manage task to set someone
+as a staff user, granting them access over the administration functions.
+
+The base path is `/api/v6/admin`.
 
 ## User management
 
@@ -27,17 +34,36 @@ Search users.
 
 ## Instance invites
 
+Instance invites are used for instances that do not have open
+registrations but want to let some people in regardless. Users
+go to the `/invite_register.html` page in the instance and put
+their data in.
+
+### Instance Invite object
+
+| field | type | description |
+| --: | :-- | :-- |
+| code | string | instance invite code |
+| created\_at | ISO8907 timestamp | when the invite was created |
+| max\_uses | integer | maximum amount of uses |
+| uses | integer | how many times has the invite been used |
+
 ### `GET /instance/invites`
 
-**TODO**
+Get a list of instance invites.
 
 ### `PUT /instance/invites`
 
-**TODO**
+Create an instance invite. Receives only the `max_uses`
+field from the instance invites object. Returns a full
+instance invite object.
 
 ### `DELETE /instance/invites/<invite>`
 
-**TODO**
+Delete an invite. Does not have any input, only the instance invite's `code`
+as the `<invite>` parameter in the URL.
+
+Returns empty body 204 on success, 404 on invite not found.
 
 ## Voice
 

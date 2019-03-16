@@ -46,3 +46,7 @@ USER_CREATE = {
     'email': {'type': 'email', 'required': True},
     'password': {'type': 'string', 'minlength': 5, 'required': True},
 }
+
+INSTANCE_INVITE = {
+    'max_uses': {'type': 'integer', 'required': True}
+}
