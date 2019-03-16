@@ -2,6 +2,43 @@
 
 the base path is `/api/v6/admin`.
 
+## User management
+
+### `PUT /users`
+
+Create a user.
+Returns a user object.
+
+| field | type | description |
+| --: | :-- | :-- |
+| username | string | username |
+| email | email | the email of the new user |
+| password | str | password for the new user |
+
+### `GET /users`
+
+Search users.
+
+**TODO: query args**
+
+### `DELETE /users/<user_id>`
+
+**TODO**
+
+## Instance invites
+
+### `GET /instance/invites`
+
+**TODO**
+
+### `PUT /instance/invites`
+
+**TODO**
+
+### `DELETE /instance/invites/<invite>`
+
+**TODO**
+
 ## Voice
 
 ### GET `/voice/regions/<region>`
