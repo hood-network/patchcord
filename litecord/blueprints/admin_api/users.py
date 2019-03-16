@@ -24,6 +24,7 @@ from litecord.blueprints.auth import create_user
 from litecord.schemas import validate
 from litecord.admin_schemas import USER_CREATE
 from litecord.errors import BadRequest
+from litecord.utils import async_map
 
 bp = Blueprint('users_admin', __name__)
 
@@ -92,4 +93,8 @@ async def _search_users():
     OFFSET ($1 * {per_page})
     """, page, *args)
 
-    return jsonify([dict(r) for r in rows])
+    rows = [r['id'] for r in rows]
+
+    return jsonify(
+        await async_map(app.storage.get_user, rows)
+    )

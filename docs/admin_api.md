@@ -25,13 +25,14 @@ Returns a user object.
 ### `GET /users`
 
 Search users. Input is query arguments with the search parameters.
-Returns a list of users
+Returns a list of user objects.
 
 | field | type | description |
 | --: | :-- | :-- |
 | username | string | username |
 | discriminator | string | discriminator |
-| page | integer | page |
+| page | Optional[integer] | page, default 0 |
+| per\_page | Optional[integer] | users per page, default 20, max 50 |
 
 ### `DELETE /users/<user_id>`
 
