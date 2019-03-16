@@ -36,7 +36,18 @@ Returns a list of user objects.
 
 ### `DELETE /users/<user_id>`
 
-**TODO**
+Delete a single user. Does not *actually* remove the user from the users row,
+it changes the username to `Deleted User <random hex>`, etc.
+
+Also disconnects all of the users' devices from the gateway.
+
+Output:
+
+| field | type | description |
+| --: | :-- | :-- |
+| old | user object | old user object pre-delete |
+| new | user object | new user object post-delete |
+
 
 ## Instance invites
 
