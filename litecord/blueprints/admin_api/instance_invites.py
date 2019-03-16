@@ -65,7 +65,7 @@ async def _all_instance_invites():
     rows = [dict(row) for row in rows]
 
     for row in rows:
-        row['timestamp'] = timestamp_(row['timestamp'])
+        row['created_at'] = timestamp_(row['created_at'])
 
     return jsonify(rows)
 
@@ -75,7 +75,7 @@ async def _create_invite():
     await admin_check()
 
     code = await gen_inv(app)
-    if not code:
+    if code is None:
         return 'failed to make invite', 500
 
     j = validate(await request.get_json(), INSTANCE_INVITE)
@@ -103,7 +103,7 @@ async def _del_invite(invite: str):
     WHERE code = $1
     """, invite)
 
-    if res.lower() == 'update 0':
+    if res.lower() == 'delete 0':
         return 'invite not found', 404
 
     return '', 204
