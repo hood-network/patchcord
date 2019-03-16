@@ -23,6 +23,7 @@ from litecord.auth import admin_check
 from litecord.blueprints.auth import create_user
 from litecord.schemas import validate
 from litecord.admin_schemas import USER_CREATE
+from litecord.errors import BadRequest
 
 bp = Blueprint('users_admin', __name__)
 
@@ -38,3 +39,57 @@ async def _create_user():
         await app.storage.get_user(user_id)
     )
 
+
+def args_try(args: dict, typ, field: str, default):
+    """Try to fetch a value from the request arguments,
+    given a type."""
+    try:
+        return typ(args.get(field, default))
+    except (TypeError, ValueError):
+        raise BadRequest(f'invalid {field} value')
+
+
+@bp.route('', methods=['GET'])
+async def _search_users():
+    await admin_check()
+
+    args = request.args
+
+    username, discrim = args.get('username'), args.get('discriminator')
+
+    per_page = args_try(args, int, 'per_page', 20)
+    page = args_try(args, int, 'page', 0)
+
+    if page < 0:
+        raise BadRequest('invalid page number')
+
+    if per_page > 50:
+        raise BadRequest('invalid per page number')
+
+    # any of those must be available.
+    if not any((username, discrim)):
+        raise BadRequest('must insert username or discrim')
+
+    wheres, args = [], []
+
+    if username:
+        wheres.append("username LIKE '%' || $2 || '%'")
+        args.append(username)
+
+    if discrim:
+        wheres.append(f'discriminator = ${len(args) + 2}')
+        args.append(discrim)
+
+    where_tot = 'WHERE ' if args else ''
+    where_tot += ' AND '.join(wheres)
+
+    rows = await app.db.fetch(f"""
+    SELECT id
+    FROM users
+    {where_tot}
+    ORDER BY id ASC
+    LIMIT {per_page}
+    OFFSET ($1 * {per_page})
+    """, page, *args)
+
+    return jsonify([dict(r) for r in rows])

@@ -24,9 +24,14 @@ Returns a user object.
 
 ### `GET /users`
 
-Search users.
+Search users. Input is query arguments with the search parameters.
+Returns a list of users
 
-**TODO: query args**
+| field | type | description |
+| --: | :-- | :-- |
+| username | string | username |
+| discriminator | string | discriminator |
+| page | integer | page |
 
 ### `DELETE /users/<user_id>`
 
