@@ -17,10 +17,20 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from .voice import bp as voice
-from .features import bp as features
-from .guilds import bp as guilds
-from .users import bp as users
-from .instance_invites import bp as instance_invites
+from quart import Blueprint, jsonify, current_app as app
 
-__all__ = ['voice', 'features', 'guilds', 'users', 'instance_invites']
+from litecord.auth import admin_check
+
+bp = Blueprint('instance_invites', __name__)
+
+
+@bp.route('', methods=['GET'])
+async def _all_instance_invites():
+    await admin_check()
+
+    rows = await app.db.fetch("""
+    SELECT code, created_at, uses, max_uses
+    FROM instance_invites
+    """)
+
+    return jsonify([dict(row) for row in rows])

@@ -18,3 +18,5 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from .command import setup as migration
+
+__all__ = ['migration']

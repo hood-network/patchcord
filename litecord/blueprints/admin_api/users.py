@@ -17,10 +17,24 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from .voice import bp as voice
-from .features import bp as features
-from .guilds import bp as guilds
-from .users import bp as users
-from .instance_invites import bp as instance_invites
+from quart import Blueprint, jsonify, current_app as app, request
 
-__all__ = ['voice', 'features', 'guilds', 'users', 'instance_invites']
+from litecord.auth import admin_check
+from litecord.blueprints.auth import create_user
+from litecord.schemas import validate
+from litecord.admin_schemas import USER_CREATE
+
+bp = Blueprint('users_admin', __name__)
+
+@bp.route('', methods=['POST'])
+async def _create_user():
+    await admin_check()
+
+    j = validate(await request.get_json(), USER_CREATE)
+
+    user_id = await create_user(j['username'], j['email'], j['password'])
+
+    return jsonify(
+        await app.storage.get_user(user_id)
+    )
+

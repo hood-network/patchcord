@@ -17,9 +17,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-import base64
-import itsdangerous
-import bcrypt
 from litecord.blueprints.auth import create_user, make_token
 from litecord.blueprints.users import delete_user
 from litecord.enums import UserFlags
