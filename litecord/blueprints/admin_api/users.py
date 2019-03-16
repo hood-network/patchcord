@@ -101,7 +101,7 @@ async def _search_users():
     )
 
 
-@bp.route('/<user_id:int>', methods=['DELETE'])
+@bp.route('/<int:user_id>', methods=['DELETE'])
 async def _delete_single_user(user_id: int):
     await admin_check()
 
