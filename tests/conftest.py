@@ -45,7 +45,11 @@ def _test_app(unused_tcp_port, event_loop):
     # make sure we're calling the before_serving hooks
     event_loop.run_until_complete(main_app.startup())
 
-    return main_app
+    # https://docs.pytest.org/en/latest/fixture.html#fixture-finalization-executing-teardown-code
+    yield main_app
+
+    # properly teardown
+    event_loop.run_until_complete(main_app.shutdown())
 
 
 @pytest.fixture(name='test_cli')
