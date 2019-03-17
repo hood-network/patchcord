@@ -17,6 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
+import secrets
 from typing import Dict, Any, Optional
 
 from quart import Blueprint, jsonify, current_app as app, request
@@ -71,7 +72,16 @@ async def create_webhook(channel_id: int):
     guild_id = await app.storage.guild_from_channel(channel_id)
 
     webhook_id = get_snowflake()
-    token = 'asd'
+
+    # I'd say generating a full fledged token with itsdangerous is
+    # relatively wasteful since webhooks don't even have a password_hash,
+    # and we don't make a webhook in the users table either.
+    token = secrets.token_urlsafe(40)
+
+    webhook_icon = await app.icons.put(
+        'user', webhook_id, j.get('avatar'),
+        always_icon=True, size=(128, 128)
+    )
 
     await app.db.execute(
         """
@@ -81,7 +91,7 @@ async def create_webhook(channel_id: int):
             ($1, $2, $3, $4, $5, $6, $7)
         """,
         webhook_id, guild_id, channel_id, user_id,
-        j['name'], j.get('avatar'), token
+        j['name'], webhook_icon.icon_hash, token
     )
 
     return jsonify(await get_webhook(webhook_id))
