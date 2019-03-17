@@ -232,14 +232,31 @@ async def modify_webhook_tokened(webhook_id, webhook_token):
     return jsonify(await get_webhook(webhook_id, secure=False))
 
 
+async def delete_webhook(webhook_id: int):
+    """Delete a webhook."""
+    res = await app.db.execute("""
+    DELETE FROM webhooks
+    WHERE id = $1
+    """, webhook_id)
+
+    if res.lower() == 'delete 0':
+        raise WebhookNotFound()
+
+
 @bp.route('/webhooks/<int:webhook_id>', methods=['DELETE'])
 async def del_webhook(webhook_id):
-    pass
+    """Delete a webhook."""
+    await _webhook_check_fw(webhook_id)
+    await delete_webhook(webhook_id)
+    return '', 204
 
 
 @bp.route('/webhooks/<int:webhook_id>/<webhook_token>', methods=['DELETE'])
 async def del_webhook_tokened(webhook_id, webhook_token):
-    pass
+    """Delete a webhook, with its token."""
+    await webhook_token_check(webhook_id, webhook_token)
+    await delete_webhook(webhook_id)
+    return '', 204
 
 
 @bp.route('/webhooks/<int:webhook_id>/<webhook_token>', methods=['POST'])
