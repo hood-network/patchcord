@@ -52,7 +52,7 @@ async def get_webhook(webhook_id: int) -> Optional[Dict[str, Any]]:
     return drow
 
 
-async def _webhook_check():
+async def _webhook_check(channel_id):
     user_id = await token_check()
 
     await channel_check(user_id, channel_id, ChannelType.GUILD_TEXT)
@@ -64,7 +64,7 @@ async def _webhook_check():
 @bp.route('/channels/<int:channel_id>/webhooks', methods=['POST'])
 async def create_webhook(channel_id: int):
     """Create a webhook given a channel."""
-    user_id = await _webhook_check()
+    user_id = await _webhook_check(channel_id)
 
     j = validate(await request.get_json(), WEBHOOK_CREATE)
 
@@ -90,7 +90,7 @@ async def create_webhook(channel_id: int):
 @bp.route('/channels/<int:channel_id>/webhooks', methods=['GET'])
 async def get_channel_webhook(channel_id: int):
     """Get a list of webhooks in a channel"""
-    _user_id = await _webhook_check()
+    await _webhook_check(channel_id)
 
     webhook_ids = await app.db.fetch("""
     SELECT id
