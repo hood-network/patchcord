@@ -58,7 +58,7 @@ from litecord.blueprints.user.billing_job import payment_job
 
 from litecord.blueprints.admin_api import (
     voice as voice_admin, features as features_admin,
-    guilds as guilds_admin
+    guilds as guilds_admin, users as users_admin, instance_invites
 )
 
 from litecord.blueprints.admin_api.voice import guild_region_check
@@ -146,7 +146,9 @@ def set_blueprints(app_):
 
         voice_admin: '/admin/voice',
         features_admin: '/admin/guilds',
-        guilds_admin: '/admin/guilds'
+        guilds_admin: '/admin/guilds',
+        users_admin: '/admin/users',
+        instance_invites: '/admin/instance/invites'
     }
 
     for bp, suffix in bps.items():

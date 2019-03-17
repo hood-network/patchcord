@@ -1,6 +1,86 @@
 # Litecord Admin API
 
-the base path is `/api/v6/admin`.
+Litecord's Admin API uses the same authentication methods as Discord,
+it's the same `Authorization` header, and the same token.
+
+Only users who have the staff flag set can use the Admin API. Instance
+owners can use the `./manage.py make_staff` manage task to set someone
+as a staff user, granting them access over the administration functions.
+
+The base path is `/api/v6/admin`.
+
+## User management
+
+### `PUT /users`
+
+Create a user.
+Returns a user object.
+
+| field | type | description |
+| --: | :-- | :-- |
+| username | string | username |
+| email | email | the email of the new user |
+| password | str | password for the new user |
+
+### `GET /users`
+
+Search users. Input is query arguments with the search parameters.
+Returns a list of user objects.
+
+| field | type | description |
+| --: | :-- | :-- |
+| username | string | username |
+| discriminator | string | discriminator |
+| page | Optional[integer] | page, default 0 |
+| per\_page | Optional[integer] | users per page, default 20, max 50 |
+
+### `DELETE /users/<user_id>`
+
+Delete a single user. Does not *actually* remove the user from the users row,
+it changes the username to `Deleted User <random hex>`, etc.
+
+Also disconnects all of the users' devices from the gateway.
+
+Output:
+
+| field | type | description |
+| --: | :-- | :-- |
+| old | user object | old user object pre-delete |
+| new | user object | new user object post-delete |
+
+
+## Instance invites
+
+Instance invites are used for instances that do not have open
+registrations but want to let some people in regardless. Users
+go to the `/invite_register.html` page in the instance and put
+their data in.
+
+### Instance Invite object
+
+| field | type | description |
+| --: | :-- | :-- |
+| code | string | instance invite code |
+| created\_at | ISO8907 timestamp | when the invite was created |
+| max\_uses | integer | maximum amount of uses |
+| uses | integer | how many times has the invite been used |
+
+### `GET /instance/invites`
+
+Get a list of instance invites.
+
+### `PUT /instance/invites`
+
+Create an instance invite. Receives only the `max_uses`
+field from the instance invites object. Returns a full
+instance invite object.
+
+### `DELETE /instance/invites/<invite>`
+
+Delete an invite. Does not have any input, only the instance invite's `code`
+as the `<invite>` parameter in the URL.
+
+Returns empty body 204 on success, 404 on invite not found.
 
 ## Voice
 

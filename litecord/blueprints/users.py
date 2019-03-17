@@ -545,7 +545,8 @@ async def delete_user(user_id, *, db=None):
     await _del_from_table(db, 'channel_overwrites', user_id)
 
 
-async def _force_disconnect(user_id):
+async def user_disconnect(user_id):
+    """Disconnects the given user's devices."""
     # after removing the user from all tables, we need to force
     # all known user states to reconnect, causing the user to not
     # be online anymore.
@@ -597,6 +598,6 @@ async def delete_account():
         raise Unauthorized('password does not match')
 
     await delete_user(user_id)
-    await _force_disconnect(user_id)
+    await user_disconnect(user_id)
 
     return '', 204
