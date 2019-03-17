@@ -23,17 +23,21 @@ from typing import Dict, Any, Optional
 from quart import Blueprint, jsonify, current_app as app, request
 
 from litecord.auth import token_check
-from litecord.blueprints.checks import channel_check, channel_perm_check
+from litecord.blueprints.checks import (
+    channel_check, channel_perm_check, guild_check, guild_perm_check
+)
 
 from litecord.schemas import validate, WEBHOOK_CREATE
 from litecord.enums import ChannelType
 from litecord.snowflake import get_snowflake
 from litecord.utils import async_map
+from litecord.errors import WebhookNotFound, Unauthorized
 
 bp = Blueprint('webhooks', __name__)
 
 
-async def get_webhook(webhook_id: int) -> Optional[Dict[str, Any]]:
+async def get_webhook(webhook_id: int, *,
+                      secure: bool=True) -> Optional[Dict[str, Any]]:
     """Get a webhook data"""
     row = await app.db.fetchrow("""
     SELECT id::text, guild_id::text, channel_id::text, creator_id
@@ -50,6 +54,10 @@ async def get_webhook(webhook_id: int) -> Optional[Dict[str, Any]]:
     drow['user'] = await app.storage.get_user(row['creator_id'])
     drow.pop('creator_id')
 
+    if not secure:
+        drow.pop('user')
+        drow.pop('guild_id')
+
     return drow
 
 
@@ -60,6 +68,54 @@ async def _webhook_check(channel_id):
     await channel_perm_check(user_id, channel_id, 'manage_webhooks')
 
     return user_id
+
+
+async def _webhook_check_guild(guild_id):
+    user_id = await token_check()
+
+    await guild_check(user_id, guild_id)
+    await guild_perm_check(user_id, guild_id, 'manage_webhooks')
+
+    return user_id
+
+
+async def _webhook_check_fw(webhook_id):
+    """Make a check from an incoming webhook id (fw = from webhook)."""
+    guild_id = await app.db.fetchval("""
+    SELECT guild_id FROM webhooks
+    WHERE id = $1
+    """, webhook_id)
+
+    if guild_id is None:
+        raise WebhookNotFound()
+
+    return await _webhook_check_guild(guild_id)
+
+
+async def _webhook_many(where_clause, arg: int):
+    webhook_ids = await app.db.fetch(f"""
+    SELECT id
+    FROM webhooks
+    {where_clause}
+    """, arg)
+
+    webhook_ids = [r['id'] for r in webhook_ids]
+
+    return jsonify(
+        await async_map(get_webhook, webhook_ids)
+    )
+
+
+async def webhook_token_check(webhook_id: int, webhook_token: str):
+    """token_check() equivalent for webhooks."""
+    webhook_id_fetch = await app.db.fetchrow("""
+    SELECT id
+    FROM webhooks
+    WHERE id = $1 AND token = $2
+    """, webhook_id, webhook_token)
+
+    if webhook_id_fetch is None:
+        raise Unauthorized('webhook not found or unauthorized')
 
 
 @bp.route('/channels/<int:channel_id>/webhooks', methods=['POST'])
@@ -101,33 +157,28 @@ async def create_webhook(channel_id: int):
 async def get_channel_webhook(channel_id: int):
     """Get a list of webhooks in a channel"""
     await _webhook_check(channel_id)
-
-    webhook_ids = await app.db.fetch("""
-    SELECT id
-    FROM webhooks
-    WHERE channel_id = $1
-    """, channel_id)
-
-    webhook_ids = [r['id'] for r in webhook_ids]
-
-    return jsonify(
-        await async_map(get_webhook, webhook_ids)
-    )
+    return await _webhook_many('WHERE channel_id = $1', channel_id)
 
 
 @bp.route('/guilds/<int:guild_id>/webhooks', methods=['GET'])
 async def get_guild_webhook(guild_id):
-    pass
+    """Get all webhooks in a guild"""
+    await _webhook_check_guild(guild_id)
+    return await _webhook_many('WHERE guild_id = $1', guild_id)
 
 
 @bp.route('/webhooks/<int:webhook_id>', methods=['GET'])
 async def get_single_webhook(webhook_id):
-    pass
+    """Get a single webhook's information."""
+    await _webhook_check_fw(webhook_id)
+    return await jsonify(await get_webhook(webhook_id))
 
 
 @bp.route('/webhooks/<int:webhook_id>/<webhook_token>', methods=['GET'])
 async def get_tokened_webhook(webhook_id, webhook_token):
-    pass
+    """Get a webhook using its token."""
+    await webhook_token_check(webhook_id, webhook_token)
+    return await jsonify(await get_webhook(webhook_id, secure=False))
 
 
 @bp.route('/webhooks/<int:webhook_id>', methods=['PATCH'])

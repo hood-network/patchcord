@@ -122,6 +122,10 @@ class MessageNotFound(NotFound):
     error_code = 10008
 
 
+class WebhookNotFound(NotFound):
+    error_code = 10015
+
+
 class Ratelimited(LitecordError):
     status_code = 429
 
