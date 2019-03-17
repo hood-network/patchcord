@@ -27,7 +27,7 @@ from litecord.blueprints.checks import (
     channel_check, channel_perm_check, guild_check, guild_perm_check
 )
 
-from litecord.schemas import validate, WEBHOOK_CREATE
+from litecord.schemas import validate, WEBHOOK_CREATE, WEBHOOK_UPDATE
 from litecord.enums import ChannelType
 from litecord.snowflake import get_snowflake
 from litecord.utils import async_map
@@ -181,14 +181,55 @@ async def get_tokened_webhook(webhook_id, webhook_token):
     return await jsonify(await get_webhook(webhook_id, secure=False))
 
 
+async def _update_webhook(webhook_id: int, j: dict):
+    if 'name' in j:
+        await app.db.execute("""
+        UPDATE webhooks
+        SET name = $1
+        WHERE id = $2
+        """, j['name'], webhook_id)
+
+    if 'channel_id' in j:
+        await app.db.execute("""
+        UPDATE webhooks
+        SET channel_id = $1
+        WHERE id = $2
+        """, j['name'], webhook_id)
+
+    if 'avatar' in j:
+        new_icon = await app.icons.update(
+            'user', webhook_id, j['avatar'], always_icon=True, size=(128, 128)
+        )
+
+        await app.db.execute("""
+        UPDATE webhooks
+        SET icon = $1
+        WHERE id = $2
+        """, new_icon.icon_hash, webhook_id)
+
+
 @bp.route('/webhooks/<int:webhook_id>', methods=['PATCH'])
-async def modify_webhook(webhook_id):
-    pass
+async def modify_webhook(webhook_id: int):
+    """Patch a webhook."""
+    await _webhook_check_fw(webhook_id)
+    j = validate(await request.get_json(), WEBHOOK_UPDATE)
+
+    await _update_webhook(webhook_id, j)
+    return jsonify(await get_webhook(webhook_id))
 
 
 @bp.route('/webhooks/<int:webhook_id>/<webhook_token>', methods=['PATCH'])
 async def modify_webhook_tokened(webhook_id, webhook_token):
-    pass
+    """Modify a webhook, using its token."""
+    await webhook_token_check(webhook_id, webhook_token)
+
+    # forcefully pop() the channel id out of the schema
+    # instead of making another, for simplicity's sake
+    j = validate(await request.get_json(),
+                 WEBHOOK_UPDATE.pop('channel_id'))
+
+    await _update_webhook(webhook_id, j)
+    return jsonify(await get_webhook(webhook_id, secure=False))
 
 
 @bp.route('/webhooks/<int:webhook_id>', methods=['DELETE'])

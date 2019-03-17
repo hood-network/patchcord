@@ -685,3 +685,15 @@ WEBHOOK_CREATE = {
     },
     'avatar': {'type': 'b64_icon', 'required': False, 'nullable': False}
 }
+
+WEBHOOK_UPDATE = {
+    'name': {
+        'type': 'string', 'minlength': 2, 'maxlength': 32,
+        'required': False
+    },
+
+    # TODO: check if its b64_icon or string since the client
+    # could pass an icon hash instead.
+    'avatar': {'type': 'b64_icon', 'required': False, 'nullable': False},
+    'channel_id': {'coerce': int, 'required': False, 'nullable': False}
+}
