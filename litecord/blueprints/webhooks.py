@@ -49,7 +49,7 @@ async def get_webhook(webhook_id: int, *,
                       secure: bool=True) -> Optional[Dict[str, Any]]:
     """Get a webhook data"""
     row = await app.db.fetchrow("""
-    SELECT id::text, guild_id::text, channel_id::text, creator_id
+    SELECT id::text, guild_id::text, channel_id::text, creator_id,
            name, avatar, token
     FROM webhooks
     WHERE id = $1
