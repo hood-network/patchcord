@@ -73,7 +73,7 @@ async def get_webhook(webhook_id: int, *,
 async def _webhook_check(channel_id):
     user_id = await token_check()
 
-    await channel_check(user_id, channel_id, ChannelType.GUILD_TEXT)
+    await channel_check(user_id, channel_id, only=ChannelType.GUILD_TEXT)
     await channel_perm_check(user_id, channel_id, 'manage_webhooks')
 
     return user_id

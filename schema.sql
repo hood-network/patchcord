@@ -542,7 +542,7 @@ CREATE TABLE IF NOT EXISTS webhooks (
     creator_id bigint REFERENCES users (id),
 
     name text NOT NULL,
-    avatar text NOT NULL,
+    avatar text DEFAULT NULL,
 
     -- Yes, we store the webhook's token
     -- since they aren't users and there's no /api/login for them.
