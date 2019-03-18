@@ -249,7 +249,7 @@ async def _guild_text_mentions(payload: dict, guild_id: int,
         """, user_id, channel_id)
 
 
-async def _msg_input() -> tuple:
+async def msg_create_request() -> tuple:
     """Extract the json input and any file information
     the client gave to us in the request.
 
@@ -277,11 +277,13 @@ async def _msg_input() -> tuple:
     return json_from_form, [v for k, v in files.items()]
 
 
-def _check_content(payload: dict, files: list):
+def msg_create_check_content(payload: dict, files: list, *, use_embeds=False):
     """Check if there is actually any content being sent to us."""
     has_content = bool(payload.get('content', ''))
-    has_embed = 'embed' in payload
     has_files = len(files) > 0
+
+    embed_field = 'embeds' if use_embeds else 'embed'
+    has_embed = embed_field in payload
 
     has_total_content = has_content or has_embed or has_files
 
@@ -289,14 +291,20 @@ def _check_content(payload: dict, files: list):
         raise BadRequest('No content has been provided.')
 
 
-async def _add_attachment(message_id: int, channel_id: int,
-                          attachment_file) -> int:
+async def msg_add_attachment(message_id: int, channel_id: int,
+                             attachment_file) -> int:
     """Add an attachment to a message.
 
     Parameters
     ----------
     message_id: int
         The ID of the message getting the attachment.
+    channel_id: int
+        The ID of the channel the message belongs to.
+
+        Exists because the attachment URL scheme contains
+        a channel id. The purpose is unknown, but we are
+        implementing Discord's behavior.
     attachment_file: quart.FileStorage
         quart FileStorage instance of the file.
     """
@@ -362,10 +370,10 @@ async def _create_message(channel_id):
         await channel_perm_check(user_id, channel_id, 'send_messages')
         actual_guild_id = guild_id
 
-    payload_json, files = await _msg_input()
+    payload_json, files = await msg_create_request()
     j = validate(payload_json, MESSAGE_CREATE)
 
-    _check_content(payload_json, files)
+    msg_create_check_content(payload_json, files)
 
     # TODO: check connection to the gateway
 
@@ -399,7 +407,7 @@ async def _create_message(channel_id):
 
     # for each file given, we add it as an attachment
     for pre_attachment in files:
-        await _add_attachment(message_id, channel_id, pre_attachment)
+        await msg_add_attachment(message_id, channel_id, pre_attachment)
 
     payload = await app.storage.get_message(message_id, user_id)
 

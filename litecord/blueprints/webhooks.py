@@ -27,11 +27,20 @@ from litecord.blueprints.checks import (
     channel_check, channel_perm_check, guild_check, guild_perm_check
 )
 
-from litecord.schemas import validate, WEBHOOK_CREATE, WEBHOOK_UPDATE
+from litecord.schemas import (
+    validate, WEBHOOK_CREATE, WEBHOOK_UPDATE, WEBHOOK_MESSAGE_CREATE
+)
 from litecord.enums import ChannelType
 from litecord.snowflake import get_snowflake
 from litecord.utils import async_map
 from litecord.errors import WebhookNotFound, Unauthorized
+
+from litecord.blueprints.channel.messages import (
+    msg_create_request, msg_create_check_content, msg_add_attachment,
+    # create_message
+)
+from litecord.embed.sanitizer import fill_embed
+from litecord.embed.messages import process_url_embed
 
 bp = Blueprint('webhooks', __name__)
 
@@ -108,14 +117,16 @@ async def _webhook_many(where_clause, arg: int):
 
 async def webhook_token_check(webhook_id: int, webhook_token: str):
     """token_check() equivalent for webhooks."""
-    webhook_id_fetch = await app.db.fetchrow("""
-    SELECT id
+    row = await app.db.fetchrow("""
+    SELECT guild_id, channel_id
     FROM webhooks
     WHERE id = $1 AND token = $2
     """, webhook_id, webhook_token)
 
-    if webhook_id_fetch is None:
+    if row is None:
         raise Unauthorized('webhook not found or unauthorized')
+
+    return row['guild_id'], row['channel_id']
 
 
 @bp.route('/channels/<int:channel_id>/webhooks', methods=['POST'])
@@ -259,17 +270,64 @@ async def del_webhook_tokened(webhook_id, webhook_token):
     return '', 204
 
 
-@bp.route('/webhooks/<int:webhook_id>/<webhook_token>', methods=['POST'])
-async def execute_webhook(webhook_id, webhook_token):
+async def create_message_webhook(guild_id, channel_id, webhook_id, j):
+    # TODO: impl
     pass
 
+
+@bp.route('/webhooks/<int:webhook_id>/<webhook_token>', methods=['POST'])
+async def execute_webhook(webhook_id: int, webhook_token):
+    """Execute a webhook. Sends a message to the channel the webhook
+    is tied to."""
+    guild_id, channel_id = await webhook_token_check(webhook_id, webhook_token)
+
+    # TODO: ensure channel_id points to guild text channel
+
+    payload_json, files = await msg_create_request()
+    j = validate(payload_json, WEBHOOK_MESSAGE_CREATE)
+
+    msg_create_check_content(j, files)
+
+    # webhooks don't need permissions.
+    mentions_everyone = '@everyone' in j['content']
+    mentions_here = '@here' in j['content']
+
+    message_id = await create_message_webhook(
+        guild_id, channel_id, webhook_id, {
+            'content': j.get('content', ''),
+            'tts': j.get('tts', False),
+
+            'everyone_mention': mentions_everyone or mentions_here,
+            'embeds': [await fill_embed(e) for e in j['embeds']]
+        }
+    )
+
+    for pre_attachment in files:
+        await msg_add_attachment(message_id, channel_id, pre_attachment)
+
+    payload = await app.storage.get_message(message_id)
+
+    # spawn embedder in the background, even when we're on a webhook.
+    app.sched.spawn(
+        process_url_embed(
+            app.config, app.storage, app.dispatcher, app.session,
+            payload
+        )
+    )
+
+    # TODO: is it really 204?
+    return '', 204
 
 @bp.route('/webhooks/<int:webhook_id>/<webhook_token>/slack',
           methods=['POST'])
 async def execute_slack_webhook(webhook_id, webhook_token):
-    pass
+    """Execute a webhook but expecting Slack data."""
+    # TODO: know slack webhooks
+    await webhook_token_check(webhook_id, webhook_token)
 
 
 @bp.route('/webhooks/<int:webhook_id>/<webhook_token>/github', methods=['POST'])
 async def execute_github_webhook(webhook_id, webhook_token):
-    pass
+    """Execute a webhook but expecting GitHub data."""
+    # TODO: know github webhooks
+    await webhook_token_check(webhook_id, webhook_token)

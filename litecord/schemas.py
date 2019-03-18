@@ -697,3 +697,27 @@ WEBHOOK_UPDATE = {
     'avatar': {'type': 'b64_icon', 'required': False, 'nullable': False},
     'channel_id': {'coerce': int, 'required': False, 'nullable': False}
 }
+
+WEBHOOK_MESSAGE_CREATE = {
+    'content': {
+        'type': 'string',
+        'minlength': 0, 'maxlength': 2000, 'required': False
+    },
+    'tts': {'type': 'boolean', 'required': False},
+
+    'username': {
+        'type': 'string',
+        'minlength': 2, 'maxlength': 32, 'required': False
+    },
+
+    # TODO: url type, or something...
+    'avatar_url': {
+        'type': 'url', 'required': False
+    },
+
+    'embeds': {
+        'type': list,
+        'required': False,
+        'schema': {'type': 'dict', 'schema': EMBED_OBJECT}
+    }
+}
