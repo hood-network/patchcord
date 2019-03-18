@@ -33,7 +33,7 @@ from litecord.schemas import (
 from litecord.enums import ChannelType
 from litecord.snowflake import get_snowflake
 from litecord.utils import async_map
-from litecord.errors import WebhookNotFound, Unauthorized
+from litecord.errors import WebhookNotFound, Unauthorized, ChannelNotFound
 
 from litecord.blueprints.channel.messages import (
     msg_create_request, msg_create_check_content, msg_add_attachment,
@@ -98,7 +98,7 @@ async def _webhook_check_fw(webhook_id):
     if guild_id is None:
         raise WebhookNotFound()
 
-    return await _webhook_check_guild(guild_id)
+    return (await _webhook_check_guild(guild_id)), guild_id
 
 
 async def _webhook_many(where_clause, arg: int):
@@ -205,7 +205,7 @@ async def _update_webhook(webhook_id: int, j: dict):
         UPDATE webhooks
         SET channel_id = $1
         WHERE id = $2
-        """, j['name'], webhook_id)
+        """, j['channel_id'], webhook_id)
 
     if 'avatar' in j:
         new_icon = await app.icons.update(
@@ -222,8 +222,17 @@ async def _update_webhook(webhook_id: int, j: dict):
 @bp.route('/webhooks/<int:webhook_id>', methods=['PATCH'])
 async def modify_webhook(webhook_id: int):
     """Patch a webhook."""
-    await _webhook_check_fw(webhook_id)
+    guild_id, _user_id = await _webhook_check_fw(webhook_id)
     j = validate(await request.get_json(), WEBHOOK_UPDATE)
+
+    if 'channel_id' in j:
+        # pre checks
+        chan = await app.storage.get_channel(j['channel_id'])
+
+        # short-circuiting should ensure chan isn't none
+        # by the time we do chan['guild_id']
+        if chan and chan['guild_id'] != str(guild_id):
+            raise ChannelNotFound('cant assign webhook to channel')
 
     await _update_webhook(webhook_id, j)
     return jsonify(await get_webhook(webhook_id))
