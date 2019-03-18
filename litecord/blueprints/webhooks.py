@@ -129,6 +129,14 @@ async def webhook_token_check(webhook_id: int, webhook_token: str):
     return row['guild_id'], row['channel_id']
 
 
+async def _dispatch_webhook_update(guild_id: int, channel_id):
+    await app.dispatcher.dispatch('guild', guild_id, 'WEBHOOKS_UPDATE', {
+        'guild_id': str(guild_id),
+        'channel_id': str(channel_id)
+    })
+
+
+
 @bp.route('/channels/<int:channel_id>/webhooks', methods=['POST'])
 async def create_webhook(channel_id: int):
     """Create a webhook given a channel."""
@@ -161,6 +169,7 @@ async def create_webhook(channel_id: int):
         j['name'], webhook_icon.icon_hash, token
     )
 
+    await _dispatch_webhook_update(guild_id, channel_id)
     return jsonify(await get_webhook(webhook_id))
 
 
@@ -235,13 +244,20 @@ async def modify_webhook(webhook_id: int):
             raise ChannelNotFound('cant assign webhook to channel')
 
     await _update_webhook(webhook_id, j)
-    return jsonify(await get_webhook(webhook_id))
+
+    webhook = await get_webhook(webhook_id)
+
+    # we don't need to cast channel_id to int since that isn't
+    # used in the dispatcher call
+    await _dispatch_webhook_update(guild_id, webhook['channel_id'])
+    return jsonify(webhook)
 
 
 @bp.route('/webhooks/<int:webhook_id>/<webhook_token>', methods=['PATCH'])
 async def modify_webhook_tokened(webhook_id, webhook_token):
     """Modify a webhook, using its token."""
-    await webhook_token_check(webhook_id, webhook_token)
+    guild_id, channel_id = await webhook_token_check(
+        webhook_id, webhook_token)
 
     # forcefully pop() the channel id out of the schema
     # instead of making another, for simplicity's sake
@@ -249,11 +265,14 @@ async def modify_webhook_tokened(webhook_id, webhook_token):
                  WEBHOOK_UPDATE.pop('channel_id'))
 
     await _update_webhook(webhook_id, j)
+    await _dispatch_webhook_update(guild_id, channel_id)
     return jsonify(await get_webhook(webhook_id, secure=False))
 
 
 async def delete_webhook(webhook_id: int):
     """Delete a webhook."""
+    webhook = await get_webhook(webhook_id)
+
     res = await app.db.execute("""
     DELETE FROM webhooks
     WHERE id = $1
@@ -261,6 +280,12 @@ async def delete_webhook(webhook_id: int):
 
     if res.lower() == 'delete 0':
         raise WebhookNotFound()
+
+    # only casting the guild id since that's whats used
+    # on the dispatcher call.
+    await _dispatch_webhook_update(
+        int(webhook['guild_id']), webhook['channel_id']
+    )
 
 
 @bp.route('/webhooks/<int:webhook_id>', methods=['DELETE'])
