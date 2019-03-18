@@ -373,6 +373,8 @@ async def handle_litecord_err(err):
     except AttributeError:
         pass
 
+    log.warning('error: {} {!r}', err.status_code, err.message)
+
     return jsonify({
         'error': True,
         'status': err.status_code,

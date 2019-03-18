@@ -222,7 +222,7 @@ async def _update_webhook(webhook_id: int, j: dict):
 @bp.route('/webhooks/<int:webhook_id>', methods=['PATCH'])
 async def modify_webhook(webhook_id: int):
     """Patch a webhook."""
-    guild_id, _user_id = await _webhook_check_fw(webhook_id)
+    _user_id, guild_id = await _webhook_check_fw(webhook_id)
     j = validate(await request.get_json(), WEBHOOK_UPDATE)
 
     if 'channel_id' in j:
