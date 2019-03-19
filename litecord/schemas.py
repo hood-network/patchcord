@@ -31,7 +31,7 @@ from .enums import (
     MessageNotifications, ChannelType, VerificationLevel
 )
 
-from litecord.embed.schemas import EMBED_OBJECT
+from litecord.embed.schemas import EMBED_OBJECT, EmbedURL
 
 log = Logger(__name__)
 
@@ -710,10 +710,8 @@ WEBHOOK_MESSAGE_CREATE = {
         'minlength': 2, 'maxlength': 32, 'required': False
     },
 
-    # TODO: url type, or something...
     'avatar_url': {
-        # 'type': 'url', 'required': False
-        'type': 'string', 'required': False
+        'coerce': EmbedURL, 'required': False
     },
 
     'embeds': {
