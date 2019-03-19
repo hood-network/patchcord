@@ -86,11 +86,12 @@ async def _update_and_dispatch(payload, new_embeds, storage, dispatcher):
 
 
 def is_media_url(url: str) -> bool:
+    """Return if the given URL is a media url."""
     parsed = urllib.parse.urlparse(url)
     path = Path(parsed.path)
     extension = path.suffix.lstrip('.')
 
-    return extension in MEDIA_EXTENSIONS:
+    return extension in MEDIA_EXTENSIONS
 
 
 async def insert_mp_embed(parsed, config, session):
