@@ -803,6 +803,10 @@ class Storage:
         # if author_id is None, we fetch webhook info
         # from the message_webhook_info table.
         if author_id is None:
+            # webhook information in a message when made by a webhook
+            # is copied from the webhook table, or inserted by the webhook
+            # itself. this causes a complete disconnect from the messages
+            # table into the webhooks table.
             wb_info = await self.db.fetchrow("""
             SELECT webhook_id, name, avatar
             FROM message_webhook_info

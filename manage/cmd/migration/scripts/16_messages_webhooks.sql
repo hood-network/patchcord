@@ -1,9 +1,9 @@
 -- this is a tricky one. blame discord
 
--- first, remove all messages made by webhooks
+-- first, remove all messages made by webhooks (safety check)
 DELETE FROM messages WHERE author_id is null;
 
--- delete the row, removing the fkey. no connection anymore.
+-- delete the column, removing the fkey. no connection anymore.
 ALTER TABLE messages DROP COLUMN webhook_id;
 
 -- add a message_webhook_info table. more on that in Storage._inject_author
