@@ -813,16 +813,26 @@ class Storage:
             WHERE message_id = $1
             """, int(res['id']))
 
-            res['author'] = {
-                'id': str(wb_info['id']),
+            if not wb_info:
+                log.warning('webhook info not found for msg {}',
+                            res['id'])
+
+            wb_info = wb_info or {
+                'id': res['id'],
                 'bot': True,
+                'avatar': None,
+                'username': '<unknown webhook info>',
                 'discriminator': '0000',
+            }
+
+            res['author'] = {
+                'id': str(wb_info['webhook_id']),
+                'bot': True,
                 'username': wb_info['name'],
                 'avatar': wb_info['avatar']
             }
         else:
             res['author'] = await self.get_user(res['author_id'])
-            res.pop('webhook_id')
 
         res.pop('author_id')
 

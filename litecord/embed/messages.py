@@ -25,6 +25,7 @@ from pathlib import Path
 from logbook import Logger
 
 from litecord.embed.sanitizer import proxify, fetch_metadata, fetch_embed
+from litecord.embed.schemas import EmbedURL
 
 log = Logger(__name__)
 
@@ -85,9 +86,14 @@ async def _update_and_dispatch(payload, new_embeds, storage, dispatcher):
         'channel', channel_id, 'MESSAGE_UPDATE', update_payload)
 
 
-def is_media_url(url: str) -> bool:
+def is_media_url(url) -> bool:
     """Return if the given URL is a media url."""
-    parsed = urllib.parse.urlparse(url)
+
+    if isinstance(url, EmbedURL):
+        parsed = url.parsed
+    else:
+        parsed = urllib.parse.urlparse(url)
+
     path = Path(parsed.path)
     extension = path.suffix.lstrip('.')
 

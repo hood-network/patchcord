@@ -318,14 +318,13 @@ async def create_message_webhook(guild_id, channel_id, webhook_id, data):
 
         await conn.execute(
             """
-            INSERT INTO messages (id, channel_id, guild_id, webhook_id,
+            INSERT INTO messages (id, channel_id, guild_id,
                 content, tts, mention_everyone, message_type, embeds)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         """,
             message_id,
             channel_id,
             guild_id,
-            webhook_id,
             data['content'],
 
             data['tts'],
@@ -334,6 +333,15 @@ async def create_message_webhook(guild_id, channel_id, webhook_id, data):
             MessageType.DEFAULT.value,
             data.get('embeds', [])
         )
+
+        info = data['info']
+
+        await conn.execute("""
+        INSERT INTO message_webhook_info
+            (message_id, webhook_id, name, avatar)
+        VALUES
+            ($1, $2, $3, $4)
+        """, message_id, webhook_id, info['name'], info['avatar'])
 
     return message_id
 
@@ -352,7 +360,7 @@ async def _create_avatar(webhook_id: int, avatar_url):
         raise BadRequest('url is not media url')
 
     resp, raw = await fetch_raw_img(avatar_url)
-    raw_b64 = base64.b64encode(raw)
+    raw_b64 = base64.b64encode(raw).decode()
 
     mime = resp.headers['content-type']
     b64_data = f'data:{mime};base64,{raw_b64}'
@@ -405,8 +413,7 @@ async def execute_webhook(webhook_id: int, webhook_token):
             'embeds': await async_map(fill_embed, given_embeds),
 
             'info': {
-                'id': webhook_id,
-                'name': j.get('name', webhook['name']),
+                'name': j.get('username', webhook['name']),
                 'avatar': avatar
             }
         }
