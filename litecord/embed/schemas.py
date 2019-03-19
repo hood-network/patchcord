@@ -31,17 +31,25 @@ class EmbedURL:
         if parsed.scheme not in ('http', 'https', 'attachment'):
             raise ValueError('Invalid URL scheme')
 
+        self.scheme = parsed.scheme
         self.raw_url = url
         self.parsed = parsed
 
     @property
-    def url(self):
-        """Return the URL."""
+    def url(self) -> str:
+        """Return the unparsed URL."""
         return urllib.parse.urlunparse(self.parsed)
 
     @property
-    def to_json(self):
+    def to_json(self) -> str:
+        """'json' version of the url."""
         return self.url
+
+    @property
+    def to_md_path(self) -> str:
+        """Convert the EmbedURL to a mediaproxy path."""
+        parsed = self.parsed
+        return f'{parsed.scheme}/{parsed.netloc}{parsed.path}'
 
 
 EMBED_FOOTER = {

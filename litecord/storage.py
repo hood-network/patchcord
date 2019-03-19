@@ -796,18 +796,43 @@ class Storage:
         return res
 
     async def _inject_author(self, res: dict):
-        """Inject a pseudo-user object when the message is made by a webhook."""
-        author_id, webhook_id = res['author_id'], res['webhook_id']
+        """Inject a pseudo-user object when the message is
+        made by a webhook."""
+        author_id = res['author_id']
 
-        if author_id is not None:
-            res['author'] = await self.get_user(res['author_id'])
-            res.pop('webhook_id')
-        elif webhook_id is not None:
-            res['author'] = {
-                'id': webhook_id,
-                'username': 'a',
-                'avatar': None
+        # if author_id is None, we fetch webhook info
+        # from the message_webhook_info table.
+        if author_id is None:
+            # webhook information in a message when made by a webhook
+            # is copied from the webhook table, or inserted by the webhook
+            # itself. this causes a complete disconnect from the messages
+            # table into the webhooks table.
+            wb_info = await self.db.fetchrow("""
+            SELECT webhook_id, name, avatar
+            FROM message_webhook_info
+            WHERE message_id = $1
+            """, int(res['id']))
+
+            if not wb_info:
+                log.warning('webhook info not found for msg {}',
+                            res['id'])
+
+            wb_info = wb_info or {
+                'id': res['id'],
+                'bot': True,
+                'avatar': None,
+                'username': '<unknown webhook info>',
+                'discriminator': '0000',
             }
+
+            res['author'] = {
+                'id': str(wb_info['webhook_id']),
+                'bot': True,
+                'username': wb_info['name'],
+                'avatar': wb_info['avatar']
+            }
+        else:
+            res['author'] = await self.get_user(res['author_id'])
 
         res.pop('author_id')
 
@@ -815,7 +840,7 @@ class Storage:
                           user_id: Optional[int] = None) -> Optional[Dict]:
         """Get a single message's payload."""
         row = await self.fetchrow_with_json("""
-        SELECT id::text, channel_id::text, author_id, webhook_id, content,
+        SELECT id::text, channel_id::text, author_id, content,
             created_at AS timestamp, edited_at AS edited_timestamp,
             tts, mention_everyone, nonce, message_type, embeds
         FROM messages

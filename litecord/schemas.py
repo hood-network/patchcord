@@ -31,7 +31,7 @@ from .enums import (
     MessageNotifications, ChannelType, VerificationLevel
 )
 
-from litecord.embed.schemas import EMBED_OBJECT
+from litecord.embed.schemas import EMBED_OBJECT, EmbedURL
 
 log = Logger(__name__)
 
@@ -676,4 +676,47 @@ GET_MENTIONS = {
 VANITY_URL_PATCH = {
     # TODO: put proper values in maybe an invite data type
     'code': {'type': 'string', 'minlength': 5, 'maxlength': 30}
+}
+
+WEBHOOK_CREATE = {
+    'name': {
+        'type': 'string', 'minlength': 2, 'maxlength': 32,
+        'required': True
+    },
+    'avatar': {'type': 'b64_icon', 'required': False, 'nullable': False}
+}
+
+WEBHOOK_UPDATE = {
+    'name': {
+        'type': 'string', 'minlength': 2, 'maxlength': 32,
+        'required': False
+    },
+
+    # TODO: check if its b64_icon or string since the client
+    # could pass an icon hash instead.
+    'avatar': {'type': 'b64_icon', 'required': False, 'nullable': False},
+    'channel_id': {'coerce': int, 'required': False, 'nullable': False}
+}
+
+WEBHOOK_MESSAGE_CREATE = {
+    'content': {
+        'type': 'string',
+        'minlength': 0, 'maxlength': 2000, 'required': False
+    },
+    'tts': {'type': 'boolean', 'required': False},
+
+    'username': {
+        'type': 'string',
+        'minlength': 2, 'maxlength': 32, 'required': False
+    },
+
+    'avatar_url': {
+        'coerce': EmbedURL, 'required': False
+    },
+
+    'embeds': {
+        'type': 'list',
+        'required': False,
+        'schema': {'type': 'dict', 'schema': EMBED_OBJECT}
+    }
 }

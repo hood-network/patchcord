@@ -542,7 +542,7 @@ CREATE TABLE IF NOT EXISTS webhooks (
     creator_id bigint REFERENCES users (id),
 
     name text NOT NULL,
-    avatar text NOT NULL,
+    avatar text DEFAULT NULL,
 
     -- Yes, we store the webhook's token
     -- since they aren't users and there's no /api/login for them.
@@ -643,13 +643,9 @@ CREATE TABLE IF NOT EXISTS messages (
     -- this is good for search.
     guild_id bigint REFERENCES guilds (id) ON DELETE CASCADE,
 
-    -- those are mutually exclusive, only one of them
-    -- can NOT be NULL at a time.
-
-    -- if author is NULL -> message from webhook
-    -- if webhook is NULL -> message from author
+    -- if author is NULL -> message from webhook ->
+    -- fetch from message_webhook_info
     author_id bigint REFERENCES users (id),
-    webhook_id bigint REFERENCES webhooks (id),
 
     content text,
 
@@ -664,6 +660,15 @@ CREATE TABLE IF NOT EXISTS messages (
     nonce bigint default 0,
 
     message_type int NOT NULL
+);
+
+
+CREATE TABLE IF NOT EXISTS message_webhook_info (
+    message_id bigint REFERENCES messages (id) PRIMARY KEY,
+
+    webhook_id bigint,
+    name text DEFAULT '<invalid>',
+    avatar text DEFAULT NULL
 );
 
 CREATE TABLE IF NOT EXISTS message_reactions (

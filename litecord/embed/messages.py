@@ -25,6 +25,7 @@ from pathlib import Path
 from logbook import Logger
 
 from litecord.embed.sanitizer import proxify, fetch_metadata, fetch_embed
+from litecord.embed.schemas import EmbedURL
 
 log = Logger(__name__)
 
@@ -85,6 +86,20 @@ async def _update_and_dispatch(payload, new_embeds, storage, dispatcher):
         'channel', channel_id, 'MESSAGE_UPDATE', update_payload)
 
 
+def is_media_url(url) -> bool:
+    """Return if the given URL is a media url."""
+
+    if isinstance(url, EmbedURL):
+        parsed = url.parsed
+    else:
+        parsed = urllib.parse.urlparse(url)
+
+    path = Path(parsed.path)
+    extension = path.suffix.lstrip('.')
+
+    return extension in MEDIA_EXTENSIONS
+
+
 async def insert_mp_embed(parsed, config, session):
     """Insert mediaproxy embed."""
     embed = await fetch_embed(parsed, config=config, session=session)
@@ -125,14 +140,12 @@ async def process_url_embed(config, storage, dispatcher,
     new_embeds = []
 
     for url in urls:
-        parsed = urllib.parse.urlparse(url)
-        path = Path(parsed.path)
-        extension = path.suffix.lstrip('.')
+        url = EmbedURL(url)
 
-        if extension in MEDIA_EXTENSIONS:
+        if is_media_url(url):
             embed = await insert_media_meta(url, config, session)
         else:
-            embed = await insert_mp_embed(parsed, config, session)
+            embed = await insert_mp_embed(url, config, session)
 
         if not embed:
             continue
