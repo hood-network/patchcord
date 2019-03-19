@@ -156,14 +156,14 @@ async def fetch_raw_img(url, *, config=None, session=None) -> Optional[tuple]:
         return resp, await resp.read()
 
 
-async def fetch_embed(parsed, *, config=None, session=None) -> dict:
+async def fetch_embed(url, *, config=None, session=None) -> dict:
     """Fetch an embed"""
+    config, session = _mk_cfg_sess(config, session)
 
-    if session is None:
-        session = app.session
+    if not isinstance(url, EmbedURL):
+        url = EmbedURL(url)
 
-    if config is None:
-        config = app.config
+    parsed = url.parsed
 
     # TODO: handle query string
     md_path = f'{parsed.scheme}/{parsed.netloc}{parsed.path}'

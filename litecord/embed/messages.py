@@ -140,10 +140,12 @@ async def process_url_embed(config, storage, dispatcher,
     new_embeds = []
 
     for url in urls:
+        url = EmbedURL(url)
+
         if is_media_url(url):
             embed = await insert_media_meta(url, config, session)
         else:
-            embed = await insert_mp_embed(parsed, config, session)
+            embed = await insert_mp_embed(url, config, session)
 
         if not embed:
             continue
