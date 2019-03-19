@@ -712,11 +712,12 @@ WEBHOOK_MESSAGE_CREATE = {
 
     # TODO: url type, or something...
     'avatar_url': {
-        'type': 'url', 'required': False
+        # 'type': 'url', 'required': False
+        'type': 'string', 'required': False
     },
 
     'embeds': {
-        'type': list,
+        'type': 'list',
         'required': False,
         'schema': {'type': 'dict', 'schema': EMBED_OBJECT}
     }

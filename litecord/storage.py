@@ -796,18 +796,28 @@ class Storage:
         return res
 
     async def _inject_author(self, res: dict):
-        """Inject a pseudo-user object when the message is made by a webhook."""
-        author_id, webhook_id = res['author_id'], res['webhook_id']
+        """Inject a pseudo-user object when the message is
+        made by a webhook."""
+        author_id = res['author_id']
 
-        if author_id is not None:
+        # if author_id is None, we fetch webhook info
+        # from the message_webhook_info table.
+        if author_id is None:
+            wb_info = await self.db.fetchrow("""
+            SELECT webhook_id, name, avatar
+            FROM message_webhook_info
+            WHERE message_id = $1
+            """, int(res['id']))
+
+            res['author'] = {
+                'id': str(wb_info['id']),
+                'bot': True,
+                'username': wb_info['name'],
+                'avatar': wb_info['avatar']
+            }
+        else:
             res['author'] = await self.get_user(res['author_id'])
             res.pop('webhook_id')
-        elif webhook_id is not None:
-            res['author'] = {
-                'id': webhook_id,
-                'username': 'a',
-                'avatar': None
-            }
 
         res.pop('author_id')
 
@@ -815,7 +825,7 @@ class Storage:
                           user_id: Optional[int] = None) -> Optional[Dict]:
         """Get a single message's payload."""
         row = await self.fetchrow_with_json("""
-        SELECT id::text, channel_id::text, author_id, webhook_id, content,
+        SELECT id::text, channel_id::text, author_id, content,
             created_at AS timestamp, edited_at AS edited_timestamp,
             tts, mention_everyone, nonce, message_type, embeds
         FROM messages

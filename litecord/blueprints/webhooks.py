@@ -37,10 +37,12 @@ from litecord.errors import WebhookNotFound, Unauthorized, ChannelNotFound
 
 from litecord.blueprints.channel.messages import (
     msg_create_request, msg_create_check_content, msg_add_attachment,
-    # create_message
+    msg_guild_text_mentions
 )
 from litecord.embed.sanitizer import fill_embed
 from litecord.embed.messages import process_url_embed
+from litecord.utils import pg_set_json
+from litecord.enums import MessageType
 
 bp = Blueprint('webhooks', __name__)
 
@@ -304,9 +306,34 @@ async def del_webhook_tokened(webhook_id, webhook_token):
     return '', 204
 
 
-async def create_message_webhook(guild_id, channel_id, webhook_id, j):
-    # TODO: impl
-    pass
+async def create_message_webhook(guild_id, channel_id, webhook_id, data):
+    """Create a message, but for webhooks only."""
+    message_id = get_snowflake()
+
+    async with app.db.acquire() as conn:
+        await pg_set_json(conn)
+
+        await conn.execute(
+            """
+            INSERT INTO messages (id, channel_id, guild_id, webhook_id,
+                content, tts, mention_everyone, message_type, embeds)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        """,
+            message_id,
+            channel_id,
+            guild_id,
+            webhook_id,
+            data['content'],
+
+            data['tts'],
+            data['everyone_mention'],
+
+            MessageType.DEFAULT.value,
+            data.get('embeds', [])
+        )
+
+    return message_id
+
 
 
 @bp.route('/webhooks/<int:webhook_id>/<webhook_token>', methods=['POST'])
@@ -318,6 +345,12 @@ async def execute_webhook(webhook_id: int, webhook_token):
     # TODO: ensure channel_id points to guild text channel
 
     payload_json, files = await msg_create_request()
+
+    # NOTE: we really pop here instead of adding a kwarg
+    # to msg_create_request just because of webhooks.
+    # nonce isn't allowed on WEBHOOK_MESSAGE_CREATE
+    payload_json.pop('nonce')
+
     j = validate(payload_json, WEBHOOK_MESSAGE_CREATE)
 
     msg_create_check_content(j, files)
@@ -326,13 +359,15 @@ async def execute_webhook(webhook_id: int, webhook_token):
     mentions_everyone = '@everyone' in j['content']
     mentions_here = '@here' in j['content']
 
+    given_embeds = j.get('embeds', [])
+
     message_id = await create_message_webhook(
         guild_id, channel_id, webhook_id, {
             'content': j.get('content', ''),
             'tts': j.get('tts', False),
 
             'everyone_mention': mentions_everyone or mentions_here,
-            'embeds': [await fill_embed(e) for e in j['embeds']]
+            'embeds': await async_map(fill_embed, given_embeds)
         }
     )
 
@@ -341,6 +376,9 @@ async def execute_webhook(webhook_id: int, webhook_token):
 
     payload = await app.storage.get_message(message_id)
 
+    await app.dispatcher.dispatch('channel', channel_id,
+                                  'MESSAGE_CREATE', payload)
+
     # spawn embedder in the background, even when we're on a webhook.
     app.sched.spawn(
         process_url_embed(
@@ -348,6 +386,10 @@ async def execute_webhook(webhook_id: int, webhook_token):
             payload
         )
     )
+
+    # we can assume its a guild text channel, so just call it
+    await msg_guild_text_mentions(
+        payload, guild_id, mentions_everyone, mentions_here)
 
     # TODO: is it really 204?
     return '', 204

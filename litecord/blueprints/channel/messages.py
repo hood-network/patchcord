@@ -194,8 +194,9 @@ async def create_message(channel_id: int, actual_guild_id: int,
 
     return message_id
 
-async def _guild_text_mentions(payload: dict, guild_id: int,
-                               mentions_everyone: bool, mentions_here: bool):
+async def msg_guild_text_mentions(payload: dict, guild_id: int,
+                                  mentions_everyone: bool, mentions_here: bool):
+    """Calculates mention data side-effects."""
     channel_id = int(payload['channel_id'])
 
     # calculate the user ids we'll bump the mention count for
@@ -435,8 +436,8 @@ async def _create_message(channel_id):
     """, message_id, channel_id, user_id)
 
     if ctype == ChannelType.GUILD_TEXT:
-        await _guild_text_mentions(payload, guild_id,
-                                   mentions_everyone, mentions_here)
+        await msg_guild_text_mentions(
+            payload, guild_id, mentions_everyone, mentions_here)
 
     return jsonify(payload)
 
