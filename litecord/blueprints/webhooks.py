@@ -18,6 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import secrets
+import base64
 from typing import Dict, Any, Optional
 
 from quart import Blueprint, jsonify, current_app as app, request
@@ -33,14 +34,16 @@ from litecord.schemas import (
 from litecord.enums import ChannelType
 from litecord.snowflake import get_snowflake
 from litecord.utils import async_map
-from litecord.errors import WebhookNotFound, Unauthorized, ChannelNotFound
+from litecord.errors import (
+    WebhookNotFound, Unauthorized, ChannelNotFound, BadRequest
+)
 
 from litecord.blueprints.channel.messages import (
     msg_create_request, msg_create_check_content, msg_add_attachment,
     msg_guild_text_mentions
 )
-from litecord.embed.sanitizer import fill_embed
-from litecord.embed.messages import process_url_embed
+from litecord.embed.sanitizer import fill_embed, fetch_raw_img
+from litecord.embed.messages import process_url_embed, is_media_url
 from litecord.utils import pg_set_json
 from litecord.enums import MessageType
 
@@ -335,6 +338,32 @@ async def create_message_webhook(guild_id, channel_id, webhook_id, data):
     return message_id
 
 
+async def _create_avatar(webhook_id: int, avatar_url):
+    """Create an avatar for a webhook out of an avatar URL,
+    given when executing the webhook.
+
+    Litecord will query that URL via mediaproxy and store the data
+    via IconManager.
+    """
+    if avatar_url.scheme not in ('http', 'https'):
+        raise BadRequest('invalid avatar url scheme')
+
+    if not is_media_url(avatar_url):
+        raise BadRequest('url is not media url')
+
+    resp, raw = await fetch_raw_img(avatar_url)
+    raw_b64 = base64.b64encode(raw)
+
+    mime = resp.headers['content-type']
+    b64_data = f'data:{mime};base64,{raw_b64}'
+
+    icon = await app.icons.put(
+        'user', webhook_id, b64_data,
+        always_icon=True, size=(128, 128)
+    )
+
+    return icon.icon_hash
+
 
 @bp.route('/webhooks/<int:webhook_id>/<webhook_token>', methods=['POST'])
 async def execute_webhook(webhook_id: int, webhook_token):
@@ -361,13 +390,25 @@ async def execute_webhook(webhook_id: int, webhook_token):
 
     given_embeds = j.get('embeds', [])
 
+    webhook = await get_webhook(webhook_id)
+    avatar = webhook['avatar']
+
+    if 'avatar_url' in j and j['avatar_url'] is not None:
+        avatar = await _create_avatar(webhook_id, j['avatar_url'])
+
     message_id = await create_message_webhook(
         guild_id, channel_id, webhook_id, {
             'content': j.get('content', ''),
             'tts': j.get('tts', False),
 
             'everyone_mention': mentions_everyone or mentions_here,
-            'embeds': await async_map(fill_embed, given_embeds)
+            'embeds': await async_map(fill_embed, given_embeds),
+
+            'info': {
+                'id': webhook_id,
+                'name': j.get('name', webhook['name']),
+                'avatar': avatar
+            }
         }
     )
 

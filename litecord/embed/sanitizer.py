@@ -96,26 +96,32 @@ def proxify(url, *, config=None) -> str:
     )
 
 
-async def fetch_metadata(url, *, config=None, session=None) -> Optional[Dict]:
-    """Fetch metadata for a url."""
+def _mk_cfg_sess(config, session) -> tuple:
+    if config is None:
+        config = app.config
 
     if session is None:
         session = app.session
 
-    if config is None:
-        config = app.config
+    return config, session
 
-    if isinstance(url, str):
-        url = EmbedURL(url)
 
-    parsed = url.parsed
-
-    md_path = f'{parsed.scheme}/{parsed.netloc}{parsed.path}'
-
+def _md_base(config) -> tuple:
     md_base_url = config['MEDIA_PROXY']
     proto = 'https' if config['IS_SSL'] else 'http'
 
-    request_url = f'{proto}://{md_base_url}/meta/{md_path}'
+    return proto, md_base_url
+
+
+async def fetch_metadata(url, *, config=None, session=None) -> Optional[Dict]:
+    """Fetch metadata for a url."""
+    config, session = _mk_cfg_sess(config, session)
+
+    if not isinstance(url, EmbedURL):
+        url = EmbedURL(url)
+
+    proto, md_base_url = _md_base(config)
+    request_url = f'{proto}://{md_base_url}/meta/{url.to_md_path}'
 
     async with session.get(request_url) as resp:
         if resp.status != 200:
@@ -126,6 +132,28 @@ async def fetch_metadata(url, *, config=None, session=None) -> Optional[Dict]:
             return None
 
         return await resp.json()
+
+
+async def fetch_raw_img(url, *, config=None, session=None) -> Optional[tuple]:
+    """Fetch metadata for a url."""
+    config, session = _mk_cfg_sess(config, session)
+
+    if not isinstance(url, EmbedURL):
+        url = EmbedURL(url)
+
+    proto, md_base_url = _md_base(config)
+    # NOTE: the img, instead of /meta/.
+    request_url = f'{proto}://{md_base_url}/img/{url.to_md_path}'
+
+    async with session.get(request_url) as resp:
+        if resp.status != 200:
+            body = await resp.text()
+
+            log.warning('failed to get img for {!r}: {} {!r}',
+                        url, resp.status, body)
+            return None
+
+        return resp, await resp.read()
 
 
 async def fetch_embed(parsed, *, config=None, session=None) -> dict:

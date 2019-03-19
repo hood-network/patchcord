@@ -45,6 +45,12 @@ class EmbedURL:
         """'json' version of the url."""
         return self.url
 
+    @property
+    def to_md_path(self) -> str:
+        """Convert the EmbedURL to a mediaproxy path."""
+        parsed = self.parsed
+        return f'{parsed.scheme}/{parsed.netloc}{parsed.path}'
+
 
 EMBED_FOOTER = {
     'text': {
