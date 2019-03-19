@@ -816,6 +816,7 @@ class Storage:
             res['author'] = {
                 'id': str(wb_info['id']),
                 'bot': True,
+                'discriminator': '0000',
                 'username': wb_info['name'],
                 'avatar': wb_info['avatar']
             }
