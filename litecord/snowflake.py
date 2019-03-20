@@ -41,14 +41,6 @@ WORKER_ID = 1
 Snowflake = int
 
 
-def get_invite_code() -> str:
-    """Get a random invite code."""
-    random_stuff = hashlib.sha512(os.urandom(1024)).digest()
-    code = base64.urlsafe_b64encode(random_stuff).decode().replace('=', '5') \
-        .replace('_', 'W').replace('-', 'm')
-    return code[:6]
-
-
 def _snowflake(timestamp: int) -> Snowflake:
     """Get a snowflake from a specific timestamp
 
