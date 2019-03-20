@@ -55,3 +55,12 @@ The other available superclass is `DispatchWithState` for backends that
 require a list of subscribers to not repeat code. The only required method
 to be implemented is `dispatch()` and you can see how that works out
 on the backends that inherit from this class.
+
+## Sending an event, practical
+
+Call `app.dispatcher.dispatch(backend_string, key, event_type, event_payload)`.
+
+example:
+ - `dispatch('guild', guild_id, 'GUILD_UPDATE', guild)`, and other backends.
+    The rules on how each backend dispatches its events can be found on the
+    specific backend class.
