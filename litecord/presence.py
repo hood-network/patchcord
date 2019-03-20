@@ -68,6 +68,12 @@ def _best_presence(shards):
 
 
 async def _pres(storage, user_id: int, status_obj: dict) -> dict:
+    """Convert a given status into a presence, given the User ID and the
+    :class:`Storage` instance.
+
+    This adds the required `presences` array, that isn't used, due to Litecord's
+    lack of Rich Presence.
+    """
     ext = {
         'user': await storage.get_user(user_id),
         'activities': [],
@@ -77,7 +83,11 @@ async def _pres(storage, user_id: int, status_obj: dict) -> dict:
 
 
 class PresenceManager:
-    """Presence related functions."""
+    """Presence management.
+
+    Has common functions to deal with fetching or updating presences, including
+    side-effects (events).
+    """
     def __init__(self, app):
         self.storage = app.storage
         self.user_storage = app.user_storage
@@ -159,7 +169,9 @@ class PresenceManager:
             'activities': [game] if game else []
         }
 
-        def _sane_session(session_id):
+        # given a session id, return if the session id actually connects to
+        # a given user, and if the state has not been dispatched via lazy guild.
+        def _session_check(session_id):
             state = self.state_manager.fetch_raw(session_id)
             uid = int(member['user']['id'])
 
@@ -175,8 +187,7 @@ class PresenceManager:
         # gets a PRESENCE_UPDATE
         await self.dispatcher.dispatch_filter(
             'guild', guild_id,
-            _sane_session,
-
+            _session_check,
             'PRESENCE_UPDATE', pres_update_payload
         )
 
