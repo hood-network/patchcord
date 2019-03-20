@@ -133,7 +133,26 @@ async def _handle_gdm_icon_edit(app, channel_id, author_id):
 
 async def send_sys_message(app, channel_id: int, m_type: MessageType,
                            *args, **kwargs) -> int:
-    """Send a system message."""
+    """Send a system message.
+
+    The handler for a given message type MUST return an integer, that integer
+    being the message ID generated. This function takes care of feching the
+    message and dispatching the needed event.
+
+    Parameters
+    ----------
+    app
+        The app instance.
+    channel_id
+        The channel ID to send the system message to.
+    m_type
+        The system message's type.
+
+    Returns
+    -------
+    int
+        The message ID.
+    """
     try:
         handler = {
             MessageType.CHANNEL_PINNED_MESSAGE: _handle_pin_msg,
