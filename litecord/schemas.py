@@ -49,7 +49,8 @@ EMOJO_MENTION = re.compile(r'<:(\.+):(\d+)>', re.A | re.M)
 ANIMOJI_MENTION = re.compile(r'<a:(\.+):(\d+)>', re.A | re.M)
 
 
-def _in_enum(enum, value: int):
+def _in_enum(enum, value) -> bool:
+    """Return if a given value is in the enum."""
     try:
         enum(value)
         return True
@@ -58,6 +59,7 @@ def _in_enum(enum, value: int):
 
 
 class LitecordValidator(Validator):
+    """Main validator class for Litecord, containing custom types."""
     def _validate_type_username(self, value: str) -> bool:
         """Validate against the username regex."""
         return bool(USERNAME_REGEX.match(value))
@@ -88,6 +90,10 @@ class LitecordValidator(Validator):
             return False
 
     def _validate_type_voice_region(self, value: str) -> bool:
+        # TODO: call voice manager for regions instead of hardcoding
+
+        # I'm sure the context would be there at least in a basic level, so
+        # we can access the app.
         return value.lower() in ('brazil', 'us-east', 'us-west',
                                  'us-south', 'russia')
 
@@ -118,6 +124,7 @@ class LitecordValidator(Validator):
         except (TypeError, ValueError):
             return False
 
+        # nobody is allowed to use the INCOMING and OUTGOING rel types
         return val in (RelationshipType.FRIEND.value,
                        RelationshipType.BLOCK.value)
 
@@ -148,8 +155,18 @@ class LitecordValidator(Validator):
 
 def validate(reqjson: Union[Dict, List], schema: Dict,
              raise_err: bool = True) -> Dict:
-    """Validate a given document (user-input) and give
-    the correct document as a result.
+    """Validate the given user-given data against a schema, giving the
+    "correct" version of the document, with all defaults applied.
+
+    Parameters
+    ----------
+    reqjson:
+        The input data
+    schema:
+        The schema to validate reqjson against
+    raise_err:
+        If we should raise a BadRequest error when the validation
+        fails. Default is true.
     """
     validator = LitecordValidator(schema)
 
