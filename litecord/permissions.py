@@ -64,6 +64,14 @@ class _RawPermsBits(ctypes.LittleEndianStructure):
 
 
 class Permissions(ctypes.Union):
+    """Main permissions class. Holds helper functions to convert between
+    the bitfield and an integer, etc.
+
+    Parameters
+    ----------
+    val
+        The permissions value as an integer.
+    """
     _fields_ = [
         ('bits', _RawPermsBits),
         ('binary', ctypes.c_uint64),
@@ -76,9 +84,6 @@ class Permissions(ctypes.Union):
         return f'<Permissions binary={self.binary}>'
 
     def __int__(self):
-        return self.binary
-
-    def numby(self):
         return self.binary
 
 
@@ -152,6 +157,7 @@ async def base_permissions(member_id, guild_id, storage=None) -> Permissions:
 
 
 def overwrite_mix(perms: Permissions, overwrite: dict) -> Permissions:
+    """Mix a single permission with a single overwrite."""
     # we make a copy of the binary representation
     # so we don't modify the old perms in-place
     # which could be an unwanted side-effect
@@ -168,6 +174,24 @@ def overwrite_mix(perms: Permissions, overwrite: dict) -> Permissions:
 
 def overwrite_find_mix(perms: Permissions, overwrites: dict,
                        target_id: int) -> Permissions:
+    """Mix a given permission with a given overwrite.
+
+    Returns the given permission if an overwrite is not found.
+
+    Parameters
+    ----------
+    perms
+        The permissions for the given target.
+    overwrites
+        The overwrites for the given actor (mostly channel).
+    target_id
+        The target's ID in the overwrites dict.
+
+    Returns
+    -------
+    Permissions
+        The mixed permissions object.
+    """
     overwrite = overwrites.get(target_id)
 
     if overwrite:
@@ -251,8 +275,9 @@ async def compute_overwrites(base_perms: Permissions,
     return perms
 
 
-async def get_permissions(member_id, channel_id, *, storage=None):
-    """Get all the permissions for a user in a channel."""
+async def get_permissions(member_id: int, channel_id,
+                          *, storage=None) -> Permissions:
+    """Get the permissions for a user in a channel."""
     if not storage:
         storage = app.storage
 
@@ -264,5 +289,5 @@ async def get_permissions(member_id, channel_id, *, storage=None):
 
     base_perms = await base_permissions(member_id, guild_id, storage)
 
-    return await compute_overwrites(base_perms, member_id,
-                                    channel_id, guild_id, storage)
+    return await compute_overwrites(
+        base_perms, member_id, channel_id, guild_id, storage)
