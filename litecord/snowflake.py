@@ -24,10 +24,7 @@ snowflake.py - snowflake helper functions
     File brought in from
         litecord-reference(https://github.com/lnmds/litecord-reference)
 """
-import os
 import time
-import base64
-import hashlib
 import datetime
 
 # encoded in ms
