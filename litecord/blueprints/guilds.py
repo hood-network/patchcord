@@ -284,12 +284,12 @@ async def _update_guild(guild_id):
         if region is not None:
             await _guild_update_region(guild_id, region)
 
-    if 'icon' in j:
-        await _guild_update_icon(
-            'guild', guild_id, j['icon'], size=(128, 128))
-
     # small guild to work with to_update()
     guild = await app.storage.get_guild(guild_id)
+
+    if to_update(j, guild, 'icon'):
+        await _guild_update_icon(
+            'guild', guild_id, j['icon'], size=(128, 128))
 
     if to_update(j, guild, 'splash'):
         if not await app.storage.has_feature(guild_id, 'INVITE_SPLASH'):
