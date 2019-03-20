@@ -24,18 +24,27 @@ log = Logger(__name__)
 
 
 class JobManager:
-    """Manage background jobs"""
+    """Background job manager.
+
+    Handles closing all existing jobs when going on a shutdown. This does not
+    use helpers such as asyncio.gather and asyncio.Task.all_tasks. It only uses
+    its own internal list of jobs.
+    """
     def __init__(self, loop=None):
         self.loop = loop or asyncio.get_event_loop()
         self.jobs = []
 
     async def _wrapper(self, coro):
+        """Wrapper coroutine for other coroutines. This adds a simple
+        try/except for general exceptions to be logged.
+        """
         try:
             await coro
         except Exception:
             log.exception('Error while running job')
 
     def spawn(self, coro):
+        """Spawn a given future or coroutine in the background."""
         task = self.loop.create_task(
             self._wrapper(coro)
         )
@@ -43,5 +52,10 @@ class JobManager:
         self.jobs.append(task)
 
     def close(self):
+        """Close the job manager, cancelling all existing jobs.
+
+        It is the job's responsibility to handle the given CancelledError
+        and release any acquired resources.
+        """
         for job in self.jobs:
             job.cancel()
