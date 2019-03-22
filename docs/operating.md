@@ -13,3 +13,22 @@ The possible actions on `./manage.py` can be accessed via `./manage.py -h`, or
 ## `./manage.py generate_token`?
 
 You can generate a user token but only if that user is a bot.
+
+## Instance invites
+
+If your instance has registrations disabled you can still get users to the
+instance via instance invites. This is something only Litecord does, using a
+separate API endpoint.
+
+Use `./manage.py makeinv` to generate an instance invite, give it out to users,
+point them towards `https://<your instance url>/invite_register.html`. Things
+should be straightforward from there.
+
+## Making someone Staff
+
+**CAUTION:** Making someone staff, other than giving the Staff badge on their
+user flags, also gives complete access over the Admin API. Only make staff the
+people you (the instance OP) can trust.
+
+Use the `./manage.py make_staff` management task to make someone staff. There is
+no way to remove someone's staff with a `./manage.py` command *yet.*
