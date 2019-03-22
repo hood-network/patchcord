@@ -39,6 +39,7 @@ async def async_map(function, iterable: Iterable) -> list:
 
 
 async def task_wrapper(name: str, coro):
+    """Wrap a given coroutine in a task."""
     try:
         await coro
     except asyncio.CancelledError:
@@ -136,7 +137,10 @@ def mmh3(inp_str: str, seed: int = 0):
 
 
 class LitecordJSONEncoder(JSONEncoder):
+    """Custom JSON encoder for Litecord."""
     def default(self, value: Any):
+        """By default, this will try to get the to_json attribute of a given
+        value being JSON encoded."""
         try:
             return value.to_json
         except AttributeError:
@@ -144,8 +148,7 @@ class LitecordJSONEncoder(JSONEncoder):
 
 
 async def pg_set_json(con):
-    """Set JSON and JSONB codecs for an
-    asyncpg connection."""
+    """Set JSON and JSONB codecs for an asyncpg connection."""
     await con.set_type_codec(
         'json',
         encoder=lambda v: json.dumps(v, cls=LitecordJSONEncoder),

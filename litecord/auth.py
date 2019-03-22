@@ -20,6 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import base64
 import binascii
 from random import randint
+from typing import Tuple
 
 import bcrypt
 from asyncpg import UniqueViolationError
@@ -35,7 +36,21 @@ from litecord.enums import UserFlags
 log = Logger(__name__)
 
 
-async def raw_token_check(token, db=None):
+async def raw_token_check(token: str, db=None) -> int:
+    """Check if a given token is valid.
+
+    Returns
+    -------
+    int
+        The User ID of the given token.
+
+    Raises
+    ------
+    Unauthorized
+        If token is not properly formatted, or if the user does not exist.
+    Forbidden
+        If token validation fails.
+    """
     db = db or app.db
 
     # just try by fragments instead of
@@ -80,7 +95,7 @@ async def raw_token_check(token, db=None):
         raise Forbidden('Invalid token')
 
 
-async def token_check():
+async def token_check() -> int:
     """Check token information."""
     # first, check if the request info already has a uid
     try:
@@ -101,7 +116,7 @@ async def token_check():
     return user_id
 
 
-async def admin_check():
+async def admin_check() -> int:
     """Check if the user is an admin."""
     user_id = await token_check()
 
@@ -148,13 +163,19 @@ async def check_username_usage(username: str, db=None):
 
 
 async def create_user(username: str, email: str, password: str,
-                      db=None, loop=None):
-    """Create a single user."""
+                      db=None, loop=None) -> Tuple[int, str]:
+    """Create a single user.
+
+    Generates a distriminator and other information. You can fetch the user
+    data back with :meth:`Storage.get_user`.
+    """
     db = db or app.db
     loop = loop or app.loop
 
     new_id = get_snowflake()
 
+    # TODO: unified discrim generation based off username, that also includes
+    # the check_username_usage()
     new_discrim = randint(1, 9999)
     new_discrim = '%04d' % new_discrim
 
@@ -164,9 +185,10 @@ async def create_user(username: str, email: str, password: str,
 
     try:
         await db.execute("""
-        INSERT INTO users (id, email, username,
-                        discriminator, password_hash)
-        VALUES ($1, $2, $3, $4, $5)
+        INSERT INTO users
+            (id, email, username, discriminator, password_hash)
+        VALUES
+            ($1, $2, $3, $4, $5)
         """, new_id, email, username, new_discrim, pwd_hash)
     except UniqueViolationError:
         raise BadRequest('Email already used.')

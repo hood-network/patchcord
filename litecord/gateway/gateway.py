@@ -22,9 +22,8 @@ from litecord.gateway.websocket import GatewayWebsocket
 
 
 async def websocket_handler(app, ws, url):
-    """Main websocket handler, checks query arguments
-    when connecting to the gateway and spawns a
-    GatewayWebsocket instance for the connection."""
+    """Main websocket handler, checks query arguments when connecting to
+    the gateway and spawns a GatewayWebsocket instance for the connection."""
     args = urllib.parse.parse_qs(
         urllib.parse.urlparse(url).query
     )
@@ -54,6 +53,9 @@ async def websocket_handler(app, ws, url):
     if gw_compress and gw_compress not in ('zlib-stream',):
         return await ws.close(1000, 'Invalid gateway compress')
 
-    gws = GatewayWebsocket(ws, app, v=gw_version,
-                           encoding=gw_encoding, compress=gw_compress)
+    gws = GatewayWebsocket(
+        ws, app, v=gw_version, encoding=gw_encoding, compress=gw_compress)
+
+    # this can be run with a single await since this whole coroutine
+    # is already running in the background.
     await gws.run()

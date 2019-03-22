@@ -65,30 +65,34 @@ WebsocketObjects = collections.namedtuple(
 
 
 def encode_json(payload) -> str:
+    """Encode a given payload to JSON."""
     return json.dumps(payload, separators=(',', ':'),
                       cls=LitecordJSONEncoder)
 
 
 def decode_json(data: str):
+    """Decode from JSON."""
     return json.loads(data)
 
 
 def encode_etf(payload) -> str:
-    # The thing with encoding ETF is that with json we have LitecordJSONEncoder
-    # which takes care of converting e.g datetime objects to their ISO
-    # representation.
+    """Encode a payload to ETF (External Term Format).
 
-    # so, to keep things working, i'll to a json pass on the payload, then send
-    # the decoded payload back to earl.
+    This gives a JSON pass on the given payload (via calling encode_json and
+    then decode_json) because we may want to encode objects that can only be
+    encoded by LitecordJSONEncoder.
 
+    Earl-ETF does not give the same interface for extensibility, hence why we
+    do the pass.
+    """
     sanitized = encode_json(payload)
     sanitized = decode_json(sanitized)
     return earl.pack(sanitized)
 
 
 def _etf_decode_dict(data):
-    # NOTE: this is a very slow implementation to
-    # decode the dictionary.
+    """Decode a given dictionary."""
+    # NOTE: this is very slow.
 
     if isinstance(data, bytes):
         return data.decode()
@@ -109,6 +113,7 @@ def _etf_decode_dict(data):
     return result
 
 def decode_etf(data: bytes):
+    """Decode data in ETF to any."""
     res = earl.unpack(data)
 
     if isinstance(res, bytes):
@@ -269,7 +274,7 @@ class GatewayWebsocket:
             task_wrapper('hb wait', self._hb_wait(interval))
         )
 
-    async def send_hello(self):
+    async def _send_hello(self):
         """Send the OP 10 Hello packet over the websocket."""
         # random heartbeat intervals
         interval = randint(40, 46) * 1000
@@ -367,7 +372,7 @@ class GatewayWebsocket:
 
             'friend_suggestion_count': 0,
 
-
+            # those are unused default values.
             'connected_accounts': [],
             'experiments': [],
             'guild_experiments': [],
@@ -387,7 +392,7 @@ class GatewayWebsocket:
             uready = await self._user_ready()
 
         private_channels = (
-            await self.user_storage.get_dms(user_id) + 
+            await self.user_storage.get_dms(user_id) +
             await self.user_storage.get_gdms(user_id)
         )
 
@@ -406,6 +411,8 @@ class GatewayWebsocket:
         self.ext.loop.create_task(self._guild_dispatch(guilds))
 
     async def _check_shards(self, shard, user_id):
+        """Check if the given `shard` value in IDENTIFY has good enough values.
+        """
         current_shard, shard_count = shard
 
         guilds = await self.ext.db.fetchval("""
@@ -611,10 +618,6 @@ class GatewayWebsocket:
         # update_status will take care of validation and
         # setting new presence to state
         await self.update_status(presence)
-
-    def voice_key(self, channel_id: int, guild_id: int):
-        """Voice state key."""
-        return (self.state.user_id, self.state.session_id)
 
     async def _vsu_get_prop(self, state, data):
         """Get voice state properties from data, fallbacking to
@@ -837,6 +840,11 @@ class GatewayWebsocket:
             await self._req_guild_members(gid, [], query, limit)
 
     async def _guild_sync(self, guild_id: int):
+        """Synchronize a guild.
+
+        Fetches the members and presences of a guild and dispatches a
+        GUILD_SYNC event with that info.
+        """
         members = await self.storage.get_member_data(guild_id)
         member_ids = [int(m['user']['id']) for m in members]
 
@@ -979,7 +987,7 @@ class GatewayWebsocket:
                 self.state.session_id, ranges
             )
 
-    async def process_message(self, payload):
+    async def _process_message(self, payload):
         """Process a single message coming in from the client."""
         try:
             op_code = payload['op']
@@ -998,7 +1006,7 @@ class GatewayWebsocket:
         if self._check_ratelimit('messages', self.state.session_id):
             raise WebsocketClose(4008, 'You are being ratelimited.')
 
-    async def listen_messages(self):
+    async def _listen_messages(self):
         """Listen for messages coming in from the websocket."""
 
         # close anyone trying to login while the
@@ -1018,9 +1026,11 @@ class GatewayWebsocket:
                 await self._msg_ratelimit()
 
             payload = self.decoder(message)
-            await self.process_message(payload)
+            await self._process_message(payload)
 
     def _cleanup(self):
+        """Cleanup any leftover tasks, and remove the connection from the
+        state manager."""
         for task in self.wsp.tasks.values():
             task.cancel()
 
@@ -1058,11 +1068,11 @@ class GatewayWebsocket:
             )
 
     async def run(self):
-        """Wrap listen_messages inside
+        """Wrap :meth:`listen_messages` inside
         a try/except block for WebsocketClose handling."""
         try:
-            await self.send_hello()
-            await self.listen_messages()
+            await self._send_hello()
+            await self._listen_messages()
         except websockets.exceptions.ConnectionClosed as err:
             log.warning('conn close, state={}, err={}', self.state, err)
         except WebsocketClose as err:
