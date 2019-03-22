@@ -66,7 +66,7 @@ or third party libraries (such as [Eris](https://github.com/abalabahaha/eris)).
 Requirements:
 
 - **Python 3.7+**
-- PostgreSQL (tested using 9.6+)
+- PostgreSQL (tested using 9.6+), SQL knowledge is recommended.
 - gifsicle for GIF emoji and avatar handling
 - [pipenv]
 
@@ -132,6 +132,9 @@ You can use `--access-log -` to output access logs to stdout.
 You can check if your instance is running by performing an HTTP `GET` request on
 the `/api/v6/gateway` endpoint. For basic websocket testing, a tool such as
 [ws](https://github.com/hashrocket/ws) can be used.
+
+After checking that it actually works, `docs/operating.md` continues on common
+operations for a Litecord instance.
 
 ## Updating
 
