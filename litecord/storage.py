@@ -153,6 +153,13 @@ class Storage:
         WHERE id = $1
         """, guild_id)
 
+    async def vanity_invite(self, guild_id: int) -> Optional[str]:
+        """Get the vanity invite for a guild."""
+        return await app.db.fetchval("""
+        SELECT code FROM vanity_invites
+        WHERE guild_id = $1
+        """, guild_id)
+
     async def get_guild(self, guild_id: int, user_id=None) -> Optional[Dict]:
         """Get gulid payload."""
         row = await self.db.fetchrow("""
@@ -175,6 +182,8 @@ class Storage:
 
         if user_id:
             drow['owner'] = drow['owner_id'] == str(user_id)
+
+        drow['vanity_url_code'] = await self.vanity_invite(guild_id)
 
         return drow
 
