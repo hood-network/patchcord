@@ -1,4 +1,4 @@
-# Project structure
+# Project structure + Project-specific questions
 
 ## `attachments` and `images`
 
@@ -40,3 +40,27 @@ Tests are run with `pytest` and the asyncio plugin for proper testing. A point
 of interest is `tests/conftest.py` as it contains test-specific configuration
 for the app object. Adding a test is trivial, as pytest will match against any
 file containing `test_` as a prefix.
+
+## Litecord-specifics
+
+### How do I fetch a User/Guild/Channel/DM/Group DM/...?
+
+You can find the common code to fetch those in `litecord/storage.py` on the
+`Storage` class, acessible via `app.storage`. A good example is
+`Storage.get_user`. There are no custom classes to hold common things used in
+the Discord API.
+
+They're all dictionaries and follow *at least* the same fields you would expect
+on the Discord API.
+
+### How are API errors handled?
+
+Quart provides custom handling of errors via `errorhandler()`. You can look
+at the declared error handlers on `run.py`. The `500` error handler
+converts any 500 into a JSON error object for client ease-of-use.
+
+All litecord errors inherit from the `LitecordError` class, defining things
+on top such as its specific Discord error code and what HTTP status code
+to use.
+
+Error messages are documented [here](https://discordapp.com/developers/docs/topics/opcodes-and-status-codes#http).
