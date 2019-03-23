@@ -829,7 +829,8 @@ class Storage:
                 'id': str(wb_info['webhook_id']),
                 'bot': True,
                 'username': wb_info['name'],
-                'avatar': wb_info['avatar']
+                'avatar': wb_info['avatar'],
+                'discriminator': '0000',
             }
         else:
             res['author'] = await self.get_user(res['author_id'])
