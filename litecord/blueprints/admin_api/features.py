@@ -24,7 +24,6 @@ from litecord.auth import admin_check
 from litecord.errors import BadRequest
 from litecord.schemas import validate
 from litecord.admin_schemas import FEATURES
-from litecord.blueprints.guilds import vanity_invite
 
 bp = Blueprint('features_admin', __name__)
 
@@ -42,7 +41,7 @@ async def _features(guild_id: int):
 
 async def _update_features(guild_id: int, features: list):
     if 'VANITY_URL' not in features:
-        existing_inv = await vanity_invite(guild_id)
+        existing_inv = await app.storage.vanity_invite(guild_id)
 
         await app.db.execute("""
         DELETE FROM vanity_invites
