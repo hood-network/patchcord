@@ -185,6 +185,13 @@ class Storage:
 
         drow['vanity_url_code'] = await self.vanity_invite(guild_id)
 
+        # hardcoding these since:
+        #  - we aren't discord
+        #  - the limit for guilds is unknown and heavily dependant on the
+        #     hardware
+        drow['max_presences'] = 1000
+        drow['max_members'] = 1000
+
         return drow
 
     async def _member_basic(self, guild_id: int, member_id: int):
