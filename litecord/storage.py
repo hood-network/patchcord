@@ -155,7 +155,7 @@ class Storage:
 
     async def vanity_invite(self, guild_id: int) -> Optional[str]:
         """Get the vanity invite for a guild."""
-        return await app.db.fetchval("""
+        return await self.db.fetchval("""
         SELECT code FROM vanity_invites
         WHERE guild_id = $1
         """, guild_id)
