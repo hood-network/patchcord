@@ -22,7 +22,7 @@ import mimetypes
 import asyncio
 import base64
 import tempfile
-from typing import Optional
+from typing import Optional, Union
 
 from dataclasses import dataclass
 from hashlib import sha256
@@ -205,9 +205,14 @@ def _invalid(kwargs: dict) -> Optional[Icon]:
     return Icon(None, None, '')
 
 
-def _try_unlink(path: str):
+def try_unlink(path: Union[Path, str]):
+    """Try unlinking a file. Does not do anything if the file
+    does not exist."""
     try:
-        os.remove(path)
+        if isinstance(path, Path):
+            path.unlink()
+        else:
+            os.remove(path)
     except FileNotFoundError:
         pass
 
@@ -258,8 +263,8 @@ async def resize_gif(raw_data: bytes, target: tuple) -> tuple:
     output_handler.close()
 
     # delete the files we created with mkstemp
-    _try_unlink(input_path)
-    _try_unlink(output_path)
+    try_unlink(input_path)
+    try_unlink(output_path)
 
     # reseek, save to raw_data, reseek again.
     # TODO: remove raw_data altogether as its inefficient

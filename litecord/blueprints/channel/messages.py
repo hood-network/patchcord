@@ -18,6 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import json
+from pathlib import Path
 
 from PIL import Image
 from quart import Blueprint, request, current_app as app, jsonify
@@ -35,6 +36,7 @@ from litecord.utils import pg_set_json
 from litecord.embed.sanitizer import fill_embed
 from litecord.embed.messages import process_url_embed
 from litecord.blueprints.channel.dm_checks import dm_pre_check
+from litecord.images import try_unlink
 
 
 log = Logger(__name__)
@@ -515,6 +517,37 @@ async def edit_message(channel_id, message_id):
     return jsonify(message)
 
 
+async def _del_msg_fkeys(message_id: int):
+    attachs = await app.db.fetch("""
+    SELECT id FROM attachments
+    WHERE message_id = $1
+    """, message_id)
+
+    attachs = [r['id'] for r in attachs]
+
+    attachments = Path('./attachments')
+    for attach_id in attachs:
+        # anything starting with the given attachment shall be
+        # deleted, because there may be resizes of the original
+        # attachment laying around.
+        for filepath in attachments.glob(f'{attach_id}*'):
+            try_unlink(filepath)
+
+    # after trying to delete all available attachments, delete
+    # them from the database.
+
+    # take the chance and delete all the data from the other tables too!
+
+    tables = ['attachments', 'message_webhook_info',
+              'message_reactions', 'channel_pins']
+
+    for table in tables:
+        await app.db.execute(f"""
+        DELETE FROM {table}
+        WHERE message_id = $1
+        """, message_id)
+
+
 @bp.route('/<int:channel_id>/messages/<int:message_id>', methods=['DELETE'])
 async def delete_message(channel_id, message_id):
     user_id = await token_check()
@@ -534,6 +567,8 @@ async def delete_message(channel_id, message_id):
     can_delete = by_perm or by_ownership
     if not can_delete:
         raise Forbidden('You can not delete this message')
+
+    await _del_msg_fkeys(message_id)
 
     await app.db.execute("""
     DELETE FROM messages
