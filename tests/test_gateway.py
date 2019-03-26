@@ -28,7 +28,7 @@ from tests.common import login
 
 @pytest.mark.asyncio
 async def test_gw(test_cli):
-    """Test if the gateway route is sane."""
+    """Test if the gateway route works."""
     resp = await test_cli.get('/api/v6/gateway')
     assert resp.status_code == 200
     rjson = await resp.json

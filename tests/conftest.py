@@ -39,6 +39,7 @@ def _test_app(unused_tcp_port, event_loop):
     # since the config might give a used one.
     ws_port = unused_tcp_port
 
+    main_app.config['IS_SSL'] = False
     main_app.config['WS_PORT'] = ws_port
     main_app.config['WEBSOCKET_URL'] = f'localhost:{ws_port}'
 
