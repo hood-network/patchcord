@@ -31,10 +31,11 @@ took a shot at writing it again. It works.
 ## Caveats
 
 - Unit testing is incomplete.
-- Currently, there are no plans to support video in voice chats, or the Discord Store.
-- You must figure out how to connect to a Litecord instance. Litecord will not
-  distribute official client code from Discord nor provide ways to modify the
-  official client.
+- Currently, there are no plans to support video in voice chats, or the
+    Discord Store.
+- An unofficial Discord Client is recommended to connect (more on
+    `docs/clients.md`). Litecord will not distribute official client code from
+    Discord nor provide ways to modify the official client.
 
 ## Implementation status, AKA "Does it work?"
 
@@ -54,7 +55,7 @@ time.
 
 We (Litecord and contributors) are not liable for usage of this software,
 valid or invalid. If you intend to use this software as a "self-hostable
-Discord alternative", you are soely responsible for any legal action delivered
+Discord alternative", you are solely responsible for any legal action delivered
 by Discord if you are using their assets, intellectual property, etc.
 
 All referenced material for implementation is based off of
