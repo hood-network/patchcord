@@ -72,7 +72,7 @@ async def test_gw(test_cli):
     assert isinstance(hello['d']['heartbeat_interval'], int)
     assert isinstance(hello['d']['_trace'], list)
 
-    await conn.close(1000, 'test end')
+    await _close(conn)
 
 
 @pytest.mark.asyncio
@@ -94,9 +94,10 @@ async def test_ready(test_cli):
     try:
         await _json(conn)
         assert True
-        await conn.close(1000, 'test end')
     except (Exception, websockets.ConnectionClosed):
         assert False
+    finally:
+        await _close(conn)
 
 
 @pytest.mark.asyncio
