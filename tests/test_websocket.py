@@ -42,6 +42,10 @@ async def _json_send_op(conn, opcode, data=None):
     })
 
 
+async def _close(conn):
+    await conn.close(1000, 'test end')
+
+
 async def get_gw(test_cli) -> str:
     """Get the Gateway URL."""
     gw_resp = await test_cli.get('/api/v6/gateway')
@@ -128,7 +132,7 @@ async def test_ready_fields(test_cli):
     assert isinstance(data['guilds'], list)
     assert isinstance(data['session_id'], str)
 
-    await conn.close(1000, 'test end')
+    await _close(conn)
 
 
 @pytest.mark.asyncio
@@ -157,3 +161,5 @@ async def test_heartbeat(test_cli):
     recv = await _json(conn)
     assert isinstance(recv, dict)
     assert recv['op'] == OP.HEARTBEAT_ACK
+
+    await _close(conn)
