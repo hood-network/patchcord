@@ -35,6 +35,17 @@ async def _json_send(conn, data):
     await conn.send(frame)
 
 
+async def _json_send_op(conn, opcode, data=None):
+    await _json_send(conn, {
+        'op': opcode,
+        'd': data
+    })
+
+
+async def _close(conn):
+    await conn.close(1000, 'test end')
+
+
 async def get_gw(test_cli) -> str:
     """Get the Gateway URL."""
     gw_resp = await test_cli.get('/api/v6/gateway')
@@ -61,7 +72,7 @@ async def test_gw(test_cli):
     assert isinstance(hello['d']['heartbeat_interval'], int)
     assert isinstance(hello['d']['_trace'], list)
 
-    await conn.close(1000, 'test end')
+    await _close(conn)
 
 
 @pytest.mark.asyncio
@@ -83,9 +94,10 @@ async def test_ready(test_cli):
     try:
         await _json(conn)
         assert True
-        await conn.close(1000, 'test end')
     except (Exception, websockets.ConnectionClosed):
         assert False
+    finally:
+        await _close(conn)
 
 
 @pytest.mark.asyncio
@@ -121,4 +133,34 @@ async def test_ready_fields(test_cli):
     assert isinstance(data['guilds'], list)
     assert isinstance(data['session_id'], str)
 
-    await conn.close(1000, 'test end')
+    await _close(conn)
+
+
+@pytest.mark.asyncio
+async def test_heartbeat(test_cli):
+    token = await login('normal', test_cli)
+    conn = await gw_start(test_cli)
+
+    # get the hello frame but ignore it
+    await _json(conn)
+
+    await _json_send(conn, {
+        'op': OP.IDENTIFY,
+        'd': {
+            'token': token,
+        }
+    })
+
+    # ignore ready data
+    ready = await _json(conn)
+    assert isinstance(ready, dict)
+    assert ready['op'] == OP.DISPATCH
+    assert ready['t'] == 'READY'
+
+    # test a heartbeat
+    await _json_send_op(conn, OP.HEARTBEAT)
+    recv = await _json(conn)
+    assert isinstance(recv, dict)
+    assert recv['op'] == OP.HEARTBEAT_ACK
+
+    await _close(conn)

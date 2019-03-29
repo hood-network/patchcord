@@ -360,7 +360,7 @@ CREATE TABLE IF NOT EXISTS guilds (
     splash text DEFAULT NULL,
     owner_id bigint NOT NULL REFERENCES users (id),
 
-    region text NOT NULL REFERENCES voice_regions (id),
+    region text REFERENCES voice_regions (id),
 
     features text[],
 
@@ -389,7 +389,11 @@ CREATE TABLE IF NOT EXISTS guilds (
     widget_enabled boolean DEFAULT false,
     widget_channel_id bigint REFERENCES channels (id) DEFAULT NULL,
 
-    system_channel_id bigint REFERENCES channels (id) DEFAULT NULL
+    system_channel_id bigint REFERENCES channels (id) DEFAULT NULL,
+
+    -- only for guilds with certain features
+    description text DEFAULT NULL,
+    banner text DEFAULT NULL
 );
 
 

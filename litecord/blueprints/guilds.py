@@ -351,7 +351,8 @@ async def _update_guild(guild_id):
 
 
 @bp.route('/<int:guild_id>', methods=['DELETE'])
-@bp.route('/<int:guild_id>/delete', methods=['POST']) # this one is not actually documented, but it's used by Discord client
+# this endpoint is not documented, but used by the official client.
+@bp.route('/<int:guild_id>/delete', methods=['POST'])
 async def delete_guild(guild_id):
     """Delete a guild."""
     user_id = await token_check()
