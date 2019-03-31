@@ -43,6 +43,10 @@ def _test_app(unused_tcp_port, event_loop):
     main_app.config['WS_PORT'] = ws_port
     main_app.config['WEBSOCKET_URL'] = f'localhost:{ws_port}'
 
+    # testing user creations requires hardcoding this to true
+    # on testing
+    main_app.config['REGISTRATIONS'] = True
+
     # make sure we're calling the before_serving hooks
     event_loop.run_until_complete(main_app.startup())
 
