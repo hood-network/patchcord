@@ -19,6 +19,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import inspect
 import os
+import datetime
+
 from pathlib import Path
 from dataclasses import dataclass
 from collections import namedtuple
@@ -32,6 +34,12 @@ log = Logger(__name__)
 
 Migration = namedtuple('Migration', 'id name path')
 
+# line of change, 4 april 2019, at 1am (gmt+0)
+BREAK = datetime.datetime(2019, 4, 4, 1)
+
+# if a database has those tables, it ran 0_base.sql.
+HAS_BASE = ['users', 'guilds', 'e']
+
 
 @dataclass
 class MigrationContext:
@@ -42,7 +50,8 @@ class MigrationContext:
     @property
     def latest(self):
         """Return the latest migration ID."""
-        return 0 if len(self.scripts) == 0 else max(self.scripts.keys())
+        return 0 if not self.scripts else max(self.scripts.keys())
+
 
 def make_migration_ctx() -> MigrationContext:
     """Create the MigrationContext instance."""
@@ -73,7 +82,6 @@ def make_migration_ctx() -> MigrationContext:
 
 async def _ensure_changelog(app, ctx):
     # make sure we have the migration table up
-
     try:
         await app.db.execute("""
         CREATE TABLE migration_log (
@@ -87,52 +95,121 @@ async def _ensure_changelog(app, ctx):
             PRIMARY KEY (change_num)
         );
         """)
-
-        # if we were able to create the
-        # migration_log table, insert that we are
-        # on the latest version.
-        await app.db.execute("""
-        INSERT INTO migration_log (change_num, description)
-        VALUES ($1, $2)
-        """, ctx.latest, 'migration setup')
     except asyncpg.DuplicateTableError:
         log.debug('existing migration table')
 
+        # NOTE: this is a migration breakage,
+        # only applying to databases that had their first migration
+        # before 4 april 2019 (more on BREAK)
+        first = await app.db.fetchval("""
+        SELECT apply_ts FROM migration_log
+        ORDER BY apply_ts ASC
+        LIMIT 1
+        """)
+        if first < BREAK:
+            log.info('deleting migration_log due to migration structure change')
+            await app.db.execute("DROP TABLE migration_log")
+            await _ensure_changelog(app, ctx)
 
-async def apply_migration(app, migration: Migration):
-    """Apply a single migration."""
-    migration_sql = migration.path.read_text(encoding='utf-8')
 
+async def _insert_log(app, migration_id: int, description) -> bool:
     try:
         await app.db.execute("""
         INSERT INTO migration_log (change_num, description)
         VALUES ($1, $2)
-        """, migration.id, f'migration: {migration.name}')
-    except asyncpg.UniqueViolationError:
-        log.warning('already applied {}', migration.id)
-        return
+        """, migration_id, description)
 
-    await app.db.execute(migration_sql)
-    log.info('applied {}', migration.id)
+        return True
+    except asyncpg.UniqueViolationError:
+        log.warning('already inserted {}', migration_id)
+        return False
+
+
+async def _delete_log(app, migration_id: int):
+    await app.db.execute("""
+    DELETE FROM migration_log WHERE change_num = $1
+    """, migration_id)
+
+
+async def apply_migration(app, migration: Migration) -> bool:
+    """Apply a single migration.
+
+    Tries to insert it to the migration logs first, and if it exists,
+    skips it.
+
+    If any error happens while migrating, this will rollback the log,
+    by removing it from the logs.
+
+    Returns a boolean signaling if this failed or not.
+    """
+    migration_sql = migration.path.read_text(encoding='utf-8')
+
+    res = await _insert_log(
+        app, migration.id, f'migration: {migration.name}')
+
+    if not res:
+        return False
+
+    try:
+        await app.db.execute(migration_sql)
+        log.info('applied {} {}', migration.id, migration.name)
+
+        return True
+    except:
+        log.exception('failed to run migration, rollbacking log')
+        await _delete_log(app, migration.id)
+
+        return False
+
+
+async def _check_base(app) -> bool:
+    """Return if the current database has ran the 0_base.sql
+    file."""
+    try:
+        for table in HAS_BASE:
+            await app.db.execute(f"""
+            SELECT * FROM {table} LIMIT 0
+            """)
+    except asyncpg.DuplicateTableError:
+        return False
+
+    return True
 
 
 async def migrate_cmd(app, _args):
     """Main migration command.
 
-    This makes sure the database
-    is updated.
+    This makes sure the database is updated, here's the steps:
+     - create the migration_log table, or recreate it (due to migration
+        changes in 4 april 2019)
+     - check the latest local point in migration_log
+     - check if the database is on the base schema
     """
-
     ctx = make_migration_ctx()
 
+    # ensure there is a migration_log table
     await _ensure_changelog(app, ctx)
 
-    # local point in the changelog
+    # check HAS_BASE tables, and if they exist, implicitly
+    # assume this has the base schema.
+    has_base = await _check_base(app)
+
+    # fetch latest local migration that has been run on this database
     local_change = await app.db.fetchval("""
     SELECT max(change_num)
     FROM migration_log
     """)
 
+    # if base exists, add it to logs, if not, apply (and add to logs)
+    if has_base:
+        await _insert_log(app, 0, 'migration setup (from existing)')
+    else:
+        await apply_migration(app, 0)
+
+    # after that check the current local_change
+    # and the latest migration to be run
+
+    # if no migrations, then we are on migration 0 (which is base)
     local_change = local_change or 0
     latest_change = ctx.latest
 
@@ -149,7 +226,7 @@ async def migrate_cmd(app, _args):
         migration = ctx.scripts.get(idx)
 
         print('applying', migration.id, migration.name)
-        await apply_migration(app, migration)
+        # await apply_migration(app, migration)
 
 
 def setup(subparser):
