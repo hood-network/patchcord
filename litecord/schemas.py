@@ -434,7 +434,8 @@ MESSAGE_CREATE = {
     'embed': {
         'type': 'dict',
         'schema': EMBED_OBJECT,
-        'required': False
+        'required': False,
+        'nullable': True
     }
 }
 
