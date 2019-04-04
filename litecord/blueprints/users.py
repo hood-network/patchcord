@@ -17,7 +17,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-import random
 from os import urandom
 
 from asyncpg import UniqueViolationError
@@ -28,7 +27,9 @@ from ..errors import Forbidden, BadRequest, Unauthorized
 from ..schemas import validate, USER_UPDATE, GET_MENTIONS
 
 from .guilds import guild_check
-from litecord.auth import token_check, hash_data, check_username_usage
+from litecord.auth import (
+    token_check, hash_data, check_username_usage, roll_discrim
+)
 from litecord.blueprints.guild.mod import remove_member
 
 from litecord.enums import PremiumType
@@ -110,36 +111,6 @@ async def get_other(target_id):
     return jsonify(other)
 
 
-async def _try_reroll(user_id, preferred_username: str = None):
-    for _ in range(10):
-        reroll = str(random.randint(1, 9999))
-
-        if preferred_username:
-            existing_uid = await app.db.fetchrow("""
-            SELECT user_id
-            FROM users
-            WHERE username = $1 AND discriminator = $2
-            """, preferred_username, reroll)
-
-            if not existing_uid:
-                return reroll
-
-            continue
-
-        try:
-            await app.db.execute("""
-            UPDATE users
-            SET discriminator = $1
-            WHERE users.id = $2
-            """, reroll, user_id)
-
-            return reroll
-        except UniqueViolationError:
-            continue
-
-    return
-
-
 async def _try_username_patch(user_id, new_username: str) -> str:
     await check_username_usage(new_username)
     discrim = None
@@ -157,7 +128,7 @@ async def _try_username_patch(user_id, new_username: str) -> str:
         WHERE users.id = $1
         """, user_id)
     except UniqueViolationError:
-        discrim = await _try_reroll(user_id, new_username)
+        discrim = await roll_discrim(new_username)
 
         if not discrim:
             raise BadRequest('Unable to change username', {

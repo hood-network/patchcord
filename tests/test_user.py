@@ -18,6 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import pytest
+import secrets
 
 from tests.common import login, get_uid
 
@@ -32,6 +33,14 @@ async def test_get_me(test_cli):
     assert resp.status_code == 200
     rjson = await resp.json
     assert isinstance(rjson, dict)
+
+    # incomplete user assertions, but should be enough
+    assert isinstance(rjson['id'], str)
+    assert isinstance(rjson['username'], str)
+    assert isinstance(rjson['discriminator'], str)
+    assert rjson['avatar'] is None or isinstance(rjson['avatar'], str)
+    assert isinstance(rjson['flags'], int)
+    assert isinstance(rjson['bot'], bool)
 
 
 @pytest.mark.asyncio
@@ -63,3 +72,46 @@ async def test_get_profile_self(test_cli):
     assert (rjson['premium_since'] is None
             or isinstance(rjson['premium_since'], str))
     assert isinstance(rjson['mutual_guilds'], list)
+
+
+@pytest.mark.asyncio
+async def test_create_user(test_cli):
+    """Test the creation and deletion of a user."""
+    username = secrets.token_hex(4)
+    _email = secrets.token_hex(5)
+    email = f'{_email}@{_email}.com'
+    password = secrets.token_hex(6)
+
+    resp = await test_cli.post('/api/v6/auth/register', json={
+        'username': username,
+        'email': email,
+        'password': password
+    })
+
+    assert resp.status_code == 200
+    rjson = await resp.json
+
+    assert isinstance(rjson, dict)
+    token = rjson['token']
+    assert isinstance(token, str)
+
+    resp = await test_cli.get('/api/v6/users/@me', headers={
+        'Authorization': token,
+    })
+
+    assert resp.status_code == 200
+    rjson = await resp.json
+    assert rjson['username'] == username
+    assert rjson['email'] == email
+
+    resp = await test_cli.post('/api/v6/users/@me/delete', headers={
+        'Authorization': token,
+    }, json={
+        'password': password
+    })
+
+    assert resp.status_code == 204
+
+    await test_cli.app.db.execute("""
+    DELETE FROM users WHERE id = $1
+    """, int(rjson['id']))
