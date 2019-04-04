@@ -42,24 +42,6 @@ CREATE TABLE IF NOT EXISTS instance_invites (
 );
 
 
--- main attachments table
-CREATE TABLE IF NOT EXISTS attachments (
-    id bigint PRIMARY KEY,
-
-    -- keeping channel_id and message_id
-    -- make a way "better" attachment url.
-    channel_id bigint REFERENCES channels (id),
-    message_id bigint REFERENCES messages (id),
-
-    filename text NOT NULL,
-    filesize integer,
-
-    image boolean DEFAULT FALSE,
-
-    -- only not null if image=true
-    height integer DEFAULT NULL,
-    width integer DEFAULT NULL
-);
 
 
 CREATE TABLE IF NOT EXISTS icons (
@@ -692,4 +674,24 @@ CREATE TABLE IF NOT EXISTS channel_pins (
     channel_id bigint REFERENCES channels (id) ON DELETE CASCADE,
     message_id bigint REFERENCES messages (id) ON DELETE CASCADE,
     PRIMARY KEY (channel_id, message_id)
+);
+
+
+-- main attachments table
+CREATE TABLE IF NOT EXISTS attachments (
+    id bigint PRIMARY KEY,
+
+    -- keeping channel_id and message_id
+    -- make a way "better" attachment url.
+    channel_id bigint REFERENCES channels (id),
+    message_id bigint REFERENCES messages (id),
+
+    filename text NOT NULL,
+    filesize integer,
+
+    image boolean DEFAULT FALSE,
+
+    -- only not null if image=true
+    height integer DEFAULT NULL,
+    width integer DEFAULT NULL
 );
