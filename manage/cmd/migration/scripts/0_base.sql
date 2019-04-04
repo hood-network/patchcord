@@ -597,8 +597,10 @@ CREATE TABLE IF NOT EXISTS channel_overwrites (
 -- columns in private keys can't have NULL values,
 -- so instead we use a custom constraint with UNIQUE
 
-ALTER TABLE channel_overwrites DROP CONSTRAINT IF EXISTS channel_overwrites_uniq;
-ALTER TABLE channel_overwrites ADD CONSTRAINT channel_overwrites_uniq
+ALTER TABLE channel_overwrites
+    DROP CONSTRAINT IF EXISTS channel_overwrites_uniq;
+ALTER TABLE channel_overwrites
+    ADD CONSTRAINT channel_overwrites_uniq
     UNIQUE (channel_id, target_role, target_user);
 
 
@@ -680,8 +682,10 @@ CREATE TABLE IF NOT EXISTS message_reactions (
 );
 
 -- unique constraint over multiple columns instead of a primary key
-ALTER TABLE message_reactions DROP CONSTRAINT IF EXISTS message_reactions_main_uniq;
-ALTER TABLE message_reactions ADD CONSTRAINT message_reactions_main_uniq
+ALTER TABLE message_reactions
+    DROP CONSTRAINT IF EXISTS message_reactions_main_uniq;
+ALTER TABLE message_reactions
+    ADD CONSTRAINT message_reactions_main_uniq
     UNIQUE (message_id, user_id, emoji_id, emoji_text);
 
 CREATE TABLE IF NOT EXISTS channel_pins (
