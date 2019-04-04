@@ -1,2 +1,0 @@
-ALTER TABLE guilds ADD COLUMN description text DEFAULT NULL;
-ALTER TABLE guilds ADD COLUMN banner text DEFAULT NULL;
