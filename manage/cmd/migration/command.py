@@ -101,11 +101,13 @@ async def _ensure_changelog(app, ctx):
         # NOTE: this is a migration breakage,
         # only applying to databases that had their first migration
         # before 4 april 2019 (more on BREAK)
+
+        # if migration_log is empty, just assume this is new
         first = await app.db.fetchval("""
         SELECT apply_ts FROM migration_log
         ORDER BY apply_ts ASC
         LIMIT 1
-        """)
+        """) or BREAK
         if first < BREAK:
             log.info('deleting migration_log due to migration structure change')
             await app.db.execute("DROP TABLE migration_log")
@@ -170,7 +172,7 @@ async def _check_base(app) -> bool:
             await app.db.execute(f"""
             SELECT * FROM {table} LIMIT 0
             """)
-    except asyncpg.DuplicateTableError:
+    except asyncpg.UndefinedTableError:
         return False
 
     return True
@@ -204,7 +206,7 @@ async def migrate_cmd(app, _args):
     if has_base:
         await _insert_log(app, 0, 'migration setup (from existing)')
     else:
-        await apply_migration(app, 0)
+        await apply_migration(app, ctx.scripts[0])
 
     # after that check the current local_change
     # and the latest migration to be run
