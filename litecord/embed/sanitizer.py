@@ -185,6 +185,9 @@ async def fetch_embed(url, *, config=None, session=None) -> dict:
 
 async def fill_embed(embed: Embed) -> Embed:
     """Fill an embed with more information, such as proxy URLs."""
+    if embed is None:
+        return
+
     embed = sanitize_embed(embed)
 
     if path_exists(embed, 'footer.icon_url'):

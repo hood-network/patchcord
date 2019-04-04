@@ -191,7 +191,7 @@ async def create_message(channel_id: int, actual_guild_id: int,
 
             data['nonce'],
             MessageType.DEFAULT.value,
-            data.get('embeds', [])
+            data.get('embeds') or []
         )
 
     return message_id
@@ -286,7 +286,7 @@ def msg_create_check_content(payload: dict, files: list, *, use_embeds=False):
     has_files = len(files) > 0
 
     embed_field = 'embeds' if use_embeds else 'embed'
-    has_embed = embed_field in payload
+    has_embed = embed_field in payload and payload.get(embed_field) is not None
 
     has_total_content = has_content or has_embed or has_files
 
@@ -405,7 +405,8 @@ async def _create_message(channel_id):
 
             # fill_embed takes care of filling proxy and width/height
             'embeds': ([await fill_embed(j['embed'])]
-                       if 'embed' in j else []),
+                       if j.get('embed') is not None
+                       else []),
         })
 
     # for each file given, we add it as an attachment
