@@ -191,7 +191,7 @@ async def create_message(channel_id: int, actual_guild_id: int,
 
             data['nonce'],
             MessageType.DEFAULT.value,
-            data.get('embeds', []) or []
+            data.get('embeds') or []
         )
 
     return message_id
