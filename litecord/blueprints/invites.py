@@ -91,7 +91,7 @@ async def invite_precheck_gdm(user_id: int, channel_id: int):
 
 
 async def _inv_check_age(inv: dict):
-    if inv['max_age'] != 0:
+    if inv['max_age'] == 0:
         return
 
     now = datetime.datetime.utcnow()
