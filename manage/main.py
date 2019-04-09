@@ -62,16 +62,21 @@ def main(config):
     cfg = getattr(config, config.MODE)
     app = FakeApp(cfg.__dict__)
 
-    loop.run_until_complete(init_app_db(app))
-    init_app_managers(app)
-
     # initialize argparser
     parser = init_parser()
+
+    loop.run_until_complete(init_app_db(app))
 
     try:
         if len(argv) < 2:
             parser.print_help()
             return
+
+        # only init app managers when we aren't migrating
+        # as the managers require it
+        # and the migrate command also sets the db up
+        if argv[1] != 'migrate':
+            init_app_managers(app)
 
         args = parser.parse_args()
         loop.run_until_complete(args.func(app, args))

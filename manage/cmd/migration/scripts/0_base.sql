@@ -27,18 +27,8 @@ CREATE TABLE IF NOT EXISTS user_conn_apps (
     name text NOT NULL
 );
 
-INSERT INTO user_conn_apps (id, name) VALUES (0, 'Twitch');
-INSERT INTO user_conn_apps (id, name) VALUES (1, 'Youtube');
-INSERT INTO user_conn_apps (id, name) VALUES (2, 'Steam');
-INSERT INTO user_conn_apps (id, name) VALUES (3, 'Reddit');
-INSERT INTO user_conn_apps (id, name) VALUES (4, 'Facebook');
-INSERT INTO user_conn_apps (id, name) VALUES (5, 'Twitter');
-INSERT INTO user_conn_apps (id, name) VALUES (6, 'Spotify');
-INSERT INTO user_conn_apps (id, name) VALUES (7, 'XBOX');
-INSERT INTO user_conn_apps (id, name) VALUES (8, 'Battle.net');
-INSERT INTO user_conn_apps (id, name) VALUES (9, 'Skype');
-INSERT INTO user_conn_apps (id, name) VALUES (10, 'League of Legends');
-
+-- there was a chain of INSERTs here with hardcoded names and stuff.
+-- removed it because we aren't in the best business of hardcoding.
 
 CREATE TABLE IF NOT EXISTS instance_invites (
     code text PRIMARY KEY,
@@ -52,24 +42,6 @@ CREATE TABLE IF NOT EXISTS instance_invites (
 );
 
 
--- main attachments table
-CREATE TABLE IF NOT EXISTS attachments (
-    id bigint PRIMARY KEY,
-
-    -- keeping channel_id and message_id
-    -- make a way "better" attachment url.
-    channel_id bigint REFERENCES channels (id),
-    message_id bigint REFERENCES messages (id),
-
-    filename text NOT NULL,
-    filesize integer,
-
-    image boolean DEFAULT FALSE,
-
-    -- only not null if image=true
-    height integer DEFAULT NULL,
-    width integer DEFAULT NULL
-);
 
 
 CREATE TABLE IF NOT EXISTS icons (
@@ -607,7 +579,10 @@ CREATE TABLE IF NOT EXISTS channel_overwrites (
 -- columns in private keys can't have NULL values,
 -- so instead we use a custom constraint with UNIQUE
 
-ALTER TABLE channel_overwrites ADD CONSTRAINT channel_overwrites_uniq
+ALTER TABLE channel_overwrites
+    DROP CONSTRAINT IF EXISTS channel_overwrites_uniq;
+ALTER TABLE channel_overwrites
+    ADD CONSTRAINT channel_overwrites_uniq
     UNIQUE (channel_id, target_role, target_user);
 
 
@@ -688,11 +663,35 @@ CREATE TABLE IF NOT EXISTS message_reactions (
     emoji_text text
 );
 
-ALTER TABLE message_reactions ADD CONSTRAINT message_reactions_main_uniq
+-- unique constraint over multiple columns instead of a primary key
+ALTER TABLE message_reactions
+    DROP CONSTRAINT IF EXISTS message_reactions_main_uniq;
+ALTER TABLE message_reactions
+    ADD CONSTRAINT message_reactions_main_uniq
     UNIQUE (message_id, user_id, emoji_id, emoji_text);
 
 CREATE TABLE IF NOT EXISTS channel_pins (
     channel_id bigint REFERENCES channels (id) ON DELETE CASCADE,
     message_id bigint REFERENCES messages (id) ON DELETE CASCADE,
     PRIMARY KEY (channel_id, message_id)
+);
+
+
+-- main attachments table
+CREATE TABLE IF NOT EXISTS attachments (
+    id bigint PRIMARY KEY,
+
+    -- keeping channel_id and message_id
+    -- make a way "better" attachment url.
+    channel_id bigint REFERENCES channels (id),
+    message_id bigint REFERENCES messages (id),
+
+    filename text NOT NULL,
+    filesize integer,
+
+    image boolean DEFAULT FALSE,
+
+    -- only not null if image=true
+    height integer DEFAULT NULL,
+    width integer DEFAULT NULL
 );

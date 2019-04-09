@@ -92,9 +92,6 @@ It's recommended to create a separate user for the `litecord` database.
 ```sh
 # Create the PostgreSQL database.
 $ createdb litecord
-
-# Apply the base schema to the database.
-$ psql -f schema.sql litecord
 ```
 
 Copy the `config.example.py` file and edit it to configure your instance (
