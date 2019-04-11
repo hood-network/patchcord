@@ -300,7 +300,9 @@ class Storage:
         members = []
 
         for row in members_basic:
-            member = await self._member_dict(row, guild_id, row['user_id'])
+            drow = dict(row)
+            drow['joined_at'] = timestamp_(drow['joined_at'])
+            member = await self._member_dict(drow, guild_id, drow['user_id'])
             members.append(member)
 
         return members
