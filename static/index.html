@@ -3,42 +3,42 @@
         <title>{{ inst_name }} - index</title>
         <link href="css/index.css" rel="stylesheet">
     </head>
+
     <body>
-        <main id="content">
-            <h1>
-                welcome to {{ inst_name }}, a Litecord instance
-            </h1>
+        <h1 class="title">
+            {{ inst_name }} | a Litecord instance
+        </h1>
 
-            <p>
-            Litecord is an open-source reimplementation of the Discord API.
-            </p>
+        <div id="page">
 
-            <p>
-            Discord frontend modifications being hosted in this instance
-            are not, and will never be, related to the Litecord project.
-            </p>
+            <article>
+                <p>Litecord is an open-source reimplementation
+                of the Discord API.</p>
 
-            <p>
-            By accessing an instance containing such modifications, the instance
-            is breaking the Discord Terms of Service. Proceed with caution.
-            </p>
+                <p>Discord frontend modifications being hosted
+                in this instance are not, and will never be,
+                related to the Litecord project.</p>
 
-            <p>
-            It supports nodeinfo, despite not being part
-            in any federated network.
-            </p>
+                <p>By accessing an instance containing such
+                modifications, the instance is breaking the Discord
+                Terms of Service. Proceed with caution.
+                </p>
 
-            <p>
-                <a href="https://gitlab.com/litecord/litecord">
+                <p>It supports nodeinfo, despite not being part
+                in any federated network.
+                </p>
+            </article>
+
+            <aside>
+                <p><a href="https://gitlab.com/litecord/litecord">
                     Litecord source code
-                </a>
-            </p>
-            <p>
-                <a href="{{request.protocol}}/nodeinfo/2.1.json">
+                </a></p>
+                <p><a href="{{request.protocol}}/nodeinfo/2.1.json">
                     This instance's nodeinfo (general statistics)
-                </a>
-            </p>
+                </a></p>
+            </aside>
 
-        </main>
+        </div>
+
     </body>
 </html>

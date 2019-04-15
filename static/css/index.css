@@ -1,3 +1,55 @@
-#content {
-    text-align: center;
+:root {
+    --background-color: #11151c;
+    --title-color: #ad7a99;
+    --text-color: #a1a6b4;
+    --link-color: #b4d2e7;
+
+    /* todo */
+    --anoter: #364156;
+}
+
+html, body {
+    background: var(--background-color);
+}
+
+h1, p {
+    font-size: 20px;
+
+    /* ok i dont have verdana lmao help */
+    font-family: "Verdana", sans-serif;
+    color: var(--text-color);
+}
+
+h1 {
+    font-size: 30px;
+    color: var(--title-color);
+}
+
+/* main page layout for the description and links */
+
+#page {
+    display: grid;
+    grid-template-columns: 1fr 600px 1fr;
+    grid-gap: 50px;
+}
+
+article {
+    font-size: 13px;
+    grid-column-start: 2;
+    grid-column-end: 3;
+}
+
+aside {
+    grid-column-start: 3;
+    grid-column-end: 4;
+}
+
+/* custom color for <a>'s */
+a {
+    color: var(--link-color);
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
 }
