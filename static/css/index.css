@@ -16,6 +16,7 @@ h1, p {
 
     /* ok i dont have verdana lmao help */
     font-family: "Verdana", sans-serif;
+
     color: var(--text-color);
     font-color: var(--text-color);
 }
@@ -52,9 +53,5 @@ aside {
 /* custom color for <a>'s */
 a {
     color: var(--link-color);
-    text-decoration: none;
-}
-
-a:hover {
     text-decoration: underline;
 }
