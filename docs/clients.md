@@ -1,6 +1,10 @@
 # Clients that can work with Litecord
 
- - discord-term (https://github.com/cloudrex/discord-term), with manual edits
+ - [koneko](https://gitlab.com/luna/koneko)
+ - [crcophony](https://github.com/freyamade/crcophony), edit
+    `lib/discordcr/src/discordcr/rest.cr`'s `Discord::REST::API_BASE`. Not
+    settable at runtime.
+ - [discord-term](https://github.com/cloudrex/discord-term), with manual edits
 ```diff
 diff --git a/src/display.ts b/src/display.ts
 index e844553..9e8521a 100644
@@ -29,4 +33,3 @@ index e844553..9e8521a 100644
 Clients built on libraries that do not have an easy way to edit the base URL are
 not suited for Litecord.
 
- - crcophony (https://github.com/freyamade/crcophony), discord.cr
