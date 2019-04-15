@@ -1,11 +1,10 @@
 :root {
-    --background-color: #11151c;
-    --title-color: #ad7a99;
-    --text-color: #a1a6b4;
-    --link-color: #b4d2e7;
+    --background-color: #161032;
+    --title-color: #694d75;
+    --link-color: #9fc2cc;
 
-    /* todo */
-    --anoter: #364156;
+    --text-color: #a9e5bb;
+    --tos-color: #fcf6b1;
 }
 
 html, body {
@@ -18,6 +17,12 @@ h1, p {
     /* ok i dont have verdana lmao help */
     font-family: "Verdana", sans-serif;
     color: var(--text-color);
+    font-color: var(--text-color);
+}
+
+b.tos {
+    color: var(--tos-color);
+    font-color: var(--tos-color);
 }
 
 h1 {
