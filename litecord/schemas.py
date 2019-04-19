@@ -64,6 +64,13 @@ class LitecordValidator(Validator):
         """Validate against the username regex."""
         return bool(USERNAME_REGEX.match(value))
 
+    def _validate_type_password(self, value: str) -> bool:
+        """Validate a password. Max 1024 chars.
+
+        The valid password length on Discord's client might be different.
+        """
+        return 8 <= len(value) <= 1024
+
     def _validate_type_email(self, value: str) -> bool:
         """Validate against the email regex."""
         return bool(EMAIL_REGEX.match(value))
@@ -191,17 +198,17 @@ def validate(reqjson: Union[Dict, List], schema: Dict,
 REGISTER = {
     'username': {'type': 'username', 'required': True},
     'email': {'type': 'email', 'required': False},
-    'password': {'type': 'string', 'minlength': 5, 'required': False},
+    'password': {'type': 'password', 'required': False},
 
     # invite stands for a guild invite, not an instance invite (that's on
     # the register_with_invite handler).
     'invite': {'type': 'string', 'required': False, 'nullable': True},
-    
-    # following fields only sent by official client
-    'fingerprint': {'type': 'string', 'required': False, 'nullable': True},   # these are sent by official client
+
+    # following fields only sent by official client, unused by us
+    'fingerprint': {'type': 'string', 'required': False, 'nullable': True},
     'captcha_key': {'type': 'string', 'required': False, 'nullable': True},
-    'consent': {'type': 'boolean'},
-    'gift_code_sku_id': {'type': 'string', 'required': False, 'nullable': True}
+    'gift_code_sku_id': {'type': 'string', 'required': False, 'nullable': True},
+    'consent': {'type': 'boolean', 'required': False},
 }
 
 # only used by us, not discord, hence 'invcode' (to separate from discord)
@@ -222,17 +229,15 @@ USER_UPDATE = {
     },
 
     'password': {
-        'type': 'string', 'minlength': 0,
-        'maxlength': 100, 'required': False,
+        'type': 'password', 'required': False,
     },
 
     'new_password': {
-        'type': 'string', 'minlength': 5,
-        'maxlength': 100, 'required': False,
-        'dependencies': 'password',
-        'nullable': True
+        'type': 'password', 'required': False,
+        'dependencies': 'password', 'nullable': True
     },
 
+    # TODO: maybe an email type?
     'email': {
         'type': 'string', 'minlength': 2,
         'maxlength': 30, 'required': False,
