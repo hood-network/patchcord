@@ -50,3 +50,7 @@ USER_CREATE = {
 INSTANCE_INVITE = {
     'max_uses': {'type': 'integer', 'required': True}
 }
+
+GUILD_UPDATE = {
+    'unavailable': {'type': 'boolean', 'required': False}
+}

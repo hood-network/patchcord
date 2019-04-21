@@ -17,9 +17,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from quart import Blueprint, jsonify, current_app as app
+from quart import Blueprint, jsonify, current_app as app, request
 
 from litecord.auth import admin_check
+# from litecord.schemas import validate
+# from litecord.admin_schemas import GUILD_UPDATE
 
 bp = Blueprint('guilds_admin', __name__)
 
@@ -31,3 +33,17 @@ async def get_guild(guild_id: int):
     return jsonify(
         await app.storage.get_guild(guild_id)
     )
+
+@bp.route('/<int:guild_id>', methods=['PATCH'])
+async def update_guild(guild_id: int):
+    await admin_check()
+
+    # j = validate(await request.get_json(), GUILD_UPDATE)
+
+    # TODO: add guild availability update, we don't store it, should we?
+    # TODO: what happens to the other guild attributes when its
+    # unavailable? do they vanish?
+
+    guild = await app.storage.get_guild(guild_id)
+    await app.dispatcher.dispatch_guild(guild_id, 'GUILD_UPDATE', guild)
+    return jsonify(guild)

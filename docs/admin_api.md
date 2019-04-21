@@ -132,6 +132,17 @@ Returns empty body with 204 status code on success.
 
 Returns a partial guild object.
 
+### PATCH `/guilds/<guild_id>`
+
+Update a single guild.
+
+Dispatches `GUILD_UPDATE` to subscribers of the guild, returns the guild object
+on success.
+
+| field | type | description |
+| --: | :-- | :-- |
+| unavailable | bool | if the guild is unavailable |
+
 ## Guild features
 
 The currently supported features are:
