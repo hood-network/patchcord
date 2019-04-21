@@ -22,10 +22,12 @@ from quart import Blueprint, jsonify, current_app as app, request
 from litecord.auth import admin_check
 from litecord.blueprints.auth import create_user
 from litecord.schemas import validate
-from litecord.admin_schemas import USER_CREATE
+from litecord.admin_schemas import USER_CREATE, USER_UPDATE
 from litecord.errors import BadRequest
 from litecord.utils import async_map
-from litecord.blueprints.users import delete_user, user_disconnect
+from litecord.blueprints.users import (
+    delete_user, user_disconnect, mass_user_update
+)
 
 bp = Blueprint('users_admin', __name__)
 
@@ -116,3 +118,21 @@ async def _delete_single_user(user_id: int):
         'old': old_user,
         'new': new_user
     })
+
+@bp.route('/<int:user_id>', methods=['PATCH'])
+async def patch_user(user_id: int):
+    await admin_check()
+
+    j = validate(await request.get_json(), USER_UPDATE)
+
+    # TODO: finish, at least flags.
+    # TODO: we MUST have a check so that users don't
+    # privilege escalate other users to the staff badge, since
+    # that just grants access to the admin api.
+
+    if 'flags' in j:
+        pass
+
+    # TODO: decide if we return the public or private user.
+    _public_user, private_user = await mass_user_update(user_id, app)
+    return jsonify(private_user)
