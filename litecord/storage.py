@@ -192,11 +192,16 @@ class Storage:
         drow['max_presences'] = 1000
         drow['max_members'] = 1000
 
-        # this is kept in memory
+        # a guild's unavailable state is kept in memory, and we remove every
+        # other guild related field when its unavailable.
         drow['unavailable'] = self.app.guild_store.get(
             guild_id, 'unavailable', False)
 
-        # TODO: strip everything when unavailable
+        if drow['unavailable']:
+            drow = {
+                'id': drow['id'],
+                'unavailable': True
+            }
 
         return drow
 
@@ -668,6 +673,9 @@ class Storage:
 
         if guild is None:
             return None
+
+        if guild['unavailable']:
+            return guild
 
         extra = await self.get_guild_extra(guild_id, user_id, large_count)
 
