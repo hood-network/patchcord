@@ -22,10 +22,13 @@ from quart import Blueprint, jsonify, current_app as app, request
 from litecord.auth import admin_check
 from litecord.blueprints.auth import create_user
 from litecord.schemas import validate
-from litecord.admin_schemas import USER_CREATE
-from litecord.errors import BadRequest
+from litecord.admin_schemas import USER_CREATE, USER_UPDATE
+from litecord.errors import BadRequest, Forbidden
 from litecord.utils import async_map
-from litecord.blueprints.users import delete_user, user_disconnect
+from litecord.blueprints.users import (
+    delete_user, user_disconnect, mass_user_update
+)
+from litecord.enums import UserFlags
 
 bp = Blueprint('users_admin', __name__)
 
@@ -116,3 +119,31 @@ async def _delete_single_user(user_id: int):
         'old': old_user,
         'new': new_user
     })
+
+
+@bp.route('/<int:user_id>', methods=['PATCH'])
+async def patch_user(user_id: int):
+    await admin_check()
+
+    j = validate(await request.get_json(), USER_UPDATE)
+
+    # get the original user for flags checking
+    user = await app.storage.get_user(user_id)
+    old_flags = UserFlags.from_int(user['flags'])
+
+    # j.flags is already a UserFlags since we coerce it.
+    if 'flags' in j:
+        new_flags = j['flags']
+
+        # disallow any changes to the staff badge
+        if new_flags.is_staff != old_flags.is_staff:
+            raise Forbidden('you can not change a users staff badge')
+
+        await app.db.execute("""
+        UPDATE users
+        SET flags = $1
+        WHERE id = $2
+        """, new_flags.value, user_id)
+
+    public_user, _ = await mass_user_update(user_id, app)
+    return jsonify(public_user)

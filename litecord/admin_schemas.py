@@ -17,7 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from litecord.enums import Feature
+from litecord.enums import Feature, UserFlags
 
 VOICE_SERVER = {
     'hostname': {'type': 'string', 'maxlength': 255, 'required': True}
@@ -49,4 +49,12 @@ USER_CREATE = {
 
 INSTANCE_INVITE = {
     'max_uses': {'type': 'integer', 'required': True}
+}
+
+GUILD_UPDATE = {
+    'unavailable': {'type': 'boolean', 'required': False}
+}
+
+USER_UPDATE = {
+    'flags': {'required': False, 'coerce': UserFlags.from_int}
 }

@@ -180,6 +180,18 @@ class Storage:
 
         drow = dict(row)
 
+        # a guild's unavailable state is kept in memory, and we remove every
+        # other guild related field when its unavailable.
+        drow['unavailable'] = self.app.guild_store.get(
+            guild_id, 'unavailable', False)
+
+        if drow['unavailable']:
+            drow = {
+                'id': drow['id'],
+                'unavailable': True
+            }
+
+        # guild.owner is dependant of the user doing the get_guild call.
         if user_id:
             drow['owner'] = drow['owner_id'] == str(user_id)
 
@@ -662,6 +674,9 @@ class Storage:
 
         if guild is None:
             return None
+
+        if guild['unavailable']:
+            return guild
 
         extra = await self.get_guild_extra(guild_id, user_id, large_count)
 

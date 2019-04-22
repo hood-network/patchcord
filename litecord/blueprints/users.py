@@ -83,7 +83,7 @@ async def mass_user_update(user_id, app_=None):
         'lazy_guild', guild_ids, 'update_user', user_id
     )
 
-    return private_user
+    return public_user, private_user
 
 
 @bp.route('/@me', methods=['GET'])
@@ -257,7 +257,7 @@ async def patch_me():
 
     user.pop('password_hash')
 
-    private_user = await mass_user_update(user_id, app)
+    _, private_user = await mass_user_update(user_id, app)
     return jsonify(private_user)
 
 
