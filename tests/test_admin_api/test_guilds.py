@@ -102,6 +102,9 @@ async def test_guild_update(test_cli):
         assert isinstance(rjson, dict)
         assert rjson['id'] == guild_id
         assert rjson['unavailable']
+
+        rjson = await _fetch_guild(test_cli, guild_id, token=token)
+        assert rjson['unavailable']
     finally:
         await delete_guild(int(guild_id), app_=test_cli.app)
 
