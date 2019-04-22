@@ -51,16 +51,15 @@ async def update_guild(guild_id: int):
     # j.unavailable is there
     app.guild_store.set(guild_id, 'unavailable', j['unavailable'])
 
-    # if this was unavailable but now its not, we must dispatch a
-    # GUILD_CREATE to the subscribers, not GUILD_UPDATE. GUILD_UPDATE
-    # is used on the reverse scenario.
     guild = await app.storage.get_guild(guild_id)
 
     # TODO: maybe we can just check guild['unavailable']...?
 
     if old_unavailable and not new_unavailable:
+        # guild became available
         await app.dispatcher.dispatch_guild(guild_id, 'GUILD_CREATE', guild)
     else:
-        await app.dispatcher.dispatch_guild(guild_id, 'GUILD_UPDATE', guild)
+        # guild became unavailable
+        await app.dispatcher.dispatch_guild(guild_id, 'GUILD_DELETE', guild)
 
     return jsonify(guild)
