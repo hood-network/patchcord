@@ -155,9 +155,9 @@ Returns a partial guild object.
 ### PATCH `/guilds/<guild_id>`
 
 Update a single guild.
+Dispatches `GUILD_UPDATE` to subscribers of the guild.
 
-Dispatches `GUILD_UPDATE` to subscribers of the guild, returns the guild object
-on success.
+Returns a guild object or an unavailable guild object on success.
 
 | field | type | description |
 | --: | :-- | :-- |

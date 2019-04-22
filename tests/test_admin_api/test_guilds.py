@@ -62,3 +62,33 @@ async def test_guild_fetch(test_cli):
         assert rjson['id'] == guild_id
     finally:
         await delete_guild(int(guild_id), app_=test_cli.app)
+
+
+@pytest.mark.asyncio
+async def test_guild_update(test_cli):
+    """Test the update of a guild via the Admin API."""
+    token = await login('admin', test_cli)
+    rjson = await _create_guild(test_cli, token=token)
+    guild_id = rjson['id']
+    assert not rjson['unavailable']
+
+    try:
+        # I believe setting up an entire gateway client registered to the guild
+        # would be overkill to test the side-effects, so... I'm not
+        # testing them. Yes, I know its a bad idea, but if someone has an easier
+        # way to write that, do send an MR.
+        resp = await test_cli.patch(
+            f'/api/v6/admin/guilds/{guild_id}',
+            headers={
+                'Authorization': token
+            }, json={
+                'unavailable': True
+            })
+
+        assert resp.status_code == 200
+        rjson = await resp.json
+        assert isinstance(rjson, dict)
+        assert rjson['id'] == guild_id
+        assert rjson['unavailable']
+    finally:
+        await delete_guild(int(guild_id), app_=test_cli.app)
