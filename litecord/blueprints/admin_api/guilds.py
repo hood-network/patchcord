@@ -43,10 +43,24 @@ async def update_guild(guild_id: int):
 
     # TODO: what happens to the other guild attributes when its
     # unavailable? do they vanish?
+    old_unavailable = app.guild_store.get(guild_id, 'unavailable')
+    new_unavailable = j.get('unavailable', old_unavailable)
 
-    if 'unavailable' in j:
-        app.guild_store.set(guild_id, 'unavailable', True)
+    # always set unavailable status since new_unavailable will be
+    # old_unavailable when not provided, so we don't need to check if
+    # j.unavailable is there
+    app.guild_store.set(guild_id, 'unavailable', j['unavailable'])
 
+    # if this was unavailable but now its not, we must dispatch a
+    # GUILD_CREATE to the subscribers, not GUILD_UPDATE. GUILD_UPDATE
+    # is used on the reverse scenario.
     guild = await app.storage.get_guild(guild_id)
-    await app.dispatcher.dispatch_guild(guild_id, 'GUILD_UPDATE', guild)
+
+    # TODO: maybe we can just check guild['unavailable']...?
+
+    if old_unavailable and not new_unavailable:
+        await app.dispatcher.dispatch_guild(guild_id, 'GUILD_CREATE', guild)
+    else:
+        await app.dispatcher.dispatch_guild(guild_id, 'GUILD_UPDATE', guild)
+
     return jsonify(guild)
