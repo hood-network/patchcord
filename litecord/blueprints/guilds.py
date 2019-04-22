@@ -350,21 +350,17 @@ async def _update_guild(guild_id):
     return jsonify(guild)
 
 
-@bp.route('/<int:guild_id>', methods=['DELETE'])
-# this endpoint is not documented, but used by the official client.
-@bp.route('/<int:guild_id>/delete', methods=['POST'])
-async def delete_guild(guild_id):
-    """Delete a guild."""
-    user_id = await token_check()
-    await guild_owner_check(user_id, guild_id)
+async def delete_guild(guild_id: int, *, app_=None):
+    """Delete a single guild."""
+    app_ = app_ or app
 
-    await app.db.execute("""
+    await app_.db.execute("""
     DELETE FROM guilds
     WHERE guilds.id = $1
     """, guild_id)
 
     # Discord's client expects IDs being string
-    await app.dispatcher.dispatch('guild', guild_id, 'GUILD_DELETE', {
+    await app_.dispatcher.dispatch('guild', guild_id, 'GUILD_DELETE', {
         'guild_id': str(guild_id),
         'id': str(guild_id),
         # 'unavailable': False,
@@ -373,8 +369,17 @@ async def delete_guild(guild_id):
     # remove from the dispatcher so nobody
     # becomes the little memer that tries to fuck up with
     # everybody's gateway
-    await app.dispatcher.remove('guild', guild_id)
+    await app_.dispatcher.remove('guild', guild_id)
 
+
+@bp.route('/<int:guild_id>', methods=['DELETE'])
+# this endpoint is not documented, but used by the official client.
+@bp.route('/<int:guild_id>/delete', methods=['POST'])
+async def delete_guild_handler(guild_id):
+    """Delete a guild."""
+    user_id = await token_check()
+    await guild_owner_check(user_id, guild_id)
+    await delete_guild(guild_id)
     return '', 204
 
 

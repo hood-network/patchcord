@@ -27,8 +27,7 @@ from litecord.enums import UserFlags
 
 
 async def _search(test_cli, *, username='', discrim='', token=None):
-    if token is None:
-        token = await login('admin', test_cli)
+    token = token or await login('admin', test_cli)
 
     query_string = {
         'username': username,
