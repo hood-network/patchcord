@@ -23,6 +23,7 @@ import pytest
 
 from tests.common import login
 from tests.credentials import CREDS
+from litecord.enums import UserFlags
 
 
 async def _search(test_cli, *, username='', discrim='', token=None):
@@ -84,6 +85,9 @@ async def _del_user(test_cli, user_id, *, token=None):
     assert rjson['new']['id'] == user_id
     assert rjson['old']['id'] == rjson['new']['id']
 
+    # TODO: remove from database at this point? it'll just keep being
+    # filled up every time we run a test..
+
 
 @pytest.mark.asyncio
 async def test_create_delete(test_cli):
@@ -107,6 +111,30 @@ async def test_create_delete(test_cli):
         await _del_user(test_cli, genned_uid, token=token)
 
 
+@pytest.mark.asyncio
 async def test_user_update(test_cli):
     """Test user update."""
-    pass
+    token = await login('admin', test_cli)
+    rjson = await _setup_user(test_cli, token=token)
+
+    user_id = rjson['id']
+
+    # test update
+
+    try:
+        # set them as partner flag
+        resp = await test_cli.patch(f'/api/v6/admin/users/{user_id}', headers={
+            'Authorization': token
+        }, json={
+            'flags': UserFlags.partner,
+        })
+
+        assert resp.status_code == 200
+        rjson = await resp.json
+        assert rjson['id'] == user_id
+        assert rjson['flags'] == UserFlags.partner
+
+        # TODO: maybe we can check for side effects by fetching the
+        # user manually too...
+    finally:
+        await _del_user(test_cli, user_id, token=token)
