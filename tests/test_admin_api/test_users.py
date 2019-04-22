@@ -22,6 +22,8 @@ import secrets
 import pytest
 
 from tests.common import login
+from tests.credentials import CREDS
+
 
 async def _search(test_cli, *, username='', discrim='', token=None):
     if token is None:
@@ -40,8 +42,7 @@ async def _search(test_cli, *, username='', discrim='', token=None):
 @pytest.mark.asyncio
 async def test_list_users(test_cli):
     """Try to list as many users as possible."""
-    # NOTE: replace here if admin username changes
-    resp = await _search(test_cli, username='big_girl')
+    resp = await _search(test_cli, username=CREDS['admin']['username'])
 
     assert resp.status_code == 200
     rjson = await resp.json
@@ -49,11 +50,8 @@ async def test_list_users(test_cli):
     assert rjson
 
 
-@pytest.mark.asyncio
-async def test_create_delete(test_cli):
-    """Create a user. Then delete them."""
-    token = await login('admin', test_cli)
-
+async def _setup_user(test_cli, *, token=None) -> dict:
+    token = token or await login('admin', test_cli)
     genned = secrets.token_hex(7)
 
     resp = await test_cli.post('/api/v6/admin/users', headers={
@@ -69,23 +67,46 @@ async def test_create_delete(test_cli):
     assert isinstance(rjson, dict)
     assert rjson['username'] == genned
 
-    genned_uid = rjson['id']
+    return rjson
 
-    # check if side-effects went through with a search
-    resp = await _search(test_cli, username=genned, token=token)
 
-    assert resp.status_code == 200
-    rjson = await resp.json
-    assert isinstance(rjson, list)
-    assert rjson[0]['id'] == genned_uid
+async def _del_user(test_cli, user_id, *, token=None):
+    """Delete a user."""
+    token = token or await login('admin', test_cli)
 
-    # delete
-    resp = await test_cli.delete(f'/api/v6/admin/users/{genned_uid}', headers={
+    resp = await test_cli.delete(f'/api/v6/admin/users/{user_id}', headers={
         'Authorization': token
     })
 
     assert resp.status_code == 200
     rjson = await resp.json
     assert isinstance(rjson, dict)
-    assert rjson['new']['id'] == genned_uid
+    assert rjson['new']['id'] == user_id
     assert rjson['old']['id'] == rjson['new']['id']
+
+
+@pytest.mark.asyncio
+async def test_create_delete(test_cli):
+    """Create a user. Then delete them."""
+    token = await login('admin', test_cli)
+
+    rjson = await _setup_user(test_cli, token=token)
+
+    genned = rjson['username']
+    genned_uid = rjson['id']
+
+    try:
+        # check if side-effects went through with a search
+        resp = await _search(test_cli, username=genned, token=token)
+
+        assert resp.status_code == 200
+        rjson = await resp.json
+        assert isinstance(rjson, list)
+        assert rjson[0]['id'] == genned_uid
+    finally:
+        await _del_user(test_cli, genned_uid, token=token)
+
+
+async def test_user_update(test_cli):
+    """Test user update."""
+    pass
