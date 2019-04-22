@@ -58,6 +58,8 @@ class Flags:
         def _make_int(value):
             res = Flags()
 
+            setattr(res, 'value', value)
+
             for attr, val in attrs:
                 # get only the ones that represent a field in the
                 # number's bits

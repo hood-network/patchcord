@@ -56,5 +56,5 @@ GUILD_UPDATE = {
 }
 
 USER_UPDATE = {
-    'flags': {'required': False, 'coerce': UserFlags}
+    'flags': {'required': False, 'coerce': UserFlags.from_int}
 }

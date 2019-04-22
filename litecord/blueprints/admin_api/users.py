@@ -129,20 +129,21 @@ async def patch_user(user_id: int):
 
     # get the original user for flags checking
     user = await app.storage.get_user(user_id)
-    old_flags = UserFlags(user['flags'])
+    old_flags = UserFlags.from_int(user['flags'])
 
+    # j.flags is already a UserFlags since we coerce it.
     if 'flags' in j:
-        new_flags = UserFlags(j['flags'])
+        new_flags = j['flags']
 
         # disallow any changes to the staff badge
-        if new_flags.staff != old_flags.staff:
+        if new_flags.is_staff != old_flags.is_staff:
             raise Forbidden('you can not change a users staff badge')
 
         await app.db.execute("""
         UPDATE users
         SET flags = $1
         WHERE id = $2
-        """, j['flags'], user_id)
+        """, new_flags.value, user_id)
 
     public_user, _ = await mass_user_update(user_id, app)
     return jsonify(public_user)
