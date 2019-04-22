@@ -23,6 +23,7 @@ from litecord.auth import admin_check
 from litecord.schemas import validate
 from litecord.admin_schemas import GUILD_UPDATE
 from litecord.blueprints.guilds import delete_guild
+from litecord.errors import GuildNotFound
 
 bp = Blueprint('guilds_admin', __name__)
 
@@ -31,9 +32,12 @@ async def get_guild(guild_id: int):
     """Get a basic guild payload."""
     await admin_check()
 
-    return jsonify(
-        await app.storage.get_guild(guild_id)
-    )
+    guild = await app.storage.get_guild(guild_id)
+
+    if not guild:
+        raise GuildNotFound()
+
+    return jsonify(guild)
 
 
 @bp.route('/<int:guild_id>', methods=['PATCH'])

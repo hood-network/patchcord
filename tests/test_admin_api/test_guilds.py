@@ -23,6 +23,7 @@ import pytest
 
 from tests.common import login
 from litecord.blueprints.guilds import delete_guild
+from litecord.errors import GuildNotFound
 
 async def _create_guild(test_cli, *, token=None):
     token = token or await login('admin', test_cli)
@@ -125,5 +126,9 @@ async def test_guild_delete(test_cli):
                                   ret_early=True)
 
         assert resp.status_code == 404
+        rjson = await resp.json
+        assert isinstance(rjson, dict)
+        assert rjson['error']
+        assert rjson['code'] == GuildNotFound.error_code
     finally:
         await delete_guild(int(guild_id), app_=test_cli.app)

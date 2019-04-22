@@ -150,7 +150,7 @@ Returns empty body with 204 status code on success.
 
 ### GET `/guilds/<guild_id>`
 
-Returns a partial guild object.
+Returns a partial guild object. Gives a 404 when the guild is not found.
 
 ### PATCH `/guilds/<guild_id>`
 
