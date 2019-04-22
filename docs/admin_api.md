@@ -163,6 +163,10 @@ Returns a guild object or an unavailable guild object on success.
 | --: | :-- | :-- |
 | unavailable | bool | if the guild is unavailable |
 
+### DELETE `/guilds/<guild_id>`
+
+Delete a single guild. Returns 204 on success.
+
 ## Guild features
 
 The currently supported features are:
