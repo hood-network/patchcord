@@ -22,6 +22,7 @@ from quart import Blueprint, jsonify, current_app as app, request
 from litecord.auth import admin_check
 from litecord.schemas import validate
 from litecord.admin_schemas import GUILD_UPDATE
+from litecord.blueprints.guilds import delete_guild
 
 bp = Blueprint('guilds_admin', __name__)
 
@@ -63,3 +64,11 @@ async def update_guild(guild_id: int):
         await app.dispatcher.dispatch_guild(guild_id, 'GUILD_DELETE', guild)
 
     return jsonify(guild)
+
+
+@bp.route('/<int:guild_id>', methods=['DELETE'])
+async def delete_guild_as_admin(guild_id):
+    """Delete a single guild via the admin API without ownership checks."""
+    await admin_check()
+    await delete_guild(guild_id)
+    return '', 204
