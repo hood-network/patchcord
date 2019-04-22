@@ -23,11 +23,12 @@ from litecord.auth import admin_check
 from litecord.blueprints.auth import create_user
 from litecord.schemas import validate
 from litecord.admin_schemas import USER_CREATE, USER_UPDATE
-from litecord.errors import BadRequest
+from litecord.errors import BadRequest, Forbidden
 from litecord.utils import async_map
 from litecord.blueprints.users import (
     delete_user, user_disconnect, mass_user_update
 )
+from litecord.enums import UserFlags
 
 bp = Blueprint('users_admin', __name__)
 
@@ -119,20 +120,29 @@ async def _delete_single_user(user_id: int):
         'new': new_user
     })
 
+
 @bp.route('/<int:user_id>', methods=['PATCH'])
 async def patch_user(user_id: int):
     await admin_check()
 
     j = validate(await request.get_json(), USER_UPDATE)
 
-    # TODO: finish, at least flags.
-    # TODO: we MUST have a check so that users don't
-    # privilege escalate other users to the staff badge, since
-    # that just grants access to the admin api.
+    # get the original user for flags checking
+    user = await app.storage.get_user(user_id)
+    old_flags = UserFlags(user['flags'])
 
     if 'flags' in j:
-        pass
+        new_flags = UserFlags(j['flags'])
 
-    # TODO: decide if we return the public or private user.
-    _public_user, private_user = await mass_user_update(user_id, app)
-    return jsonify(private_user)
+        # disallow any changes to the staff badge
+        if new_flags.staff != old_flags.staff:
+            raise Forbidden('you can not change a users staff badge')
+
+        await app.db.execute("""
+        UPDATE users
+        SET flags = $1
+        WHERE id = $2
+        """, j['flags'], user_id)
+
+    public_user, _ = await mass_user_update(user_id, app)
+    return jsonify(public_user)
