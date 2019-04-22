@@ -230,7 +230,7 @@ async def init_app_db(app_):
     app_.sched = JobManager()
 
 
-def init_app_managers(app_):
+def init_app_managers(app_, *, voice=True):
     """Initialize singleton classes."""
     app_.loop = asyncio.get_event_loop()
     app_.ratelimiter = RatelimitManager(app_.config.get('_testing'))
@@ -246,7 +246,13 @@ def init_app_managers(app_):
 
     app_.storage.presence = app_.presence
 
-    app_.voice = VoiceManager(app_)
+    # only start VoiceManager if needed.
+    # we do this because of a bug on ./manage.py where it
+    # cancels the LVSPManager's spawn regions task. we don't
+    # need to start it on manage time.
+    if voice:
+        app_.voice = VoiceManager(app_)
+
     app_.guild_store = GuildMemoryStore()
 
 

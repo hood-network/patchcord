@@ -56,7 +56,7 @@ class LVSPManager:
         # quick storage for Region dataclass instances.
         self._regions = {}
 
-        self.app.loop.create_task(self._spawn())
+        self.app.sched.spawn(self._spawn())
 
     async def _spawn(self):
         """Spawn LVSPConnection for each region."""

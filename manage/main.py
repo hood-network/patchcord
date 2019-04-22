@@ -40,8 +40,12 @@ class FakeApp:
     ratelimiter = None
     state_manager = None
     storage = None
+    user_storage = None
+    icons = None
     dispatcher = None
     presence = None
+    voice = None
+    guild_store = None
 
 
 def init_parser():
@@ -76,7 +80,7 @@ def main(config):
         # as the managers require it
         # and the migrate command also sets the db up
         if argv[1] != 'migrate':
-            init_app_managers(app)
+            init_app_managers(app, voice=False)
 
         args = parser.parse_args()
         loop.run_until_complete(args.func(app, args))
