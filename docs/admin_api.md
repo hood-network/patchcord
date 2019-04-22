@@ -48,6 +48,26 @@ Output:
 | old | user object | old user object pre-delete |
 | new | user object | new user object post-delete |
 
+### PATCH `/users/<user_id>`
+
+Update a single user's information.
+
+Returns a user object on success.
+
+**Note:** You can not change any user's staff badge state (neither adding
+it or removing it) to not cause privilege escalation/de-escalation (where
+a staff makes more staff or a staff removes staff privileges of someone else).
+Keep in mind the staff badge is what grants access to the Admin API, so.
+
+**Note:** Changing a user's nitro badge is not defined via the flags.
+Plus that would require adding an interface to user payments
+through the Admin API.
+
+[UserFlags]: https://discordapp.com/developers/docs/resources/user#user-object-user-flags
+
+| field | type | description |
+| --: | :-- | :-- |
+| flags | [UserFlags] | user flags/badges |
 
 ## Instance invites
 
