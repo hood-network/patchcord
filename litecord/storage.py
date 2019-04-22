@@ -192,6 +192,12 @@ class Storage:
         drow['max_presences'] = 1000
         drow['max_members'] = 1000
 
+        # this is kept in memory
+        drow['unavailable'] = self.app.guild_store.get(
+            guild_id, 'unavailable', False)
+
+        # TODO: strip everything when unavailable
+
         return drow
 
     async def _member_basic(self, guild_id: int, member_id: int):

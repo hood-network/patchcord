@@ -75,6 +75,7 @@ from litecord.presence import PresenceManager
 from litecord.images import IconManager
 from litecord.jobs import JobManager
 from litecord.voice.manager import VoiceManager
+from litecord.guild_memory_store import GuildMemoryStore
 
 from litecord.gateway.gateway import websocket_handler
 
@@ -246,6 +247,7 @@ def init_app_managers(app_):
     app_.storage.presence = app_.presence
 
     app_.voice = VoiceManager(app_)
+    app_.guild_store = GuildMemoryStore()
 
 
 async def api_index(app_):
