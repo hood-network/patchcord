@@ -54,7 +54,7 @@ class LVSPManager:
         self.assign = {}
 
         # quick storage for Region dataclass instances.
-        self._regions = {}
+        self.regions = {}
 
         self.app.sched.spawn(self._spawn())
 
@@ -75,7 +75,7 @@ class LVSPManager:
 
         for region in regions:
             # store it locally for region() function
-            self._regions[region.id] = region
+            self.regions[region.id] = region
 
             self.app.loop.create_task(
                 self._spawn_region(region)
@@ -161,5 +161,5 @@ class LVSPManager:
         self.assign[key] = hostname
 
     def region(self, region_id: str) -> Optional[Region]:
-        """Get a :class:`Region` instance:wq:wq"""
-        return self._regions.get(region_id)
+        """Get a :class:`Region` instance"""
+        return self.regions.get(region_id)

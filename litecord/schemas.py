@@ -18,10 +18,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import re
+import asyncio
 from typing import Union, Dict, List
 
 from cerberus import Validator
 from logbook import Logger
+from quart import current_app as app
 
 from .errors import BadRequest
 from .permissions import Permissions
@@ -97,12 +99,9 @@ class LitecordValidator(Validator):
             return False
 
     def _validate_type_voice_region(self, value: str) -> bool:
-        # TODO: call voice manager for regions instead of hardcoding
-
-        # I'm sure the context would be there at least in a basic level, so
-        # we can access the app.
-        return value.lower() in ('brazil', 'us-east', 'us-west',
-                                 'us-south', 'russia')
+        # NOTE: when this code is being ran, there is a small chance the
+        # app context injected by quart still exists
+        return value.lower() in app.voice.lvsp.regions.keys()
 
     def _validate_type_verification_level(self, value: int) -> bool:
         return _in_enum(VerificationLevel, value)
