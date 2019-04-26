@@ -74,7 +74,7 @@ class LitecordValidator(Validator):
 
     def _validate_type_email(self, value: str) -> bool:
         """Validate against the email regex."""
-        return bool(EMAIL_REGEX.match(value))
+        return bool(EMAIL_REGEX.match(value)) and len(value) < 256
 
     def _validate_type_b64_icon(self, value: str) -> bool:
         return bool(DATA_REGEX.match(value))
@@ -235,11 +235,8 @@ USER_UPDATE = {
         'dependencies': 'password', 'nullable': True
     },
 
-    # TODO: maybe an email type?
     'email': {
-        'type': 'string', 'minlength': 2,
-        'maxlength': 30, 'required': False,
-        'dependencies': 'password',
+        'type': 'email', 'required': False, 'dependencies': 'password',
     },
 
     'avatar': {
