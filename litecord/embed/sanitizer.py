@@ -71,8 +71,9 @@ def path_exists(embed: Embed, components_in: Union[List[str], str]):
     # (via recursion)
     try:
         return path_exists(embed[current], components[1:])
-    except KeyError:
-        # if the current component doesn't exist, return False
+    except (KeyError, TypeError, ValueError):
+        # if the current component doesn't exist or we can't do a
+        # key fetch, return False
         return False
 
 

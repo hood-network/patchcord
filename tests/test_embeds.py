@@ -19,6 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from litecord.schemas import validate
 from litecord.embed.schemas import EMBED_OBJECT
+from litecord.embed.sanitizer import path_exists
 
 def validate_embed(embed):
     return validate(embed, EMBED_OBJECT)
@@ -95,8 +96,14 @@ def test_fields():
         ]
     })
 
-    valid({
+    assert invalid({
         'fields': [
             {'name': 'a'},
         ]
     })
+
+
+def test_path_exists():
+    """Test the path_exists() function for embed sanitization."""
+    assert path_exists({'a': {'b': 2}}, 'a.b')
+    assert not path_exists({'a': 'b'}, 'a.b')
