@@ -70,11 +70,11 @@ def path_exists(embed: Embed, components_in: Union[List[str], str]):
 
     # if it exists, then we go down a level inside the dict
     # (via recursion)
-    if current in embed:
+    try:
         return path_exists(embed[current], components[1:])
-
-    # if it doesn't exist, return False
-    return False
+    except KeyError:
+        # if the current component doesn't exist, return False
+        return False
 
 
 
