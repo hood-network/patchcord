@@ -106,7 +106,7 @@ def _make_md_req_url(config, scope: str, url):
 def proxify(url, *, config=None) -> str:
     """Return a mediaproxy url for the given EmbedURL. Returns an
     /img/ scope."""
-    config, _sess = _mk_cfg_sess(config, None)
+    config, _sess = _mk_cfg_sess(config, False)
 
     if isinstance(url, str):
         url = EmbedURL(url)
