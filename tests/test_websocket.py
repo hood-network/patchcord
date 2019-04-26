@@ -17,17 +17,24 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
+import json
+
 import pytest
 import websockets
-import json
 
 from tests.common import login
 from litecord.gateway.opcodes import OP
+from litecord.gateway.websocket import decode_etf
 
 
 async def _json(conn):
     frame = await conn.recv()
     return json.loads(frame)
+
+
+async def _etf(conn):
+    frame = await conn.recv()
+    return decode_etf(frame)
 
 
 async def _json_send(conn, data):
@@ -53,9 +60,13 @@ async def get_gw(test_cli) -> str:
     return gw_json['url']
 
 
-async def gw_start(test_cli):
+async def gw_start(test_cli, *, etf=False):
     """Start a websocket connection"""
     gw_url = await get_gw(test_cli)
+
+    if etf:
+        gw_url = f'{gw_url}?encoding=etf'
+
     return await websockets.connect(gw_url)
 
 
@@ -164,3 +175,15 @@ async def test_heartbeat(test_cli):
     assert recv['op'] == OP.HEARTBEAT_ACK
 
     await _close(conn)
+
+
+@pytest.mark.asyncio
+async def test_etf(test_cli):
+    """Test if the websocket can send a HELLO message over ETF."""
+    conn = await gw_start(test_cli, etf=True)
+
+    try:
+        hello = await _etf(conn)
+        assert hello['op'] == OP.HELLO
+    finally:
+        await _close(conn)

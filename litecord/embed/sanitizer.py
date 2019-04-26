@@ -22,7 +22,6 @@ litecord.embed.sanitizer
     sanitize embeds by giving common values
     such as type: rich
 """
-import urllib.parse
 from typing import Dict, Any, Optional, Union, List, Tuple
 
 from logbook import Logger
