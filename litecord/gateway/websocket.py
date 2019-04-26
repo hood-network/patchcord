@@ -227,6 +227,7 @@ class GatewayWebsocket:
                       payload.get('s'),
                       payload.get('t'))
 
+        # treat encoded as bytes
         if not isinstance(encoded, bytes):
             encoded = encoded.encode()
 
@@ -237,7 +238,13 @@ class GatewayWebsocket:
             # should do all?
             await self.ws.send(zlib.compress(encoded))
         else:
-            await self.ws.send(encoded.decode())
+            try:
+                # assume encoded is string, json based, decoding it
+                # should give reasonable messages down the websocket
+                await self.ws.send(encoded.decode())
+            except UnicodeDecodeError:
+                # in here, encoded is ETF, its bytes(), so we send it raw
+                await self.ws.send(encoded)
 
     async def send_op(self, op_code: int, data: Any):
         """Send a packet but just the OP code information is filled in."""
