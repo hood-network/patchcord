@@ -46,6 +46,7 @@ from litecord.embed.sanitizer import fill_embed, fetch_raw_img
 from litecord.embed.messages import process_url_embed, is_media_url
 from litecord.utils import pg_set_json
 from litecord.enums import MessageType
+from litecord.images import STATIC_IMAGE_MIMES
 
 bp = Blueprint('webhooks', __name__)
 
@@ -346,12 +347,12 @@ async def create_message_webhook(guild_id, channel_id, webhook_id, data):
     return message_id
 
 
-async def _create_avatar(webhook_id: int, avatar_url):
+async def _create_avatar(webhook_id: int, avatar_url) -> str:
     """Create an avatar for a webhook out of an avatar URL,
     given when executing the webhook.
 
-    Litecord will query that URL via mediaproxy and store the data
-    via IconManager.
+    Litecord will write an URL that redirects to the given avatar_url,
+    using mediaproxy.
     """
     if avatar_url.scheme not in ('http', 'https'):
         raise BadRequest('invalid avatar url scheme')
@@ -359,12 +360,21 @@ async def _create_avatar(webhook_id: int, avatar_url):
     if not is_media_url(avatar_url):
         raise BadRequest('url is not media url')
 
+    # we still fetch the URL to check its validity, mimetypes, etc
+    # but in the end, we will store it under the webhook_avatars table,
+    # not IconManager.
     resp, raw = await fetch_raw_img(avatar_url)
     raw_b64 = base64.b64encode(raw).decode()
 
     mime = resp.headers['content-type']
+
+    # TODO: apng checks are missing (for this and everywhere else)
+    if mime not in STATIC_IMAGE_MIMES:
+        raise BadRequest('invalid mime type for given url')
+
     b64_data = f'data:{mime};base64,{raw_b64}'
 
+    # TODO: replace this by webhook_avatars
     icon = await app.icons.put(
         'user', webhook_id, b64_data,
         always_icon=True, size=(128, 128)
@@ -399,6 +409,10 @@ async def execute_webhook(webhook_id: int, webhook_token):
     given_embeds = j.get('embeds', [])
 
     webhook = await get_webhook(webhook_id)
+
+    # webhooks have TWO avatars. one is from settings, the other is from
+    # the json's icon_url. one can be handled gracefully by IconManager,
+    # but the other can't, at all.
     avatar = webhook['avatar']
 
     if 'avatar_url' in j and j['avatar_url'] is not None:
