@@ -18,7 +18,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import secrets
-import base64
 import hashlib
 from typing import Dict, Any, Optional
 
