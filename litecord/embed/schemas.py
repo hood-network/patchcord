@@ -35,6 +35,11 @@ class EmbedURL:
         self.raw_url = url
         self.parsed = parsed
 
+    @classmethod
+    def from_parsed(cls, parsed):
+        """Make an EmbedURL instance out of an already parsed 6-tuple."""
+        return cls(parsed.geturl())
+
     @property
     def url(self) -> str:
         """Return the unparsed URL."""

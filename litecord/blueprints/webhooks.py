@@ -19,6 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import secrets
 import base64
+import hashlib
 from typing import Dict, Any, Optional
 
 from quart import Blueprint, jsonify, current_app as app, request
@@ -42,8 +43,9 @@ from litecord.blueprints.channel.messages import (
     msg_create_request, msg_create_check_content, msg_add_attachment,
     msg_guild_text_mentions
 )
-from litecord.embed.sanitizer import fill_embed, fetch_raw_img
+from litecord.embed.sanitizer import fill_embed, fetch_raw_img, proxify
 from litecord.embed.messages import process_url_embed, is_media_url
+from litecord.embed.schemas import EmbedURL
 from litecord.utils import pg_set_json
 from litecord.enums import MessageType
 from litecord.images import STATIC_IMAGE_MIMES
@@ -347,6 +349,18 @@ async def create_message_webhook(guild_id, channel_id, webhook_id, data):
     return message_id
 
 
+async def _webhook_avy_redir(webhook_id: int, avatar_url):
+    eu_avatar_url = EmbedURL.from_parsed(avatar_url)
+    url_hash = hashlib.sha256(eu_avatar_url.to_md_path).hexdigest()
+
+    await app.db.execute("""
+    INSERT INTO webhook_avatars (webhook_id, hash, md_url_redir)
+    VALUES ($1, $2, $3)
+    """, webhook_id, url_hash, proxify(eu_avatar_url))
+
+    return url_hash
+
+
 async def _create_avatar(webhook_id: int, avatar_url) -> str:
     """Create an avatar for a webhook out of an avatar URL,
     given when executing the webhook.
@@ -364,7 +378,7 @@ async def _create_avatar(webhook_id: int, avatar_url) -> str:
     # but in the end, we will store it under the webhook_avatars table,
     # not IconManager.
     resp, raw = await fetch_raw_img(avatar_url)
-    raw_b64 = base64.b64encode(raw).decode()
+    #raw_b64 = base64.b64encode(raw).decode()
 
     mime = resp.headers['content-type']
 
@@ -372,15 +386,15 @@ async def _create_avatar(webhook_id: int, avatar_url) -> str:
     if mime not in STATIC_IMAGE_MIMES:
         raise BadRequest('invalid mime type for given url')
 
-    b64_data = f'data:{mime};base64,{raw_b64}'
+    #b64_data = f'data:{mime};base64,{raw_b64}'
 
     # TODO: replace this by webhook_avatars
-    icon = await app.icons.put(
-        'user', webhook_id, b64_data,
-        always_icon=True, size=(128, 128)
-    )
+    #icon = await app.icons.put(
+    #    'user', webhook_id, b64_data,
+    #    always_icon=True, size=(128, 128)
+    #)
 
-    return icon.icon_hash
+    return await _webhook_avy_redir(webhook_id, avatar_url)
 
 
 @bp.route('/webhooks/<int:webhook_id>/<webhook_token>', methods=['POST'])
