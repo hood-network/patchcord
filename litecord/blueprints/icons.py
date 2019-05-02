@@ -18,7 +18,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from os.path import splitext
-from quart import Blueprint, current_app as app, send_file
+
+from quart import Blueprint, current_app as app, send_file, redirect
+
+from litecord.embed.sanitizer import make_md_req_url
+from litecord.embed.schemas import EmbedURL
 
 bp = Blueprint('images', __name__)
 
@@ -54,14 +58,32 @@ async def _get_guild_icon(guild_id: int, icon_file: str):
     return await send_icon('guild', guild_id, icon_hash, ext=ext)
 
 
-@bp.route('/embed/avatars/<int:discrim>.png')
-async def _get_default_user_avatar(discrim: int):
+@bp.route('/embed/avatars/<int:default_id>.png')
+async def _get_default_user_avatar(default_id: int):
+    # TODO: how do we determine which assets to use for this?
+    # I don't think we can use discord assets.
     pass
+
+
+async def _handle_webhook_avatar(md_url_redir: str):
+    md_url = make_md_req_url(app.config, 'img', EmbedURL(md_url_redir))
+    return redirect(md_url)
 
 
 @bp.route('/avatars/<int:user_id>/<avatar_file>')
 async def _get_user_avatar(user_id, avatar_file):
     avatar_hash, ext = splitext_(avatar_file)
+
+    # first, check if this is a webhook avatar to redir to
+    md_url_redir = await app.db.fetchval("""
+    SELECT md_url_redir
+    FROM webhook_avatars
+    WHERE webhook_id = $1 AND hash = $2
+    """, user_id, avatar_hash)
+
+    if md_url_redir:
+        return await _handle_webhook_avatar(md_url_redir)
+
     return await send_icon('user', user_id, avatar_hash, ext=ext)
 
 

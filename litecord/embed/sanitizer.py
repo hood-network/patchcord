@@ -97,7 +97,7 @@ def _md_base(config) -> tuple:
     return proto, md_base_url
 
 
-def _make_md_req_url(config, scope: str, url):
+def make_md_req_url(config, scope: str, url):
     """Make a mediaproxy request URL given the config, scope, and the url
     to be proxied."""
     proto, base_url = _md_base(config)
@@ -112,7 +112,7 @@ def proxify(url, *, config=None) -> str:
     if isinstance(url, str):
         url = EmbedURL(url)
 
-    return _make_md_req_url(config, 'img', url)
+    return make_md_req_url(config, 'img', url)
 
 
 async def _md_client_req(config, session, scope: str,
@@ -152,7 +152,7 @@ async def _md_client_req(config, session, scope: str,
     if not isinstance(url, EmbedURL):
         url = EmbedURL(url)
 
-    request_url = _make_md_req_url(config, scope, url)
+    request_url = make_md_req_url(config, scope, url)
 
     async with session.get(request_url) as resp:
         if resp.status == 200:

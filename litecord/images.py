@@ -50,6 +50,11 @@ MIMES = {
     'webp': 'image/webp',
 }
 
+STATIC_IMAGE_MIMES = [
+    'image/png',
+    'image/jpeg',
+    'image/webp'
+]
 
 def get_ext(mime: str) -> str:
     if mime in EXTENSIONS:
