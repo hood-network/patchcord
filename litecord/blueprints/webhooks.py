@@ -43,7 +43,7 @@ from litecord.blueprints.channel.messages import (
     msg_create_request, msg_create_check_content, msg_add_attachment,
     msg_guild_text_mentions
 )
-from litecord.embed.sanitizer import fill_embed, fetch_raw_img, proxify
+from litecord.embed.sanitizer import fill_embed, fetch_raw_img
 from litecord.embed.messages import process_url_embed, is_media_url
 from litecord.embed.schemas import EmbedURL
 from litecord.utils import pg_set_json
