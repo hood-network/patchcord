@@ -228,7 +228,7 @@ async def migrate_cmd(app, _args):
         migration = ctx.scripts.get(idx)
 
         print('applying', migration.id, migration.name)
-        # await apply_migration(app, migration)
+        await apply_migration(app, migration)
 
 
 def setup(subparser):

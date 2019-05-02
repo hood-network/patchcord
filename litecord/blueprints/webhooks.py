@@ -21,6 +21,7 @@ import secrets
 import hashlib
 from typing import Dict, Any, Optional
 
+import asyncpg
 from quart import Blueprint, jsonify, current_app as app, request
 
 from litecord.auth import token_check
@@ -348,19 +349,22 @@ async def create_message_webhook(guild_id, channel_id, webhook_id, data):
     return message_id
 
 
-async def _webhook_avy_redir(webhook_id: int, avatar_url):
-    eu_avatar_url = EmbedURL.from_parsed(avatar_url)
-    url_hash = hashlib.sha256(eu_avatar_url.to_md_path).hexdigest()
+async def _webhook_avy_redir(webhook_id: int, avatar_url: EmbedURL):
+    """Create a row on webhook_avatars."""
+    url_hash = hashlib.sha256(avatar_url.to_md_path.encode()).hexdigest()
 
-    await app.db.execute("""
-    INSERT INTO webhook_avatars (webhook_id, hash, md_url_redir)
-    VALUES ($1, $2, $3)
-    """, webhook_id, url_hash, proxify(eu_avatar_url))
+    try:
+        await app.db.execute("""
+        INSERT INTO webhook_avatars (webhook_id, hash, md_url_redir)
+        VALUES ($1, $2, $3)
+        """, webhook_id, url_hash, avatar_url.url)
+    except asyncpg.UniqueViolationError:
+        pass
 
     return url_hash
 
 
-async def _create_avatar(webhook_id: int, avatar_url) -> str:
+async def _create_avatar(webhook_id: int, avatar_url: EmbedURL) -> str:
     """Create an avatar for a webhook out of an avatar URL,
     given when executing the webhook.
 

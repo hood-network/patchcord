@@ -18,8 +18,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from os.path import splitext
+
 from quart import Blueprint, current_app as app, send_file, redirect
+
 from litecord.embed.sanitizer import make_md_req_url
+from litecord.embed.schemas import EmbedURL
 
 bp = Blueprint('images', __name__)
 
@@ -63,7 +66,7 @@ async def _get_default_user_avatar(default_id: int):
 
 
 async def _handle_webhook_avatar(md_url_redir: str):
-    md_url = make_md_req_url(None, 'img', md_url_redir)
+    md_url = make_md_req_url(app.config, 'img', EmbedURL(md_url_redir))
     return redirect(md_url)
 
 
