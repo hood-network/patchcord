@@ -126,25 +126,30 @@ async def test_ready_fields(test_cli):
         }
     })
 
-    ready = await _json(conn)
-    assert isinstance(ready, dict)
-    assert ready['op'] == OP.DISPATCH
-    assert ready['t'] == 'READY'
+    try:
+        ready = await _json(conn)
+        assert isinstance(ready, dict)
+        assert ready['op'] == OP.DISPATCH
+        assert ready['t'] == 'READY'
 
-    data = ready['d']
-    assert isinstance(data, dict)
+        data = ready['d']
+        assert isinstance(data, dict)
 
-    # NOTE: change if default gateway changes
-    assert data['v'] == 6
+        # NOTE: change if default gateway changes
+        assert data['v'] == 6
 
-    # make sure other fields exist and are with
-    # proper types.
-    assert isinstance(data['user'], dict)
-    assert isinstance(data['private_channels'], list)
-    assert isinstance(data['guilds'], list)
-    assert isinstance(data['session_id'], str)
+        # make sure other fields exist and are with
+        # proper types.
+        assert isinstance(data['user'], dict)
+        assert isinstance(data['private_channels'], list)
+        assert isinstance(data['guilds'], list)
+        assert isinstance(data['session_id'], str)
+        assert isinstance(data['_trace'], list)
 
-    await _close(conn)
+        if 'shard' in data:
+            assert isinstance(data['shard'], list)
+    finally:
+        await _close(conn)
 
 
 @pytest.mark.asyncio

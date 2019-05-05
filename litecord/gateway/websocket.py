@@ -393,17 +393,17 @@ class GatewayWebsocket:
         user_id = self.state.user_id
         user = await self.storage.get_user(user_id, True)
 
-        uready = {}
+        user_ready = {}
         if not self.state.bot:
             # user, fetch info
-            uready = await self._user_ready()
+            user_ready = await self._user_ready()
 
         private_channels = (
             await self.user_storage.get_dms(user_id) +
             await self.user_storage.get_gdms(user_id)
         )
 
-        await self.dispatch('READY', {**{
+        base_ready = {
             'v': 6,
             'user': user,
 
@@ -411,8 +411,11 @@ class GatewayWebsocket:
 
             'guilds': guilds,
             'session_id': self.state.session_id,
-            '_trace': ['transbian']
-        }, **uready})
+            '_trace': ['transbian'],
+            'shard': self.state.shard,
+        }
+
+        await self.dispatch('READY', {**base_ready, **user_ready})
 
         # async dispatch of guilds
         self.ext.loop.create_task(self._guild_dispatch(guilds))
