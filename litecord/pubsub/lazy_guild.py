@@ -42,11 +42,11 @@ from litecord.permissions import (
 from litecord.utils import index_by_func
 from litecord.utils import mmh3
 from litecord.gateway.state import GatewayState
+from litecord.presence import Presence
 
 log = Logger(__name__)
 
 GroupID = Union[int, str]
-Presence = Dict[str, Any]
 
 # TODO: move this constant out of the lazy_guild module
 MAX_ROLES = 250

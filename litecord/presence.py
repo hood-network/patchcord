@@ -17,12 +17,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Iterable
 from random import choice
 
 from logbook import Logger
 
 log = Logger(__name__)
+
+Presence = Dict[str, Any]
 
 
 def status_cmp(status: str, other_status: str) -> bool:
@@ -67,19 +69,44 @@ def _best_presence(shards):
     return None if not best['status'] else best
 
 
+def fill_presence(presence: dict, *, game=None) -> dict:
+    """Fill a given presence object with some specific fields."""
+    presence['client_status'] = {}
+    presence['mobile'] = False
+
+    if 'since' not in presence:
+        presence['since'] = 0
+
+    # fill game and activities array depending if game
+    # is there or not
+    game = game or presence.get('game')
+
+    # casting to bool since a game of {} is still invalid
+    if game:
+        presence['game'] = game
+        presence['activities'] = [game]
+    else:
+        presence['game'] = None
+        presence['activities'] = []
+
+    return presence
+
+
 async def _pres(storage, user_id: int, status_obj: dict) -> dict:
     """Convert a given status into a presence, given the User ID and the
-    :class:`Storage` instance.
-
-    This adds the required `presences` array, that isn't used, due to Litecord's
-    lack of Rich Presence.
-    """
+    :class:`Storage` instance."""
     ext = {
         'user': await storage.get_user(user_id),
         'activities': [],
+
+        # NOTE: we are purposefully overwriting the fields, as there
+        # isn't any push for us to actually implement mobile detection, or
+        # web detection, etc.
+        'client_status': {},
+        'mobile': False,
     }
 
-    return {**status_obj, **ext}
+    return fill_presence({**status_obj, **ext})
 
 
 class PresenceManager:
@@ -97,6 +124,9 @@ class PresenceManager:
     async def guild_presences(self, member_ids: List[int],
                               guild_id: int) -> List[Dict[Any, str]]:
         """Fetch all presences in a guild."""
+        # this works via fetching all connected GatewayState on a guild
+        # then fetching its respective member and merging that info with
+        # the state's set presence.
         states = self.state_manager.guild_states(member_ids, guild_id)
 
         presences = []
@@ -108,18 +138,15 @@ class PresenceManager:
             game = state.presence.get('game', None)
 
             # only use the data we need.
-            presences.append({
+            presences.append(fill_presence({
                 'user': member['user'],
                 'roles': member['roles'],
                 'guild_id': str(guild_id),
 
-                # basic presence
+                # if a state is connected to the guild
+                # we assume its online.
                 'status': state.presence.get('status', 'online'),
-
-                # game is an activity object, for rich presence
-                'game': game,
-                'activities': [game] if game else []
-            })
+            }, game=game))
 
         return presences
 
@@ -157,17 +184,12 @@ class PresenceManager:
             if member_list.channel_id == member_list.guild_id:
                 in_lazy.extend(session_ids)
 
-        pres_update_payload = {
+        pres_update_payload = fill_presence({
+            'guild_id': str(guild_id),
             'user': member['user'],
             'roles': member['roles'],
-            'guild_id': str(guild_id),
-
             'status': state['status'],
-
-            # rich presence stuff
-            'game': game,
-            'activities': [game] if game else []
-        }
+        }, game=game)
 
         # given a session id, return if the session id actually connects to
         # a given user, and if the state has not been dispatched via lazy guild.
@@ -213,16 +235,12 @@ class PresenceManager:
         game = state['game']
 
         await self.dispatcher.dispatch(
-            'friend', user_id, 'PRESENCE_UPDATE', {
+            'friend', user_id, 'PRESENCE_UPDATE', fill_presence({
                 'user': user,
                 'status': state['status'],
+            }, game=game))
 
-                # rich presence stuff
-                'game': game,
-                'activities': [game] if game else []
-            })
-
-    async def friend_presences(self, friend_ids: int) -> List[Dict[str, Any]]:
+    async def friend_presences(self, friend_ids: Iterable[int]) -> List[Presence]:
         """Fetch presences for a group of users.
 
         This assumes the users are friends and so
