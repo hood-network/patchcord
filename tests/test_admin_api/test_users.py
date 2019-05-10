@@ -84,8 +84,12 @@ async def _del_user(test_cli, user_id, *, token=None):
     assert rjson['new']['id'] == user_id
     assert rjson['old']['id'] == rjson['new']['id']
 
-    # TODO: remove from database at this point? it'll just keep being
-    # filled up every time we run a test..
+    # delete the original record since the DELETE endpoint will just
+    # replace the user by a "Deleted User <random hex>", and we don't want
+    # to have obsolete users filling up our db every time we run tests
+    await test_cli.app.db.execute("""
+    DELETE FROM users WHERE id = $1
+    """, int(user_id))
 
 
 @pytest.mark.asyncio
