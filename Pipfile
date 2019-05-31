@@ -14,6 +14,7 @@ Cerberus = "==1.2"
 quart = "==0.9.0"
 pillow = "*"
 aiohttp = "==3.5.4"
+zstandard = "*"
 
 [dev-packages]
 pytest = "==4.4.1"
