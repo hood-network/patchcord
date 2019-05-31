@@ -25,6 +25,7 @@ from typing import List, Dict, Any
 from random import randint
 
 import websockets
+import zstandard as zstd
 from logbook import Logger
 
 from litecord.auth import raw_token_check
@@ -53,7 +54,7 @@ from litecord.storage import int_
 log = Logger(__name__)
 
 WebsocketProperties = collections.namedtuple(
-    'WebsocketProperties', 'v encoding compress zctx tasks'
+    'WebsocketProperties', 'v encoding compress zctx zsctx tasks'
 )
 
 WebsocketObjects = collections.namedtuple(
@@ -80,11 +81,14 @@ class GatewayWebsocket:
         self.presence = self.ext.presence
         self.ws = ws
 
-        self.wsp = WebsocketProperties(kwargs.get('v'),
-                                       kwargs.get('encoding', 'json'),
-                                       kwargs.get('compress', None),
-                                       zlib.compressobj(),
-                                       {})
+        self.wsp = WebsocketProperties(
+            kwargs.get('v'),
+            kwargs.get('encoding', 'json'),
+            kwargs.get('compress', None),
+            zlib.compressobj(),
+            zstd.ZstdCompressor(),
+            {}
+        )
 
         log.debug('websocket properties: {!r}', self.wsp)
 
