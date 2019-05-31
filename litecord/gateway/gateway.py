@@ -50,7 +50,7 @@ async def websocket_handler(app, ws, url):
     except (KeyError, IndexError):
         gw_compress = None
 
-    if gw_compress and gw_compress not in ('zlib-stream',):
+    if gw_compress and gw_compress not in ('zlib-stream', 'zstd-stream'):
         return await ws.close(1000, 'Invalid gateway compress')
 
     gws = GatewayWebsocket(
