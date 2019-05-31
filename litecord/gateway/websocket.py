@@ -49,6 +49,8 @@ from litecord.gateway.encoding import (
     encode_json, decode_json, encode_etf, decode_etf
 )
 
+from litecord.gateway.utils import WebsocketFileHandler
+
 from litecord.storage import int_
 
 log = Logger(__name__)
@@ -155,7 +157,11 @@ class GatewayWebsocket:
         await self._chunked_send(data2, 1024)
 
     async def _zstd_stream_send(self, encoded):
-        pass
+        compressor = self.wsp.zsctx.stream_writer(
+            WebsocketFileHandler(self.ws))
+
+        compressor.write(encoded)
+        compressor.flush(zstd.FLUSH_FRAME)
 
     async def send(self, payload: Dict[str, Any]):
         """Send a payload to the websocket.
