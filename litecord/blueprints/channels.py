@@ -588,7 +588,7 @@ async def _search_channel(channel_id):
     await channel_check(user_id, channel_id)
     await channel_perm_check(user_id, channel_id, 'read_messages')
 
-    j = validate(request.args, SEARCH_CHANNEL)
+    j = validate(dict(request.args), SEARCH_CHANNEL)
 
     # main search query
     # the context (before/after) columns are copied from the guilds blueprint.
