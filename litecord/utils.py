@@ -19,10 +19,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import asyncio
 import json
-from typing import Any, Iterable, Optional, Sequence
+from typing import Any, Iterable, Optional, Sequence, List, Dict
 
 from logbook import Logger
 from quart.json import JSONEncoder
+from quart import current_app as app
 
 log = Logger(__name__)
 
@@ -182,3 +183,34 @@ def to_update(j: dict, orig: dict, field: str) -> bool:
     """Compare values to check if j[field] is actually updating
     the value in orig[field]. Useful for icon checks."""
     return field in j and j[field] and j[field] != orig[field]
+
+
+async def search_result_from_list(rows: List) -> Dict[str, Any]:
+    """Generate the end result of the search query, given a list of rows.
+    
+    Each row must contain:
+     - A bigint on `current_id`
+     - An int (?) on `total_results`
+     - Two bigint[], each on `before` and `after` respectively.
+    """
+    results = 0 if not rows else rows[0]['total_results']
+    res = []
+
+    for row in rows:
+        before, after = [], []
+
+        for before_id in reversed(row['before']):
+            before.append(await app.storage.get_message(before_id))
+
+        for after_id in row['after']:
+            after.append(await app.storage.get_message(after_id))
+
+        msg = await app.storage.get_message(row['current_id'])
+        msg['hit'] = True
+        res.append(before + [msg] + after)
+
+    return {
+        'total_results': results,
+        'messages': res,
+        'analytics_id': '',
+    }

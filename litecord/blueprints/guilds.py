@@ -35,7 +35,7 @@ from ..schemas import (
 )
 from .channels import channel_ack
 from .checks import guild_check, guild_owner_check, guild_perm_check
-from litecord.utils import to_update
+from litecord.utils import to_update, search_result_from_list
 from litecord.errors import BadRequest
 from litecord.permissions import get_permissions
 
@@ -391,7 +391,7 @@ async def fetch_readable_channels(guild_id: int, user_id: int) -> List[int]:
     for channel_id in channel_ids:
         perms = await get_permissions(user_id, channel_id)
 
-        if perms.read_messages:
+        if perms.bits.read_messages:
             res.append(channel_id)
 
     return res
@@ -416,36 +416,25 @@ async def search_messages(guild_id):
     can_read = await fetch_readable_channels(guild_id, user_id)
 
     rows = await app.db.fetch(f"""
-    SELECT messages.id,
-        COUNT(*) OVER() as total_results
-    FROM messages
+    SELECT orig.id AS current_id,
+        COUNT(*) OVER() as total_results,
+        array((SELECT messages.id AS before_id
+         FROM messages WHERE messages.id < orig.id
+         ORDER BY messages.id DESC LIMIT 2)) AS before,
+        array((SELECT messages.id AS after_id
+         FROM messages WHERE messages.id > orig.id
+         ORDER BY messages.id ASC LIMIT 2)) AS after
+
+    FROM messages AS orig
     WHERE guild_id = $1
-      AND messages.content LIKE '%'||$2||'%'
-      AND ARRAY[messages.channel_id] <@ $4::bigint[]
-    ORDER BY messages.id DESC
+      AND orig.content LIKE '%'||$2||'%'
+      AND ARRAY[orig.channel_id] <@ $4::bigint[]
+    ORDER BY orig.id DESC
     LIMIT 50
     OFFSET $3
     """, guild_id, j['content'], j['offset'], can_read)
 
-    results = 0 if not rows else rows[0]['total_results']
-    main_messages = [r['id'] for r in rows]
-
-    # fetch contexts for each message
-    # (2 messages before, 2 messages after).
-
-    # TODO: actual contexts
-    res = []
-
-    for message_id in main_messages:
-        msg = await app.storage.get_message(message_id)
-        msg['hit'] = True
-        res.append([msg])
-
-    return jsonify({
-        'total_results': results,
-        'messages': res,
-        'analytics_id': '',
-    })
+    return jsonify(await search_result_from_list(rows))
 
 
 @bp.route('/<int:guild_id>/ack', methods=['POST'])
