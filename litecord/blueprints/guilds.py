@@ -35,7 +35,7 @@ from ..schemas import (
 )
 from .channels import channel_ack
 from .checks import guild_check, guild_owner_check, guild_perm_check
-from litecord.utils import to_update
+from litecord.utils import to_update, search_result_from_list
 from litecord.errors import BadRequest
 from litecord.permissions import get_permissions
 
@@ -434,27 +434,7 @@ async def search_messages(guild_id):
     OFFSET $3
     """, guild_id, j['content'], j['offset'], can_read)
 
-    results = 0 if not rows else rows[0]['total_results']
-    res = []
-
-    for row in rows:
-        before, after = [], []
-
-        for before_id in reversed(row['before']):
-            before.append(await app.storage.get_message(before_id))
-
-        for after_id in row['after']:
-            after.append(await app.storage.get_message(after_id))
-
-        msg = await app.storage.get_message(row['current_id'])
-        msg['hit'] = True
-        res.append(before + [msg] + after)
-
-    return jsonify({
-        'total_results': results,
-        'messages': res,
-        'analytics_id': '',
-    })
+    return jsonify(await search_result_from_list(rows))
 
 
 @bp.route('/<int:guild_id>/ack', methods=['POST'])
