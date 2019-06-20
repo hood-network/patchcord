@@ -611,3 +611,12 @@ async def _search_channel(channel_id):
     """, channel_id, j['offset'], j['content'])
 
     return jsonify(await search_result_from_list(rows))
+
+
+@bp.route('/<int:channel_id>/messages/<int:message_id>/suppress-embeds')
+async def suppress_embeds(channel_id: int, message_id: int):
+    """Toggle the embeds in a message."""
+    j = validate({'suppress': {'type': 'boolean'}},
+                 await request.get_json())
+
+    # TODO
