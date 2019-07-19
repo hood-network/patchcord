@@ -48,6 +48,8 @@ class UnknownInvite(BadRequest):
 class InvalidInvite(Forbidden):
     error_code = 50020
 
+class AlreadyInvited(BaseException):
+    pass
 
 def gen_inv_code() -> str:
     """Generate an invite code.
@@ -70,7 +72,7 @@ async def invite_precheck(user_id: int, guild_id: int):
     """, user_id, guild_id)
 
     if joined is not None:
-        raise BadRequest('You are already in the guild')
+        raise AlreadyInvited('You are already in the guild')
 
     banned = await app.db.fetchval("""
     SELECT reason
@@ -87,7 +89,7 @@ async def invite_precheck_gdm(user_id: int, channel_id: int):
     is_member = await gdm_is_member(channel_id, user_id)
 
     if is_member:
-        raise BadRequest('You are already in the Group DM')
+        raise AlreadyInvited('You are already in the Group DM')
 
 
 async def _inv_check_age(inv: dict):
@@ -171,20 +173,22 @@ async def use_invite(user_id, invite_code):
     # NOTE: if group dm invite, guild_id is null.
     guild_id = inv['guild_id']
 
-    if guild_id is None:
-        channel_id = inv['channel_id']
-        await invite_precheck_gdm(user_id, inv['channel_id'])
-        await gdm_add_recipient(channel_id, user_id)
-    else:
-        await invite_precheck(user_id, guild_id)
-        await _guild_add_member(guild_id, user_id)
+    try: 
+        if guild_id is None:
+            channel_id = inv['channel_id']
+            await invite_precheck_gdm(user_id, inv['channel_id'])
+            await gdm_add_recipient(channel_id, user_id)
+        else:
+            await invite_precheck(user_id, guild_id)
+            await _guild_add_member(guild_id, user_id)
 
-    await app.db.execute("""
-    UPDATE invites
-    SET uses = uses + 1
-    WHERE code = $1
-    """, invite_code)
-
+        await app.db.execute("""
+        UPDATE invites
+        SET uses = uses + 1
+        WHERE code = $1
+        """, invite_code)
+    except AlreadyInvited:
+        pass
 
 @bp.route('/channels/<int:channel_id>/invites', methods=['POST'])
 async def create_invite(channel_id):
@@ -226,6 +230,7 @@ async def create_invite(channel_id):
     return jsonify(invite)
 
 
+@bp.route('/invite/<invite_code>', methods=['GET'])
 @bp.route('/invites/<invite_code>', methods=['GET'])
 async def get_invite(invite_code: str):
     inv = await app.storage.get_invite(invite_code)
@@ -239,12 +244,6 @@ async def get_invite(invite_code: str):
 
     return jsonify(inv)
 
-
-@bp.route('/invite/<invite_code>', methods=['GET'])
-async def get_invite_2(invite_code: str):
-    return await get_invite(invite_code)
-
-
 async def delete_invite(invite_code: str):
     """Delete an invite."""
     await app.db.fetchval("""
@@ -252,7 +251,7 @@ async def delete_invite(invite_code: str):
     WHERE code = $1
     """, invite_code)
 
-
+@bp.route('/invite/<invite_code>', methods=['DELETE'])
 @bp.route('/invites/<invite_code>', methods=['DELETE'])
 async def _delete_invite(invite_code: str):
     user_id = await token_check()
@@ -271,12 +270,6 @@ async def _delete_invite(invite_code: str):
     inv = await app.storage.get_invite(invite_code)
     await delete_invite(invite_code)
     return jsonify(inv)
-
-
-@bp.route('/invite/<invite_code>', methods=['DELETE'])
-async def _delete_invite_2(invite_code: str):
-    return await _delete_invite(invite_code)
-
 
 async def _get_inv(code):
     inv = await app.storage.get_invite(code)
@@ -323,6 +316,7 @@ async def get_channel_invites(channel_id: int):
 
 
 @bp.route('/invite/<invite_code>', methods=['POST'])
+@bp.route('/invites/<invite_code>', methods=['POST'])
 async def _use_invite(invite_code):
     """Use an invite."""
     user_id = await token_check()
