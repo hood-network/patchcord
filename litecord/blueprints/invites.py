@@ -230,6 +230,7 @@ async def create_invite(channel_id):
     return jsonify(invite)
 
 
+@bp.route('/invite/<invite_code>', methods=['GET'])
 @bp.route('/invites/<invite_code>', methods=['GET'])
 async def get_invite(invite_code: str):
     inv = await app.storage.get_invite(invite_code)
@@ -243,12 +244,6 @@ async def get_invite(invite_code: str):
 
     return jsonify(inv)
 
-
-@bp.route('/invite/<invite_code>', methods=['GET'])
-async def get_invite_2(invite_code: str):
-    return await get_invite(invite_code)
-
-
 async def delete_invite(invite_code: str):
     """Delete an invite."""
     await app.db.fetchval("""
@@ -256,7 +251,7 @@ async def delete_invite(invite_code: str):
     WHERE code = $1
     """, invite_code)
 
-
+@bp.route('/invite/<invite_code>', methods=['DELETE'])
 @bp.route('/invites/<invite_code>', methods=['DELETE'])
 async def _delete_invite(invite_code: str):
     user_id = await token_check()
@@ -275,12 +270,6 @@ async def _delete_invite(invite_code: str):
     inv = await app.storage.get_invite(invite_code)
     await delete_invite(invite_code)
     return jsonify(inv)
-
-
-@bp.route('/invite/<invite_code>', methods=['DELETE'])
-async def _delete_invite_2(invite_code: str):
-    return await _delete_invite(invite_code)
-
 
 async def _get_inv(code):
     inv = await app.storage.get_invite(code)
