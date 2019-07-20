@@ -89,7 +89,7 @@ class Dispatcher:
             try:
                 await state.ws.dispatch(event, data)
                 res.append(state.session_id)
-            except:
+            except Exception:
                 log.exception('error while dispatching')
 
         return res
