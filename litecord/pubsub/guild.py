@@ -58,7 +58,11 @@ class GuildDispatcher(DispatcherWithFlags):
             # it is an idea to have flags support for other actions
             args = []
             if action == 'sub':
-                args.append(flags)
+                chanflags = dict(flags)
+
+                # channels don't need presence flags
+                chanflags.pop('presence')
+                args.append(chanflags)
 
             await self.main_dispatcher.action(
                 'channel', action, chan_id, user_id, *args
