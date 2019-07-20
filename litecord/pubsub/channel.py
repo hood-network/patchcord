@@ -21,7 +21,7 @@ from typing import Any, List
 
 from logbook import Logger
 
-from .dispatcher import DispatcherWithState
+from .dispatcher import DispatcherWithFlags
 from litecord.enums import ChannelType
 from litecord.utils import index_by_func
 
@@ -48,7 +48,7 @@ def gdm_recipient_view(orig: dict, user_id: int) -> dict:
     return data
 
 
-class ChannelDispatcher(DispatcherWithState):
+class ChannelDispatcher(DispatcherWithFlags):
     """Main channel Pub/Sub logic."""
     KEY_TYPE = int
     VAL_TYPE = int
@@ -82,6 +82,11 @@ class ChannelDispatcher(DispatcherWithState):
             # unsub people who don't have any states tied to the channel.
             if not states:
                 await self.unsub(channel_id, user_id)
+                continue
+
+            # skip typing events for users that don't want it
+            if event.startswith('TYPING_') and \
+                    not self.flags_get(channel_id, user_id, 'typing', True):
                 continue
 
             cur_sess = []

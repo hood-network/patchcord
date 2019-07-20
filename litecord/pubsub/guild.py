@@ -21,20 +21,21 @@ from typing import Any
 
 from logbook import Logger
 
-from .dispatcher import DispatcherWithState
+from .dispatcher import DispatcherWithFlags
 from litecord.permissions import get_permissions
 
 log = Logger(__name__)
 
 
-class GuildDispatcher(DispatcherWithState):
+class GuildDispatcher(DispatcherWithFlags):
     """Guild backend for Pub/Sub"""
     KEY_TYPE = int
     VAL_TYPE = int
 
     async def _chan_action(self, action: str,
-                           guild_id: int, user_id: int):
+                           guild_id: int, user_id: int, flags=None):
         """Send an action to all channels of the guild."""
+        flags = flags or {}
         chan_ids = await self.app.storage.get_channel_ids(guild_id)
 
         for chan_id in chan_ids:
@@ -53,8 +54,22 @@ class GuildDispatcher(DispatcherWithState):
             log.debug('sending raw action {!r} to chan={}',
                       action, chan_id)
 
+            # for now, only sub() has support for flags.
+            # it is an idea to have flags support for other actions
+            args = []
+            if action == 'sub':
+                chanflags = dict(flags)
+
+                # channels don't need presence flags
+                try:
+                    chanflags.pop('presence')
+                except KeyError:
+                    pass
+
+                args.append(chanflags)
+
             await self.main_dispatcher.action(
-                'channel', action, chan_id, user_id
+                'channel', action, chan_id, user_id, *args
             )
 
     async def _chan_call(self, meth: str, guild_id: int, *args):
@@ -70,10 +85,10 @@ class GuildDispatcher(DispatcherWithState):
                       meth, chan_id)
             await method(chan_id, *args)
 
-    async def sub(self, guild_id: int, user_id: int):
+    async def sub(self, guild_id: int, user_id: int, flags=None):
         """Subscribe a user to the guild."""
-        await super().sub(guild_id, user_id)
-        await self._chan_action('sub', guild_id, user_id)
+        await super().sub(guild_id, user_id, flags)
+        await self._chan_action('sub', guild_id, user_id, flags)
 
     async def unsub(self, guild_id: int, user_id: int):
         """Unsubscribe a user from the guild."""
@@ -101,6 +116,15 @@ class GuildDispatcher(DispatcherWithState):
                 await self.unsub(guild_id, user_id)
                 continue
 
+            # skip the given subscriber if event starts with PRESENCE_
+            # and the flags say they don't want it.
+
+            # note that this does not equate to any unsubscription
+            # of the channel.
+            if event.startswith('PRESENCE_') and \
+                    not self.flags_get(guild_id, user_id, 'presence', True):
+                continue
+
             # filter the ones that matter
             states = list(filter(
                 lambda state: func(state.session_id), states
@@ -108,6 +132,7 @@ class GuildDispatcher(DispatcherWithState):
 
             cur_sess = await self._dispatch_states(
                 states, event, data)
+
             sessions.extend(cur_sess)
             dispatched += len(cur_sess)
 

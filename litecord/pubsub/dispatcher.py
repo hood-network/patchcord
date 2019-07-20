@@ -89,7 +89,7 @@ class Dispatcher:
             try:
                 await state.ws.dispatch(event, data)
                 res.append(state.session_id)
-            except:
+            except Exception:
                 log.exception('error while dispatching')
 
         return res
@@ -128,3 +128,32 @@ class DispatcherWithState(Dispatcher):
 
     async def dispatch(self, key, *args):
         raise NotImplementedError
+
+
+class DispatcherWithFlags(DispatcherWithState):
+    """Pub/Sub backend with both a state and a flags store."""
+
+    def __init__(self, main):
+        super().__init__(main)
+
+        #: keep flags for subscribers, so for example
+        # a subscriber could drop all presence events at the
+        # pubsub level. see gateway's guild_subscriptions field for more
+        self.flags = defaultdict(dict)
+
+    async def sub(self, key, identifier, flags=None):
+        """Subscribe a user to the guild."""
+        await super().sub(key, identifier)
+        self.flags[key][identifier] = flags or {}
+
+    async def unsub(self, key, identifier):
+        """Unsubscribe a user from the guild."""
+        await super().unsub(key, identifier)
+        self.flags[key].pop(identifier)
+
+    def flags_get(self, key, identifier, field: str, default):
+        """Get a single field from the flags store."""
+        # yes, i know its simply an indirection from the main flags store,
+        # but i'd rather have this than change every call if i ever change
+        # the structure of the flags store.
+        return self.flags[key][identifier].get(field, default)
