@@ -18,6 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from typing import Any
+from collections import defaultdict
 
 from logbook import Logger
 
@@ -32,9 +33,18 @@ class GuildDispatcher(DispatcherWithState):
     KEY_TYPE = int
     VAL_TYPE = int
 
+    def __init__(self, main):
+        super().__init__(main)
+
+        #: keep flags for subscribers, so for example
+        # a subscriber could drop all presence events at the
+        # pubsub level. see gateway's guild_subscriptions field for more
+        self.flags = defaultdict(dict)
+
     async def _chan_action(self, action: str,
-                           guild_id: int, user_id: int):
+                           guild_id: int, user_id: int, flags=None):
         """Send an action to all channels of the guild."""
+        flags = flags or {}
         chan_ids = await self.app.storage.get_channel_ids(guild_id)
 
         for chan_id in chan_ids:
@@ -54,7 +64,7 @@ class GuildDispatcher(DispatcherWithState):
                       action, chan_id)
 
             await self.main_dispatcher.action(
-                'channel', action, chan_id, user_id
+                'channel', action, chan_id, user_id, flags
             )
 
     async def _chan_call(self, meth: str, guild_id: int, *args):
@@ -70,14 +80,17 @@ class GuildDispatcher(DispatcherWithState):
                       meth, chan_id)
             await method(chan_id, *args)
 
-    async def sub(self, guild_id: int, user_id: int):
+    async def sub(self, guild_id: int, user_id: int, flags = None):
         """Subscribe a user to the guild."""
         await super().sub(guild_id, user_id)
-        await self._chan_action('sub', guild_id, user_id)
+        self.flags[guild_id][user_id] = flags or {}
+
+        await self._chan_action('sub', guild_id, user_id, flags)
 
     async def unsub(self, guild_id: int, user_id: int):
         """Unsubscribe a user from the guild."""
         await super().unsub(guild_id, user_id)
+        self.flags[guild_id].pop(user_id)
         await self._chan_action('unsub', guild_id, user_id)
 
     async def dispatch_filter(self, guild_id: int, func,
