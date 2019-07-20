@@ -107,8 +107,8 @@ class GuildDispatcher(DispatcherWithFlags):
 
             # note that this does not equate to any unsubscription
             # of the channel.
-            flags = self.flags[guild_id][user_id]
-            if event.startswith('PRESENCE_') and not flags.get('presence', True):
+            if event.startswith('PRESENCE_') and \
+                    not self.flags_get(guild_id, user_id, 'presence', True):
                 continue
 
             # filter the ones that matter

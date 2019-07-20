@@ -150,3 +150,10 @@ class DispatcherWithFlags(DispatcherWithState):
         """Unsubscribe a user from the guild."""
         await super().unsub(key, identifier)
         self.flags[key].pop(identifier)
+
+    def flags_get(self, key, identifier, field: str, default):
+        """Get a single field from the flags store."""
+        # yes, i know its simply an indirection from the main flags store,
+        # but i'd rather have this than change every call if i ever change
+        # the structure of the flags store.
+        return self.flags[key][identifier].get(field, default)

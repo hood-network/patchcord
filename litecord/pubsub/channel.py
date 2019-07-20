@@ -84,6 +84,11 @@ class ChannelDispatcher(DispatcherWithFlags):
                 await self.unsub(channel_id, user_id)
                 continue
 
+            # skip typing events for users that don't want it
+            if event.startswith('TYPING_') and \
+                    not self.flags_get(channel_id, user_id, 'typing', True):
+                continue
+
             cur_sess = []
 
             if event in ('CHANNEL_CREATE', 'CHANNEL_UPDATE') \
