@@ -124,7 +124,7 @@ class EventDispatcher:
 
             if len(bcall) == 2:
                 flags = {}
-            elif len(bcall == 3):
+            elif len(bcall) == 3:
                 # we have flags
                 flags = bcall[2]
 
