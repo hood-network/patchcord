@@ -61,7 +61,11 @@ class GuildDispatcher(DispatcherWithFlags):
                 chanflags = dict(flags)
 
                 # channels don't need presence flags
-                chanflags.pop('presence')
+                try:
+                    chanflags.pop('presence')
+                except KeyError:
+                    pass
+
                 args.append(chanflags)
 
             await self.main_dispatcher.action(
