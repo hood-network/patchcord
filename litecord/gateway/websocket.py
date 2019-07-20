@@ -421,7 +421,7 @@ class GatewayWebsocket:
 
         return list(filtered)
 
-    async def subscribe_all(self):
+    async def subscribe_all(self, guild_subscriptions: bool):
         """Subscribe to all guilds, DM channels, and friends.
 
         Note: subscribing to channels is already handled
@@ -441,6 +441,8 @@ class GatewayWebsocket:
         log.info('subscribing to {} dms', len(dm_ids))
         log.info('subscribing to {} group dms', len(gdm_ids))
 
+        # TODO(gw-guild-subscriptions)
+        #  make a channel:typing and guild:presence subchannels
         await self.ext.dispatcher.mass_sub(user_id, [
             ('guild', guild_ids),
             ('channel', dm_ids),
@@ -573,7 +575,7 @@ class GatewayWebsocket:
         self.ext.state_manager.insert(self.state)
 
         await self.update_status(presence)
-        await self.subscribe_all()
+        await self.subscribe_all(data.get('guild_subscriptions', True))
         await self.dispatch_ready()
 
     async def handle_3(self, payload: Dict[str, Any]):
