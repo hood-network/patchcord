@@ -22,24 +22,16 @@ from collections import defaultdict
 
 from logbook import Logger
 
-from .dispatcher import DispatcherWithState
+from .dispatcher import DispatcherWithFlags
 from litecord.permissions import get_permissions
 
 log = Logger(__name__)
 
 
-class GuildDispatcher(DispatcherWithState):
+class GuildDispatcher(DispatcherWithFlags):
     """Guild backend for Pub/Sub"""
     KEY_TYPE = int
     VAL_TYPE = int
-
-    def __init__(self, main):
-        super().__init__(main)
-
-        #: keep flags for subscribers, so for example
-        # a subscriber could drop all presence events at the
-        # pubsub level. see gateway's guild_subscriptions field for more
-        self.flags = defaultdict(dict)
 
     async def _chan_action(self, action: str,
                            guild_id: int, user_id: int, flags=None):
@@ -80,17 +72,14 @@ class GuildDispatcher(DispatcherWithState):
                       meth, chan_id)
             await method(chan_id, *args)
 
-    async def sub(self, guild_id: int, user_id: int, flags = None):
+    async def sub(self, guild_id: int, user_id: int, flags=None):
         """Subscribe a user to the guild."""
-        await super().sub(guild_id, user_id)
-        self.flags[guild_id][user_id] = flags or {}
-
+        await super().sub(guild_id, user_id, flags)
         await self._chan_action('sub', guild_id, user_id, flags)
 
     async def unsub(self, guild_id: int, user_id: int):
         """Unsubscribe a user from the guild."""
         await super().unsub(guild_id, user_id)
-        self.flags[guild_id].pop(user_id)
         await self._chan_action('unsub', guild_id, user_id)
 
     async def dispatch_filter(self, guild_id: int, func,

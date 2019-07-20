@@ -128,3 +128,25 @@ class DispatcherWithState(Dispatcher):
 
     async def dispatch(self, key, *args):
         raise NotImplementedError
+
+
+class DispatcherWithFlags(DispatcherWithState):
+    """Pub/Sub backend with both a state and a flags store."""
+
+    def __init__(self, main):
+        super().__init__(main)
+
+        #: keep flags for subscribers, so for example
+        # a subscriber could drop all presence events at the
+        # pubsub level. see gateway's guild_subscriptions field for more
+        self.flags = defaultdict(dict)
+
+    async def sub(self, key, identifier, flags=None):
+        """Subscribe a user to the guild."""
+        await super().sub(key, identifier)
+        self.flags[key][identifier] = flags or {}
+
+    async def unsub(self, key, identifier):
+        """Unsubscribe a user from the guild."""
+        await super().unsub(key, identifier)
+        self.flags[key].pop(identifier)
