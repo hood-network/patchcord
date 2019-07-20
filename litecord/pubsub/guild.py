@@ -54,8 +54,14 @@ class GuildDispatcher(DispatcherWithFlags):
             log.debug('sending raw action {!r} to chan={}',
                       action, chan_id)
 
+            # for now, only sub() has support for flags.
+            # it is an idea to have flags support for other actions
+            args = []
+            if action == 'sub':
+                args.append(flags)
+
             await self.main_dispatcher.action(
-                'channel', action, chan_id, user_id, flags
+                'channel', action, chan_id, user_id, *args
             )
 
     async def _chan_call(self, meth: str, guild_id: int, *args):
