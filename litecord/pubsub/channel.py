@@ -21,7 +21,7 @@ from typing import Any, List
 
 from logbook import Logger
 
-from .dispatcher import DispatcherWithState
+from .dispatcher import DispatcherWithFlags
 from litecord.enums import ChannelType
 from litecord.utils import index_by_func
 
