@@ -48,7 +48,7 @@ def gdm_recipient_view(orig: dict, user_id: int) -> dict:
     return data
 
 
-class ChannelDispatcher(DispatcherWithState):
+class ChannelDispatcher(DispatcherWithFlags):
     """Main channel Pub/Sub logic."""
     KEY_TYPE = int
     VAL_TYPE = int
