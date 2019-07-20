@@ -114,6 +114,15 @@ class GuildDispatcher(DispatcherWithState):
                 await self.unsub(guild_id, user_id)
                 continue
 
+            # skip the given subscriber if event starts with PRESENCE_
+            # and the flags say they don't want it.
+
+            # note that this does not equate to any unsubscription
+            # of the channel.
+            flags = self.flags[guild_id][user_id]
+            if event.startswith('PRESENCE_') and not flags.get('presence'):
+                continue
+
             # filter the ones that matter
             states = list(filter(
                 lambda state: func(state.session_id), states
@@ -121,6 +130,7 @@ class GuildDispatcher(DispatcherWithState):
 
             cur_sess = await self._dispatch_states(
                 states, event, data)
+
             sessions.extend(cur_sess)
             dispatched += len(cur_sess)
 
