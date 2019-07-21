@@ -21,7 +21,6 @@ import secrets
 import sys
 import os
 
-import socket
 import pytest
 
 # this is very hacky.
