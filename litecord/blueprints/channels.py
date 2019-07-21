@@ -614,7 +614,8 @@ async def _search_channel(channel_id):
     return jsonify(await search_result_from_list(rows))
 
 
-@bp.route('/<int:channel_id>/messages/<int:message_id>/suppress-embeds')
+@bp.route('/<int:channel_id>/messages/<int:message_id>/suppress-embeds',
+          methods=['POST'])
 async def suppress_embeds(channel_id: int, message_id: int):
     """Toggle the embeds in a message.
     
@@ -641,8 +642,10 @@ async def suppress_embeds(channel_id: int, message_id: int):
     if not can_suppress:
         raise Forbidden('Not enough permissions.')
 
-    j = validate({'suppress': {'type': 'boolean'}},
-                 await request.get_json())
+    j = validate(
+        await request.get_json(),
+        {'suppress': {'type': 'boolean'}},
+    )
 
     suppress = j['suppress']
     message = await app.storage.get_message(message_id)
