@@ -26,7 +26,7 @@ from logbook import Logger
 
 from run import init_app_managers, init_app_db
 from manage.cmd.migration import migration
-from manage.cmd import users, tests, invites
+from manage.cmd import users, invites
 
 log = Logger(__name__)
 
@@ -54,7 +54,6 @@ def init_parser():
 
     migration(subparser)
     users.setup(subparser)
-    tests.setup(subparser)
     invites.setup(subparser)
 
     return parser
