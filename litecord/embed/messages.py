@@ -60,7 +60,7 @@ async def insert_media_meta(url, config, session):
     }
 
 
-async def _update_and_dispatch(payload, new_embeds, storage, dispatcher):
+async def msg_update_embeds(payload, new_embeds, storage, dispatcher):
     """Update the message with the given embeds and dispatch a MESSAGE_UPDATE
     to users."""
 
@@ -159,4 +159,4 @@ async def process_url_embed(config, storage, dispatcher,
     log.debug('made {} thumbnail embeds for mid {}',
               len(new_embeds), message_id)
 
-    await _update_and_dispatch(payload, new_embeds, storage, dispatcher)
+    await msg_update_embeds(payload, new_embeds, storage, dispatcher)

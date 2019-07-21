@@ -25,7 +25,7 @@ from logbook import Logger
 
 from litecord.auth import token_check
 from litecord.enums import ChannelType, GUILD_CHANS, MessageType
-from litecord.errors import ChannelNotFound
+from litecord.errors import ChannelNotFound, Forbidden
 from litecord.schemas import (
     validate, CHAN_UPDATE, CHAN_OVERWRITE, SEARCH_CHANNEL, GROUP_DM_UPDATE
 )
@@ -36,6 +36,7 @@ from litecord.blueprints.dm_channels import (
     gdm_remove_recipient, gdm_destroy
 )
 from litecord.utils import search_result_from_list
+from litecord.embed.messages import process_url_embed, msg_update_embeds
 
 log = Logger(__name__)
 bp = Blueprint('channels', __name__)
@@ -611,3 +612,56 @@ async def _search_channel(channel_id):
     """, channel_id, j['offset'], j['content'])
 
     return jsonify(await search_result_from_list(rows))
+
+
+@bp.route('/<int:channel_id>/messages/<int:message_id>/suppress-embeds',
+          methods=['POST'])
+async def suppress_embeds(channel_id: int, message_id: int):
+    """Toggle the embeds in a message.
+    
+    Either the author of the message or a channel member with the
+    Manage Messages permission can run this route.
+    """
+    user_id = await token_check()
+    await channel_check(user_id, channel_id)
+
+    # the checks here have been copied from the delete_message()
+    # handler on blueprints.channel.messages. maybe we can combine
+    # them someday?
+    author_id = await app.db.fetchval("""
+    SELECT author_id FROM messages
+    WHERE messages.id = $1
+    """, message_id)
+
+    by_perms = await channel_perm_check(
+        user_id, channel_id, 'manage_messages', False)
+
+    by_author = author_id == user_id
+
+    can_suppress = by_perms or by_author
+    if not can_suppress:
+        raise Forbidden('Not enough permissions.')
+
+    j = validate(
+        await request.get_json(),
+        {'suppress': {'type': 'boolean'}},
+    )
+
+    suppress = j['suppress']
+    message = await app.storage.get_message(message_id)
+    url_embeds = sum(
+        1 for embed in message['embeds'] if embed['type'] == 'url')
+
+    if suppress and url_embeds:
+        # delete all embeds then dispatch an update
+        await msg_update_embeds(message, [], app.storage, app.dispatcher)
+    elif not suppress and not url_embeds:
+        # spawn process_url_embed to restore the embeds, if any
+        app.sched.spawn(
+            process_url_embed(
+                app.config, app.storage, app.dispatcher, app.session,
+                message
+            )
+        )
+
+    return '', 204
