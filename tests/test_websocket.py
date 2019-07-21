@@ -87,7 +87,7 @@ async def test_gw(test_cli):
 
 @pytest.mark.asyncio
 async def test_ready(test_cli_user):
-    conn = await gw_start(test_cli_user.test_cli)
+    conn = await gw_start(test_cli_user.cli)
 
     # get the hello frame but ignore it
     await _json(conn)
@@ -111,7 +111,7 @@ async def test_ready(test_cli_user):
 
 @pytest.mark.asyncio
 async def test_ready_fields(test_cli_user):
-    conn = await gw_start(test_cli_user.test_cli)
+    conn = await gw_start(test_cli_user.cli)
 
     # get the hello frame but ignore it
     await _json(conn)
@@ -151,7 +151,7 @@ async def test_ready_fields(test_cli_user):
 
 @pytest.mark.asyncio
 async def test_heartbeat(test_cli_user):
-    conn = await gw_start(test_cli_user.test_cli)
+    conn = await gw_start(test_cli_user.cli)
 
     # get the hello frame but ignore it
     await _json(conn)

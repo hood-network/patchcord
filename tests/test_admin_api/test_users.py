@@ -21,7 +21,6 @@ import secrets
 
 import pytest
 
-from tests.credentials import CREDS
 from litecord.enums import UserFlags
 
 
@@ -98,7 +97,7 @@ async def test_create_delete(test_cli_staff):
         assert isinstance(rjson, list)
         assert rjson[0]['id'] == genned_uid
     finally:
-        await _del_user(test_cli_staff, genned_uid, token=token)
+        await _del_user(test_cli_staff, genned_uid)
 
 
 @pytest.mark.asyncio
@@ -126,4 +125,4 @@ async def test_user_update(test_cli_staff):
         # TODO: maybe we can check for side effects by fetching the
         # user manually too...
     finally:
-        await _del_user(test_cli, user_id, token=token)
+        await _del_user(test_cli_staff, user_id)

@@ -56,6 +56,7 @@ class TestClient:
     user and adds authorization headers to test requests."""
     def __init__(self, test_cli, test_user):
         self.cli = test_cli
+        self.app = test_cli.app
         self.user = test_user
 
     def __getitem__(self, key):
@@ -77,6 +78,11 @@ class TestClient:
         """Send a POST request."""
         kwargs['headers'] = self._inject_auth(kwargs)
         return await self.cli.post(*args, **kwargs)
+
+    async def put(self, *args, **kwargs):
+        """Send a POST request."""
+        kwargs['headers'] = self._inject_auth(kwargs)
+        return await self.cli.put(*args, **kwargs)
 
     async def patch(self, *args, **kwargs):
         """Send a PATCH request."""

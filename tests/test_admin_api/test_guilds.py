@@ -63,13 +63,13 @@ async def test_guild_fetch(test_cli_staff):
     try:
         await _fetch_guild(test_cli_staff, guild_id)
     finally:
-        await delete_guild(int(guild_id), app_=test_cli_staff.test_cli.app)
+        await delete_guild(int(guild_id), app_=test_cli_staff.app)
 
 
 @pytest.mark.asyncio
 async def test_guild_update(test_cli_staff):
     """Test the update of a guild via the Admin API."""
-    rjson = await _create_guild(test_cli_staff, token=token)
+    rjson = await _create_guild(test_cli_staff)
     guild_id = rjson['id']
     assert not rjson['unavailable']
 
@@ -78,11 +78,9 @@ async def test_guild_update(test_cli_staff):
         # would be overkill to test the side-effects, so... I'm not
         # testing them. Yes, I know its a bad idea, but if someone has an easier
         # way to write that, do send an MR.
-        resp = await test_cli.patch(
+        resp = await test_cli_staff.patch(
             f'/api/v6/admin/guilds/{guild_id}',
-            headers={
-                'Authorization': token
-            }, json={
+            json={
                 'unavailable': True
             })
 
@@ -95,7 +93,7 @@ async def test_guild_update(test_cli_staff):
         rjson = await _fetch_guild(test_cli_staff, guild_id)
         assert rjson['unavailable']
     finally:
-        await delete_guild(int(guild_id), app_=test_cli_staff.test_cli.app)
+        await delete_guild(int(guild_id), app_=test_cli_staff.app)
 
 
 @pytest.mark.asyncio
@@ -118,4 +116,4 @@ async def test_guild_delete(test_cli_staff):
         assert rjson['error']
         assert rjson['code'] == GuildNotFound.error_code
     finally:
-        await delete_guild(int(guild_id), app_=test_cli.app)
+        await delete_guild(int(guild_id), app_=test_cli_staff.app)
