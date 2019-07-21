@@ -32,6 +32,7 @@ from tests.common import email, TestClient
 from run import app as main_app, set_blueprints
 
 from litecord.auth import create_user
+from litecord.enums import UserFlags
 from litecord.blueprints.auth import make_token
 from litecord.blueprints.users import delete_user
 
@@ -75,8 +76,6 @@ async def _user_fixture_setup(app):
     password = secrets.token_hex(6)
     user_email = email()
 
-    # TODO context?
-
     user_id, pwd_hash = await create_user(
         username, user_email, password, app.db, app.loop)
 
@@ -108,27 +107,25 @@ async def test_cli_user(test_cli, test_user):
 
 
 @pytest.fixture
-async def test_cli_admin(test_cli):
-    """Yield a TestClient referencing an admin.
+async def test_cli_staff(test_cli):
+    """Yield a TestClient with a staff user."""
+    # This does not use the test_user because if a given test uses both
+    # test_cli_user and test_cli_admin, test_cli_admin will just point to that
+    # same test_cli_user, which isn't acceptable.
+    app = test_cli.app
+    test_user = await _user_fixture_setup(app)
+    user_id = test_user['id']
 
-    This does not use the test_user because if a given test uses both
-    test_cli_user and test_cli_admin, test_cli_admin will just point to that
-    same test_cli_user, which isn't acceptable.
-    """
-    test_user = await _user_fixture_setup(test_cli.app)
+    # copied from manage.cmd.users.set_user_staff.
+    old_flags = await app.db.fetchval("""
+    SELECT flags FROM users WHERE id = $1
+    """, user_id)
 
-    await test_cli.app.db.execute("""
-    UPDATE users SET admin = true WHERE user_id = $1
-    """, test_user['id'])
+    new_flags = old_flags | UserFlags.staff
 
-    await test_cli.app.db.execute("""
-    INSERT INTO domain_owners (domain_id, user_id)
-    VALUES (0, $1)
-    ON CONFLICT ON CONSTRAINT domain_owners_pkey
-    DO UPDATE
-        SET user_id = $1
-        WHERE domain_owners.domain_id = 0
-    """, test_user['id'])
+    await app.db.execute("""
+    UPDATE users SET flags = $1 WHERE id = $2
+    """, new_flags, user_id)
 
     yield TestClient(test_cli, test_user)
     await _user_fixture_teardown(test_cli.app, test_user)
