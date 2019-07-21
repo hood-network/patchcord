@@ -21,28 +21,24 @@ import secrets
 
 import pytest
 
-from tests.common import login
 from tests.credentials import CREDS
 from litecord.enums import UserFlags
 
 
-async def _search(test_cli, *, username='', discrim='', token=None):
-    token = token or await login('admin', test_cli)
-
+async def _search(test_cli, *, username='', discrim=''):
     query_string = {
         'username': username,
         'discriminator': discrim
     }
 
-    return await test_cli.get('/api/v6/admin/users', headers={
-        'Authorization': token
-    }, query_string=query_string)
+    return await test_cli.get('/api/v6/admin/users', query_string=query_string)
 
 
 @pytest.mark.asyncio
-async def test_list_users(test_cli):
+async def test_list_users(test_cli_staff):
     """Try to list as many users as possible."""
-    resp = await _search(test_cli, username=CREDS['admin']['username'])
+    resp = await _search(
+        test_cli_staff, username=test_cli_staff.user['username'])
 
     assert resp.status_code == 200
     rjson = await resp.json
@@ -50,13 +46,10 @@ async def test_list_users(test_cli):
     assert rjson
 
 
-async def _setup_user(test_cli, *, token=None) -> dict:
-    token = token or await login('admin', test_cli)
+async def _setup_user(test_cli) -> dict:
     genned = secrets.token_hex(7)
 
-    resp = await test_cli.post('/api/v6/admin/users', headers={
-        'Authorization': token
-    }, json={
+    resp = await test_cli.post('/api/v6/admin/users', json={
         'username': genned,
         'email': f'{genned}@{genned}.com',
         'password': genned,
@@ -70,13 +63,9 @@ async def _setup_user(test_cli, *, token=None) -> dict:
     return rjson
 
 
-async def _del_user(test_cli, user_id, *, token=None):
+async def _del_user(test_cli, user_id):
     """Delete a user."""
-    token = token or await login('admin', test_cli)
-
-    resp = await test_cli.delete(f'/api/v6/admin/users/{user_id}', headers={
-        'Authorization': token
-    })
+    resp = await test_cli.delete(f'/api/v6/admin/users/{user_id}')
 
     assert resp.status_code == 200
     rjson = await resp.json
@@ -93,32 +82,29 @@ async def _del_user(test_cli, user_id, *, token=None):
 
 
 @pytest.mark.asyncio
-async def test_create_delete(test_cli):
+async def test_create_delete(test_cli_staff):
     """Create a user. Then delete them."""
-    token = await login('admin', test_cli)
-
-    rjson = await _setup_user(test_cli, token=token)
+    rjson = await _setup_user(test_cli_staff)
 
     genned = rjson['username']
     genned_uid = rjson['id']
 
     try:
         # check if side-effects went through with a search
-        resp = await _search(test_cli, username=genned, token=token)
+        resp = await _search(test_cli_staff, username=genned)
 
         assert resp.status_code == 200
         rjson = await resp.json
         assert isinstance(rjson, list)
         assert rjson[0]['id'] == genned_uid
     finally:
-        await _del_user(test_cli, genned_uid, token=token)
+        await _del_user(test_cli_staff, genned_uid, token=token)
 
 
 @pytest.mark.asyncio
-async def test_user_update(test_cli):
+async def test_user_update(test_cli_staff):
     """Test user update."""
-    token = await login('admin', test_cli)
-    rjson = await _setup_user(test_cli, token=token)
+    rjson = await _setup_user(test_cli_staff)
 
     user_id = rjson['id']
 
@@ -126,11 +112,11 @@ async def test_user_update(test_cli):
 
     try:
         # set them as partner flag
-        resp = await test_cli.patch(f'/api/v6/admin/users/{user_id}', headers={
-            'Authorization': token
-        }, json={
-            'flags': UserFlags.partner,
-        })
+        resp = await test_cli_staff.patch(
+            f'/api/v6/admin/users/{user_id}',
+            json={
+                'flags': UserFlags.partner,
+            })
 
         assert resp.status_code == 200
         rjson = await resp.json

@@ -20,7 +20,6 @@ import secrets
 
 import pytest
 
-from tests.common import login
 
 @pytest.mark.asyncio
 async def test_guild_create(test_cli_user):

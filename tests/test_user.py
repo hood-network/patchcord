@@ -20,15 +20,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import pytest
 import secrets
 
-from tests.common import login, get_uid
-
 
 @pytest.mark.asyncio
-async def test_get_me(test_cli):
-    token = await login('normal', test_cli)
-    resp = await test_cli.get('/api/v6/users/@me', headers={
-        'Authorization': token
-    })
+async def test_get_me(test_cli_user):
+    resp = await test_cli_user.get('/api/v6/users/@me')
 
     assert resp.status_code == 200
     rjson = await resp.json
@@ -44,11 +39,8 @@ async def test_get_me(test_cli):
 
 
 @pytest.mark.asyncio
-async def test_get_me_guilds(test_cli):
-    token = await login('normal', test_cli)
-    resp = await test_cli.get('/api/v6/users/@me/guilds', headers={
-        'Authorization': token
-    })
+async def test_get_me_guilds(test_cli_user):
+    resp = await test_cli_user.get('/api/v6/users/@me/guilds')
 
     assert resp.status_code == 200
     rjson = await resp.json
@@ -56,13 +48,9 @@ async def test_get_me_guilds(test_cli):
 
 
 @pytest.mark.asyncio
-async def test_get_profile_self(test_cli):
-    token = await login('normal', test_cli)
-    user_id = await get_uid(token, test_cli)
-
-    resp = await test_cli.get(f'/api/v6/users/{user_id}/profile', headers={
-        'Authorization': token
-    })
+async def test_get_profile_self(test_cli_user):
+    user_id = test_cli_user.user['id']
+    resp = await test_cli_user.get(f'/api/v6/users/{user_id}/profile')
 
     assert resp.status_code == 200
     rjson = await resp.json

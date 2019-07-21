@@ -21,18 +21,13 @@ import secrets
 
 import pytest
 
-from tests.common import login
 from litecord.blueprints.guilds import delete_guild
 from litecord.errors import GuildNotFound
 
-async def _create_guild(test_cli, *, token=None):
-    token = token or await login('admin', test_cli)
-
+async def _create_guild(test_cli_staff):
     genned_name = secrets.token_hex(6)
 
-    resp = await test_cli.post('/api/v6/guilds', headers={
-        'Authorization': token
-    }, json={
+    resp = await test_cli_staff.post('/api/v6/guilds', json={
         'name': genned_name,
         'region': None
     })
@@ -45,12 +40,8 @@ async def _create_guild(test_cli, *, token=None):
     return rjson
 
 
-async def _fetch_guild(test_cli, guild_id, *, token=None, ret_early=False):
-    token = token or await login('admin', test_cli)
-
-    resp = await test_cli.get(f'/api/v6/admin/guilds/{guild_id}', headers={
-        'Authorization': token
-    })
+async def _fetch_guild(test_cli_staff, guild_id, *, ret_early=False):
+    resp = await test_cli_staff.get(f'/api/v6/admin/guilds/{guild_id}')
 
     if ret_early:
         return resp
@@ -64,23 +55,21 @@ async def _fetch_guild(test_cli, guild_id, *, token=None, ret_early=False):
 
 
 @pytest.mark.asyncio
-async def test_guild_fetch(test_cli):
+async def test_guild_fetch(test_cli_staff):
     """Test the creation and fetching of a guild via the Admin API."""
-    token = await login('admin', test_cli)
-    rjson = await _create_guild(test_cli, token=token)
+    rjson = await _create_guild(test_cli_staff)
     guild_id = rjson['id']
 
     try:
-        await _fetch_guild(test_cli, guild_id)
+        await _fetch_guild(test_cli_staff, guild_id)
     finally:
-        await delete_guild(int(guild_id), app_=test_cli.app)
+        await delete_guild(int(guild_id), app_=test_cli_staff.test_cli.app)
 
 
 @pytest.mark.asyncio
-async def test_guild_update(test_cli):
+async def test_guild_update(test_cli_staff):
     """Test the update of a guild via the Admin API."""
-    token = await login('admin', test_cli)
-    rjson = await _create_guild(test_cli, token=token)
+    rjson = await _create_guild(test_cli_staff, token=token)
     guild_id = rjson['id']
     assert not rjson['unavailable']
 
@@ -103,30 +92,25 @@ async def test_guild_update(test_cli):
         assert rjson['id'] == guild_id
         assert rjson['unavailable']
 
-        rjson = await _fetch_guild(test_cli, guild_id, token=token)
+        rjson = await _fetch_guild(test_cli_staff, guild_id)
         assert rjson['unavailable']
     finally:
-        await delete_guild(int(guild_id), app_=test_cli.app)
+        await delete_guild(int(guild_id), app_=test_cli_staff.test_cli.app)
 
 
 @pytest.mark.asyncio
-async def test_guild_delete(test_cli):
+async def test_guild_delete(test_cli_staff):
     """Test the update of a guild via the Admin API."""
-    token = await login('admin', test_cli)
-    rjson = await _create_guild(test_cli, token=token)
+    rjson = await _create_guild(test_cli_staff)
     guild_id = rjson['id']
 
     try:
-        resp = await test_cli.delete(
-            f'/api/v6/admin/guilds/{guild_id}',
-            headers={
-                'Authorization': token
-            })
+        resp = await test_cli_staff.delete(f'/api/v6/admin/guilds/{guild_id}')
 
         assert resp.status_code == 204
 
-        resp = await _fetch_guild(test_cli, guild_id, token=token,
-                                  ret_early=True)
+        resp = await _fetch_guild(
+            test_cli_staff, guild_id, ret_early=True)
 
         assert resp.status_code == 404
         rjson = await resp.json
