@@ -145,13 +145,7 @@ $ pipenv run ./manage.py migrate
 
 ## Running tests
 
-Running tests involves creating dummy users with known passwords. Because of
-this, you should never setup a testing environment in production.
-
 ```sh
-# Setup any testing users:
-$ pipenv run ./manage.py setup_tests
-
 # Install tox:
 $ pip install tox
 

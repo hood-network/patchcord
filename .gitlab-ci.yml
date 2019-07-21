@@ -20,5 +20,4 @@ tests:
     - ls
     - cp config.ci.py config.py
     - pipenv run ./manage.py migrate
-    - pipenv run ./manage.py setup_tests
     - tox
