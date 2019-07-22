@@ -19,15 +19,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import pytest
 
-from tests.common import login
 
-async def _get_invs(test_cli, token=None):
-    if token is None:
-        token = await login('admin', test_cli)
-
-    resp = await test_cli.get('/api/v6/admin/instance/invites', headers={
-        'Authorization': token
-    })
+async def _get_invs(test_cli):
+    resp = await test_cli.get('/api/v6/admin/instance/invites')
 
     assert resp.status_code == 200
     rjson = await resp.json
@@ -36,34 +30,25 @@ async def _get_invs(test_cli, token=None):
 
 
 @pytest.mark.asyncio
-async def test_get_invites(test_cli):
+async def test_get_invites(test_cli_staff):
     """Test the listing of instance invites."""
-    await _get_invs(test_cli)
+    await _get_invs(test_cli_staff)
 
 
 @pytest.mark.asyncio
-async def test_inv_delete_invalid(test_cli):
+async def test_inv_delete_invalid(test_cli_staff):
     """Test errors happen when trying to delete a
     non-existing instance invite."""
-    token = await login('admin', test_cli)
-    resp = await test_cli.delete(
-        '/api/v6/admin/instance/invites/aaaaaaaaaa',
-        headers={
-            'Authorization': token
-        }
-    )
+    resp = await test_cli_staff.delete('/api/v6/admin/instance/invites/aaaaaa')
 
     assert resp.status_code == 404
 
 
 @pytest.mark.asyncio
-async def test_create_invite(test_cli):
+async def test_create_invite(test_cli_staff):
     """Test the creation of an instance invite, then listing it,
     then deleting it."""
-    token = await login('admin', test_cli)
-    resp = await test_cli.put('/api/v6/admin/instance/invites', headers={
-        'Authorization': token
-    }, json={
+    resp = await test_cli_staff.put('/api/v6/admin/instance/invites', json={
         'max_uses': 1
     })
 
@@ -73,15 +58,11 @@ async def test_create_invite(test_cli):
     code = rjson['code']
 
     # assert that the invite is in the list
-    invites = await _get_invs(test_cli, token)
+    invites = await _get_invs(test_cli_staff)
     assert any(inv['code'] == code for inv in invites)
 
     # delete it, and assert it worked
-    resp = await test_cli.delete(
-        f'/api/v6/admin/instance/invites/{code}',
-        headers={
-            'Authorization': token
-        }
-    )
+    resp = await test_cli_staff.delete(
+        f'/api/v6/admin/instance/invites/{code}')
 
     assert resp.status_code == 204

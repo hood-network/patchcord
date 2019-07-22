@@ -20,22 +20,18 @@ import secrets
 
 import pytest
 
-from tests.common import login
 
 @pytest.mark.asyncio
-async def test_guild_create(test_cli):
+async def test_guild_create(test_cli_user):
     """Test the creation of a guild, in three stages:
         - creating it
         - checking the list
         - deleting it
     """
-    token = await login('normal', test_cli)
     g_name = secrets.token_hex(5)
 
     # stage 1: create
-    resp = await test_cli.post('/api/v6/guilds', headers={
-        'Authorization': token
-    }, json={
+    resp = await test_cli_user.post('/api/v6/guilds', json={
         'name': g_name,
         'region': None,
     })
@@ -53,9 +49,7 @@ async def test_guild_create(test_cli):
     guild_id = created['id']
 
     # stage 2: test
-    resp = await test_cli.get('/api/v6/users/@me/guilds', headers={
-        'Authorization': token
-    })
+    resp = await test_cli_user.get('/api/v6/users/@me/guilds')
 
     assert resp.status_code == 200
     rjson = await resp.json
@@ -85,8 +79,6 @@ async def test_guild_create(test_cli):
     assert our_guild['name'] == created['name']
 
     # stage 3: deletion
-    resp = await test_cli.delete(f'/api/v6/guilds/{guild_id}', headers={
-        'Authorization': token
-    })
+    resp = await test_cli_user.delete(f'/api/v6/guilds/{guild_id}')
 
     assert resp.status_code == 204

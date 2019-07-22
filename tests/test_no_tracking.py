@@ -19,8 +19,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import pytest
 
-from tests.common import login
-
 
 @pytest.mark.asyncio
 async def test_science_empty(test_cli):
@@ -37,15 +35,10 @@ async def test_harvest_empty(test_cli):
 
 
 @pytest.mark.asyncio
-async def test_consent_non_consenting(test_cli):
+async def test_consent_non_consenting(test_cli_user):
     """Test the consent route to see if we're still on
     a non-consent status regarding data collection."""
-    token = await login('normal', test_cli)
-
-    resp = await test_cli.get('/api/v6/users/@me/consent', headers={
-        'Authorization': token
-    })
-
+    resp = await test_cli_user.get('/api/v6/users/@me/consent')
     assert resp.status_code == 200
 
     rjson = await resp.json

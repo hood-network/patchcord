@@ -23,8 +23,6 @@ sys.path.append(os.getcwd())
 
 import pytest
 
-from tests.common import login
-
 
 @pytest.mark.asyncio
 async def test_gw(test_cli):
@@ -38,13 +36,9 @@ async def test_gw(test_cli):
 
 
 @pytest.mark.asyncio
-async def test_gw_bot(test_cli):
+async def test_gw_bot(test_cli_user):
     """Test the Get Bot Gateway route"""
-    token = await login('normal', test_cli)
-
-    resp = await test_cli.get('/api/v6/gateway/bot', headers={
-        'Authorization': token
-    })
+    resp = await test_cli_user.get('/api/v6/gateway/bot')
 
     assert resp.status_code == 200
     rjson = await resp.json

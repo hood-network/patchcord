@@ -17,30 +17,51 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from .credentials import CREDS
+import secrets
 
-async def login(acc_name: str, test_cli):
-    creds = CREDS[acc_name]
-
-    resp = await test_cli.post('/api/v6/auth/login', json={
-        'email': creds['email'],
-        'password': creds['password']
-    })
-
-    if resp.status_code != 200:
-        raise RuntimeError(f'non-200 on login: {resp.status_code}')
-
-    rjson = await resp.json
-    return rjson['token']
+def email() -> str:
+    return f'{secrets.token_hex(5)}@{secrets.token_hex(5)}.com'
 
 
-async def get_uid(token, test_cli):
-    resp = await test_cli.get('/api/v6/users/@me', headers={
-        'Authorization': token
-    })
+class TestClient:
+    """Test client that wraps pytest-sanic's TestClient and a test
+    user and adds authorization headers to test requests."""
+    def __init__(self, test_cli, test_user):
+        self.cli = test_cli
+        self.app = test_cli.app
+        self.user = test_user
 
-    if resp.status_code != 200:
-        raise RuntimeError(f'non-200 on get uid: {resp.status_code}')
+    def __getitem__(self, key):
+        return self.user[key]
 
-    rjson = await resp.json
-    return rjson['id']
+    def _inject_auth(self, kwargs: dict) -> list:
+        """Inject the test user's API key into the test request before
+        passing the request on to the underlying TestClient."""
+        headers = kwargs.get('headers', {})
+        headers['authorization'] = self.user['token']
+        return headers
+
+    async def get(self, *args, **kwargs):
+        """Send a GET request."""
+        kwargs['headers'] = self._inject_auth(kwargs)
+        return await self.cli.get(*args, **kwargs)
+
+    async def post(self, *args, **kwargs):
+        """Send a POST request."""
+        kwargs['headers'] = self._inject_auth(kwargs)
+        return await self.cli.post(*args, **kwargs)
+
+    async def put(self, *args, **kwargs):
+        """Send a POST request."""
+        kwargs['headers'] = self._inject_auth(kwargs)
+        return await self.cli.put(*args, **kwargs)
+
+    async def patch(self, *args, **kwargs):
+        """Send a PATCH request."""
+        kwargs['headers'] = self._inject_auth(kwargs)
+        return await self.cli.patch(*args, **kwargs)
+
+    async def delete(self, *args, **kwargs):
+        """Send a DELETE request."""
+        kwargs['headers'] = self._inject_auth(kwargs)
+        return await self.cli.delete(*args, **kwargs)

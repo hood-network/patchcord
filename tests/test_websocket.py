@@ -22,7 +22,6 @@ import json
 import pytest
 import websockets
 
-from tests.common import login
 from litecord.gateway.opcodes import OP
 from litecord.gateway.websocket import decode_etf
 
@@ -87,9 +86,8 @@ async def test_gw(test_cli):
 
 
 @pytest.mark.asyncio
-async def test_ready(test_cli):
-    token = await login('normal', test_cli)
-    conn = await gw_start(test_cli)
+async def test_ready(test_cli_user):
+    conn = await gw_start(test_cli_user.cli)
 
     # get the hello frame but ignore it
     await _json(conn)
@@ -97,7 +95,7 @@ async def test_ready(test_cli):
     await _json_send(conn, {
         'op': OP.IDENTIFY,
         'd': {
-            'token': token,
+            'token': test_cli_user.user['token'],
         }
     })
 
@@ -112,9 +110,8 @@ async def test_ready(test_cli):
 
 
 @pytest.mark.asyncio
-async def test_ready_fields(test_cli):
-    token = await login('normal', test_cli)
-    conn = await gw_start(test_cli)
+async def test_ready_fields(test_cli_user):
+    conn = await gw_start(test_cli_user.cli)
 
     # get the hello frame but ignore it
     await _json(conn)
@@ -122,7 +119,7 @@ async def test_ready_fields(test_cli):
     await _json_send(conn, {
         'op': OP.IDENTIFY,
         'd': {
-            'token': token,
+            'token': test_cli_user.user['token'],
         }
     })
 
@@ -153,9 +150,8 @@ async def test_ready_fields(test_cli):
 
 
 @pytest.mark.asyncio
-async def test_heartbeat(test_cli):
-    token = await login('normal', test_cli)
-    conn = await gw_start(test_cli)
+async def test_heartbeat(test_cli_user):
+    conn = await gw_start(test_cli_user.cli)
 
     # get the hello frame but ignore it
     await _json(conn)
@@ -163,7 +159,7 @@ async def test_heartbeat(test_cli):
     await _json_send(conn, {
         'op': OP.IDENTIFY,
         'd': {
-            'token': token,
+            'token': test_cli_user.user['token'],
         }
     })
 

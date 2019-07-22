@@ -17,17 +17,23 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-import asyncio
+import secrets
 import sys
 import os
 
-import socket
 import pytest
 
 # this is very hacky.
 sys.path.append(os.getcwd())
 
+from tests.common import email, TestClient
+
 from run import app as main_app, set_blueprints
+
+from litecord.auth import create_user
+from litecord.enums import UserFlags
+from litecord.blueprints.auth import make_token
+from litecord.blueprints.users import delete_user
 
 
 @pytest.fixture(name='app')
@@ -61,3 +67,64 @@ def _test_app(unused_tcp_port, event_loop):
 def _test_cli(app):
     """Give a test client."""
     return app.test_client()
+
+# code shamelessly stolen from my elixire mr
+# https://gitlab.com/elixire/elixire/merge_requests/52
+async def _user_fixture_setup(app):
+    username = secrets.token_hex(6)
+    password = secrets.token_hex(6)
+    user_email = email()
+
+    user_id, pwd_hash = await create_user(
+        username, user_email, password, app.db, app.loop)
+
+    # generate a token for api access
+    user_token = make_token(user_id, pwd_hash)
+
+    return {'id': user_id, 'token': user_token,
+            'email': user_email, 'username': username,
+            'password': password}
+
+
+async def _user_fixture_teardown(app, udata: dict):
+    await delete_user(udata['id'], db=app.db)
+
+
+@pytest.fixture(name='test_user')
+async def test_user_fixture(app):
+    """Yield a randomly generated test user."""
+    udata = await _user_fixture_setup(app)
+    yield udata
+    await _user_fixture_teardown(app, udata)
+
+
+@pytest.fixture
+async def test_cli_user(test_cli, test_user):
+    """Yield a TestClient instance that contains a randomly generated
+    user."""
+    yield TestClient(test_cli, test_user)
+
+
+@pytest.fixture
+async def test_cli_staff(test_cli):
+    """Yield a TestClient with a staff user."""
+    # This does not use the test_user because if a given test uses both
+    # test_cli_user and test_cli_admin, test_cli_admin will just point to that
+    # same test_cli_user, which isn't acceptable.
+    app = test_cli.app
+    test_user = await _user_fixture_setup(app)
+    user_id = test_user['id']
+
+    # copied from manage.cmd.users.set_user_staff.
+    old_flags = await app.db.fetchval("""
+    SELECT flags FROM users WHERE id = $1
+    """, user_id)
+
+    new_flags = old_flags | UserFlags.staff
+
+    await app.db.execute("""
+    UPDATE users SET flags = $1 WHERE id = $2
+    """, new_flags, user_id)
+
+    yield TestClient(test_cli, test_user)
+    await _user_fixture_teardown(test_cli.app, test_user)
