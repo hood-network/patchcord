@@ -284,7 +284,7 @@ async def _process_overwrites(channel_id: int, overwrites: list):
         target_user = overwrite['id'] if target_type == 0 else None
 
         col_name = 'target_user' if target_type == 0 else 'target_role'
-        constraint_name = f'channel_overwrites_target_{col_name}'
+        constraint_name = f'channel_overwrites_{col_name}_uniq'
 
         await app.db.execute(
             f"""
