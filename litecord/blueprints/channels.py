@@ -297,10 +297,6 @@ async def _process_overwrites(channel_id: int, overwrites: list):
             DO
             UPDATE
                 SET allow = $5, deny = $6
-                WHERE channel_overwrites.channel_id = $1
-                  AND channel_overwrites.target_type = $2
-                  AND channel_overwrites.target_role = $3
-                  AND channel_overwrites.target_user = $4
             """,
             channel_id, target_type,
             target_role, target_user,

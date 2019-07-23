@@ -361,10 +361,10 @@ async def msg_add_attachment(message_id: int, channel_id: int,
     return attachment_id
 
 
-async def _spawn_embed(app, payload, **kwargs):
-    app.sched.spawn(
+async def _spawn_embed(app_, payload, **kwargs):
+    app_.sched.spawn(
         process_url_embed(
-            app.config, app.storage, app.dispatcher, app.session,
+            app_.config, app_.storage, app_.dispatcher, app_.session,
             payload, **kwargs)
     )
 
