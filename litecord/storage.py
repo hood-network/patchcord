@@ -403,9 +403,9 @@ class Storage:
             drow = dict(row)
 
             target_type = drow['target_type']
-            drow['type'] = 'user' if target_type == 0 else 'role'
+            drow['type'] = 'member' if target_type == 0 else 'role'
 
-            # if type is 0, the overwrite is for a user
+            # if type is 0, the overwrite is for a member
             # if type is 1, the overwrite is for a role
             drow['id'] = {
                 0: drow['target_user'],

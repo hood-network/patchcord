@@ -156,7 +156,7 @@ async def process_url_embed(config, storage, dispatcher,
     if not new_embeds:
         return
 
-    log.debug('made {} thumbnail embeds for mid {}',
+    log.debug('made {} embeds for mid {}',
               len(new_embeds), message_id)
 
     await msg_update_embeds(payload, new_embeds, storage, dispatcher)

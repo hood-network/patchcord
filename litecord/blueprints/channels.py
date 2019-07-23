@@ -278,26 +278,25 @@ async def _mass_chan_update(guild_id, channel_ids: List[Optional[int]]):
 async def _process_overwrites(channel_id: int, overwrites: list):
     for overwrite in overwrites:
 
-        # 0 for user overwrite, 1 for role overwrite
-        target_type = 0 if overwrite['type'] == 'user' else 1
+        # 0 for member overwrite, 1 for role overwrite
+        target_type = 0 if overwrite['type'] == 'member' else 1
         target_role = None if target_type == 0 else overwrite['id']
         target_user = overwrite['id'] if target_type == 0 else None
 
+        col_name = 'target_user' if target_type == 0 else 'target_role'
+        constraint_name = f'channel_overwrites_{col_name}_uniq'
+
         await app.db.execute(
-            """
+            f"""
             INSERT INTO channel_overwrites
                 (channel_id, target_type, target_role,
                 target_user, allow, deny)
             VALUES
                 ($1, $2, $3, $4, $5, $6)
-            ON CONFLICT ON CONSTRAINT channel_overwrites_uniq
+            ON CONFLICT ON CONSTRAINT {constraint_name}
             DO
             UPDATE
                 SET allow = $5, deny = $6
-                WHERE channel_overwrites.channel_id = $1
-                  AND channel_overwrites.target_type = $2
-                  AND channel_overwrites.target_role = $3
-                  AND channel_overwrites.target_user = $4
             """,
             channel_id, target_type,
             target_role, target_user,
