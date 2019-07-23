@@ -32,6 +32,7 @@ from litecord.enums import MessageType, ChannelType, GUILD_CHANS
 from litecord.snowflake import get_snowflake
 from litecord.schemas import validate, MESSAGE_CREATE
 from litecord.utils import pg_set_json
+from litecord.permissions import get_permissions
 
 from litecord.embed.sanitizer import fill_embed
 from litecord.embed.messages import process_url_embed
@@ -360,6 +361,14 @@ async def msg_add_attachment(message_id: int, channel_id: int,
     return attachment_id
 
 
+async def _spawn_embed(app, payload, **kwargs):
+    app.sched.spawn(
+        process_url_embed(
+            app.config, app.storage, app.dispatcher, app.session,
+            payload, **kwargs)
+    )
+
+
 @bp.route('/<int:channel_id>/messages', methods=['POST'])
 async def _create_message(channel_id):
     """Create a message."""
@@ -424,12 +433,9 @@ async def _create_message(channel_id):
                                   'MESSAGE_CREATE', payload)
 
     # spawn url processor for embedding of images
-    app.sched.spawn(
-        process_url_embed(
-            app.config, app.storage, app.dispatcher, app.session,
-            payload
-        )
-    )
+    perms = await get_permissions(user_id, channel_id)
+    if perms.bits.embed_links:
+        await _spawn_embed(app, payload)
 
     # update read state for the author
     await app.db.execute("""
@@ -487,17 +493,14 @@ async def edit_message(channel_id, message_id):
         # the artificial delay keeps consistency between the events, since
         # it makes more sense for the MESSAGE_UPDATE with new content to come
         # BEFORE the MESSAGE_UPDATE with the new embeds (based on content)
-        app.sched.spawn(
-            process_url_embed(
-                app.config, app.storage, app.dispatcher, app.session,
-                {
-                    'id': message_id,
-                    'channel_id': channel_id,
-                    'content': j['content'],
-                    'embeds': old_message['embeds']
-                }, delay=0.2
-            )
-        )
+        perms = await get_permissions(user_id, channel_id)
+        if perms.bits.embed_links:
+            await _spawn_embed(app, {
+                'id': message_id,
+                'channel_id': channel_id,
+                'content': j['content'],
+                'embeds': old_message['embeds']
+            }, delay=0.2)
 
     # only set new timestamp upon actual update
     if updated:
