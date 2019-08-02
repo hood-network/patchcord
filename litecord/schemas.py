@@ -657,7 +657,8 @@ GUILD_SETTINGS = {
 }
 
 GUILD_PRUNE = {
-    'days': {'type': 'number', 'coerce': int, 'min': 1}
+    'days': {'type': 'number', 'coerce': int, 'min': 1, 'max': 30, 'default': 7},
+    'compute_prune_count': {'type': 'string', 'default': 'true'}
 }
 
 NEW_EMOJI = {

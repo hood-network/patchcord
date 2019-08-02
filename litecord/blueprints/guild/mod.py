@@ -176,7 +176,7 @@ async def get_guild_prune_count(guild_id):
 
     await guild_perm_check(user_id, guild_id, 'kick_members')
 
-    j = validate(await request.get_json(), GUILD_PRUNE)
+    j = validate(request.args, GUILD_PRUNE)
     days = j['days']
     member_ids = await get_prune(guild_id, days)
 
@@ -191,7 +191,7 @@ async def begin_guild_prune(guild_id):
 
     await guild_perm_check(user_id, guild_id, 'kick_members')
 
-    j = validate(await request.get_json(), GUILD_PRUNE)
+    j = validate(request.args, GUILD_PRUNE)
     days = j['days']
     member_ids = await get_prune(guild_id, days)
 
