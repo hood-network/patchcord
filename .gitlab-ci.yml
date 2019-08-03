@@ -20,4 +20,5 @@ tests:
     - ls
     - cp config.ci.py config.py
     - pipenv run ./manage.py migrate
-    - tox
+    - pipenv run pyflakes run.py litecord/
+    - pipenv run pytest tests
