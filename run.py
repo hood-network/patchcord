@@ -194,6 +194,21 @@ async def app_after_request(resp):
     return resp
 
 
+def _set_rtl_reset(bucket, resp):
+    reset = bucket._window + bucket.second
+    precision = request.headers.get('x-ratelimit-precision', 'second')
+
+    if precision == 'second':
+        resp.headers['X-RateLimit-Reset'] = str(round(reset))
+    elif precision == 'millisecond':
+        resp.headers['X-RateLimit-Reset'] = str(reset)
+    else:
+        resp.headers['X-RateLimit-Reset'] = (
+            'Invalid X-RateLimit-Precision, '
+            'valid options are (second, millisecond)'
+        )
+
+
 @app.after_request
 async def app_set_ratelimit_headers(resp):
     """Set the specific ratelimit headers."""
@@ -205,9 +220,8 @@ async def app_set_ratelimit_headers(resp):
 
         resp.headers['X-RateLimit-Limit'] = str(bucket.requests)
         resp.headers['X-RateLimit-Remaining'] = str(bucket._tokens)
-        resp.headers['X-RateLimit-Reset'] = str(bucket._window + bucket.second)
-
         resp.headers['X-RateLimit-Global'] = str(request.bucket_global).lower()
+        _set_rtl_reset(bucket, resp)
 
         # only add Retry-After if we actually hit a ratelimit
         retry_after = request.retry_after
