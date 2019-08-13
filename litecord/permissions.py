@@ -38,7 +38,7 @@ class _RawPermsBits(ctypes.LittleEndianStructure):
         ('add_reactions', _i, 1),
         ('view_audit_log', _i, 1),
         ('priority_speaker', _i, 1),
-        ('_unused1', _i, 1),
+        ('stream', _i, 1),
         ('read_messages', _i, 1),
         ('send_messages', _i, 1),
         ('send_tts', _i, 1),
