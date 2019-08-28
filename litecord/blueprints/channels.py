@@ -18,6 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import time
+import datetime
 from typing import List, Optional
 
 from quart import Blueprint, request, current_app as app, jsonify
@@ -25,7 +26,7 @@ from logbook import Logger
 
 from litecord.auth import token_check
 from litecord.enums import ChannelType, GUILD_CHANS, MessageType
-from litecord.errors import ChannelNotFound, Forbidden
+from litecord.errors import ChannelNotFound, Forbidden, BadRequest
 from litecord.schemas import (
     validate, CHAN_UPDATE, CHAN_OVERWRITE, SEARCH_CHANNEL, GROUP_DM_UPDATE,
     BULK_DELETE,
@@ -38,6 +39,7 @@ from litecord.blueprints.dm_channels import (
 )
 from litecord.utils import search_result_from_list
 from litecord.embed.messages import process_url_embed, msg_update_embeds
+from litecord.snowflake import snowflake_datetime
 
 log = Logger(__name__)
 bp = Blueprint('channels', __name__)
@@ -682,8 +684,11 @@ async def bulk_delete(channel_id: int):
     # we must error. a cuter behavior would be returning the message ids
     # that were deleted, ignoring the 2 week+ old ones.
     for message_id in message_ids:
-        # TODO
-        pass
+        message_dt = snowflake_datetime(message_id)
+        delta = datetime.datetime.utcnow() - message_dt
+
+        if delta.weeks > 2:
+            raise BadRequest(50034)
 
     payload = {
         'guild_id': str(guild_id),
