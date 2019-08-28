@@ -4,20 +4,20 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-bcrypt = "==3.1.6"
+bcrypt = "==3.1.7"
 itsdangerous = "==1.1.0"
 asyncpg = "==0.18.3"
-websockets = "==7.0"
+websockets = "==8.0.2"
 Earl-ETF = "==2.1.2"
-logbook = "==1.4.3"
-Cerberus = "==1.2"
-quart = "==0.9.0"
+logbook = "==1.5.2"
+Cerberus = "==1.3.1"
+quart = "==0.9.1"
 pillow = "*"
 aiohttp = "==3.5.4"
 zstandard = "*"
 
 [dev-packages]
-pytest = "==4.4.1"
+pytest = "==5.1.1"
 pytest-asyncio = "==0.10.0"
 pyflakes = "*"
 mypy = "*"
