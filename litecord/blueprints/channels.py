@@ -688,14 +688,19 @@ async def bulk_delete(channel_id: int):
     payload = {
         'guild_id': str(guild_id),
         'channel_id': str(channel_id),
-        'ids': message_ids
+        'ids': list(map(str, message_ids)),
     }
 
     # payload.guild_id is optional in the event, not nullable.
     if guild_id is None:
         payload.pop('guild_id')
 
-    # TODO delete messages
+    await app.db.execute("""
+    DELETE FROM messages
+    WHERE
+        channel_id = $1
+        AND ARRAY[message_id] <@ $2::bigint[]
+    """, channel_id, message_ids)
 
     await app.dispatcher.dispatch_channel('MESSAGE_DELETE_BULK', payload)
     return '', 204

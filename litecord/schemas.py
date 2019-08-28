@@ -741,6 +741,7 @@ WEBHOOK_MESSAGE_CREATE = {
 BULK_DELETE = {
     'messages': {
         'type': 'list', 'required': True,
+        'minlength': 2, 'maxlength': 100,
         'schema': {'coerce': int}
     }
 }
