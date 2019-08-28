@@ -737,3 +737,10 @@ WEBHOOK_MESSAGE_CREATE = {
         'schema': {'type': 'dict', 'schema': EMBED_OBJECT}
     }
 }
+
+BULK_DELETE = {
+    'messages': {
+        'type': 'list', 'required': True,
+        'schema': {'coerce': int}
+    }
+}

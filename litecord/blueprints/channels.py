@@ -27,7 +27,8 @@ from litecord.auth import token_check
 from litecord.enums import ChannelType, GUILD_CHANS, MessageType
 from litecord.errors import ChannelNotFound, Forbidden
 from litecord.schemas import (
-    validate, CHAN_UPDATE, CHAN_OVERWRITE, SEARCH_CHANNEL, GROUP_DM_UPDATE
+    validate, CHAN_UPDATE, CHAN_OVERWRITE, SEARCH_CHANNEL, GROUP_DM_UPDATE,
+    BULK_DELETE,
 )
 
 from litecord.blueprints.checks import channel_check, channel_perm_check
@@ -663,4 +664,38 @@ async def suppress_embeds(channel_id: int, message_id: int):
             )
         )
 
+    return '', 204
+
+
+@bp.route('/<int:channel_id>/messages/bulk-delete', methods=['POST'])
+async def bulk_delete(channel_id: int):
+    user_id = await token_check()
+    ctype, guild_id = await channel_check(user_id, channel_id)
+    guild_id = guild_id if ctype in GUILD_CHANS else None
+
+    await channel_perm_check(user_id, channel_id, 'manage_messages')
+
+    j = validate(await request.get_json(), BULK_DELETE)
+    message_ids = j['messages']
+
+    # as per discord behavior, if any id here is older than two weeks,
+    # we must error. a cuter behavior would be returning the message ids
+    # that were deleted, ignoring the 2 week+ old ones.
+    for message_id in message_ids:
+        # TODO
+        pass
+
+    payload = {
+        'guild_id': str(guild_id),
+        'channel_id': str(channel_id),
+        'ids': message_ids
+    }
+
+    # payload.guild_id is optional in the event, not nullable.
+    if guild_id is None:
+        payload.pop('guild_id')
+
+    # TODO delete messages
+
+    await app.dispatcher.dispatch_channel('MESSAGE_DELETE_BULK', payload)
     return '', 204
