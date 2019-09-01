@@ -687,7 +687,7 @@ async def bulk_delete(channel_id: int):
         message_dt = snowflake_datetime(message_id)
         delta = datetime.datetime.utcnow() - message_dt
 
-        if delta.weeks > 2:
+        if delta.days > 14:
             raise BadRequest(50034)
 
     payload = {

@@ -74,18 +74,24 @@ class LitecordError(Exception):
     """Base class for litecord errors"""
     status_code = 500
 
+    def _get_err_msg(self, err_code: int) -> str:
+        if err_code is not None:
+            return ERR_MSG_MAP.get(err_code) or self.args[0]
+
+        return repr(self)
+
     @property
     def message(self) -> str:
         """Get an error's message string."""
         try:
-            return self.args[0]
+            message = self.args[0]
+
+            if isinstance(message, int):
+                return self._get_err_msg(message)
+
+            return message
         except IndexError:
-            err_code = getattr(self, 'error_code', None)
-
-            if err_code is not None:
-                return ERR_MSG_MAP.get(err_code) or self.args[0]
-
-            return repr(self)
+            return self._get_err_msg(getattr(self, 'error_code', None))
 
     @property
     def json(self):
