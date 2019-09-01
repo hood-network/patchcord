@@ -1,2 +1,2 @@
 ALTER TABLE messages
-    ADD COLUMN flags bigint DEFAULT NULL;
+    ADD COLUMN flags bigint DEFAULT 0;

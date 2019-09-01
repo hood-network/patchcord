@@ -170,7 +170,7 @@ class MessageFlags(Flags):
 
     crossposted = 1 << 0
     is_crosspost = 1 << 1
-    suppresss_embeds = 1 << 2
+    suppress_embeds = 1 << 2
 
 
 class StatusType(EasyEnum):

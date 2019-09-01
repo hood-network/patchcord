@@ -942,10 +942,17 @@ class Storage:
 
         # if message is not from a dm, guild_id is None and so, _member_basic
         # will just return None
-        res['member'] = await self._member_basic_with_roles(guild_id, user_id)
 
-        if res['member'] is None:
-            res.pop('member')
+        # user id can be none, though, and we need to watch out for that
+        if user_id is not None:
+            res['member'] = await self._member_basic_with_roles(
+                guild_id, user_id)
+
+        if res.get('member') is None:
+            try:
+                res.pop('member')
+            except KeyError:
+                pass
 
         pin_id = await self.db.fetchval("""
         SELECT message_id
@@ -961,7 +968,7 @@ class Storage:
         if guild_id:
             res['guild_id'] = str(guild_id)
 
-        if res['flags'] is None:
+        if res['flags'] == 0:
             res.pop('flags')
 
         return res
