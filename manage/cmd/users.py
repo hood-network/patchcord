@@ -30,6 +30,7 @@ async def find_user(username, discrim, ctx) -> int:
     WHERE username = $1 AND discriminator = $2
     """, username, discrim)
 
+
 async def set_user_staff(user_id, ctx):
     """Give a single user staff status."""
     old_flags = await ctx.db.fetchval("""
