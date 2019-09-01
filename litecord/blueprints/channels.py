@@ -25,7 +25,7 @@ from quart import Blueprint, request, current_app as app, jsonify
 from logbook import Logger
 
 from litecord.auth import token_check
-from litecord.enums import ChannelType, GUILD_CHANS, MessageType
+from litecord.enums import ChannelType, GUILD_CHANS, MessageType, MessageFlags
 from litecord.errors import ChannelNotFound, Forbidden, BadRequest
 from litecord.schemas import (
     validate, CHAN_UPDATE, CHAN_OVERWRITE, SEARCH_CHANNEL, GROUP_DM_UPDATE,
@@ -615,12 +615,43 @@ async def _search_channel(channel_id):
 
     return jsonify(await search_result_from_list(rows))
 
+# NOTE that those functions stay here until some other
+# route or code wants it.
+
+
+async def _msg_update_flags(message_id: int, flags: int):
+    await app.db.execute("""
+    UPDATE messages
+    SET flags = $1
+    WHERE id = $2
+    """, flags, message_id)
+
+
+async def _msg_get_flags(message_id: int):
+    return await app.db.fetchval("""
+    SELECT flags
+    FROM messages
+    WHERE id = $1
+    """, message_id)
+
+
+async def _msg_set_flags(message_id: int, new_flags: int):
+    flags = await _msg_get_flags(message_id)
+    flags |= new_flags
+    await _msg_update_flags(message_id, flags)
+
+
+async def _msg_unset_flags(message_id: int, unset_flags: int):
+    flags = await _msg_get_flags(message_id)
+    flags &= ~unset_flags
+    await _msg_update_flags(message_id, flags)
+
 
 @bp.route('/<int:channel_id>/messages/<int:message_id>/suppress-embeds',
           methods=['POST'])
 async def suppress_embeds(channel_id: int, message_id: int):
     """Toggle the embeds in a message.
-    
+
     Either the author of the message or a channel member with the
     Manage Messages permission can run this route.
     """
@@ -654,11 +685,27 @@ async def suppress_embeds(channel_id: int, message_id: int):
     url_embeds = sum(
         1 for embed in message['embeds'] if embed['type'] == 'url')
 
+    # NOTE for any future self. discord doing flags an optional thing instead
+    # of just giving 0 is a pretty bad idea because now i have to deal with
+    # that behavior here, and likely in every other message update thing
+
     if suppress and url_embeds:
         # delete all embeds then dispatch an update
+        await _msg_set_flags(message_id, MessageFlags.suppress_embeds)
+
+        message['flags'] = \
+            message.get('flags', 0) | MessageFlags.suppress_embeds
+
         await msg_update_embeds(message, [], app.storage, app.dispatcher)
     elif not suppress and not url_embeds:
         # spawn process_url_embed to restore the embeds, if any
+        await _msg_unset_flags(message_id, MessageFlags.suppress_embeds)
+
+        try:
+            message.pop('flags')
+        except KeyError:
+            pass
+
         app.sched.spawn(
             process_url_embed(
                 app.config, app.storage, app.dispatcher, app.session,

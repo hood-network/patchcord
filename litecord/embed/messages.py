@@ -82,6 +82,9 @@ async def msg_update_embeds(payload, new_embeds, storage, dispatcher):
     if 'guild_id' in payload:
         update_payload['guild_id'] = payload['guild_id']
 
+    if 'flags' in payload:
+        update_payload['flags'] = payload['flags']
+
     await dispatcher.dispatch(
         'channel', channel_id, 'MESSAGE_UPDATE', update_payload)
 

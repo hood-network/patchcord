@@ -164,6 +164,15 @@ class UserFlags(Flags):
     premium_early = 512
 
 
+class MessageFlags(Flags):
+    """Message flags."""
+    none = 0
+
+    crossposted = 1 << 0
+    is_crosspost = 1 << 1
+    suppress_embeds = 1 << 2
+
+
 class StatusType(EasyEnum):
     """All statuses there can be in a presence."""
     ONLINE = 'online'
