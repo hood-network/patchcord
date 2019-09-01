@@ -876,7 +876,7 @@ class Storage:
         row = await self.fetchrow_with_json("""
         SELECT id::text, channel_id::text, author_id, content,
             created_at AS timestamp, edited_at AS edited_timestamp,
-            tts, mention_everyone, nonce, message_type, embeds
+            tts, mention_everyone, nonce, message_type, embeds, flags
         FROM messages
         WHERE id = $1
         """, message_id)
@@ -960,6 +960,9 @@ class Storage:
         # is actually from a guild.
         if guild_id:
             res['guild_id'] = str(guild_id)
+
+        if res['flags'] is None:
+            res.pop('flags')
 
         return res
 
