@@ -678,7 +678,7 @@ async def bulk_delete(channel_id: int):
     await channel_perm_check(user_id, channel_id, 'manage_messages')
 
     j = validate(await request.get_json(), BULK_DELETE)
-    message_ids = j['messages']
+    message_ids = set(j['messages'])
 
     # as per discord behavior, if any id here is older than two weeks,
     # we must error. a cuter behavior would be returning the message ids
@@ -700,12 +700,16 @@ async def bulk_delete(channel_id: int):
     if guild_id is None:
         payload.pop('guild_id')
 
-    await app.db.execute("""
+    res = await app.db.execute("""
     DELETE FROM messages
     WHERE
         channel_id = $1
-        AND ARRAY[message_id] <@ $2::bigint[]
-    """, channel_id, message_ids)
+        AND ARRAY[id] <@ $2::bigint[]
+    """, channel_id, list(message_ids))
 
-    await app.dispatcher.dispatch_channel('MESSAGE_DELETE_BULK', payload)
+    if res == 'DELETE 0':
+        raise BadRequest('No messages were removed')
+
+    await app.dispatcher.dispatch(
+        'channel', channel_id, 'MESSAGE_DELETE_BULK', payload)
     return '', 204
