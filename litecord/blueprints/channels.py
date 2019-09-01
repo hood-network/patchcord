@@ -18,6 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import time
+import datetime
 from typing import List, Optional
 
 from quart import Blueprint, request, current_app as app, jsonify
@@ -25,9 +26,10 @@ from logbook import Logger
 
 from litecord.auth import token_check
 from litecord.enums import ChannelType, GUILD_CHANS, MessageType
-from litecord.errors import ChannelNotFound, Forbidden
+from litecord.errors import ChannelNotFound, Forbidden, BadRequest
 from litecord.schemas import (
-    validate, CHAN_UPDATE, CHAN_OVERWRITE, SEARCH_CHANNEL, GROUP_DM_UPDATE
+    validate, CHAN_UPDATE, CHAN_OVERWRITE, SEARCH_CHANNEL, GROUP_DM_UPDATE,
+    BULK_DELETE,
 )
 
 from litecord.blueprints.checks import channel_check, channel_perm_check
@@ -37,6 +39,7 @@ from litecord.blueprints.dm_channels import (
 )
 from litecord.utils import search_result_from_list
 from litecord.embed.messages import process_url_embed, msg_update_embeds
+from litecord.snowflake import snowflake_datetime
 
 log = Logger(__name__)
 bp = Blueprint('channels', __name__)
@@ -663,4 +666,50 @@ async def suppress_embeds(channel_id: int, message_id: int):
             )
         )
 
+    return '', 204
+
+
+@bp.route('/<int:channel_id>/messages/bulk-delete', methods=['POST'])
+async def bulk_delete(channel_id: int):
+    user_id = await token_check()
+    ctype, guild_id = await channel_check(user_id, channel_id)
+    guild_id = guild_id if ctype in GUILD_CHANS else None
+
+    await channel_perm_check(user_id, channel_id, 'manage_messages')
+
+    j = validate(await request.get_json(), BULK_DELETE)
+    message_ids = set(j['messages'])
+
+    # as per discord behavior, if any id here is older than two weeks,
+    # we must error. a cuter behavior would be returning the message ids
+    # that were deleted, ignoring the 2 week+ old ones.
+    for message_id in message_ids:
+        message_dt = snowflake_datetime(message_id)
+        delta = datetime.datetime.utcnow() - message_dt
+
+        if delta.days > 14:
+            raise BadRequest(50034)
+
+    payload = {
+        'guild_id': str(guild_id),
+        'channel_id': str(channel_id),
+        'ids': list(map(str, message_ids)),
+    }
+
+    # payload.guild_id is optional in the event, not nullable.
+    if guild_id is None:
+        payload.pop('guild_id')
+
+    res = await app.db.execute("""
+    DELETE FROM messages
+    WHERE
+        channel_id = $1
+        AND ARRAY[id] <@ $2::bigint[]
+    """, channel_id, list(message_ids))
+
+    if res == 'DELETE 0':
+        raise BadRequest('No messages were removed')
+
+    await app.dispatcher.dispatch(
+        'channel', channel_id, 'MESSAGE_DELETE_BULK', payload)
     return '', 204

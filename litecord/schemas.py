@@ -18,7 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import re
-from typing import Union, Dict, List
+from typing import Union, Dict, List, Optional
 
 from cerberus import Validator
 from logbook import Logger
@@ -158,7 +158,7 @@ class LitecordValidator(Validator):
         return isinstance(value, str) and (len(value) < 32)
 
 
-def validate(reqjson: Union[Dict, List], schema: Dict,
+def validate(reqjson: Optional[Union[Dict, List]], schema: Dict,
              raise_err: bool = True) -> Dict:
     """Validate the given user-given data against a schema, giving the
     "correct" version of the document, with all defaults applied.
@@ -174,6 +174,9 @@ def validate(reqjson: Union[Dict, List], schema: Dict,
         fails. Default is true.
     """
     validator = LitecordValidator(schema)
+
+    if reqjson is None:
+        raise BadRequest('No JSON provided')
 
     try:
         valid = validator.validate(reqjson)
@@ -735,5 +738,13 @@ WEBHOOK_MESSAGE_CREATE = {
         'type': 'list',
         'required': False,
         'schema': {'type': 'dict', 'schema': EMBED_OBJECT}
+    }
+}
+
+BULK_DELETE = {
+    'messages': {
+        'type': 'list', 'required': True,
+        'minlength': 2, 'maxlength': 100,
+        'schema': {'coerce': int}
     }
 }
