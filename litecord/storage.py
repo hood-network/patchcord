@@ -204,6 +204,9 @@ class Storage:
         drow['max_presences'] = 1000
         drow['max_members'] = 1000
 
+        # used by guilds with DISCOVERABLE feature
+        drow['preffered_locale'] = 'en-US'
+
         return drow
 
     async def _member_basic(self, guild_id: int, member_id: int):
