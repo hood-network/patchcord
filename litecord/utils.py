@@ -19,7 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import asyncio
 import json
-from typing import Any, Iterable, Optional, Sequence, List, Dict
+from typing import Any, Iterable, Optional, Sequence, List, Dict, Union
 
 from logbook import Logger
 from quart.json import JSONEncoder
@@ -214,3 +214,12 @@ async def search_result_from_list(rows: List) -> Dict[str, Any]:
         'messages': res,
         'analytics_id': '',
     }
+
+
+def maybe_int(val: Any) -> Union[int, Any]:
+    """Try to convert a given value to an integer. Returns the same value
+    if it is not."""
+    try:
+        return int(val)
+    except (ValueError, TypeError):
+        return val

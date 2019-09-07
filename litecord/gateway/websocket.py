@@ -32,7 +32,7 @@ from litecord.auth import raw_token_check
 from litecord.enums import RelationshipType, ChannelType
 from litecord.schemas import validate, GW_STATUS_UPDATE
 from litecord.utils import (
-    task_wrapper, yield_chunks
+    task_wrapper, yield_chunks, maybe_int
 )
 from litecord.permissions import get_permissions
 
@@ -770,11 +770,12 @@ class GatewayWebsocket:
         if not exists:
             return
 
-        # limit user_ids to 1000 possible members
-        user_ids = user_ids[:1000]
+        # limit user_ids to 1000 possible members, and try your best
+        # to convert them to ints, giving the same user id if it fails.
+        # this is checked later on to fill the not_found array
+        user_ids = [maybe_int(uid) for uid in user_ids[:1000]]
 
-        # assumption: requesting user_ids means
-        # we don't do query.
+        # ASSUMPTION: requesting user_ids means we don't do query.
         if user_ids:
             members = await self.storage.get_member_multi(guild_id, user_ids)
             mids = [m['user']['id'] for m in members]
