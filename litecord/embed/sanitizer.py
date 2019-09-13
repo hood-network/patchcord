@@ -89,9 +89,12 @@ def _mk_cfg_sess(config, session) -> tuple:
     return config, session
 
 
-def _md_base(config) -> tuple:
+def _md_base(config) -> Optional[tuple]:
     """Return the protocol and base url for the mediaproxy."""
     md_base_url = config['MEDIA_PROXY']
+    if md_base_url is None:
+        return None
+
     proto = 'https' if config['IS_SSL'] else 'http'
 
     return proto, md_base_url
@@ -99,8 +102,15 @@ def _md_base(config) -> tuple:
 
 def make_md_req_url(config, scope: str, url):
     """Make a mediaproxy request URL given the config, scope, and the url
-    to be proxied."""
-    proto, base_url = _md_base(config)
+    to be proxied.
+
+    When MEDIA_PROXY is None, however, returns the original URL.
+    """
+    base = _md_base(config)
+    if base is None:
+        return url.url if isinstance(url, EmbedURL) else url
+
+    proto, base_url = base
     return f'{proto}://{base_url}/{scope}/{url.to_md_path}'
 
 
