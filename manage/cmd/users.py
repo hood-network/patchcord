@@ -148,7 +148,7 @@ def setup(subparser):
         'deluser', help='delete a single user')
 
     del_user_parser.add_argument('username')
-    del_user_parser.add_argument('discriminator')
+    del_user_parser.add_argument('discrim')
 
     del_user_parser.set_defaults(func=del_user)
 
