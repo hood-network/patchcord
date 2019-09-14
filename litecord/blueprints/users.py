@@ -531,7 +531,7 @@ async def user_disconnect(user_id):
             continue
 
         # force a close, 4000 should make the client reconnect.
-        await state.ws.close(4000)
+        await state.ws.ws.close(4000)
 
 
 @bp.route('/@me/delete', methods=['POST'])
