@@ -54,6 +54,7 @@ class Config:
 
     #: Mediaproxy URL on the internet
     #  mediaproxy is made to prevent client IPs being leaked.
+    #  None is a valid value if you don't want to deploy mediaproxy.
     MEDIA_PROXY = 'localhost:5002'
 
     #: Postgres credentials

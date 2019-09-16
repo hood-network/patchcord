@@ -71,7 +71,11 @@ Requirements:
 - gifsicle for GIF emoji and avatar handling
 - [pipenv]
 
+Optional requirement:
+- [mediaproxy]
+
 [pipenv]: https://github.com/pypa/pipenv
+[mediaproxy]: https://gitlab.com/litecord/mediaproxy
 
 ### Download the code
 
