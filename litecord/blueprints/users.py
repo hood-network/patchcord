@@ -463,10 +463,12 @@ async def _del_from_table(db, table: str, user_id: int):
              user_id, table, res)
 
 
-async def delete_user(user_id, *, db=None):
+async def delete_user(user_id, *, app_=None):
     """Delete a user. Does not disconnect the user."""
-    if db is None:
-        db = app.db
+    if app_ is None:
+        app_ = app
+
+    db = app_.db
 
     new_username = f'Deleted User {rand_hex()}'
 
@@ -517,10 +519,10 @@ async def delete_user(user_id, *, db=None):
 
     # after updating the user, we send USER_UPDATE so that all the other
     # clients can refresh their caches on the now-deleted user
-    await mass_user_update(user_id)
+    await mass_user_update(user_id, app_=app_)
 
 
-async def user_disconnect(user_id):
+async def user_disconnect(user_id: int):
     """Disconnects the given user's devices."""
     # after removing the user from all tables, we need to force
     # all known user states to reconnect, causing the user to not
