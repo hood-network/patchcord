@@ -961,6 +961,10 @@ class GatewayWebsocket:
                 self.state.session_id, ranges
             )
 
+    async def _handle_23(self, payload):
+        # TODO reverse-engineer opcode 23, sent by client
+        pass
+
     async def _process_message(self, payload):
         """Process a single message coming in from the client."""
         try:

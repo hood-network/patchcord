@@ -44,3 +44,5 @@ class OP:
 
     # request for lazy guilds
     LAZY_REQUEST = 14
+
+    UNKNOWN_1 = 23
