@@ -571,4 +571,14 @@ async def delete_account():
     await delete_user(user_id)
     await user_disconnect(user_id)
 
+    # we dispatch both a USER_UPDATE and a PRESENCE_UPDATE
+    # just to keep proper state for all the users.
+    await mass_user_update(user_id)
+    await app.presence.dispatch_pres(user_id, {
+        'afk': False,
+        'status': 'offline',
+        'game': None,
+        'since': 0,
+    })
+
     return '', 204
