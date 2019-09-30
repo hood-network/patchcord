@@ -113,7 +113,7 @@ async def del_user(ctx, args):
         print('not confirmed')
         return
 
-    await delete_user(uid)
+    await delete_user(uid, app_=ctx)
     print('ok')
 
 
