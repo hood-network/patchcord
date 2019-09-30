@@ -515,6 +515,10 @@ async def delete_user(user_id, *, db=None):
     await _del_from_table(db, 'member_roles', user_id)
     await _del_from_table(db, 'channel_overwrites', user_id)
 
+    # after updating the user, we send USER_UPDATE so that all the other
+    # clients can refresh their caches on the now-deleted user
+    await mass_user_update(user_id)
+
 
 async def user_disconnect(user_id):
     """Disconnects the given user's devices."""
@@ -532,6 +536,14 @@ async def user_disconnect(user_id):
 
         # force a close, 4000 should make the client reconnect.
         await state.ws.ws.close(4000)
+
+    # force everyone to see the user as offline
+    await app.presence.dispatch_pres(user_id, {
+        'afk': False,
+        'status': 'offline',
+        'game': None,
+        'since': 0,
+    })
 
 
 @bp.route('/@me/delete', methods=['POST'])
@@ -570,15 +582,5 @@ async def delete_account():
 
     await delete_user(user_id)
     await user_disconnect(user_id)
-
-    # we dispatch both a USER_UPDATE and a PRESENCE_UPDATE
-    # just to keep proper state for all the users.
-    await mass_user_update(user_id)
-    await app.presence.dispatch_pres(user_id, {
-        'afk': False,
-        'status': 'offline',
-        'game': None,
-        'since': 0,
-    })
 
     return '', 204
