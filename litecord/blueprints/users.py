@@ -27,7 +27,7 @@ from ..errors import Forbidden, BadRequest, Unauthorized
 from ..schemas import validate, USER_UPDATE, GET_MENTIONS
 
 from .guilds import guild_check
-from litecord.auth import token_check, hash_data, check_username_usage, roll_discrim
+from litecord.auth import token_check, hash_data
 from litecord.common.guilds import remove_member
 
 from litecord.enums import PremiumType
@@ -36,7 +36,12 @@ from litecord.permissions import base_permissions
 
 from litecord.blueprints.auth import check_password
 from litecord.utils import to_update
-from litecord.common.users import mass_user_update, delete_user
+from litecord.common.users import (
+    mass_user_update,
+    delete_user,
+    check_username_usage,
+    roll_discrim,
+)
 
 bp = Blueprint("user", __name__)
 log = Logger(__name__)

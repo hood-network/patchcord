@@ -20,13 +20,17 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 from quart import Blueprint, jsonify, current_app as app, request
 
 from litecord.auth import admin_check
-from litecord.blueprints.auth import create_user
 from litecord.schemas import validate
 from litecord.admin_schemas import USER_CREATE, USER_UPDATE
 from litecord.errors import BadRequest, Forbidden
 from litecord.utils import async_map
-from litecord.blueprints.users import delete_user, user_disconnect, mass_user_update
 from litecord.enums import UserFlags
+from litecord.common.users import (
+    create_user,
+    delete_user,
+    user_disconnect,
+    mass_user_update,
+)
 
 bp = Blueprint("users_admin", __name__)
 

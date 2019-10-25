@@ -25,7 +25,8 @@ import bcrypt
 from quart import Blueprint, jsonify, request, current_app as app
 from logbook import Logger
 
-from litecord.auth import token_check, create_user
+from litecord.auth import token_check
+from litecord.common.users import create_user
 from litecord.schemas import validate, REGISTER, REGISTER_WITH_INVITE
 from litecord.errors import BadRequest
 from litecord.snowflake import get_snowflake
