@@ -20,15 +20,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import base64
 import binascii
 from random import randint
-from typing import Tuple, Optional
+from typing import Tuple
 
 import bcrypt
-from asyncpg import UniqueViolationError
 from itsdangerous import TimestampSigner, BadSignature
 from logbook import Logger
 from quart import request, current_app as app
 
-from litecord.errors import Forbidden, Unauthorized, BadRequest
+from litecord.errors import Forbidden, Unauthorized
 from litecord.snowflake import get_snowflake
 from litecord.enums import UserFlags
 
@@ -150,105 +149,3 @@ async def hash_data(data: str, loop=None) -> str:
     hashed = await loop.run_in_executor(None, bcrypt.hashpw, buf, bcrypt.gensalt(14))
 
     return hashed.decode()
-
-
-async def check_username_usage(username: str):
-    """Raise an error if too many people are with the same username."""
-    same_username = await app.db.fetchval(
-        """
-        SELECT COUNT(*)
-        FROM users
-        WHERE username = $1
-        """,
-        username,
-    )
-
-    if same_username > 9000:
-        raise BadRequest(
-            "Too many people.",
-            {
-                "username": "Too many people used the same username. "
-                "Please choose another"
-            },
-        )
-
-
-def _raw_discrim() -> str:
-    discrim_number = randint(1, 9999)
-    return "%04d" % discrim_number
-
-
-async def roll_discrim(username: str) -> Optional[str]:
-    """Roll a discriminator for a DiscordTag.
-
-    Tries to generate one 10 times.
-
-    Calls check_username_usage.
-    """
-
-    # we shouldn't roll discrims for usernames
-    # that have been used too much.
-    await check_username_usage(username)
-
-    # max 10 times for a reroll
-    for _ in range(10):
-        # generate random discrim
-        discrim = _raw_discrim()
-
-        # check if anyone is with it
-        res = await app.db.fetchval(
-            """
-            SELECT id
-            FROM users
-            WHERE username = $1 AND discriminator = $2
-            """,
-            username,
-            discrim,
-        )
-
-        # if no user is found with the (username, discrim)
-        # pair, then this is unique! return it.
-        if res is None:
-            return discrim
-
-    return None
-
-
-async def create_user(username: str, email: str, password: str) -> Tuple[int, str]:
-    """Create a single user.
-
-    Generates a distriminator and other information. You can fetch the user
-    data back with :meth:`Storage.get_user`.
-    """
-    db = app.db
-    loop = app.loop
-
-    new_id = get_snowflake()
-    new_discrim = await roll_discrim(username)
-
-    if new_discrim is None:
-        raise BadRequest(
-            "Unable to register.",
-            {"username": "Too many people are with this username."},
-        )
-
-    pwd_hash = await hash_data(password, loop)
-
-    try:
-        await db.execute(
-            """
-            INSERT INTO users
-                (id, email, username, discriminator, password_hash)
-            VALUES
-                ($1, $2, $3, $4, $5)
-            """,
-            new_id,
-            email,
-            username,
-            new_discrim,
-            pwd_hash,
-        )
-    except UniqueViolationError:
-        raise BadRequest("Email already used.")
-
-    return new_id, pwd_hash
