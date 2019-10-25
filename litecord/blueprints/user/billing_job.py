@@ -21,6 +21,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 this file only serves the periodic payment job code.
 """
 import datetime
+
+from quart import current_app as app
 from asyncio import sleep, CancelledError
 from logbook import Logger
 
@@ -47,14 +49,14 @@ THRESHOLDS = {
 }
 
 
-async def _resched(app):
+async def _resched():
     log.debug("waiting 30 minutes for job.")
     await sleep(30 * MINUTES)
-    app.sched.spawn(payment_job(app))
+    app.sched.spawn(payment_job())
 
 
-async def _process_user_payments(app, user_id: int):
-    payments = await get_payment_ids(user_id, app.db)
+async def _process_user_payments(user_id: int):
+    payments = await get_payment_ids(user_id)
 
     if not payments:
         log.debug("no payments for uid {}, skipping", user_id)
@@ -64,7 +66,7 @@ async def _process_user_payments(app, user_id: int):
 
     latest_payment = max(payments)
 
-    payment_data = await get_payment(latest_payment, app.db)
+    payment_data = await get_payment(latest_payment)
 
     # calculate the difference between this payment
     # and now.
@@ -74,7 +76,7 @@ async def _process_user_payments(app, user_id: int):
     delta = now - payment_tstamp
 
     sub_id = int(payment_data["subscription"]["id"])
-    subscription = await get_subscription(sub_id, app.db)
+    subscription = await get_subscription(sub_id)
 
     # if the max payment is X days old, we create another.
     # X is 30 for monthly subscriptions of nitro,
@@ -89,12 +91,12 @@ async def _process_user_payments(app, user_id: int):
         # create_payment does not call any Stripe
         # or BrainTree APIs at all, since we'll just
         # give it as free.
-        await create_payment(sub_id, app.db)
+        await create_payment(sub_id)
     else:
         log.debug("sid={}, missing {} days", sub_id, threshold - delta.days)
 
 
-async def payment_job(app):
+async def payment_job():
     """Main payment job function.
 
     This function will check through users' payments
@@ -104,9 +106,9 @@ async def payment_job(app):
 
     user_ids = await app.db.fetch(
         """
-    SELECT DISTINCT user_id
-    FROM user_payments
-    """
+        SELECT DISTINCT user_id
+        FROM user_payments
+        """
     )
 
     log.debug("working {} users", len(user_ids))
@@ -115,24 +117,24 @@ async def payment_job(app):
     for row in user_ids:
         user_id = row["user_id"]
         try:
-            await _process_user_payments(app, user_id)
+            await _process_user_payments(user_id)
         except Exception:
             log.exception("error while processing user payments")
 
     subscribers = await app.db.fetch(
         """
-    SELECT id
-    FROM user_subscriptions
-    """
+        SELECT id
+        FROM user_subscriptions
+        """
     )
 
     for row in subscribers:
         try:
-            await process_subscription(app, row["id"])
+            await process_subscription(row["id"])
         except Exception:
             log.exception("error while processing subscription")
     log.debug("rescheduling..")
     try:
-        await _resched(app)
+        await _resched()
     except CancelledError:
         log.info("cancelled while waiting for resched")
