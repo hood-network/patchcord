@@ -28,7 +28,6 @@ from ..auth import token_check
 from ..schemas import validate, INVITE
 from ..enums import ChannelType
 from ..errors import BadRequest, Forbidden
-from .guilds import create_guild_settings
 from ..utils import async_map
 
 from litecord.blueprints.checks import (
@@ -39,6 +38,7 @@ from litecord.blueprints.checks import (
 )
 
 from litecord.blueprints.dm_channels import gdm_is_member, gdm_add_recipient
+from litecord.common.guilds import create_guild_settings
 
 log = Logger(__name__)
 bp = Blueprint("invites", __name__)

@@ -21,7 +21,12 @@ from typing import Optional, List
 
 from quart import Blueprint, request, current_app as app, jsonify
 
-from litecord.common.guilds import create_role, create_guild_channel, delete_guild
+from litecord.common.guilds import (
+    create_role,
+    create_guild_channel,
+    delete_guild,
+    create_guild_settings,
+)
 
 from ..auth import token_check
 from ..snowflake import get_snowflake
@@ -42,34 +47,6 @@ from litecord.permissions import get_permissions
 DEFAULT_EVERYONE_PERMS = 104324161
 
 bp = Blueprint("guilds", __name__)
-
-
-async def create_guild_settings(guild_id: int, user_id: int):
-    """Create guild settings for the user
-    joining the guild."""
-
-    # new guild_settings are based off the currently
-    # set guild settings (for the guild)
-    m_notifs = await app.db.fetchval(
-        """
-    SELECT default_message_notifications
-    FROM guilds
-    WHERE id = $1
-    """,
-        guild_id,
-    )
-
-    await app.db.execute(
-        """
-    INSERT INTO guild_settings
-        (user_id, guild_id, message_notifications)
-    VALUES
-        ($1, $2, $3)
-    """,
-        user_id,
-        guild_id,
-        m_notifs,
-    )
 
 
 async def add_member(guild_id: int, user_id: int):
