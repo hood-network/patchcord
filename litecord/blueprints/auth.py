@@ -77,7 +77,7 @@ async def register():
 
     username, password = j["username"], j["password"]
 
-    new_id, pwd_hash = await create_user(username, email, password, app.db)
+    new_id, pwd_hash = await create_user(username, email, password)
 
     if invite:
         try:
