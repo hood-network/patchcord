@@ -19,9 +19,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import asyncio
 import argparse
+import inspect
 from sys import argv
 from dataclasses import dataclass
 
+from quart import Quart
 from logbook import Logger
 
 from run import init_app_managers, init_app_db
@@ -48,6 +50,20 @@ class FakeApp:
     voice = None
     guild_store = None
 
+    def make_app(self) -> Quart:
+        app = Quart(__name__)
+        app.config.from_object(self.config)
+        fields = [
+            field
+            for (field, _val) in inspect.getmembers(self)
+            if not field.startswith("__")
+        ]
+
+        for field in fields:
+            setattr(app, field, getattr(self, field))
+
+        return app
+
 
 def init_parser():
     parser = argparse.ArgumentParser()
@@ -63,13 +79,17 @@ def init_parser():
 def main(config):
     """Start the script"""
     loop = asyncio.get_event_loop()
+    # TODO make cfg import from Quart.config.from_object
     cfg = getattr(config, config.MODE)
     app = FakeApp(cfg.__dict__)
-
-    # initialize argparser
     parser = init_parser()
 
     loop.run_until_complete(init_app_db(app))
+
+    async def _ctx_wrapper(fake_app, args):
+        app = fake_app.make_app()
+        async with app.app_context():
+            await args.func(fake_app, args)
 
     try:
         if len(argv) < 2:
@@ -83,7 +103,7 @@ def main(config):
             init_app_managers(app, voice=False)
 
         args = parser.parse_args()
-        loop.run_until_complete(args.func(app, args))
+        loop.run_until_complete(_ctx_wrapper(app, args))
     except Exception:
         log.exception("error while running command")
     finally:
