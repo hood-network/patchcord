@@ -17,7 +17,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from litecord.blueprints.auth import create_user, make_token
+from litecord.auth import create_user
+from litecord.blueprints.auth import make_token
 from litecord.blueprints.users import delete_user
 from litecord.enums import UserFlags
 

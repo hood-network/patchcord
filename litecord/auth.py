@@ -152,15 +152,14 @@ async def hash_data(data: str, loop=None) -> str:
     return hashed.decode()
 
 
-async def check_username_usage(username: str, db=None):
+async def check_username_usage(username: str):
     """Raise an error if too many people are with the same username."""
-    db = db or app.db
-    same_username = await db.fetchval(
+    same_username = await app.db.fetchval(
         """
-    SELECT COUNT(*)
-    FROM users
-    WHERE username = $1
-    """,
+        SELECT COUNT(*)
+        FROM users
+        WHERE username = $1
+        """,
         username,
     )
 
@@ -175,23 +174,21 @@ async def check_username_usage(username: str, db=None):
 
 
 def _raw_discrim() -> str:
-    new_discrim = randint(1, 9999)
-    new_discrim = "%04d" % new_discrim
-    return new_discrim
+    discrim_number = randint(1, 9999)
+    return "%04d" % discrim_number
 
 
-async def roll_discrim(username: str, *, db=None) -> Optional[str]:
+async def roll_discrim(username: str) -> Optional[str]:
     """Roll a discriminator for a DiscordTag.
 
     Tries to generate one 10 times.
 
     Calls check_username_usage.
     """
-    db = db or app.db
 
     # we shouldn't roll discrims for usernames
     # that have been used too much.
-    await check_username_usage(username, db)
+    await check_username_usage(username)
 
     # max 10 times for a reroll
     for _ in range(10):
@@ -199,12 +196,12 @@ async def roll_discrim(username: str, *, db=None) -> Optional[str]:
         discrim = _raw_discrim()
 
         # check if anyone is with it
-        res = await db.fetchval(
+        res = await app.db.fetchval(
             """
-        SELECT id
-        FROM users
-        WHERE username = $1 AND discriminator = $2
-        """,
+            SELECT id
+            FROM users
+            WHERE username = $1 AND discriminator = $2
+            """,
             username,
             discrim,
         )
@@ -217,19 +214,17 @@ async def roll_discrim(username: str, *, db=None) -> Optional[str]:
     return None
 
 
-async def create_user(
-    username: str, email: str, password: str, db=None, loop=None
-) -> Tuple[int, str]:
+async def create_user(username: str, email: str, password: str) -> Tuple[int, str]:
     """Create a single user.
 
     Generates a distriminator and other information. You can fetch the user
     data back with :meth:`Storage.get_user`.
     """
-    db = db or app.db
-    loop = loop or app.loop
+    db = app.db
+    loop = app.loop
 
     new_id = get_snowflake()
-    new_discrim = await roll_discrim(username, db=db)
+    new_discrim = await roll_discrim(username)
 
     if new_discrim is None:
         raise BadRequest(
@@ -242,11 +237,11 @@ async def create_user(
     try:
         await db.execute(
             """
-        INSERT INTO users
-            (id, email, username, discriminator, password_hash)
-        VALUES
-            ($1, $2, $3, $4, $5)
-        """,
+            INSERT INTO users
+                (id, email, username, discriminator, password_hash)
+            VALUES
+                ($1, $2, $3, $4, $5)
+            """,
             new_id,
             email,
             username,
