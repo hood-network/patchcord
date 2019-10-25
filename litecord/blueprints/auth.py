@@ -64,7 +64,7 @@ async def register():
 
     j = await request.get_json()
 
-    if not "password" in j:
+    if "password" not in j:
         # we need a password to generate a token.
         # passwords are optional, so
         j["password"] = "default_password"

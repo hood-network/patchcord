@@ -45,7 +45,7 @@ async def task_wrapper(name: str, coro):
         await coro
     except asyncio.CancelledError:
         pass
-    except:
+    except Exception:
         log.exception("{} task error", name)
 
 
@@ -201,7 +201,7 @@ def to_update(j: dict, orig: dict, field: str) -> bool:
 
 async def search_result_from_list(rows: List) -> Dict[str, Any]:
     """Generate the end result of the search query, given a list of rows.
-    
+
     Each row must contain:
      - A bigint on `current_id`
      - An int (?) on `total_results`

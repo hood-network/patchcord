@@ -33,7 +33,7 @@ class EasyEnum(Enum):
 
 class Flags:
     """Construct a class that represents a bitfield.
-    
+
     You can use it like this:
         >>> class MyField(Flags):
                 field_1 = 1

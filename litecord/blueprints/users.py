@@ -259,7 +259,7 @@ async def patch_me():
             user_id,
         )
 
-    if user["email"] is None and not "new_password" in j:
+    if user["email"] is None and "new_password" not in j:
         raise BadRequest("missing password", {"password": "Please set a password."})
 
     if "new_password" in j and j["new_password"]:

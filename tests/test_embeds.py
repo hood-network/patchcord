@@ -30,20 +30,16 @@ def valid(embed: dict):
     try:
         validate_embed(embed)
         return True
-    except:
+    except Exception:
         return False
 
 
 def invalid(embed):
-    try:
-        validate_embed(embed)
-        return False
-    except:
-        return True
+    return not valid(embed)
 
 
 def test_empty_embed():
-    valid({})
+    assert valid({})
 
 
 def test_basic_embed():

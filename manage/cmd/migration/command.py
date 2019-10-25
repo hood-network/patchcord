@@ -170,7 +170,7 @@ async def apply_migration(app, migration: Migration) -> bool:
         log.info("applied {} {}", migration.id, migration.name)
 
         return True
-    except:
+    except Exception:
         log.exception("failed to run migration, rollbacking log")
         await _delete_log(app, migration.id)
 

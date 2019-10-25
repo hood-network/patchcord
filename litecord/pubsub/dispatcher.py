@@ -25,17 +25,20 @@ from logbook import Logger
 log = Logger(__name__)
 
 
+def _identity(_self, x):
+    return x
+
+
 class Dispatcher:
     """Pub/Sub backend dispatcher.
-    
+
     This just declares functions all Dispatcher subclasses
     can implement. This does not mean all Dispatcher
     subclasses have them implemented.
     """
 
-    # the _ parameter is for (self)
-    KEY_TYPE = lambda _, x: x
-    VAL_TYPE = lambda _, x: x
+    KEY_TYPE = _identity
+    VAL_TYPE = _identity
 
     def __init__(self, main):
         #: main EventDispatcher
