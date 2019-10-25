@@ -56,20 +56,20 @@ async def raw_token_check(token: str, db=None) -> int:
     # just try by fragments instead of
     # unpacking
     fragments = token.split(".")
-    user_id = fragments[0]
+    user_id_str = fragments[0]
 
     try:
-        user_id = base64.b64decode(user_id.encode())
-        user_id = int(user_id)
+        user_id_decoded = base64.b64decode(user_id_str.encode())
+        user_id = int(user_id_decoded)
     except (ValueError, binascii.Error):
         raise Unauthorized("Invalid user ID type")
 
     pwd_hash = await db.fetchval(
         """
-    SELECT password_hash
-    FROM users
-    WHERE id = $1
-    """,
+        SELECT password_hash
+        FROM users
+        WHERE id = $1
+        """,
         user_id,
     )
 
@@ -88,10 +88,10 @@ async def raw_token_check(token: str, db=None) -> int:
         # with people leaving their clients open forever)
         await db.execute(
             """
-        UPDATE users
-        SET last_session = (now() at time zone 'utc')
-        WHERE id = $1
-        """,
+            UPDATE users
+            SET last_session = (now() at time zone 'utc')
+            WHERE id = $1
+            """,
             user_id,
         )
 
@@ -128,10 +128,10 @@ async def admin_check() -> int:
 
     flags = await app.db.fetchval(
         """
-    SELECT flags
-    FROM users
-    WHERE id = $1
-    """,
+        SELECT flags
+        FROM users
+        WHERE id = $1
+        """,
         user_id,
     )
 
