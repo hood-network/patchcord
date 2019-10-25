@@ -145,5 +145,5 @@ async def patch_user(user_id: int):
             user_id,
         )
 
-    public_user, _ = await mass_user_update(user_id, app)
+    public_user, _ = await mass_user_update(user_id)
     return jsonify(public_user)

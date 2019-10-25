@@ -93,7 +93,8 @@ async def _user_fixture_setup(app):
 
 
 async def _user_fixture_teardown(app, udata: dict):
-    await delete_user(udata["id"], app_=app)
+    async with app.app_context():
+        await delete_user(udata["id"])
 
 
 @pytest.fixture(name="test_user")
