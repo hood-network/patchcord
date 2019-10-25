@@ -30,7 +30,7 @@ from litecord.snowflake import snowflake_datetime, get_snowflake
 from litecord.errors import BadRequest
 from litecord.types import timestamp_, HOURS
 from litecord.enums import UserFlags, PremiumType
-from litecord.blueprints.users import mass_user_update
+from litecord.common.users import mass_user_update
 
 log = Logger(__name__)
 bp = Blueprint("users_billing", __name__)
