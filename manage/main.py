@@ -79,9 +79,13 @@ def init_parser():
 def main(config):
     """Start the script"""
     loop = asyncio.get_event_loop()
-    # TODO make cfg import from Quart.config.from_object
-    cfg = getattr(config, config.MODE)
-    app = FakeApp(cfg.__dict__)
+
+    # by doing this we can "import" quart's default config keys,
+    # like SERVER_NAME, required for app_context to work.
+    quart_app = Quart(__name__)
+    quart_app.config.from_object(f"config.{config.MODE}")
+
+    app = FakeApp(quart_app.config)
     parser = init_parser()
 
     loop.run_until_complete(init_app_db(app))
