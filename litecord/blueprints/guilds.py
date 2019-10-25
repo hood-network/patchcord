@@ -393,20 +393,18 @@ async def _update_guild(guild_id):
     return jsonify(guild)
 
 
-async def delete_guild(guild_id: int, *, app_=None):
+async def delete_guild(guild_id: int):
     """Delete a single guild."""
-    app_ = app_ or app
-
-    await app_.db.execute(
+    await app.db.execute(
         """
-    DELETE FROM guilds
-    WHERE guilds.id = $1
-    """,
+        DELETE FROM guilds
+        WHERE guilds.id = $1
+        """,
         guild_id,
     )
 
     # Discord's client expects IDs being string
-    await app_.dispatcher.dispatch(
+    await app.dispatcher.dispatch(
         "guild",
         guild_id,
         "GUILD_DELETE",
@@ -420,7 +418,7 @@ async def delete_guild(guild_id: int, *, app_=None):
     # remove from the dispatcher so nobody
     # becomes the little memer that tries to fuck up with
     # everybody's gateway
-    await app_.dispatcher.remove("guild", guild_id)
+    await app.dispatcher.remove("guild", guild_id)
 
 
 @bp.route("/<int:guild_id>", methods=["DELETE"])

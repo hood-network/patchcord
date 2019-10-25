@@ -54,6 +54,11 @@ async def _fetch_guild(test_cli_staff, guild_id, *, ret_early=False):
     return rjson
 
 
+async def _delete_guild(test_cli, guild_id: int):
+    async with test_cli.app.app_context():
+        await delete_guild(int(guild_id))
+
+
 @pytest.mark.asyncio
 async def test_guild_fetch(test_cli_staff):
     """Test the creation and fetching of a guild via the Admin API."""
@@ -63,7 +68,7 @@ async def test_guild_fetch(test_cli_staff):
     try:
         await _fetch_guild(test_cli_staff, guild_id)
     finally:
-        await delete_guild(int(guild_id), app_=test_cli_staff.app)
+        await _delete_guild(test_cli_staff, int(guild_id))
 
 
 @pytest.mark.asyncio
@@ -91,7 +96,7 @@ async def test_guild_update(test_cli_staff):
         rjson = await _fetch_guild(test_cli_staff, guild_id)
         assert rjson["unavailable"]
     finally:
-        await delete_guild(int(guild_id), app_=test_cli_staff.app)
+        await _delete_guild(test_cli_staff, int(guild_id))
 
 
 @pytest.mark.asyncio
@@ -113,4 +118,4 @@ async def test_guild_delete(test_cli_staff):
         assert rjson["error"]
         assert rjson["code"] == GuildNotFound.error_code
     finally:
-        await delete_guild(int(guild_id), app_=test_cli_staff.app)
+        await _delete_guild(test_cli_staff, int(guild_id))
