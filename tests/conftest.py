@@ -76,9 +76,8 @@ async def _user_fixture_setup(app):
     password = secrets.token_hex(6)
     user_email = email()
 
-    user_id, pwd_hash = await create_user(
-        username, user_email, password, app.db, app.loop
-    )
+    async with app.app_context():
+        user_id, pwd_hash = await create_user(username, user_email, password)
 
     # generate a token for api access
     user_token = make_token(user_id, pwd_hash)
@@ -125,8 +124,8 @@ async def test_cli_staff(test_cli):
     # copied from manage.cmd.users.set_user_staff.
     old_flags = await app.db.fetchval(
         """
-    SELECT flags FROM users WHERE id = $1
-    """,
+        SELECT flags FROM users WHERE id = $1
+        """,
         user_id,
     )
 
@@ -134,8 +133,8 @@ async def test_cli_staff(test_cli):
 
     await app.db.execute(
         """
-    UPDATE users SET flags = $1 WHERE id = $2
-    """,
+        UPDATE users SET flags = $1 WHERE id = $2
+        """,
         new_flags,
         user_id,
     )
