@@ -19,6 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import asyncio
 import json
+import secrets
 from typing import Any, Iterable, Optional, Sequence, List, Dict, Union
 
 from logbook import Logger
@@ -284,3 +285,8 @@ def query_tuple_from_args(args: dict, limit: int) -> tuple:
         before = int(args["after"])
 
     return before, after
+
+
+def rand_hex(length: int = 8) -> str:
+    """Generate random hex characters."""
+    return secrets.token_hex(length)[:length]

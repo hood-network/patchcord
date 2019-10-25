@@ -17,7 +17,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from os import urandom
 
 from asyncpg import UniqueViolationError
 from quart import Blueprint, jsonify, request, current_app as app
@@ -41,6 +40,7 @@ from litecord.common.users import (
     delete_user,
     check_username_usage,
     roll_discrim,
+    user_disconnect,
 )
 
 bp = Blueprint("user", __name__)
@@ -436,11 +436,6 @@ async def _get_mentions():
         res.append(message)
 
     return jsonify(res)
-
-
-def rand_hex(length: int = 8) -> str:
-    """Generate random hex characters."""
-    return urandom(length).hex()[:length]
 
 
 @bp.route("/@me/delete", methods=["POST"])

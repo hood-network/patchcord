@@ -19,8 +19,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import base64
 import binascii
-from random import randint
-from typing import Tuple
 
 import bcrypt
 from itsdangerous import TimestampSigner, BadSignature
@@ -28,7 +26,6 @@ from logbook import Logger
 from quart import request, current_app as app
 
 from litecord.errors import Forbidden, Unauthorized
-from litecord.snowflake import get_snowflake
 from litecord.enums import UserFlags
 
 
