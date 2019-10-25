@@ -22,7 +22,7 @@ from quart import Blueprint, jsonify, current_app as app, request
 from litecord.auth import admin_check
 from litecord.schemas import validate
 from litecord.admin_schemas import GUILD_UPDATE
-from litecord.blueprints.guilds import delete_guild
+from litecord.common.guilds import delete_guild
 from litecord.errors import GuildNotFound
 
 bp = Blueprint("guilds_admin", __name__)

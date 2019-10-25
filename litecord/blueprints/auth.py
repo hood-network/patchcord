@@ -25,7 +25,8 @@ import bcrypt
 from quart import Blueprint, jsonify, request, current_app as app
 from logbook import Logger
 
-from litecord.auth import token_check, create_user
+from litecord.auth import token_check
+from litecord.common.users import create_user
 from litecord.schemas import validate, REGISTER, REGISTER_WITH_INVITE
 from litecord.errors import BadRequest
 from litecord.snowflake import get_snowflake
@@ -120,7 +121,7 @@ async def _register_with_invite():
     )
 
     user_id, pwd_hash = await create_user(
-        data["username"], data["email"], data["password"], app.db
+        data["username"], data["email"], data["password"]
     )
 
     return jsonify({"token": make_token(user_id, pwd_hash), "user_id": str(user_id)})

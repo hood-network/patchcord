@@ -31,6 +31,7 @@ from ..snowflake import get_snowflake
 from .auth import token_check
 
 from litecord.blueprints.dm_channels import gdm_create, gdm_add_recipient
+from litecord.common.channels import try_dm_state
 
 log = Logger(__name__)
 bp = Blueprint("dms", __name__)
@@ -42,24 +43,6 @@ async def get_dms():
     user_id = await token_check()
     dms = await app.user_storage.get_dms(user_id)
     return jsonify(dms)
-
-
-async def try_dm_state(user_id: int, dm_id: int):
-    """Try inserting the user into the dm state
-    for the given DM.
-
-    Does not do anything if the user is already
-    in the dm state.
-    """
-    await app.db.execute(
-        """
-    INSERT INTO dm_channel_state (user_id, dm_id)
-    VALUES ($1, $2)
-    ON CONFLICT DO NOTHING
-    """,
-        user_id,
-        dm_id,
-    )
 
 
 async def jsonify_dm(dm_id: int, user_id: int):

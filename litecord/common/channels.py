@@ -16,15 +16,55 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
-
 from quart import current_app as app
 
-from litecord.errors import Forbidden
+
+from litecord.errors import ForbiddenDM
 from litecord.enums import RelationshipType
 
 
-class ForbiddenDM(Forbidden):
-    error_code = 50007
+async def channel_ack(
+    user_id: int, guild_id: int, channel_id: int, message_id: int = None
+):
+    """ACK a channel."""
+
+    if not message_id:
+        message_id = await app.storage.chan_last_message(channel_id)
+
+    await app.db.execute(
+        """
+        INSERT INTO user_read_state
+            (user_id, channel_id, last_message_id, mention_count)
+        VALUES
+            ($1, $2, $3, 0)
+        ON CONFLICT ON CONSTRAINT user_read_state_pkey
+        DO
+        UPDATE
+            SET last_message_id = $3, mention_count = 0
+            WHERE user_read_state.user_id = $1
+            AND user_read_state.channel_id = $2
+        """,
+        user_id,
+        channel_id,
+        message_id,
+    )
+
+    if guild_id:
+        await app.dispatcher.dispatch_user_guild(
+            user_id,
+            guild_id,
+            "MESSAGE_ACK",
+            {"message_id": str(message_id), "channel_id": str(channel_id)},
+        )
+    else:
+        # we don't use ChannelDispatcher here because since
+        # guild_id is None, all user devices are already subscribed
+        # to the given channel (a dm or a group dm)
+        await app.dispatcher.dispatch_user(
+            user_id,
+            "MESSAGE_ACK",
+            {"message_id": str(message_id), "channel_id": str(channel_id)},
+        )
 
 
 async def dm_pre_check(user_id: int, channel_id: int, peer_id: int):
@@ -32,12 +72,12 @@ async def dm_pre_check(user_id: int, channel_id: int, peer_id: int):
     # first step is checking if there is a block in any direction
     blockrow = await app.db.fetchrow(
         """
-    SELECT rel_type
-    FROM relationships
-    WHERE rel_type = $3
-      AND user_id IN ($1, $2)
-      AND peer_id IN ($1, $2)
-    """,
+        SELECT rel_type
+        FROM relationships
+        WHERE rel_type = $3
+        AND user_id IN ($1, $2)
+        AND peer_id IN ($1, $2)
+        """,
         user_id,
         peer_id,
         RelationshipType.BLOCK.value,
@@ -75,3 +115,21 @@ async def dm_pre_check(user_id: int, channel_id: int, peer_id: int):
     # if after this filtering we don't have any more guilds, error
     if not mutual_guilds:
         raise ForbiddenDM()
+
+
+async def try_dm_state(user_id: int, dm_id: int):
+    """Try inserting the user into the dm state
+    for the given DM.
+
+    Does not do anything if the user is already
+    in the dm state.
+    """
+    await app.db.execute(
+        """
+    INSERT INTO dm_channel_state (user_id, dm_id)
+    VALUES ($1, $2)
+    ON CONFLICT DO NOTHING
+    """,
+        user_id,
+        dm_id,
+    )

@@ -23,10 +23,9 @@ from quart import Blueprint, request, current_app as app, jsonify
 from logbook import Logger
 
 
-from litecord.utils import async_map
+from litecord.utils import async_map, query_tuple_from_args, extract_limit
 from litecord.blueprints.auth import token_check
 from litecord.blueprints.checks import channel_check, channel_perm_check
-from litecord.blueprints.channel.messages import query_tuple_from_args, extract_limit
 
 from litecord.enums import GUILD_CHANS
 
@@ -165,7 +164,8 @@ def _emoji_sql_simple(emoji: str, param=4):
     return emoji_sql(emoji_type, emoji_id, emoji_name, param)
 
 
-async def remove_reaction(channel_id: int, message_id: int, user_id: int, emoji: str):
+async def _remove_reaction(channel_id: int, message_id: int, user_id: int, emoji: str):
+    """Remove given reaction from a message."""
     ctype, guild_id = await channel_check(user_id, channel_id)
 
     emoji_type, emoji_id, emoji_name = emoji_info_from_str(emoji)
@@ -201,8 +201,7 @@ async def remove_own_reaction(channel_id, message_id, emoji):
     """Remove a reaction."""
     user_id = await token_check()
 
-    await remove_reaction(channel_id, message_id, user_id, emoji)
-
+    await _remove_reaction(channel_id, message_id, user_id, emoji)
     return "", 204
 
 
@@ -212,7 +211,7 @@ async def remove_user_reaction(channel_id, message_id, emoji, other_id):
     user_id = await token_check()
     await channel_perm_check(user_id, channel_id, "manage_messages")
 
-    await remove_reaction(channel_id, message_id, other_id, emoji)
+    await _remove_reaction(channel_id, message_id, other_id, emoji)
     return "", 204
 
 

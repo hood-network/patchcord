@@ -54,27 +54,21 @@ class Flags:
     """
 
     def __init_subclass__(cls, **_kwargs):
-        attrs = inspect.getmembers(cls, lambda x: not inspect.isroutine(x))
+        # get only the members that represent a field
+        cls._attrs = inspect.getmembers(cls, lambda x: isinstance(x, int))
 
-        def _make_int(value):
-            res = Flags()
+    @classmethod
+    def from_int(cls, value: int):
+        """Create a Flags from a given int value."""
+        res = Flags()
+        setattr(res, "value", value)
 
-            setattr(res, "value", value)
+        for attr, val in cls._attrs:
+            has_attr = (value & val) == val
+            # set attributes dynamically
+            setattr(res, f"is_{attr}", has_attr)
 
-            for attr, val in attrs:
-                # get only the ones that represent a field in the
-                # number's bits
-                if not isinstance(val, int):
-                    continue
-
-                has_attr = (value & val) == val
-
-                # set each attribute
-                setattr(res, f"is_{attr}", has_attr)
-
-            return res
-
-        cls.from_int = _make_int
+        return res
 
 
 class ChannelType(EasyEnum):

@@ -75,35 +75,24 @@ def path_exists(embed: Embed, components_in: Union[List[str], str]):
         return False
 
 
-def _mk_cfg_sess(config, session) -> tuple:
-    """Return a tuple of (config, session)."""
-    if config is None:
-        config = app.config
-
-    if session is None:
-        session = app.session
-
-    return config, session
-
-
-def _md_base(config) -> Optional[tuple]:
+def _md_base() -> Optional[tuple]:
     """Return the protocol and base url for the mediaproxy."""
-    md_base_url = config["MEDIA_PROXY"]
+    md_base_url = app.config["MEDIA_PROXY"]
     if md_base_url is None:
         return None
 
-    proto = "https" if config["IS_SSL"] else "http"
+    proto = "https" if app.config["IS_SSL"] else "http"
 
     return proto, md_base_url
 
 
-def make_md_req_url(config, scope: str, url):
-    """Make a mediaproxy request URL given the config, scope, and the url
+def make_md_req_url(scope: str, url):
+    """Make a mediaproxy request URL given the scope and the url
     to be proxied.
 
     When MEDIA_PROXY is None, however, returns the original URL.
     """
-    base = _md_base(config)
+    base = _md_base()
     if base is None:
         return url.url if isinstance(url, EmbedURL) else url
 
@@ -111,38 +100,25 @@ def make_md_req_url(config, scope: str, url):
     return f"{proto}://{base_url}/{scope}/{url.to_md_path}"
 
 
-def proxify(url, *, config=None) -> str:
+def proxify(url) -> str:
     """Return a mediaproxy url for the given EmbedURL. Returns an
     /img/ scope."""
-    config, _sess = _mk_cfg_sess(config, False)
-
     if isinstance(url, str):
         url = EmbedURL(url)
 
-    return make_md_req_url(config, "img", url)
+    return make_md_req_url("img", url)
 
 
 async def _md_client_req(
-    config, session, scope: str, url, *, ret_resp=False
+    scope: str, url, *, ret_resp=False
 ) -> Optional[Union[Tuple, Dict]]:
     """Makes a request to the mediaproxy.
 
     This has common code between all the main mediaproxy request functions
     to decrease code repetition.
 
-    Note that config and session exist because there are cases where the app
-    isn't retrievable (as those functions usually run in background tasks,
-    not in the app itself).
-
     Parameters
     ----------
-    config: dict-like
-        the app configuration, if None, this will get the global one from the
-        app instance.
-    session: aiohttp client session
-        the aiohttp ClientSession instance to use, if None, this will get
-        the global one from the app.
-
     scope: str
         the scope of your request. one of 'meta', 'img', or 'embed' are
         available for the mediaproxy's API.
@@ -155,14 +131,12 @@ async def _md_client_req(
         the raw bytes of the response, but by the time this function is
         returned, the response object is invalid and the socket is closed
     """
-    config, session = _mk_cfg_sess(config, session)
-
     if not isinstance(url, EmbedURL):
         url = EmbedURL(url)
 
-    request_url = make_md_req_url(config, scope, url)
+    request_url = make_md_req_url(scope, url)
 
-    async with session.get(request_url) as resp:
+    async with app.session.get(request_url) as resp:
         if resp.status == 200:
             if ret_resp:
                 return resp, await resp.read()
@@ -174,18 +148,18 @@ async def _md_client_req(
         return None
 
 
-async def fetch_metadata(url, *, config=None, session=None) -> Optional[Dict]:
+async def fetch_metadata(url) -> Optional[Dict]:
     """Fetch metadata for a url (image width, mime, etc)."""
-    return await _md_client_req(config, session, "meta", url)
+    return await _md_client_req("meta", url)
 
 
-async def fetch_raw_img(url, *, config=None, session=None) -> Optional[tuple]:
+async def fetch_raw_img(url) -> Optional[tuple]:
     """Fetch raw data for a url (the bytes given off, used to proxy images).
 
     Returns a tuple containing the response object and the raw bytes given by
     the website.
     """
-    tup = await _md_client_req(config, session, "img", url, ret_resp=True)
+    tup = await _md_client_req("img", url, ret_resp=True)
 
     if not tup:
         return None
@@ -193,13 +167,13 @@ async def fetch_raw_img(url, *, config=None, session=None) -> Optional[tuple]:
     return tup
 
 
-async def fetch_embed(url, *, config=None, session=None) -> Dict[str, Any]:
+async def fetch_embed(url) -> Dict[str, Any]:
     """Fetch an embed for a given webpage (an automatically generated embed
     by the mediaproxy, look over the project on how it generates embeds).
 
     Returns a discord embed object.
     """
-    return await _md_client_req(config, session, "embed", url)
+    return await _md_client_req("embed", url)
 
 
 async def fill_embed(embed: Optional[Embed]) -> Optional[Embed]:

@@ -64,7 +64,7 @@ async def _get_default_user_avatar(default_id: int):
 
 
 async def _handle_webhook_avatar(md_url_redir: str):
-    md_url = make_md_req_url(app.config, "img", EmbedURL(md_url_redir))
+    md_url = make_md_req_url("img", EmbedURL(md_url_redir))
     return redirect(md_url)
 
 

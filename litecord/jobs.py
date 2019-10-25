@@ -18,7 +18,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import asyncio
+from typing import Any
 
+from quart.ctx import copy_current_app_context
 from logbook import Logger
 
 log = Logger(__name__)
@@ -47,9 +49,14 @@ class JobManager:
 
     def spawn(self, coro):
         """Spawn a given future or coroutine in the background."""
-        task = self.loop.create_task(self._wrapper(coro))
 
+        @copy_current_app_context
+        async def _ctx_wrapper_bg() -> Any:
+            return await coro
+
+        task = self.loop.create_task(self._wrapper(_ctx_wrapper_bg()))
         self.jobs.append(task)
+        return task
 
     def close(self):
         """Close the job manager, cancelling all existing jobs.

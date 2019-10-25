@@ -118,7 +118,7 @@ async def deprecate_region(region):
     return "", 204
 
 
-async def guild_region_check(app_):
+async def guild_region_check():
     """Check all guilds for voice region inconsistencies.
 
     Since the voice migration caused all guilds.region columns
@@ -126,23 +126,23 @@ async def guild_region_check(app_):
     than one region setup.
     """
 
-    regions = await app_.storage.all_voice_regions()
+    regions = await app.storage.all_voice_regions()
 
     if not regions:
         log.info("region check: no regions to move guilds to")
         return
 
-    res = await app_.db.execute(
+    res = await app.db.execute(
         """
-    UPDATE guilds
-    SET region = (
-        SELECT id
-        FROM voice_regions
-        OFFSET floor(random()*$1)
-        LIMIT 1
-    )
-    WHERE region = NULL
-    """,
+        UPDATE guilds
+        SET region = (
+            SELECT id
+            FROM voice_regions
+            OFFSET floor(random()*$1)
+            LIMIT 1
+        )
+        WHERE region = NULL
+        """,
         len(regions),
     )
 

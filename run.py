@@ -337,9 +337,9 @@ async def api_index(app_):
 
 async def post_app_start(app_):
     # we'll need to start a billing job
-    app_.sched.spawn(payment_job(app_))
+    app_.sched.spawn(payment_job())
     app_.sched.spawn(api_index(app_))
-    app_.sched.spawn(guild_region_check(app_))
+    app_.sched.spawn(guild_region_check())
 
 
 def start_websocket(host, port, ws_handler) -> asyncio.Future:

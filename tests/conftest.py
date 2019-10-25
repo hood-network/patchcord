@@ -30,10 +30,9 @@ from tests.common import email, TestClient
 
 from run import app as main_app, set_blueprints
 
-from litecord.auth import create_user
+from litecord.common.users import create_user, delete_user
 from litecord.enums import UserFlags
 from litecord.blueprints.auth import make_token
-from litecord.blueprints.users import delete_user
 
 
 @pytest.fixture(name="app")

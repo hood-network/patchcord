@@ -17,7 +17,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from os import urandom
 
 from asyncpg import UniqueViolationError
 from quart import Blueprint, jsonify, request, current_app as app
@@ -27,8 +26,8 @@ from ..errors import Forbidden, BadRequest, Unauthorized
 from ..schemas import validate, USER_UPDATE, GET_MENTIONS
 
 from .guilds import guild_check
-from litecord.auth import token_check, hash_data, check_username_usage, roll_discrim
-from litecord.blueprints.guild.mod import remove_member
+from litecord.auth import token_check, hash_data
+from litecord.common.guilds import remove_member
 
 from litecord.enums import PremiumType
 from litecord.images import parse_data_uri
@@ -36,44 +35,16 @@ from litecord.permissions import base_permissions
 
 from litecord.blueprints.auth import check_password
 from litecord.utils import to_update
+from litecord.common.users import (
+    mass_user_update,
+    delete_user,
+    check_username_usage,
+    roll_discrim,
+    user_disconnect,
+)
 
 bp = Blueprint("user", __name__)
 log = Logger(__name__)
-
-
-async def mass_user_update(user_id):
-    """Dispatch USER_UPDATE in a mass way."""
-    # by using dispatch_with_filter
-    # we're guaranteeing all shards will get
-    # a USER_UPDATE once and not any others.
-
-    session_ids = []
-
-    public_user = await app.storage.get_user(user_id)
-    private_user = await app.storage.get_user(user_id, secure=True)
-
-    session_ids.extend(
-        await app.dispatcher.dispatch_user(user_id, "USER_UPDATE", private_user)
-    )
-
-    guild_ids = await app.user_storage.get_user_guilds(user_id)
-    friend_ids = await app.user_storage.get_friend_ids(user_id)
-
-    session_ids.extend(
-        await app.dispatcher.dispatch_many_filter_list(
-            "guild", guild_ids, session_ids, "USER_UPDATE", public_user
-        )
-    )
-
-    session_ids.extend(
-        await app.dispatcher.dispatch_many_filter_list(
-            "friend", friend_ids, session_ids, "USER_UPDATE", public_user
-        )
-    )
-
-    await app.dispatcher.dispatch_many("lazy_guild", guild_ids, "update_user", user_id)
-
-    return public_user, private_user
 
 
 @bp.route("/@me", methods=["GET"])
@@ -276,7 +247,7 @@ async def patch_me():
 
     user.pop("password_hash")
 
-    _, private_user = await mass_user_update(user_id, app)
+    _, private_user = await mass_user_update(user_id)
     return jsonify(private_user)
 
 
@@ -319,7 +290,6 @@ async def leave_guild(guild_id: int):
     await guild_check(user_id, guild_id)
 
     await remove_member(guild_id, user_id)
-
     return "", 204
 
 
@@ -466,118 +436,6 @@ async def _get_mentions():
         res.append(message)
 
     return jsonify(res)
-
-
-def rand_hex(length: int = 8) -> str:
-    """Generate random hex characters."""
-    return urandom(length).hex()[:length]
-
-
-async def _del_from_table(db, table: str, user_id: int):
-    """Delete a row from a table."""
-    column = {
-        "channel_overwrites": "target_user",
-        "user_settings": "id",
-        "group_dm_members": "member_id",
-    }.get(table, "user_id")
-
-    res = await db.execute(
-        f"""
-    DELETE FROM {table}
-    WHERE {column} = $1
-    """,
-        user_id,
-    )
-
-    log.info("Deleting uid {} from {}, res: {!r}", user_id, table, res)
-
-
-async def delete_user(user_id, *, mass_update: bool = True):
-    """Delete a user. Does not disconnect the user."""
-    db = app.db
-
-    new_username = f"Deleted User {rand_hex()}"
-
-    # by using a random hex in password_hash
-    # we break attempts at using the default '123' password hash
-    # to issue valid tokens for deleted users.
-
-    await db.execute(
-        """
-    UPDATE users
-    SET
-        username = $1,
-        email = NULL,
-        mfa_enabled = false,
-        verified = false,
-        avatar = NULL,
-        flags = 0,
-        premium_since = NULL,
-        phone = '',
-        password_hash = $2
-    WHERE
-        id = $3
-    """,
-        new_username,
-        rand_hex(32),
-        user_id,
-    )
-
-    # remove the user from various tables
-    await _del_from_table(db, "user_settings", user_id)
-    await _del_from_table(db, "user_payment_sources", user_id)
-    await _del_from_table(db, "user_subscriptions", user_id)
-    await _del_from_table(db, "user_payments", user_id)
-    await _del_from_table(db, "user_read_state", user_id)
-    await _del_from_table(db, "guild_settings", user_id)
-    await _del_from_table(db, "guild_settings_channel_overrides", user_id)
-
-    await db.execute(
-        """
-    DELETE FROM relationships
-    WHERE user_id = $1 OR peer_id = $1
-    """,
-        user_id,
-    )
-
-    # DMs are still maintained, but not the state.
-    await _del_from_table(db, "dm_channel_state", user_id)
-
-    # NOTE: we don't delete the group dms the user is an owner of...
-    # TODO: group dm owner reassign when the owner leaves a gdm
-    await _del_from_table(db, "group_dm_members", user_id)
-
-    await _del_from_table(db, "members", user_id)
-    await _del_from_table(db, "member_roles", user_id)
-    await _del_from_table(db, "channel_overwrites", user_id)
-
-    # after updating the user, we send USER_UPDATE so that all the other
-    # clients can refresh their caches on the now-deleted user
-    if mass_update:
-        await mass_user_update(user_id)
-
-
-async def user_disconnect(user_id: int):
-    """Disconnects the given user's devices."""
-    # after removing the user from all tables, we need to force
-    # all known user states to reconnect, causing the user to not
-    # be online anymore.
-    user_states = app.state_manager.user_states(user_id)
-
-    for state in user_states:
-        # make it unable to resume
-        app.state_manager.remove(state)
-
-        if not state.ws:
-            continue
-
-        # force a close, 4000 should make the client reconnect.
-        await state.ws.ws.close(4000)
-
-    # force everyone to see the user as offline
-    await app.presence.dispatch_pres(
-        user_id, {"afk": False, "status": "offline", "game": None, "since": 0}
-    )
 
 
 @bp.route("/@me/delete", methods=["POST"])

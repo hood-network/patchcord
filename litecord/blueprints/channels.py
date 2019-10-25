@@ -42,6 +42,7 @@ from litecord.blueprints.dm_channels import gdm_remove_recipient, gdm_destroy
 from litecord.utils import search_result_from_list
 from litecord.embed.messages import process_url_embed, msg_update_embeds
 from litecord.snowflake import snowflake_datetime
+from litecord.common.channels import channel_ack
 
 log = Logger(__name__)
 bp = Blueprint("channels", __name__)
@@ -136,7 +137,7 @@ async def _update_guild_chan_cat(guild_id: int, channel_id: int):
         await app.dispatcher.dispatch_guild(guild_id, "CHANNEL_UPDATE", child)
 
 
-async def delete_messages(channel_id):
+async def _delete_messages(channel_id):
     await app.db.execute(
         """
     DELETE FROM channel_pins
@@ -162,7 +163,7 @@ async def delete_messages(channel_id):
     )
 
 
-async def guild_cleanup(channel_id):
+async def _guild_cleanup(channel_id):
     await app.db.execute(
         """
     DELETE FROM channel_overwrites
@@ -220,8 +221,8 @@ async def close_channel(channel_id):
         # didn't work on my setup, so I delete
         # everything before moving to the main
         # channel table deletes
-        await delete_messages(channel_id)
-        await guild_cleanup(channel_id)
+        await _delete_messages(channel_id)
+        await _guild_cleanup(channel_id)
 
         await app.db.execute(
             f"""
@@ -595,48 +596,6 @@ async def trigger_typing(channel_id):
     return "", 204
 
 
-async def channel_ack(user_id, guild_id, channel_id, message_id: int = None):
-    """ACK a channel."""
-
-    if not message_id:
-        message_id = await app.storage.chan_last_message(channel_id)
-
-    await app.db.execute(
-        """
-    INSERT INTO user_read_state
-        (user_id, channel_id, last_message_id, mention_count)
-    VALUES
-        ($1, $2, $3, 0)
-    ON CONFLICT ON CONSTRAINT user_read_state_pkey
-    DO
-      UPDATE
-        SET last_message_id = $3, mention_count = 0
-        WHERE user_read_state.user_id = $1
-          AND user_read_state.channel_id = $2
-    """,
-        user_id,
-        channel_id,
-        message_id,
-    )
-
-    if guild_id:
-        await app.dispatcher.dispatch_user_guild(
-            user_id,
-            guild_id,
-            "MESSAGE_ACK",
-            {"message_id": str(message_id), "channel_id": str(channel_id)},
-        )
-    else:
-        # we don't use ChannelDispatcher here because since
-        # guild_id is None, all user devices are already subscribed
-        # to the given channel (a dm or a group dm)
-        await app.dispatcher.dispatch_user(
-            user_id,
-            "MESSAGE_ACK",
-            {"message_id": str(message_id), "channel_id": str(channel_id)},
-        )
-
-
 @bp.route("/<int:channel_id>/messages/<int:message_id>/ack", methods=["POST"])
 async def ack_channel(channel_id, message_id):
     """Acknowledge a channel."""
@@ -799,7 +758,7 @@ async def suppress_embeds(channel_id: int, message_id: int):
 
         message["flags"] = message.get("flags", 0) | MessageFlags.suppress_embeds
 
-        await msg_update_embeds(message, [], app.storage, app.dispatcher)
+        await msg_update_embeds(message, [])
     elif not suppress and not url_embeds:
         # spawn process_url_embed to restore the embeds, if any
         await _msg_unset_flags(message_id, MessageFlags.suppress_embeds)
@@ -809,11 +768,7 @@ async def suppress_embeds(channel_id: int, message_id: int):
         except KeyError:
             pass
 
-        app.sched.spawn(
-            process_url_embed(
-                app.config, app.storage, app.dispatcher, app.session, message
-            )
-        )
+        app.sched.spawn(process_url_embed(message))
 
     return "", 204
 
