@@ -28,7 +28,7 @@ from ..schemas import validate, USER_UPDATE, GET_MENTIONS
 
 from .guilds import guild_check
 from litecord.auth import token_check, hash_data, check_username_usage, roll_discrim
-from litecord.blueprints.guild.mod import remove_member
+from litecord.common.guilds import remove_member
 
 from litecord.enums import PremiumType
 from litecord.images import parse_data_uri
@@ -319,7 +319,6 @@ async def leave_guild(guild_id: int):
     await guild_check(user_id, guild_id)
 
     await remove_member(guild_id, user_id)
-
     return "", 204
 
 

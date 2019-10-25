@@ -43,7 +43,7 @@ from litecord.snowflake import get_snowflake
 from litecord.utils import async_map
 from litecord.errors import WebhookNotFound, Unauthorized, ChannelNotFound, BadRequest
 
-from litecord.blueprints.channel.messages import (
+from litecord.common.messages import (
     msg_create_request,
     msg_create_check_content,
     msg_add_attachment,

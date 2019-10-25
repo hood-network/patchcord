@@ -27,75 +27,9 @@ from litecord.blueprints.guild.roles import gen_pairs
 
 from litecord.schemas import validate, ROLE_UPDATE_POSITION, CHAN_CREATE
 from litecord.blueprints.checks import guild_check, guild_owner_check, guild_perm_check
-
+from litecord.common.guilds import create_guild_channel
 
 bp = Blueprint("guild_channels", __name__)
-
-
-async def _specific_chan_create(channel_id, ctype, **kwargs):
-    if ctype == ChannelType.GUILD_TEXT:
-        await app.db.execute(
-            """
-        INSERT INTO guild_text_channels (id, topic)
-        VALUES ($1, $2)
-        """,
-            channel_id,
-            kwargs.get("topic", ""),
-        )
-    elif ctype == ChannelType.GUILD_VOICE:
-        await app.db.execute(
-            """
-            INSERT INTO guild_voice_channels (id, bitrate, user_limit)
-            VALUES ($1, $2, $3)
-            """,
-            channel_id,
-            kwargs.get("bitrate", 64),
-            kwargs.get("user_limit", 0),
-        )
-
-
-async def create_guild_channel(
-    guild_id: int, channel_id: int, ctype: ChannelType, **kwargs
-):
-    """Create a channel in a guild."""
-    await app.db.execute(
-        """
-    INSERT INTO channels (id, channel_type)
-    VALUES ($1, $2)
-    """,
-        channel_id,
-        ctype.value,
-    )
-
-    # calc new pos
-    max_pos = await app.db.fetchval(
-        """
-    SELECT MAX(position)
-    FROM guild_channels
-    WHERE guild_id = $1
-    """,
-        guild_id,
-    )
-
-    # account for the first channel in a guild too
-    max_pos = max_pos or 0
-
-    # all channels go to guild_channels
-    await app.db.execute(
-        """
-    INSERT INTO guild_channels (id, guild_id, name, position)
-    VALUES ($1, $2, $3, $4)
-    """,
-        channel_id,
-        guild_id,
-        kwargs["name"],
-        max_pos + 1,
-    )
-
-    # the rest of sql magic is dependant on the channel
-    # we're creating (a text or voice or category),
-    # so we use this function.
-    await _specific_chan_create(channel_id, ctype, **kwargs)
 
 
 @bp.route("/<int:guild_id>/channels", methods=["GET"])

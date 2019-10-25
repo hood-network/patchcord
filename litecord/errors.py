@@ -116,6 +116,10 @@ class Forbidden(LitecordError):
     status_code = 403
 
 
+class ForbiddenDM(Forbidden):
+    error_code = 50007
+
+
 class NotFound(LitecordError):
     status_code = 404
 

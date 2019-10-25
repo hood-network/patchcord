@@ -27,11 +27,9 @@ from litecord.auth import token_check
 from litecord.blueprints.checks import guild_check, guild_perm_check
 from litecord.schemas import validate, ROLE_CREATE, ROLE_UPDATE, ROLE_UPDATE_POSITION
 
-from litecord.snowflake import get_snowflake
-from litecord.utils import dict_get
-from litecord.permissions import get_role_perms
+from litecord.utils import maybe_lazy_guild_dispatch
+from litecord.common.guilds import create_role
 
-DEFAULT_EVERYONE_PERMS = 104324161
 log = Logger(__name__)
 bp = Blueprint("guild_roles", __name__)
 
@@ -43,71 +41,6 @@ async def get_guild_roles(guild_id):
     await guild_check(user_id, guild_id)
 
     return jsonify(await app.storage.get_role_data(guild_id))
-
-
-async def _maybe_lg(guild_id: int, event: str, role, force: bool = False):
-    # sometimes we want to dispatch an event
-    # even if the role isn't hoisted
-
-    # an example of such a case is when a role loses
-    # its hoist status.
-
-    # check if is a dict first because role_delete
-    # only receives the role id.
-    if isinstance(role, dict) and not role["hoist"] and not force:
-        return
-
-    await app.dispatcher.dispatch("lazy_guild", guild_id, event, role)
-
-
-async def create_role(guild_id, name: str, **kwargs):
-    """Create a role in a guild."""
-    new_role_id = get_snowflake()
-
-    everyone_perms = await get_role_perms(guild_id, guild_id)
-    default_perms = dict_get(kwargs, "default_perms", everyone_perms.binary)
-
-    # update all roles so that we have space for pos 1, but without
-    # sending GUILD_ROLE_UPDATE for everyone
-    await app.db.execute(
-        """
-    UPDATE roles
-    SET
-        position = position + 1
-    WHERE guild_id = $1
-      AND NOT (position = 0)
-    """,
-        guild_id,
-    )
-
-    await app.db.execute(
-        """
-        INSERT INTO roles (id, guild_id, name, color,
-            hoist, position, permissions, managed, mentionable)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-        """,
-        new_role_id,
-        guild_id,
-        name,
-        dict_get(kwargs, "color", 0),
-        dict_get(kwargs, "hoist", False),
-        # always set ourselves on position 1
-        1,
-        int(dict_get(kwargs, "permissions", default_perms)),
-        False,
-        dict_get(kwargs, "mentionable", False),
-    )
-
-    role = await app.storage.get_role(new_role_id, guild_id)
-
-    # we need to update the lazy guild handlers for the newly created group
-    await _maybe_lg(guild_id, "new_role", role)
-
-    await app.dispatcher.dispatch_guild(
-        guild_id, "GUILD_ROLE_CREATE", {"guild_id": str(guild_id), "role": role}
-    )
-
-    return role
 
 
 @bp.route("/<int:guild_id>/roles", methods=["POST"])
@@ -132,7 +65,7 @@ async def _role_update_dispatch(role_id: int, guild_id: int):
     """Dispatch a GUILD_ROLE_UPDATE with updated information on a role."""
     role = await app.storage.get_role(role_id, guild_id)
 
-    await _maybe_lg(guild_id, "role_pos_upd", role)
+    await maybe_lazy_guild_dispatch(guild_id, "role_pos_upd", role)
 
     await app.dispatcher.dispatch_guild(
         guild_id, "GUILD_ROLE_UPDATE", {"guild_id": str(guild_id), "role": role}
@@ -343,7 +276,7 @@ async def update_guild_role(guild_id, role_id):
         )
 
     role = await _role_update_dispatch(role_id, guild_id)
-    await _maybe_lg(guild_id, "role_update", role, True)
+    await maybe_lazy_guild_dispatch(guild_id, "role_update", role, True)
     return jsonify(role)
 
 
@@ -369,7 +302,7 @@ async def delete_guild_role(guild_id, role_id):
     if res == "DELETE 0":
         return "", 204
 
-    await _maybe_lg(guild_id, "role_delete", role_id, True)
+    await maybe_lazy_guild_dispatch(guild_id, "role_delete", role_id, True)
 
     await app.dispatcher.dispatch_guild(
         guild_id,

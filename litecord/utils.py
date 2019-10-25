@@ -23,7 +23,9 @@ from typing import Any, Iterable, Optional, Sequence, List, Dict, Union
 
 from logbook import Logger
 from quart.json import JSONEncoder
-from quart import current_app as app
+from quart import current_app as app, request
+
+from .errors import BadRequest
 
 log = Logger(__name__)
 
@@ -233,3 +235,52 @@ def maybe_int(val: Any) -> Union[int, Any]:
         return int(val)
     except (ValueError, TypeError):
         return val
+
+
+async def maybe_lazy_guild_dispatch(
+    guild_id: int, event: str, role, force: bool = False
+):
+    # sometimes we want to dispatch an event
+    # even if the role isn't hoisted
+
+    # an example of such a case is when a role loses
+    # its hoist status.
+
+    # check if is a dict first because role_delete
+    # only receives the role id.
+    if isinstance(role, dict) and not role["hoist"] and not force:
+        return
+
+    await app.dispatcher.dispatch("lazy_guild", guild_id, event, role)
+
+
+def extract_limit(request_, default: int = 50, max_val: int = 100):
+    """Extract a limit kwarg."""
+    try:
+        limit = int(request_.args.get("limit", default))
+
+        if limit not in range(0, max_val + 1):
+            raise ValueError()
+    except (TypeError, ValueError):
+        raise BadRequest("limit not int")
+
+    return limit
+
+
+def query_tuple_from_args(args: dict, limit: int) -> tuple:
+    """Extract a 2-tuple out of request arguments."""
+    before, after = None, None
+
+    if "around" in request.args:
+        average = int(limit / 2)
+        around = int(args["around"])
+
+        after = around - average
+        before = around + average
+
+    elif "before" in args:
+        before = int(args["before"])
+    elif "after" in args:
+        before = int(args["after"])
+
+    return before, after
