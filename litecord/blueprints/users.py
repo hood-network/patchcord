@@ -276,7 +276,7 @@ async def patch_me():
 
     user.pop("password_hash")
 
-    _, private_user = await mass_user_update(user_id, app)
+    _, private_user = await mass_user_update(user_id)
     return jsonify(private_user)
 
 

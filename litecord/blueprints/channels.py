@@ -809,11 +809,7 @@ async def suppress_embeds(channel_id: int, message_id: int):
         except KeyError:
             pass
 
-        app.sched.spawn(
-            process_url_embed(
-                app.config, app.storage, app.dispatcher, app.session, message
-            )
-        )
+        app.sched.spawn(process_url_embed(message))
 
     return "", 204
 
