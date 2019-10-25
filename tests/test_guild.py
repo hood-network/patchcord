@@ -31,25 +31,24 @@ async def test_guild_create(test_cli_user):
     g_name = secrets.token_hex(5)
 
     # stage 1: create
-    resp = await test_cli_user.post('/api/v6/guilds', json={
-        'name': g_name,
-        'region': None,
-    })
+    resp = await test_cli_user.post(
+        "/api/v6/guilds", json={"name": g_name, "region": None}
+    )
 
     assert resp.status_code == 200
     rjson = await resp.json
 
     # we won't assert a full guild object.
-    assert isinstance(rjson['id'], str)
-    assert isinstance(rjson['owner_id'], str)
-    assert isinstance(rjson['name'], str)
-    assert rjson['name'] == g_name
+    assert isinstance(rjson["id"], str)
+    assert isinstance(rjson["owner_id"], str)
+    assert isinstance(rjson["name"], str)
+    assert rjson["name"] == g_name
 
     created = rjson
-    guild_id = created['id']
+    guild_id = created["id"]
 
     # stage 2: test
-    resp = await test_cli_user.get('/api/v6/users/@me/guilds')
+    resp = await test_cli_user.get("/api/v6/users/@me/guilds")
 
     assert resp.status_code == 200
     rjson = await resp.json
@@ -62,23 +61,20 @@ async def test_guild_create(test_cli_user):
 
     for guild in rjson:
         assert isinstance(guild, dict)
-        assert isinstance(guild['id'], str)
-        assert isinstance(guild['name'], str)
-        assert isinstance(guild['owner'], bool)
-        assert guild['icon'] is None or isinstance(guild['icon'], str)
+        assert isinstance(guild["id"], str)
+        assert isinstance(guild["name"], str)
+        assert isinstance(guild["owner"], bool)
+        assert guild["icon"] is None or isinstance(guild["icon"], str)
 
     try:
-        our_guild = next(filter(
-            lambda guild: guild['id'] == guild_id,
-            rjson
-        ))
+        our_guild = next(filter(lambda guild: guild["id"] == guild_id, rjson))
     except StopIteration:
-        raise Exception('created guild not found in user guild list')
+        raise Exception("created guild not found in user guild list")
 
-    assert our_guild['id'] == created['id']
-    assert our_guild['name'] == created['name']
+    assert our_guild["id"] == created["id"]
+    assert our_guild["name"] == created["name"]
 
     # stage 3: deletion
-    resp = await test_cli_user.delete(f'/api/v6/guilds/{guild_id}')
+    resp = await test_cli_user.delete(f"/api/v6/guilds/{guild_id}")
 
     assert resp.status_code == 204

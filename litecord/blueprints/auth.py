@@ -32,7 +32,7 @@ from litecord.snowflake import get_snowflake
 from .invites import use_invite
 
 log = Logger(__name__)
-bp = Blueprint('auth', __name__)
+bp = Blueprint("auth", __name__)
 
 
 async def check_password(pwd_hash: str, given_password: str) -> bool:
@@ -53,141 +53,139 @@ def make_token(user_id, user_pwd_hash) -> str:
     return signer.sign(user_id).decode()
 
 
-@bp.route('/register', methods=['POST'])
+@bp.route("/register", methods=["POST"])
 async def register():
     """Register a single user."""
-    enabled = app.config.get('REGISTRATIONS')
+    enabled = app.config.get("REGISTRATIONS")
     if not enabled:
-        raise BadRequest('Registrations disabled', {
-            'email': 'Registrations are disabled.'
-        })
+        raise BadRequest(
+            "Registrations disabled", {"email": "Registrations are disabled."}
+        )
 
     j = await request.get_json()
 
-    if not 'password' in j:
+    if not "password" in j:
         # we need a password to generate a token.
         # passwords are optional, so
-        j['password'] = 'default_password'
+        j["password"] = "default_password"
 
     j = validate(j, REGISTER)
 
     # they're optional
-    email = j.get('email')
-    invite = j.get('invite')
+    email = j.get("email")
+    invite = j.get("invite")
 
-    username, password = j['username'], j['password']
+    username, password = j["username"], j["password"]
 
-    new_id, pwd_hash = await create_user(
-        username, email, password, app.db
-    )
+    new_id, pwd_hash = await create_user(username, email, password, app.db)
 
     if invite:
         try:
             await use_invite(new_id, invite)
         except Exception:
-            log.exception('failed to use invite for register {} {!r}',
-                          new_id, invite)
+            log.exception("failed to use invite for register {} {!r}", new_id, invite)
 
-    return jsonify({
-        'token': make_token(new_id, pwd_hash)
-    })
+    return jsonify({"token": make_token(new_id, pwd_hash)})
 
 
-@bp.route('/register_inv', methods=['POST'])
+@bp.route("/register_inv", methods=["POST"])
 async def _register_with_invite():
     data = await request.form
     data = validate(await request.form, REGISTER_WITH_INVITE)
 
-    invcode = data['invcode']
+    invcode = data["invcode"]
 
-    row = await app.db.fetchrow("""
+    row = await app.db.fetchrow(
+        """
     SELECT uses, max_uses
     FROM instance_invites
     WHERE code = $1
-    """, invcode)
+    """,
+        invcode,
+    )
 
     if row is None:
-        raise BadRequest('unknown instance invite')
+        raise BadRequest("unknown instance invite")
 
-    if row['max_uses'] != -1 and row['uses'] >= row['max_uses']:
-        raise BadRequest('invite expired')
+    if row["max_uses"] != -1 and row["uses"] >= row["max_uses"]:
+        raise BadRequest("invite expired")
 
-    await app.db.execute("""
+    await app.db.execute(
+        """
     UPDATE instance_invites
     SET uses = uses + 1
     WHERE code = $1
-    """, invcode)
+    """,
+        invcode,
+    )
 
     user_id, pwd_hash = await create_user(
-        data['username'], data['email'], data['password'], app.db)
+        data["username"], data["email"], data["password"], app.db
+    )
 
-    return jsonify({
-        'token': make_token(user_id, pwd_hash),
-        'user_id': str(user_id),
-    })
+    return jsonify({"token": make_token(user_id, pwd_hash), "user_id": str(user_id)})
 
 
-@bp.route('/login', methods=['POST'])
+@bp.route("/login", methods=["POST"])
 async def login():
     j = await request.get_json()
-    email, password = j['email'], j['password']
+    email, password = j["email"], j["password"]
 
-    row = await app.db.fetchrow("""
+    row = await app.db.fetchrow(
+        """
     SELECT id, password_hash
     FROM users
     WHERE email = $1
-    """, email)
+    """,
+        email,
+    )
 
     if not row:
-        return jsonify({'email': ['User not found.']}), 401
+        return jsonify({"email": ["User not found."]}), 401
 
     user_id, pwd_hash = row
 
     if not await check_password(pwd_hash, password):
-        return jsonify({'password': ['Password does not match.']}), 401
+        return jsonify({"password": ["Password does not match."]}), 401
 
-    return jsonify({
-        'token': make_token(user_id, pwd_hash)
-    })
+    return jsonify({"token": make_token(user_id, pwd_hash)})
 
 
-@bp.route('/consent-required', methods=['GET'])
+@bp.route("/consent-required", methods=["GET"])
 async def consent_required():
-    return jsonify({
-        'required': True,
-    })
+    return jsonify({"required": True})
 
 
-@bp.route('/verify/resend', methods=['POST'])
+@bp.route("/verify/resend", methods=["POST"])
 async def verify_user():
     user_id = await token_check()
 
     # TODO: actually verify a user by sending an email
-    await app.db.execute("""
+    await app.db.execute(
+        """
     UPDATE users
     SET verified = true
     WHERE id = $1
-    """, user_id)
+    """,
+        user_id,
+    )
 
     new_user = await app.storage.get_user(user_id, True)
-    await app.dispatcher.dispatch_user(
-        user_id, 'USER_UPDATE', new_user)
+    await app.dispatcher.dispatch_user(user_id, "USER_UPDATE", new_user)
 
-    return '', 204
+    return "", 204
 
 
-@bp.route('/logout', methods=['POST'])
+@bp.route("/logout", methods=["POST"])
 async def _logout():
     """Called by the client to logout."""
-    return '', 204
+    return "", 204
 
 
-@bp.route('/fingerprint', methods=['POST'])
+@bp.route("/fingerprint", methods=["POST"])
 async def _fingerprint():
     """No idea what this route is about."""
     fingerprint_id = get_snowflake()
-    fingerprint = f'{fingerprint_id}.{secrets.token_urlsafe(32)}'
+    fingerprint = f"{fingerprint_id}.{secrets.token_urlsafe(32)}"
 
-    return jsonify({
-        'fingerprint': fingerprint
-    })
+    return jsonify({"fingerprint": fingerprint})

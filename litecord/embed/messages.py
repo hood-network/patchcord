@@ -30,11 +30,7 @@ from litecord.embed.schemas import EmbedURL
 log = Logger(__name__)
 
 
-MEDIA_EXTENSIONS = (
-    'png',
-    'jpg', 'jpeg',
-    'gif', 'webm'
-)
+MEDIA_EXTENSIONS = ("png", "jpg", "jpeg", "gif", "webm")
 
 
 async def insert_media_meta(url, config, session):
@@ -45,18 +41,18 @@ async def insert_media_meta(url, config, session):
     if meta is None:
         return
 
-    if not meta['image']:
+    if not meta["image"]:
         return
 
     return {
-        'type': 'image',
-        'url': url,
-        'thumbnail': {
-            'width': meta['width'],
-            'height': meta['height'],
-            'url': url,
-            'proxy_url': img_proxy_url
-        }
+        "type": "image",
+        "url": url,
+        "thumbnail": {
+            "width": meta["width"],
+            "height": meta["height"],
+            "url": url,
+            "proxy_url": img_proxy_url,
+        },
     }
 
 
@@ -64,29 +60,32 @@ async def msg_update_embeds(payload, new_embeds, storage, dispatcher):
     """Update the message with the given embeds and dispatch a MESSAGE_UPDATE
     to users."""
 
-    message_id = int(payload['id'])
-    channel_id = int(payload['channel_id'])
+    message_id = int(payload["id"])
+    channel_id = int(payload["channel_id"])
 
-    await storage.execute_with_json("""
+    await storage.execute_with_json(
+        """
     UPDATE messages
     SET embeds = $1
     WHERE messages.id = $2
-    """, new_embeds, message_id)
+    """,
+        new_embeds,
+        message_id,
+    )
 
     update_payload = {
-        'id': str(message_id),
-        'channel_id': str(channel_id),
-        'embeds': new_embeds,
+        "id": str(message_id),
+        "channel_id": str(channel_id),
+        "embeds": new_embeds,
     }
 
-    if 'guild_id' in payload:
-        update_payload['guild_id'] = payload['guild_id']
+    if "guild_id" in payload:
+        update_payload["guild_id"] = payload["guild_id"]
 
-    if 'flags' in payload:
-        update_payload['flags'] = payload['flags']
+    if "flags" in payload:
+        update_payload["flags"] = payload["flags"]
 
-    await dispatcher.dispatch(
-        'channel', channel_id, 'MESSAGE_UPDATE', update_payload)
+    await dispatcher.dispatch("channel", channel_id, "MESSAGE_UPDATE", update_payload)
 
 
 def is_media_url(url) -> bool:
@@ -98,7 +97,7 @@ def is_media_url(url) -> bool:
         parsed = urllib.parse.urlparse(url)
 
     path = Path(parsed.path)
-    extension = path.suffix.lstrip('.')
+    extension = path.suffix.lstrip(".")
 
     return extension in MEDIA_EXTENSIONS
 
@@ -109,20 +108,20 @@ async def insert_mp_embed(parsed, config, session):
     return embed
 
 
-async def process_url_embed(config, storage, dispatcher,
-                            session, payload: dict, *, delay=0):
+async def process_url_embed(
+    config, storage, dispatcher, session, payload: dict, *, delay=0
+):
     """Process URLs in a message and generate embeds based on that."""
     await asyncio.sleep(delay)
 
-    message_id = int(payload['id'])
+    message_id = int(payload["id"])
 
     # if we already have embeds
     # we shouldn't add our own.
-    embeds = payload['embeds']
+    embeds = payload["embeds"]
 
     if embeds:
-        log.debug('url processor: ignoring existing embeds @ mid {}',
-                  message_id)
+        log.debug("url processor: ignoring existing embeds @ mid {}", message_id)
         return
 
     # now, we have two types of embeds:
@@ -130,7 +129,7 @@ async def process_url_embed(config, storage, dispatcher,
     # - url embeds
 
     # use regex to get URLs
-    urls = re.findall(r'(https?://\S+)', payload['content'])
+    urls = re.findall(r"(https?://\S+)", payload["content"])
     urls = urls[:5]
 
     # from there, we need to parse each found url and check its path.
@@ -159,7 +158,6 @@ async def process_url_embed(config, storage, dispatcher,
     if not new_embeds:
         return
 
-    log.debug('made {} embeds for mid {}',
-              len(new_embeds), message_id)
+    log.debug("made {} embeds for mid {}", len(new_embeds), message_id)
 
     await msg_update_embeds(payload, new_embeds, storage, dispatcher)

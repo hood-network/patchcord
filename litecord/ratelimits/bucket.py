@@ -28,6 +28,7 @@ import time
 
 class RatelimitBucket:
     """Main ratelimit bucket class."""
+
     def __init__(self, tokens, second):
         self.requests = tokens
         self.second = second
@@ -88,17 +89,19 @@ class RatelimitBucket:
 
         Used to manage multiple ratelimits to users.
         """
-        return RatelimitBucket(self.requests,
-                               self.second)
+        return RatelimitBucket(self.requests, self.second)
 
     def __repr__(self):
-        return (f'<RatelimitBucket requests={self.requests} '
-                f'second={self.second} window: {self._window} '
-                f'tokens={self._tokens}>')
+        return (
+            f"<RatelimitBucket requests={self.requests} "
+            f"second={self.second} window: {self._window} "
+            f"tokens={self._tokens}>"
+        )
 
 
 class Ratelimit:
     """Manages buckets."""
+
     def __init__(self, tokens, second, keys=None):
         self._cache = {}
         if keys is None:
@@ -107,12 +110,11 @@ class Ratelimit:
         self._cooldown = RatelimitBucket(tokens, second)
 
     def __repr__(self):
-        return (f'<Ratelimit cooldown={self._cooldown}>')
+        return f"<Ratelimit cooldown={self._cooldown}>"
 
     def _verify_cache(self):
         current = time.time()
-        dead_keys = [k for k, v in self._cache.items()
-                     if current > v._last + v.second]
+        dead_keys = [k for k, v in self._cache.items() if current > v._last + v.second]
 
         for k in dead_keys:
             del self._cache[k]

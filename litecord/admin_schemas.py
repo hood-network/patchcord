@@ -19,42 +19,33 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from litecord.enums import Feature, UserFlags
 
-VOICE_SERVER = {
-    'hostname': {'type': 'string', 'maxlength': 255, 'required': True}
-}
+VOICE_SERVER = {"hostname": {"type": "string", "maxlength": 255, "required": True}}
 
 VOICE_REGION = {
-    'id': {'type': 'string', 'maxlength': 255, 'required': True},
-    'name': {'type': 'string', 'maxlength': 255, 'required': True},
-
-    'vip': {'type': 'boolean', 'default': False},
-    'deprecated': {'type': 'boolean', 'default': False},
-    'custom': {'type': 'boolean', 'default': False},
+    "id": {"type": "string", "maxlength": 255, "required": True},
+    "name": {"type": "string", "maxlength": 255, "required": True},
+    "vip": {"type": "boolean", "default": False},
+    "deprecated": {"type": "boolean", "default": False},
+    "custom": {"type": "boolean", "default": False},
 }
 
 FEATURES = {
-    'features': {
-        'type': 'list', 'required': True,
-
+    "features": {
+        "type": "list",
+        "required": True,
         # using Feature doesn't seem to work with a "not callable" error.
-        'schema': {'coerce': lambda x: Feature(x)}
+        "schema": {"coerce": lambda x: Feature(x)},
     }
 }
 
 USER_CREATE = {
-    'username': {'type': 'username', 'required': True},
-    'email': {'type': 'email', 'required': True},
-    'password': {'type': 'string', 'minlength': 5, 'required': True},
+    "username": {"type": "username", "required": True},
+    "email": {"type": "email", "required": True},
+    "password": {"type": "string", "minlength": 5, "required": True},
 }
 
-INSTANCE_INVITE = {
-    'max_uses': {'type': 'integer', 'required': True}
-}
+INSTANCE_INVITE = {"max_uses": {"type": "integer", "required": True}}
 
-GUILD_UPDATE = {
-    'unavailable': {'type': 'boolean', 'required': False}
-}
+GUILD_UPDATE = {"unavailable": {"type": "boolean", "required": False}}
 
-USER_UPDATE = {
-    'flags': {'required': False, 'coerce': UserFlags.from_int}
-}
+USER_UPDATE = {"flags": {"required": False, "coerce": UserFlags.from_int}}

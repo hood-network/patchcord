@@ -20,6 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import asyncio
 
 from logbook import Logger
+
 log = Logger(__name__)
 
 
@@ -30,6 +31,7 @@ class JobManager:
     use helpers such as asyncio.gather and asyncio.Task.all_tasks. It only uses
     its own internal list of jobs.
     """
+
     def __init__(self, loop=None):
         self.loop = loop or asyncio.get_event_loop()
         self.jobs = []
@@ -41,13 +43,11 @@ class JobManager:
         try:
             await coro
         except Exception:
-            log.exception('Error while running job')
+            log.exception("Error while running job")
 
     def spawn(self, coro):
         """Spawn a given future or coroutine in the background."""
-        task = self.loop.create_task(
-            self._wrapper(coro)
-        )
+        task = self.loop.create_task(self._wrapper(coro))
 
         self.jobs.append(task)
 

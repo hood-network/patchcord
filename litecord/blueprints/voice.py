@@ -25,7 +25,7 @@ from quart import Blueprint, jsonify, current_app as app
 
 from litecord.blueprints.auth import token_check
 
-bp = Blueprint('voice', __name__)
+bp = Blueprint("voice", __name__)
 
 
 def _majority_region_count(regions: list) -> str:
@@ -39,12 +39,14 @@ def _majority_region_count(regions: list) -> str:
 
 async def _choose_random_region() -> Optional[str]:
     """Give a random voice region."""
-    regions = await app.db.fetch("""
+    regions = await app.db.fetch(
+        """
     SELECT id
     FROM voice_regions
-    """)
+    """
+    )
 
-    regions = [r['id'] for r in regions]
+    regions = [r["id"] for r in regions]
 
     if not regions:
         return None
@@ -64,11 +66,14 @@ async def _majority_region_any(user_id) -> Optional[str]:
     res = []
 
     for guild_id in guilds:
-        region = await app.db.fetchval("""
+        region = await app.db.fetchval(
+            """
         SELECT region
         FROM guilds
         WHERE id = $1
-        """, guild_id)
+        """,
+            guild_id,
+        )
 
         res.append(region)
 
@@ -83,20 +88,23 @@ async def _majority_region_any(user_id) -> Optional[str]:
 async def majority_region(user_id: int) -> Optional[str]:
     """Given a user ID, give the most likely region for the user to be
     happy with."""
-    regions = await app.db.fetch("""
+    regions = await app.db.fetch(
+        """
     SELECT region
     FROM guilds
     WHERE owner_id = $1
-    """, user_id)
+    """,
+        user_id,
+    )
 
     if not regions:
         return await _majority_region_any(user_id)
 
-    regions = [r['region'] for r in regions]
+    regions = [r["region"] for r in regions]
     return _majority_region_count(regions)
 
 
-@bp.route('/regions', methods=['GET'])
+@bp.route("/regions", methods=["GET"])
 async def voice_regions():
     """Return voice regions."""
     user_id = await token_check()
@@ -105,6 +113,6 @@ async def voice_regions():
     regions = await app.storage.all_voice_regions()
 
     for region in regions:
-        region['optimal'] = region['id'] == best_region
+        region["optimal"] = region["id"] == best_region
 
     return jsonify(regions)

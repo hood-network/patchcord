@@ -33,32 +33,51 @@ from aiohttp import ClientSession
 import config
 
 from litecord.blueprints import (
-    gateway, auth, users, guilds, channels, webhooks, science,
-    voice, invites, relationships, dms, icons, nodeinfo, static,
-    attachments, dm_channels
+    gateway,
+    auth,
+    users,
+    guilds,
+    channels,
+    webhooks,
+    science,
+    voice,
+    invites,
+    relationships,
+    dms,
+    icons,
+    nodeinfo,
+    static,
+    attachments,
+    dm_channels,
 )
 
 # those blueprints are separated from the "main" ones
 # for code readability if people want to dig through
 # the codebase.
 from litecord.blueprints.guild import (
-    guild_roles, guild_members, guild_channels, guild_mod,
-    guild_emoji
+    guild_roles,
+    guild_members,
+    guild_channels,
+    guild_mod,
+    guild_emoji,
 )
 
 from litecord.blueprints.channel import (
-    channel_messages, channel_reactions, channel_pins
+    channel_messages,
+    channel_reactions,
+    channel_pins,
 )
 
-from litecord.blueprints.user import (
-    user_settings, user_billing, fake_store
-)
+from litecord.blueprints.user import user_settings, user_billing, fake_store
 
 from litecord.blueprints.user.billing_job import payment_job
 
 from litecord.blueprints.admin_api import (
-    voice as voice_admin, features as features_admin,
-    guilds as guilds_admin, users as users_admin, instance_invites
+    voice as voice_admin,
+    features as features_admin,
+    guilds as guilds_admin,
+    users as users_admin,
+    instance_invites,
 )
 
 from litecord.blueprints.admin_api.voice import guild_region_check
@@ -84,23 +103,23 @@ from litecord.utils import LitecordJSONEncoder
 # setup logbook
 handler = StreamHandler(sys.stdout, level=logbook.INFO)
 handler.push_application()
-log = Logger('litecord.boot')
+log = Logger("litecord.boot")
 redirect_logging()
 
 
 def make_app():
     app = Quart(__name__)
-    app.config.from_object(f'config.{config.MODE}')
-    is_debug = app.config.get('DEBUG', False)
+    app.config.from_object(f"config.{config.MODE}")
+    is_debug = app.config.get("DEBUG", False)
     app.debug = is_debug
 
     if is_debug:
-        log.info('on debug')
+        log.info("on debug")
         handler.level = logbook.DEBUG
         app.logger.level = logbook.DEBUG
 
     # always keep websockets on INFO
-    logging.getLogger('websockets').setLevel(logbook.INFO)
+    logging.getLogger("websockets").setLevel(logbook.INFO)
 
     # use our custom json encoder for custom data types
     app.json_encoder = LitecordJSONEncoder
@@ -112,51 +131,44 @@ def set_blueprints(app_):
     """Set the blueprints for a given app instance"""
     bps = {
         gateway: None,
-        auth: '/auth',
-
-        users: '/users',
-        user_settings: '/users',
-        user_billing: '/users',
-        relationships: '/users',
-
-        guilds: '/guilds',
-        guild_roles: '/guilds',
-        guild_members: '/guilds',
-        guild_channels: '/guilds',
-        guild_mod: '/guilds',
-        guild_emoji: '/guilds',
-
-        channels: '/channels',
-        channel_messages: '/channels',
-        channel_reactions: '/channels',
-        channel_pins: '/channels',
-
+        auth: "/auth",
+        users: "/users",
+        user_settings: "/users",
+        user_billing: "/users",
+        relationships: "/users",
+        guilds: "/guilds",
+        guild_roles: "/guilds",
+        guild_members: "/guilds",
+        guild_channels: "/guilds",
+        guild_mod: "/guilds",
+        guild_emoji: "/guilds",
+        channels: "/channels",
+        channel_messages: "/channels",
+        channel_reactions: "/channels",
+        channel_pins: "/channels",
         webhooks: None,
         science: None,
-        voice: '/voice',
+        voice: "/voice",
         invites: None,
-        dms: '/users',
-        dm_channels: '/channels',
-
+        dms: "/users",
+        dm_channels: "/channels",
         fake_store: None,
-
         icons: -1,
         attachments: -1,
         nodeinfo: -1,
         static: -1,
-
-        voice_admin: '/admin/voice',
-        features_admin: '/admin/guilds',
-        guilds_admin: '/admin/guilds',
-        users_admin: '/admin/users',
-        instance_invites: '/admin/instance/invites'
+        voice_admin: "/admin/voice",
+        features_admin: "/admin/guilds",
+        guilds_admin: "/admin/guilds",
+        users_admin: "/admin/users",
+        instance_invites: "/admin/instance/invites",
     }
 
     for bp, suffix in bps.items():
         url_prefix = f'/api/v6{suffix or ""}'
 
         if suffix == -1:
-            url_prefix = ''
+            url_prefix = ""
 
         app_.register_blueprint(bp, url_prefix=url_prefix)
 
@@ -175,37 +187,35 @@ async def app_before_request():
 @app.after_request
 async def app_after_request(resp):
     """Handle CORS headers."""
-    origin = request.headers.get('Origin', '*')
-    resp.headers['Access-Control-Allow-Origin'] = origin
-    resp.headers['Access-Control-Allow-Headers'] = (
-        '*, X-Super-Properties, '
-        'X-Fingerprint, '
-        'X-Context-Properties, '
-        'X-Failed-Requests, '
-        'X-Debug-Options, '
-        'Content-Type, '
-        'Authorization, '
-        'Origin, '
-        'If-None-Match'
+    origin = request.headers.get("Origin", "*")
+    resp.headers["Access-Control-Allow-Origin"] = origin
+    resp.headers["Access-Control-Allow-Headers"] = (
+        "*, X-Super-Properties, "
+        "X-Fingerprint, "
+        "X-Context-Properties, "
+        "X-Failed-Requests, "
+        "X-Debug-Options, "
+        "Content-Type, "
+        "Authorization, "
+        "Origin, "
+        "If-None-Match"
     )
-    resp.headers['Access-Control-Allow-Methods'] = \
-            resp.headers.get('allow', '*')
+    resp.headers["Access-Control-Allow-Methods"] = resp.headers.get("allow", "*")
 
     return resp
 
 
 def _set_rtl_reset(bucket, resp):
     reset = bucket._window + bucket.second
-    precision = request.headers.get('x-ratelimit-precision', 'second')
+    precision = request.headers.get("x-ratelimit-precision", "second")
 
-    if precision == 'second':
-        resp.headers['X-RateLimit-Reset'] = str(round(reset))
-    elif precision == 'millisecond':
-        resp.headers['X-RateLimit-Reset'] = str(reset)
+    if precision == "second":
+        resp.headers["X-RateLimit-Reset"] = str(round(reset))
+    elif precision == "millisecond":
+        resp.headers["X-RateLimit-Reset"] = str(reset)
     else:
-        resp.headers['X-RateLimit-Reset'] = (
-            'Invalid X-RateLimit-Precision, '
-            'valid options are (second, millisecond)'
+        resp.headers["X-RateLimit-Reset"] = (
+            "Invalid X-RateLimit-Precision, " "valid options are (second, millisecond)"
         )
 
 
@@ -218,15 +228,15 @@ async def app_set_ratelimit_headers(resp):
         if bucket is None:
             raise AttributeError()
 
-        resp.headers['X-RateLimit-Limit'] = str(bucket.requests)
-        resp.headers['X-RateLimit-Remaining'] = str(bucket._tokens)
-        resp.headers['X-RateLimit-Global'] = str(request.bucket_global).lower()
+        resp.headers["X-RateLimit-Limit"] = str(bucket.requests)
+        resp.headers["X-RateLimit-Remaining"] = str(bucket._tokens)
+        resp.headers["X-RateLimit-Global"] = str(request.bucket_global).lower()
         _set_rtl_reset(bucket, resp)
 
         # only add Retry-After if we actually hit a ratelimit
         retry_after = request.retry_after
         if request.retry_after:
-            resp.headers['Retry-After'] = str(retry_after)
+            resp.headers["Retry-After"] = str(retry_after)
     except AttributeError:
         pass
 
@@ -238,8 +248,8 @@ async def init_app_db(app_):
 
     Also spawns the job scheduler.
     """
-    log.info('db connect')
-    app_.db = await asyncpg.create_pool(**app.config['POSTGRES'])
+    log.info("db connect")
+    app_.db = await asyncpg.create_pool(**app.config["POSTGRES"])
 
     app_.sched = JobManager()
 
@@ -247,7 +257,7 @@ async def init_app_db(app_):
 def init_app_managers(app_, *, voice=True):
     """Initialize singleton classes."""
     app_.loop = asyncio.get_event_loop()
-    app_.ratelimiter = RatelimitManager(app_.config.get('_testing'))
+    app_.ratelimiter = RatelimitManager(app_.config.get("_testing"))
     app_.state_manager = StateManager()
 
     app_.storage = Storage(app_)
@@ -274,15 +284,12 @@ async def api_index(app_):
     to_find = {}
     found = []
 
-    with open('discord_endpoints.txt') as fd:
+    with open("discord_endpoints.txt") as fd:
         for line in fd.readlines():
-            components = line.split('  ')
-            components = list(filter(
-                bool,
-                components
-            ))
+            components = line.split("  ")
+            components = list(filter(bool, components))
             name, method, path = components
-            path = f'/api/v6{path.strip()}'
+            path = f"/api/v6{path.strip()}"
             method = method.strip()
             to_find[(path, method)] = name
 
@@ -290,17 +297,17 @@ async def api_index(app_):
         path = rule.rule
 
         # convert the path to the discord_endpoints file's style
-        path = path.replace('_', '.')
-        path = path.replace('<', '{')
-        path = path.replace('>', '}')
-        path = path.replace('int:', '')
+        path = path.replace("_", ".")
+        path = path.replace("<", "{")
+        path = path.replace(">", "}")
+        path = path.replace("int:", "")
 
         # change our parameters into user.id
-        path = path.replace('member.id', 'user.id')
-        path = path.replace('banned.id', 'user.id')
-        path = path.replace('target.id', 'user.id')
-        path = path.replace('other.id', 'user.id')
-        path = path.replace('peer.id', 'user.id')
+        path = path.replace("member.id", "user.id")
+        path = path.replace("banned.id", "user.id")
+        path = path.replace("target.id", "user.id")
+        path = path.replace("other.id", "user.id")
+        path = path.replace("peer.id", "user.id")
 
         methods = rule.methods
 
@@ -317,10 +324,15 @@ async def api_index(app_):
     percentage = (len(found) / len(api)) * 100
     percentage = round(percentage, 2)
 
-    log.debug('API compliance: {} out of {} ({} missing), {}% compliant',
-              len(found), len(api), len(missing), percentage)
+    log.debug(
+        "API compliance: {} out of {} ({} missing), {}% compliant",
+        len(found),
+        len(api),
+        len(missing),
+        percentage,
+    )
 
-    log.debug('missing: {}', missing)
+    log.debug("missing: {}", missing)
 
 
 async def post_app_start(app_):
@@ -332,7 +344,7 @@ async def post_app_start(app_):
 
 def start_websocket(host, port, ws_handler) -> asyncio.Future:
     """Start a websocket. Returns the websocket future"""
-    log.info(f'starting websocket at {host} {port}')
+    log.info(f"starting websocket at {host} {port}")
 
     async def _wrapper(ws, url):
         # We wrap the main websocket_handler
@@ -348,7 +360,7 @@ async def app_before_serving():
 
     Also sets up the websocket handlers.
     """
-    log.info('opening db')
+    log.info("opening db")
     await init_app_db(app)
 
     app.session = ClientSession()
@@ -359,8 +371,7 @@ async def app_before_serving():
     # start gateway websocket
     # voice websocket is handled by the voice server
     ws_fut = start_websocket(
-        app.config['WS_HOST'], app.config['WS_PORT'],
-        websocket_handler
+        app.config["WS_HOST"], app.config["WS_PORT"], websocket_handler
     )
 
     await ws_fut
@@ -379,7 +390,7 @@ async def app_after_serving():
 
     app.sched.close()
 
-    log.info('closing db')
+    log.info("closing db")
     await app.db.close()
 
 
@@ -391,24 +402,23 @@ async def handle_litecord_err(err):
         ejson = {}
 
     try:
-        ejson['code'] = err.error_code
+        ejson["code"] = err.error_code
     except AttributeError:
         pass
 
-    log.warning('error: {} {!r}', err.status_code, err.message)
+    log.warning("error: {} {!r}", err.status_code, err.message)
 
-    return jsonify({
-        'error': True,
-        'status': err.status_code,
-        'message': err.message,
-        **ejson
-    }), err.status_code
+    return (
+        jsonify(
+            {"error": True, "status": err.status_code, "message": err.message, **ejson}
+        ),
+        err.status_code,
+    )
 
 
 @app.errorhandler(500)
 async def handle_500(err):
-    return jsonify({
-        'error': True,
-        'message': repr(err),
-        'internal_server_error': True,
-    }), 500
+    return (
+        jsonify({"error": True, "message": repr(err), "internal_server_error": True}),
+        500,
+    )

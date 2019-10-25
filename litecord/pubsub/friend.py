@@ -31,6 +31,7 @@ class FriendDispatcher(DispatcherWithState):
     channels. If that friend updates their presence, it will be
     broadcasted through that channel to basically all their friends.
     """
+
     KEY_TYPE = int
     VAL_TYPE = int
 
@@ -44,17 +45,13 @@ class FriendDispatcher(DispatcherWithState):
             # since relationships broadcast to all shards.
             sessions.extend(
                 await self.main_dispatcher.dispatch_filter(
-                    'user', peer_id, func, event, data)
+                    "user", peer_id, func, event, data
+                )
             )
 
-        log.info('dispatched uid={} {!r} to {} states',
-                 user_id, event, len(sessions))
+        log.info("dispatched uid={} {!r} to {} states", user_id, event, len(sessions))
 
         return sessions
 
     async def dispatch(self, user_id, event, data):
-        return await self.dispatch_filter(
-            user_id,
-            lambda sess_id: True,
-            event, data,
-        )
+        return await self.dispatch_filter(user_id, lambda sess_id: True, event, data)

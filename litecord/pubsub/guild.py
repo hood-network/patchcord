@@ -29,11 +29,11 @@ log = Logger(__name__)
 
 class GuildDispatcher(DispatcherWithFlags):
     """Guild backend for Pub/Sub"""
+
     KEY_TYPE = int
     VAL_TYPE = int
 
-    async def _chan_action(self, action: str,
-                           guild_id: int, user_id: int, flags=None):
+    async def _chan_action(self, action: str, guild_id: int, user_id: int, flags=None):
         """Send an action to all channels of the guild."""
         flags = flags or {}
         chan_ids = await self.app.storage.get_channel_ids(guild_id)
@@ -43,33 +43,31 @@ class GuildDispatcher(DispatcherWithFlags):
             # only do an action for users that can
             # actually read the channel to start with.
             chan_perms = await get_permissions(
-                user_id, chan_id,
-                storage=self.main_dispatcher.app.storage)
+                user_id, chan_id, storage=self.main_dispatcher.app.storage
+            )
 
             if not chan_perms.bits.read_messages:
-                log.debug('skipping cid={}, no read messages',
-                          chan_id)
+                log.debug("skipping cid={}, no read messages", chan_id)
                 continue
 
-            log.debug('sending raw action {!r} to chan={}',
-                      action, chan_id)
+            log.debug("sending raw action {!r} to chan={}", action, chan_id)
 
             # for now, only sub() has support for flags.
             # it is an idea to have flags support for other actions
             args = []
-            if action == 'sub':
+            if action == "sub":
                 chanflags = dict(flags)
 
                 # channels don't need presence flags
                 try:
-                    chanflags.pop('presence')
+                    chanflags.pop("presence")
                 except KeyError:
                     pass
 
                 args.append(chanflags)
 
             await self.main_dispatcher.action(
-                'channel', action, chan_id, user_id, *args
+                "channel", action, chan_id, user_id, *args
             )
 
     async def _chan_call(self, meth: str, guild_id: int, *args):
@@ -77,26 +75,24 @@ class GuildDispatcher(DispatcherWithFlags):
         in the guild."""
         chan_ids = await self.app.storage.get_channel_ids(guild_id)
 
-        chan_dispatcher = self.main_dispatcher.backends['channel']
+        chan_dispatcher = self.main_dispatcher.backends["channel"]
         method = getattr(chan_dispatcher, meth)
 
         for chan_id in chan_ids:
-            log.debug('calling {} to chan={}',
-                      meth, chan_id)
+            log.debug("calling {} to chan={}", meth, chan_id)
             await method(chan_id, *args)
 
     async def sub(self, guild_id: int, user_id: int, flags=None):
         """Subscribe a user to the guild."""
         await super().sub(guild_id, user_id, flags)
-        await self._chan_action('sub', guild_id, user_id, flags)
+        await self._chan_action("sub", guild_id, user_id, flags)
 
     async def unsub(self, guild_id: int, user_id: int):
         """Unsubscribe a user from the guild."""
         await super().unsub(guild_id, user_id)
-        await self._chan_action('unsub', guild_id, user_id)
+        await self._chan_action("unsub", guild_id, user_id)
 
-    async def dispatch_filter(self, guild_id: int, func,
-                              event: str, data: Any):
+    async def dispatch_filter(self, guild_id: int, func, event: str, data: Any):
         """Selectively dispatch to session ids that have
         func(session_id) true."""
         user_ids = self.state[guild_id]
@@ -121,31 +117,23 @@ class GuildDispatcher(DispatcherWithFlags):
 
             # note that this does not equate to any unsubscription
             # of the channel.
-            if event.startswith('PRESENCE_') and \
-                    not self.flags_get(guild_id, user_id, 'presence', True):
+            if event.startswith("PRESENCE_") and not self.flags_get(
+                guild_id, user_id, "presence", True
+            ):
                 continue
 
             # filter the ones that matter
-            states = list(filter(
-                lambda state: func(state.session_id), states
-            ))
+            states = list(filter(lambda state: func(state.session_id), states))
 
-            cur_sess = await self._dispatch_states(
-                states, event, data)
+            cur_sess = await self._dispatch_states(states, event, data)
 
             sessions.extend(cur_sess)
             dispatched += len(cur_sess)
 
-        log.info('Dispatched {} {!r} to {} states',
-                 guild_id, event, dispatched)
+        log.info("Dispatched {} {!r} to {} states", guild_id, event, dispatched)
 
         return sessions
 
-    async def dispatch(self, guild_id: int,
-                       event: str, data: Any):
+    async def dispatch(self, guild_id: int, event: str, data: Any):
         """Dispatch an event to all subscribers of the guild."""
-        return await self.dispatch_filter(
-            guild_id,
-            lambda sess_id: True,
-            event, data,
-        )
+        return await self.dispatch_filter(guild_id, lambda sess_id: True, event, data)

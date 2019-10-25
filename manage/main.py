@@ -34,6 +34,7 @@ log = Logger(__name__)
 @dataclass
 class FakeApp:
     """Fake app instance."""
+
     config: dict
     db = None
     loop: asyncio.BaseEventLoop = None
@@ -50,7 +51,7 @@ class FakeApp:
 
 def init_parser():
     parser = argparse.ArgumentParser()
-    subparser = parser.add_subparsers(help='operations')
+    subparser = parser.add_subparsers(help="operations")
 
     migration(subparser)
     users.setup(subparser)
@@ -78,12 +79,12 @@ def main(config):
         # only init app managers when we aren't migrating
         # as the managers require it
         # and the migrate command also sets the db up
-        if argv[1] != 'migrate':
+        if argv[1] != "migrate":
             init_app_managers(app, voice=False)
 
         args = parser.parse_args()
         loop.run_until_complete(args.func(app, args))
     except Exception:
-        log.exception('error while running command')
+        log.exception("error while running command")
     finally:
         loop.run_until_complete(app.db.close())

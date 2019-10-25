@@ -29,6 +29,7 @@ HOURS = 60 * MINUTES
 
 class Color:
     """Custom color class"""
+
     def __init__(self, val: int):
         self.blue = val & 255
         self.green = (val >> 8) & 255
@@ -37,7 +38,7 @@ class Color:
     @property
     def value(self):
         """Give the actual RGB integer encoding this color."""
-        return int('%02x%02x%02x' % (self.red, self.green, self.blue), 16)
+        return int("%02x%02x%02x" % (self.red, self.green, self.blue), 16)
 
     @property
     def to_json(self):
@@ -49,4 +50,4 @@ class Color:
 
 def timestamp_(dt) -> Optional[str]:
     """safer version for dt.isoformat()"""
-    return f'{dt.isoformat()}+00:00' if dt else None
+    return f"{dt.isoformat()}+00:00" if dt else None

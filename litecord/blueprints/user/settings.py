@@ -23,10 +23,10 @@ from litecord.auth import token_check
 from litecord.schemas import validate, USER_SETTINGS, GUILD_SETTINGS
 from litecord.blueprints.checks import guild_check
 
-bp = Blueprint('users_settings', __name__)
+bp = Blueprint("users_settings", __name__)
 
 
-@bp.route('/@me/settings', methods=['GET'])
+@bp.route("/@me/settings", methods=["GET"])
 async def get_user_settings():
     """Get the current user's settings."""
     user_id = await token_check()
@@ -34,7 +34,7 @@ async def get_user_settings():
     return jsonify(settings)
 
 
-@bp.route('/@me/settings', methods=['PATCH'])
+@bp.route("/@me/settings", methods=["PATCH"])
 async def patch_current_settings():
     """Patch the users' current settings.
 
@@ -47,19 +47,22 @@ async def patch_current_settings():
     for key in j:
         val = j[key]
 
-        await app.storage.execute_with_json(f"""
+        await app.storage.execute_with_json(
+            f"""
         UPDATE user_settings
         SET {key}=$1
         WHERE id = $2
-        """, val, user_id)
+        """,
+            val,
+            user_id,
+        )
 
     settings = await app.user_storage.get_user_settings(user_id)
-    await app.dispatcher.dispatch_user(
-        user_id, 'USER_SETTINGS_UPDATE', settings)
+    await app.dispatcher.dispatch_user(user_id, "USER_SETTINGS_UPDATE", settings)
     return jsonify(settings)
 
 
-@bp.route('/@me/guilds/<int:guild_id>/settings', methods=['PATCH'])
+@bp.route("/@me/guilds/<int:guild_id>/settings", methods=["PATCH"])
 async def patch_guild_settings(guild_id: int):
     """Update the users' guild settings for a given guild.
 
@@ -74,16 +77,21 @@ async def patch_guild_settings(guild_id: int):
     # will make sure they exist in the table.
     await app.user_storage.get_guild_settings_one(user_id, guild_id)
 
-    for field in (k for k in j.keys() if k != 'channel_overrides'):
-        await app.db.execute(f"""
+    for field in (k for k in j.keys() if k != "channel_overrides"):
+        await app.db.execute(
+            f"""
         UPDATE guild_settings
         SET {field} = $1
         WHERE user_id = $2 AND guild_id = $3
-        """, j[field], user_id, guild_id)
+        """,
+            j[field],
+            user_id,
+            guild_id,
+        )
 
     chan_ids = await app.storage.get_channel_ids(guild_id)
 
-    for chandata in j.get('channel_overrides', {}).items():
+    for chandata in j.get("channel_overrides", {}).items():
         chan_id, chan_overrides = chandata
         chan_id = int(chan_id)
 
@@ -92,7 +100,8 @@ async def patch_guild_settings(guild_id: int):
             continue
 
         for field in chan_overrides:
-            await app.db.execute(f"""
+            await app.db.execute(
+                f"""
             INSERT INTO guild_settings_channel_overrides
                 (user_id, guild_id, channel_id, {field})
             VALUES
@@ -105,18 +114,21 @@ async def patch_guild_settings(guild_id: int):
                 WHERE guild_settings_channel_overrides.user_id = $1
                   AND guild_settings_channel_overrides.guild_id = $2
                   AND guild_settings_channel_overrides.channel_id = $3
-            """, user_id, guild_id, chan_id, chan_overrides[field])
+            """,
+                user_id,
+                guild_id,
+                chan_id,
+                chan_overrides[field],
+            )
 
-    settings = await app.user_storage.get_guild_settings_one(
-        user_id, guild_id)
+    settings = await app.user_storage.get_guild_settings_one(user_id, guild_id)
 
-    await app.dispatcher.dispatch_user(
-        user_id, 'USER_GUILD_SETTINGS_UPDATE', settings)
+    await app.dispatcher.dispatch_user(user_id, "USER_GUILD_SETTINGS_UPDATE", settings)
 
     return jsonify(settings)
 
 
-@bp.route('/@me/notes/<int:target_id>', methods=['PUT'])
+@bp.route("/@me/notes/<int:target_id>", methods=["PUT"])
 async def put_note(target_id: int):
     """Put a note to a user.
 
@@ -126,10 +138,11 @@ async def put_note(target_id: int):
     user_id = await token_check()
 
     j = await request.get_json()
-    note = str(j['note'])
+    note = str(j["note"])
 
     # UPSERTs are beautiful
-    await app.db.execute("""
+    await app.db.execute(
+        """
     INSERT INTO notes (user_id, target_id, note)
     VALUES ($1, $2, $3)
 
@@ -138,12 +151,14 @@ async def put_note(target_id: int):
         note = $3
     WHERE notes.user_id = $1
       AND notes.target_id = $2
-    """, user_id, target_id, note)
+    """,
+        user_id,
+        target_id,
+        note,
+    )
 
-    await app.dispatcher.dispatch_user(user_id, 'USER_NOTE_UPDATE', {
-        'id': str(target_id),
-        'note': note,
-    })
+    await app.dispatcher.dispatch_user(
+        user_id, "USER_NOTE_UPDATE", {"id": str(target_id), "note": note}
+    )
 
-    return '', 204
-
+    return "", 204

@@ -31,23 +31,20 @@ from logbook import Logger
 from litecord.auth import raw_token_check
 from litecord.enums import RelationshipType, ChannelType
 from litecord.schemas import validate, GW_STATUS_UPDATE
-from litecord.utils import (
-    task_wrapper, yield_chunks, maybe_int
-)
+from litecord.utils import task_wrapper, yield_chunks, maybe_int
 from litecord.permissions import get_permissions
 
 from litecord.gateway.opcodes import OP
 from litecord.gateway.state import GatewayState
 
-from litecord.errors import (
-    WebsocketClose, Unauthorized, Forbidden, BadRequest
-)
+from litecord.errors import WebsocketClose, Unauthorized, Forbidden, BadRequest
 from litecord.gateway.errors import (
-    DecodeError, UnknownOPCode, InvalidShard, ShardingRequired
+    DecodeError,
+    UnknownOPCode,
+    InvalidShard,
+    ShardingRequired,
 )
-from litecord.gateway.encoding import (
-    encode_json, decode_json, encode_etf, decode_etf
-)
+from litecord.gateway.encoding import encode_json, decode_json, encode_etf, decode_etf
 
 from litecord.gateway.utils import WebsocketFileHandler
 
@@ -56,15 +53,22 @@ from litecord.storage import int_
 log = Logger(__name__)
 
 WebsocketProperties = collections.namedtuple(
-    'WebsocketProperties', 'v encoding compress zctx zsctx tasks'
+    "WebsocketProperties", "v encoding compress zctx zsctx tasks"
 )
 
 WebsocketObjects = collections.namedtuple(
-    'WebsocketObjects', (
-        'db', 'state_manager', 'storage',
-        'loop', 'dispatcher', 'presence', 'ratelimiter',
-        'user_storage', 'voice'
-    )
+    "WebsocketObjects",
+    (
+        "db",
+        "state_manager",
+        "storage",
+        "loop",
+        "dispatcher",
+        "presence",
+        "ratelimiter",
+        "user_storage",
+        "voice",
+    ),
 )
 
 
@@ -73,9 +77,15 @@ class GatewayWebsocket:
 
     def __init__(self, ws, app, **kwargs):
         self.ext = WebsocketObjects(
-            app.db, app.state_manager, app.storage, app.loop,
-            app.dispatcher, app.presence, app.ratelimiter,
-            app.user_storage, app.voice
+            app.db,
+            app.state_manager,
+            app.storage,
+            app.loop,
+            app.dispatcher,
+            app.presence,
+            app.ratelimiter,
+            app.user_storage,
+            app.voice,
         )
 
         self.storage = self.ext.storage
@@ -84,15 +94,15 @@ class GatewayWebsocket:
         self.ws = ws
 
         self.wsp = WebsocketProperties(
-            kwargs.get('v'),
-            kwargs.get('encoding', 'json'),
-            kwargs.get('compress', None),
+            kwargs.get("v"),
+            kwargs.get("encoding", "json"),
+            kwargs.get("compress", None),
             zlib.compressobj(),
             zstd.ZstdCompressor(),
-            {}
+            {},
         )
 
-        log.debug('websocket properties: {!r}', self.wsp)
+        log.debug("websocket properties: {!r}", self.wsp)
 
         self.state = None
 
@@ -102,8 +112,8 @@ class GatewayWebsocket:
         encoding = self.wsp.encoding
 
         encodings = {
-            'json': (encode_json, decode_json),
-            'etf': (encode_etf, decode_etf),
+            "json": (encode_json, decode_json),
+            "etf": (encode_etf, decode_etf),
         }
 
         self.encoder, self.decoder = encodings[encoding]
@@ -111,16 +121,17 @@ class GatewayWebsocket:
     async def _chunked_send(self, data: bytes, chunk_size: int):
         """Split data in chunk_size-big chunks and send them
         over the websocket."""
-        log.debug('zlib-stream: chunking {} bytes into {}-byte chunks',
-                  len(data), chunk_size)
+        log.debug(
+            "zlib-stream: chunking {} bytes into {}-byte chunks", len(data), chunk_size
+        )
 
         total_chunks = 0
         for chunk in yield_chunks(data, chunk_size):
             total_chunks += 1
-            log.debug('zlib-stream: chunk {}', total_chunks)
+            log.debug("zlib-stream: chunk {}", total_chunks)
             await self.ws.send(chunk)
 
-        log.debug('zlib-stream: sent {} chunks', total_chunks)
+        log.debug("zlib-stream: sent {} chunks", total_chunks)
 
     async def _zlib_stream_send(self, encoded):
         """Sending a single payload across multiple compressed
@@ -130,8 +141,12 @@ class GatewayWebsocket:
         data1 = self.wsp.zctx.compress(encoded)
         data2 = self.wsp.zctx.flush(zlib.Z_FULL_FLUSH)
 
-        log.debug('zlib-stream: length {} -> compressed ({} + {})',
-                  len(encoded), len(data1), len(data2))
+        log.debug(
+            "zlib-stream: length {} -> compressed ({} + {})",
+            len(encoded),
+            len(data1),
+            len(data2),
+        )
 
         if not data1:
             # if data1 is nothing, that might cause problems
@@ -139,8 +154,11 @@ class GatewayWebsocket:
             data1 = bytes([data2[0]])
             data2 = data2[1:]
 
-            log.debug('zlib-stream: len(data1) == 0, remaking as ({} + {})',
-                      len(data1), len(data2))
+            log.debug(
+                "zlib-stream: len(data1) == 0, remaking as ({} + {})",
+                len(data1),
+                len(data2),
+            )
 
         # NOTE: the old approach was ws.send(data1 + data2).
         #  I changed this to a chunked send of data1 and data2
@@ -157,8 +175,7 @@ class GatewayWebsocket:
         await self._chunked_send(data2, 1024)
 
     async def _zstd_stream_send(self, encoded):
-        compressor = self.wsp.zsctx.stream_writer(
-            WebsocketFileHandler(self.ws))
+        compressor = self.wsp.zsctx.stream_writer(WebsocketFileHandler(self.ws))
 
         compressor.write(encoded)
         compressor.flush(zstd.FLUSH_FRAME)
@@ -172,21 +189,23 @@ class GatewayWebsocket:
         encoded = self.encoder(payload)
 
         if len(encoded) < 2048:
-            log.debug('sending\n{}', pprint.pformat(payload))
+            log.debug("sending\n{}", pprint.pformat(payload))
         else:
-            log.debug('sending {}', pprint.pformat(payload))
-            log.debug('sending op={} s={} t={} (too big)',
-                      payload.get('op'),
-                      payload.get('s'),
-                      payload.get('t'))
+            log.debug("sending {}", pprint.pformat(payload))
+            log.debug(
+                "sending op={} s={} t={} (too big)",
+                payload.get("op"),
+                payload.get("s"),
+                payload.get("t"),
+            )
 
         # treat encoded as bytes
         if not isinstance(encoded, bytes):
             encoded = encoded.encode()
 
-        if self.wsp.compress == 'zlib-stream':
+        if self.wsp.compress == "zlib-stream":
             await self._zlib_stream_send(encoded)
-        elif self.wsp.compress == 'zstd-stream':
+        elif self.wsp.compress == "zstd-stream":
             await self._zstd_stream_send(encoded)
         elif self.state and self.state.compress and len(encoded) > 1024:
             # TODO: should we only compress on >1KB packets? or maybe we
@@ -203,16 +222,10 @@ class GatewayWebsocket:
 
     async def send_op(self, op_code: int, data: Any):
         """Send a packet but just the OP code information is filled in."""
-        await self.send({
-            'op': op_code,
-            'd': data,
-
-            't': None,
-            's': None
-        })
+        await self.send({"op": op_code, "d": data, "t": None, "s": None})
 
     def _check_ratelimit(self, key: str, ratelimit_key):
-        ratelimit = self.ext.ratelimiter.get_ratelimit(f'_ws.{key}')
+        ratelimit = self.ext.ratelimiter.get_ratelimit(f"_ws.{key}")
         bucket = ratelimit.get_bucket(ratelimit_key)
         return bucket.update_rate_limit()
 
@@ -221,19 +234,19 @@ class GatewayWebsocket:
         # if the client heartbeats in time,
         # this task will be cancelled.
         await asyncio.sleep(interval / 1000)
-        await self.ws.close(4000, 'Heartbeat expired')
+        await self.ws.close(4000, "Heartbeat expired")
 
         self._cleanup()
 
     def _hb_start(self, interval: int):
         # always refresh the heartbeat task
         # when possible
-        task = self.wsp.tasks.get('heartbeat')
+        task = self.wsp.tasks.get("heartbeat")
         if task:
             task.cancel()
 
-        self.wsp.tasks['heartbeat'] = self.ext.loop.create_task(
-            task_wrapper('hb wait', self._hb_wait(interval))
+        self.wsp.tasks["heartbeat"] = self.ext.loop.create_task(
+            task_wrapper("hb wait", self._hb_wait(interval))
         )
 
     async def _send_hello(self):
@@ -241,12 +254,9 @@ class GatewayWebsocket:
         # random heartbeat intervals
         interval = randint(40, 46) * 1000
 
-        await self.send_op(OP.HELLO, {
-            'heartbeat_interval': interval,
-            '_trace': [
-                'lesbian-server'
-            ],
-        })
+        await self.send_op(
+            OP.HELLO, {"heartbeat_interval": interval, "_trace": ["lesbian-server"]}
+        )
 
         self._hb_start(interval)
 
@@ -255,16 +265,15 @@ class GatewayWebsocket:
         self.state.seq += 1
 
         payload = {
-            'op': OP.DISPATCH,
-            't': event.upper(),
-            's': self.state.seq,
-            'd': data,
+            "op": OP.DISPATCH,
+            "t": event.upper(),
+            "s": self.state.seq,
+            "d": data,
         }
 
         self.state.store[self.state.seq] = payload
 
-        log.debug('sending payload {!r} sid {}',
-                  event.upper(), self.state.session_id)
+        log.debug("sending payload {!r} sid {}", event.upper(), self.state.session_id)
 
         await self.send(payload)
 
@@ -274,16 +283,14 @@ class GatewayWebsocket:
         guild_ids = await self._guild_ids()
 
         if self.state.bot:
-            return [{
-                'id': row,
-                'unavailable': True,
-            } for row in guild_ids]
+            return [{"id": row, "unavailable": True} for row in guild_ids]
 
         return [
             {
                 **await self.storage.get_guild(guild_id, user_id),
-                **await self.storage.get_guild_extra(guild_id, user_id,
-                                                     self.state.large)
+                **await self.storage.get_guild_extra(
+                    guild_id, user_id, self.state.large
+                ),
             }
             for guild_id in guild_ids
         ]
@@ -298,13 +305,13 @@ class GatewayWebsocket:
         for guild_obj in unavailable_guilds:
             # fetch full guild object including the 'large' field
             guild = await self.storage.get_guild_full(
-                int(guild_obj['id']), self.state.user_id, self.state.large
+                int(guild_obj["id"]), self.state.user_id, self.state.large
             )
 
             if guild is None:
                 continue
 
-            await self.dispatch('GUILD_CREATE', guild)
+            await self.dispatch("GUILD_CREATE", guild)
 
     async def _user_ready(self) -> dict:
         """Fetch information about users in the READY packet.
@@ -317,28 +324,28 @@ class GatewayWebsocket:
 
         relationships = await self.user_storage.get_relationships(user_id)
 
-        friend_ids = [int(r['user']['id']) for r in relationships
-                      if r['type'] == RelationshipType.FRIEND.value]
+        friend_ids = [
+            int(r["user"]["id"])
+            for r in relationships
+            if r["type"] == RelationshipType.FRIEND.value
+        ]
 
         friend_presences = await self.ext.presence.friend_presences(friend_ids)
         settings = await self.user_storage.get_user_settings(user_id)
 
         return {
-            'user_settings': settings,
-            'notes': await self.user_storage.fetch_notes(user_id),
-            'relationships': relationships,
-            'presences': friend_presences,
-            'read_state': await self.user_storage.get_read_state(user_id),
-            'user_guild_settings': await self.user_storage.get_guild_settings(
-                user_id),
-
-            'friend_suggestion_count': 0,
-
+            "user_settings": settings,
+            "notes": await self.user_storage.fetch_notes(user_id),
+            "relationships": relationships,
+            "presences": friend_presences,
+            "read_state": await self.user_storage.get_read_state(user_id),
+            "user_guild_settings": await self.user_storage.get_guild_settings(user_id),
+            "friend_suggestion_count": 0,
             # those are unused default values.
-            'connected_accounts': [],
-            'experiments': [],
-            'guild_experiments': [],
-            'analytics_token': 'transbian',
+            "connected_accounts": [],
+            "experiments": [],
+            "guild_experiments": [],
+            "analytics_token": "transbian",
         }
 
     async def dispatch_ready(self):
@@ -353,24 +360,21 @@ class GatewayWebsocket:
             # user, fetch info
             user_ready = await self._user_ready()
 
-        private_channels = (
-            await self.user_storage.get_dms(user_id) +
-            await self.user_storage.get_gdms(user_id)
-        )
+        private_channels = await self.user_storage.get_dms(
+            user_id
+        ) + await self.user_storage.get_gdms(user_id)
 
         base_ready = {
-            'v': 6,
-            'user': user,
-
-            'private_channels': private_channels,
-
-            'guilds': guilds,
-            'session_id': self.state.session_id,
-            '_trace': ['transbian'],
-            'shard': self.state.shard,
+            "v": 6,
+            "user": user,
+            "private_channels": private_channels,
+            "guilds": guilds,
+            "session_id": self.state.session_id,
+            "_trace": ["transbian"],
+            "shard": self.state.shard,
         }
 
-        await self.dispatch('READY', {**base_ready, **user_ready})
+        await self.dispatch("READY", {**base_ready, **user_ready})
 
         # async dispatch of guilds
         self.ext.loop.create_task(self._guild_dispatch(guilds))
@@ -380,33 +384,32 @@ class GatewayWebsocket:
         """
         current_shard, shard_count = shard
 
-        guilds = await self.ext.db.fetchval("""
+        guilds = await self.ext.db.fetchval(
+            """
         SELECT COUNT(*)
         FROM members
         WHERE user_id = $1
-        """, user_id)
+        """,
+            user_id,
+        )
 
         recommended = max(int(guilds / 1200), 1)
 
         if shard_count < recommended:
-            raise ShardingRequired('Too many guilds for shard '
-                                   f'{current_shard}')
+            raise ShardingRequired("Too many guilds for shard " f"{current_shard}")
 
         if guilds > 2500 and guilds / shard_count > 0.8:
-            raise ShardingRequired('Too many shards. '
-                                   f'(g={guilds} sc={shard_count})')
+            raise ShardingRequired("Too many shards. " f"(g={guilds} sc={shard_count})")
 
         if current_shard > shard_count:
-            raise InvalidShard('Shard count > Total shards')
+            raise InvalidShard("Shard count > Total shards")
 
     async def _guild_ids(self) -> list:
         """Get a list of Guild IDs that are tied to this connection.
 
         The implementation is shard-aware.
         """
-        guild_ids = await self.user_storage.get_user_guilds(
-            self.state.user_id
-        )
+        guild_ids = await self.user_storage.get_user_guilds(self.state.user_id)
 
         shard_id = self.state.current_shard
         shard_count = self.state.shard_count
@@ -414,10 +417,7 @@ class GatewayWebsocket:
         def _get_shard(guild_id):
             return (guild_id >> 22) % shard_count
 
-        filtered = filter(
-            lambda guild_id: _get_shard(guild_id) == shard_id,
-            guild_ids
-        )
+        filtered = filter(lambda guild_id: _get_shard(guild_id) == shard_id, guild_ids)
 
         return list(filtered)
 
@@ -432,13 +432,17 @@ class GatewayWebsocket:
 
         # subscribe the user to all dms they have OPENED.
         dms = await self.user_storage.get_dms(user_id)
-        dm_ids = [int(dm['id']) for dm in dms]
+        dm_ids = [int(dm["id"]) for dm in dms]
 
         # fetch all group dms the user is a member of.
         gdm_ids = await self.user_storage.get_gdms_internal(user_id)
 
-        log.info('subscribing to {} guilds {} dms {} gdms',
-                 len(guild_ids), len(dm_ids), len(gdm_ids))
+        log.info(
+            "subscribing to {} guilds {} dms {} gdms",
+            len(guild_ids),
+            len(dm_ids),
+            len(gdm_ids),
+        )
 
         # guild_subscriptions:
         #  enables dispatching of guild subscription events
@@ -447,10 +451,13 @@ class GatewayWebsocket:
         # we enable processing of guild_subscriptions by adding flags
         # when subscribing to the given backend. those are optional.
         channels_to_sub = [
-            ('guild', guild_ids,
-             {'presence': guild_subscriptions, 'typing': guild_subscriptions}),
-            ('channel', dm_ids),
-            ('channel', gdm_ids),
+            (
+                "guild",
+                guild_ids,
+                {"presence": guild_subscriptions, "typing": guild_subscriptions},
+            ),
+            ("channel", dm_ids),
+            ("channel", gdm_ids),
         ]
 
         await self.ext.dispatcher.mass_sub(user_id, channels_to_sub)
@@ -460,28 +467,26 @@ class GatewayWebsocket:
             # (their friends will also subscribe back
             #  when they come online)
             friend_ids = await self.user_storage.get_friend_ids(user_id)
-            log.info('subscribing to {} friends', len(friend_ids))
-            await self.ext.dispatcher.sub_many('friend', user_id, friend_ids)
+            log.info("subscribing to {} friends", len(friend_ids))
+            await self.ext.dispatcher.sub_many("friend", user_id, friend_ids)
 
     async def update_status(self, status: dict):
         """Update the status of the current websocket connection."""
         if not self.state:
             return
 
-        if self._check_ratelimit('presence', self.state.session_id):
+        if self._check_ratelimit("presence", self.state.session_id):
             # Presence Updates beyond the ratelimit
             # are just silently dropped.
             return
 
         default_status = {
-            'afk': False,
-
+            "afk": False,
             # TODO: fetch status from settings
-            'status': 'online',
-            'game': None,
-
+            "status": "online",
+            "game": None,
             # TODO: this
-            'since': 0,
+            "since": 0,
         }
 
         status = {**(status or {}), **default_status}
@@ -489,39 +494,40 @@ class GatewayWebsocket:
         try:
             status = validate(status, GW_STATUS_UPDATE)
         except BadRequest as err:
-            log.warning(f'Invalid status update: {err}')
+            log.warning(f"Invalid status update: {err}")
             return
 
         # try to extract game from activities
         # when game not provided
-        if not status.get('game'):
+        if not status.get("game"):
             try:
-                game = status['activities'][0]
+                game = status["activities"][0]
             except (KeyError, IndexError):
                 game = None
         else:
-            game = status['game']
+            game = status["game"]
 
         # construct final status
         status = {
-            'afk': status.get('afk', False),
-            'status': status.get('status', 'online'),
-            'game': game,
-            'since': status.get('since', 0),
+            "afk": status.get("afk", False),
+            "status": status.get("status", "online"),
+            "game": game,
+            "since": status.get("since", 0),
         }
 
         self.state.presence = status
-        log.info(f'Updating presence status={status["status"]} for '
-                 f'uid={self.state.user_id}')
-        await self.ext.presence.dispatch_pres(self.state.user_id,
-                                              self.state.presence)
+        log.info(
+            f'Updating presence status={status["status"]} for '
+            f"uid={self.state.user_id}"
+        )
+        await self.ext.presence.dispatch_pres(self.state.user_id, self.state.presence)
 
     async def handle_1(self, payload: Dict[str, Any]):
         """Handle OP 1 Heartbeat packets."""
         # give the client 3 more seconds before we
         # close the websocket
         self._hb_start((46 + 3) * 1000)
-        cliseq = payload.get('d')
+        cliseq = payload.get("d")
 
         if self.state:
             self.state.last_seq = cliseq
@@ -529,39 +535,42 @@ class GatewayWebsocket:
         await self.send_op(OP.HEARTBEAT_ACK, None)
 
     async def _connect_ratelimit(self, user_id: int):
-        if self._check_ratelimit('connect', user_id):
+        if self._check_ratelimit("connect", user_id):
             await self.invalidate_session(False)
-            raise WebsocketClose(4009, 'You are being ratelimited.')
+            raise WebsocketClose(4009, "You are being ratelimited.")
 
-        if self._check_ratelimit('session', user_id):
+        if self._check_ratelimit("session", user_id):
             await self.invalidate_session(False)
-            raise WebsocketClose(4004, 'Websocket Session Ratelimit reached.')
+            raise WebsocketClose(4004, "Websocket Session Ratelimit reached.")
 
     async def handle_2(self, payload: Dict[str, Any]):
         """Handle the OP 2 Identify packet."""
         try:
-            data = payload['d']
-            token = data['token']
+            data = payload["d"]
+            token = data["token"]
         except KeyError:
-            raise DecodeError('Invalid identify parameters')
+            raise DecodeError("Invalid identify parameters")
 
-        compress = data.get('compress', False)
-        large = data.get('large_threshold', 50)
+        compress = data.get("compress", False)
+        large = data.get("large_threshold", 50)
 
-        shard = data.get('shard', [0, 1])
-        presence = data.get('presence')
+        shard = data.get("shard", [0, 1])
+        presence = data.get("presence")
 
         try:
             user_id = await raw_token_check(token, self.ext.db)
         except (Unauthorized, Forbidden):
-            raise WebsocketClose(4004, 'Authentication failed')
+            raise WebsocketClose(4004, "Authentication failed")
 
         await self._connect_ratelimit(user_id)
 
-        bot = await self.ext.db.fetchval("""
+        bot = await self.ext.db.fetchval(
+            """
         SELECT bot FROM users
         WHERE id = $1
-        """, user_id)
+        """,
+            user_id,
+        )
 
         await self._check_shards(shard, user_id)
 
@@ -574,19 +583,19 @@ class GatewayWebsocket:
             shard=shard,
             current_shard=shard[0],
             shard_count=shard[1],
-            ws=self
+            ws=self,
         )
 
         # link the state to the user
         self.ext.state_manager.insert(self.state)
 
         await self.update_status(presence)
-        await self.subscribe_all(data.get('guild_subscriptions', True))
+        await self.subscribe_all(data.get("guild_subscriptions", True))
         await self.dispatch_ready()
 
     async def handle_3(self, payload: Dict[str, Any]):
         """Handle OP 3 Status Update."""
-        presence = payload['d']
+        presence = payload["d"]
 
         # update_status will take care of validation and
         # setting new presence to state
@@ -597,27 +606,27 @@ class GatewayWebsocket:
         user settings."""
         try:
             # TODO: fetch from settings if not provided
-            self_deaf = bool(data['self_deaf'])
-            self_mute = bool(data['self_mute'])
+            self_deaf = bool(data["self_deaf"])
+            self_mute = bool(data["self_mute"])
         except (KeyError, ValueError):
             pass
 
         return {
-            'deaf': state.deaf,
-            'mute': state.mute,
-            'self_deaf': self_deaf,
-            'self_mute': self_mute,
+            "deaf": state.deaf,
+            "mute": state.mute,
+            "self_deaf": self_deaf,
+            "self_mute": self_mute,
         }
 
     async def handle_4(self, payload: Dict[str, Any]):
         """Handle OP 4 Voice Status Update."""
-        data = payload['d']
+        data = payload["d"]
 
         if not self.state:
             return
 
-        channel_id = int_(data.get('channel_id'))
-        guild_id = int_(data.get('guild_id'))
+        channel_id = int_(data.get("channel_id"))
+        guild_id = int_(data.get("guild_id"))
 
         # if its null and null, disconnect the user from any voice
         # TODO: maybe just leave from DMs? idk...
@@ -630,9 +639,7 @@ class GatewayWebsocket:
             return await self.ext.voice.leave(guild_id, self.state.user_id)
 
         # fetch an existing state given user and guild OR user and channel
-        chan_type = ChannelType(
-            await self.storage.get_chan_type(channel_id)
-        )
+        chan_type = ChannelType(await self.storage.get_chan_type(channel_id))
 
         state_id2 = channel_id
 
@@ -704,39 +711,38 @@ class GatewayWebsocket:
                     # ignore unknown seqs
                     continue
 
-                payload_t = payload.get('t')
+                payload_t = payload.get("t")
 
                 # presence resumption happens
                 # on a separate event, PRESENCE_REPLACE.
-                if payload_t == 'PRESENCE_UPDATE':
-                    presences.append(payload.get('d'))
+                if payload_t == "PRESENCE_UPDATE":
+                    presences.append(payload.get("d"))
                     continue
 
                 await self.send(payload)
         except Exception:
-            log.exception('error while resuming')
+            log.exception("error while resuming")
             await self.invalidate_session(False)
             return
 
         if presences:
-            await self.dispatch('PRESENCE_REPLACE', presences)
+            await self.dispatch("PRESENCE_REPLACE", presences)
 
-        await self.dispatch('RESUMED', {})
+        await self.dispatch("RESUMED", {})
 
     async def handle_6(self, payload: Dict[str, Any]):
         """Handle OP 6 Resume."""
-        data = payload['d']
+        data = payload["d"]
 
         try:
-            token, sess_id, seq = data['token'], \
-                data['session_id'], data['seq']
+            token, sess_id, seq = data["token"], data["session_id"], data["seq"]
         except KeyError:
-            raise DecodeError('Invalid resume payload')
+            raise DecodeError("Invalid resume payload")
 
         try:
             user_id = await raw_token_check(token, self.ext.db)
         except (Unauthorized, Forbidden):
-            raise WebsocketClose(4004, 'Invalid token')
+            raise WebsocketClose(4004, "Invalid token")
 
         try:
             state = self.ext.state_manager.fetch(user_id, sess_id)
@@ -744,11 +750,11 @@ class GatewayWebsocket:
             return await self.invalidate_session(False)
 
         if seq > state.seq:
-            raise WebsocketClose(4007, 'Invalid seq')
+            raise WebsocketClose(4007, "Invalid seq")
 
         # check if a websocket isnt on that state already
         if state.ws is not None:
-            log.info('Resuming failed, websocket already connected')
+            log.info("Resuming failed, websocket already connected")
             return await self.invalidate_session(False)
 
         # relink this connection
@@ -757,8 +763,9 @@ class GatewayWebsocket:
 
         await self._resume(range(seq, state.seq))
 
-    async def _req_guild_members(self, guild_id, user_ids: List[int],
-                                 query: str, limit: int):
+    async def _req_guild_members(
+        self, guild_id, user_ids: List[int], query: str, limit: int
+    ):
         try:
             guild_id = int(guild_id)
         except (TypeError, ValueError):
@@ -778,32 +785,32 @@ class GatewayWebsocket:
         # ASSUMPTION: requesting user_ids means we don't do query.
         if user_ids:
             members = await self.storage.get_member_multi(guild_id, user_ids)
-            mids = [m['user']['id'] for m in members]
+            mids = [m["user"]["id"] for m in members]
             not_found = [uid for uid in user_ids if uid not in mids]
 
-            await self.dispatch('GUILD_MEMBERS_CHUNK', {
-                'guild_id': str(guild_id),
-                'members': members,
-                'not_found': not_found,
-            })
+            await self.dispatch(
+                "GUILD_MEMBERS_CHUNK",
+                {"guild_id": str(guild_id), "members": members, "not_found": not_found},
+            )
 
             return
 
         # do the search
         result = await self.storage.query_members(guild_id, query, limit)
-        await self.dispatch('GUILD_MEMBERS_CHUNK', {
-            'guild_id': str(guild_id),
-            'members': result
-        })
+        await self.dispatch(
+            "GUILD_MEMBERS_CHUNK", {"guild_id": str(guild_id), "members": result}
+        )
 
     async def handle_8(self, payload: Dict):
         """Handle OP 8 Request Guild Members."""
-        data = payload['d']
-        gids = data['guild_id']
+        data = payload["d"]
+        gids = data["guild_id"]
 
-        uids, query, limit = data.get('user_ids', []), \
-            data.get('query', ''), \
-            data.get('limit', 0)
+        uids, query, limit = (
+            data.get("user_ids", []),
+            data.get("query", ""),
+            data.get("limit", 0),
+        )
 
         if isinstance(gids, str):
             await self._req_guild_members(gids, uids, query, limit)
@@ -820,23 +827,21 @@ class GatewayWebsocket:
         GUILD_SYNC event with that info.
         """
         members = await self.storage.get_member_data(guild_id)
-        member_ids = [int(m['user']['id']) for m in members]
+        member_ids = [int(m["user"]["id"]) for m in members]
 
-        log.debug(f'Syncing guild {guild_id} with {len(member_ids)} members')
+        log.debug(f"Syncing guild {guild_id} with {len(member_ids)} members")
         presences = await self.presence.guild_presences(member_ids, guild_id)
 
-        await self.dispatch('GUILD_SYNC', {
-            'id': str(guild_id),
-            'presences': presences,
-            'members': members,
-        })
+        await self.dispatch(
+            "GUILD_SYNC",
+            {"id": str(guild_id), "presences": presences, "members": members},
+        )
 
     async def handle_12(self, payload: Dict[str, Any]):
         """Handle OP 12 Guild Sync."""
-        data = payload['d']
+        data = payload["d"]
 
-        gids = await self.user_storage.get_user_guilds(
-            self.state.user_id)
+        gids = await self.user_storage.get_user_guilds(self.state.user_id)
 
         for guild_id in data:
             try:
@@ -931,35 +936,33 @@ class GatewayWebsocket:
             ]
         }
         """
-        data = payload['d']
+        data = payload["d"]
 
         gids = await self.user_storage.get_user_guilds(self.state.user_id)
-        guild_id = int(data['guild_id'])
+        guild_id = int(data["guild_id"])
 
         # make sure to not extract info you shouldn't get
         if guild_id not in gids:
             return
 
-        log.debug('lazy request: members: {}',
-                  data.get('members', []))
+        log.debug("lazy request: members: {}", data.get("members", []))
 
         # make shard query
-        lazy_guilds = self.ext.dispatcher.backends['lazy_guild']
+        lazy_guilds = self.ext.dispatcher.backends["lazy_guild"]
 
-        for chan_id, ranges in data.get('channels', {}).items():
+        for chan_id, ranges in data.get("channels", {}).items():
             chan_id = int(chan_id)
             member_list = await lazy_guilds.get_gml(chan_id)
 
             perms = await get_permissions(
-                self.state.user_id, chan_id, storage=self.storage)
+                self.state.user_id, chan_id, storage=self.storage
+            )
 
             if not perms.bits.read_messages:
                 # ignore requests to unknown channels
                 return
 
-            await member_list.shard_query(
-                self.state.session_id, ranges
-            )
+            await member_list.shard_query(self.state.session_id, ranges)
 
     async def _handle_23(self, payload):
         # TODO reverse-engineer opcode 23, sent by client
@@ -968,21 +971,21 @@ class GatewayWebsocket:
     async def _process_message(self, payload):
         """Process a single message coming in from the client."""
         try:
-            op_code = payload['op']
+            op_code = payload["op"]
         except KeyError:
-            raise UnknownOPCode('No OP code')
+            raise UnknownOPCode("No OP code")
 
         try:
-            handler = getattr(self, f'handle_{op_code}')
+            handler = getattr(self, f"handle_{op_code}")
         except AttributeError:
-            log.warning('Payload with bad op: {}', pprint.pformat(payload))
-            raise UnknownOPCode(f'Bad OP code: {op_code}')
+            log.warning("Payload with bad op: {}", pprint.pformat(payload))
+            raise UnknownOPCode(f"Bad OP code: {op_code}")
 
         await handler(payload)
 
     async def _msg_ratelimit(self):
-        if self._check_ratelimit('messages', self.state.session_id):
-            raise WebsocketClose(4008, 'You are being ratelimited.')
+        if self._check_ratelimit("messages", self.state.session_id):
+            raise WebsocketClose(4008, "You are being ratelimited.")
 
     async def _listen_messages(self):
         """Listen for messages coming in from the websocket."""
@@ -990,15 +993,15 @@ class GatewayWebsocket:
         # close anyone trying to login while the
         # server is shutting down
         if self.ext.state_manager.closed:
-            raise WebsocketClose(4000, 'state manager closed')
+            raise WebsocketClose(4000, "state manager closed")
 
         if not self.ext.state_manager.accept_new:
-            raise WebsocketClose(4000, 'state manager closed for new')
+            raise WebsocketClose(4000, "state manager closed for new")
 
         while True:
             message = await self.ws.recv()
             if len(message) > 4096:
-                raise DecodeError('Payload length exceeded')
+                raise DecodeError("Payload length exceeded")
 
             if self.state:
                 await self._msg_ratelimit()
@@ -1033,17 +1036,9 @@ class GatewayWebsocket:
 
         # there arent any other states with websocket
         if not with_ws:
-            offline = {
-                'afk': False,
-                'status': 'offline',
-                'game': None,
-                'since': 0,
-            }
+            offline = {"afk": False, "status": "offline", "game": None, "since": 0}
 
-            await self.ext.presence.dispatch_pres(
-                user_id,
-                offline
-            )
+            await self.ext.presence.dispatch_pres(user_id, offline)
 
     async def run(self):
         """Wrap :meth:`listen_messages` inside
@@ -1052,12 +1047,12 @@ class GatewayWebsocket:
             await self._send_hello()
             await self._listen_messages()
         except websockets.exceptions.ConnectionClosed as err:
-            log.warning('conn close, state={}, err={}', self.state, err)
+            log.warning("conn close, state={}, err={}", self.state, err)
         except WebsocketClose as err:
-            log.warning('ws close, state={} err={}', self.state, err)
+            log.warning("ws close, state={} err={}", self.state, err)
             await self.ws.close(code=err.code, reason=err.reason)
         except Exception as err:
-            log.exception('An exception has occoured. state={}', self.state)
+            log.exception("An exception has occoured. state={}", self.state)
             await self.ws.close(code=4000, reason=repr(err))
         finally:
             user_id = self.state.user_id if self.state else None

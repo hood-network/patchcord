@@ -21,8 +21,10 @@ from litecord.schemas import validate
 from litecord.embed.schemas import EMBED_OBJECT
 from litecord.embed.sanitizer import path_exists
 
+
 def validate_embed(embed):
     return validate(embed, EMBED_OBJECT)
+
 
 def valid(embed: dict):
     try:
@@ -30,6 +32,7 @@ def valid(embed: dict):
         return True
     except:
         return False
+
 
 def invalid(embed):
     try:
@@ -44,66 +47,48 @@ def test_empty_embed():
 
 
 def test_basic_embed():
-    assert valid({
-        'title': 'test',
-        'description': 'acab',
-        'url': 'https://www.w3.org',
-        'color': 123
-    })
+    assert valid(
+        {
+            "title": "test",
+            "description": "acab",
+            "url": "https://www.w3.org",
+            "color": 123,
+        }
+    )
 
 
 def test_footer_embed():
-    assert invalid({
-        'footer': {}
-    })
+    assert invalid({"footer": {}})
 
-    assert valid({
-        'title': 'test',
-        'footer': {
-            'text': 'abcdef'
-        }
-    })
+    assert valid({"title": "test", "footer": {"text": "abcdef"}})
+
 
 def test_image():
-    assert invalid({
-        'image': {}
-    })
+    assert invalid({"image": {}})
 
-    assert valid({
-        'image': {
-            'url': 'https://www.w3.org'
-        }
-    })
+    assert valid({"image": {"url": "https://www.w3.org"}})
+
 
 def test_author():
-    assert invalid({
-        'author': {
-            'name': ''
-        }
-    })
+    assert invalid({"author": {"name": ""}})
 
-    assert valid({
-        'author': {
-            'name': 'abcdef'
-        }
-    })
+    assert valid({"author": {"name": "abcdef"}})
+
 
 def test_fields():
-    assert valid({
-        'fields': [
-            {'name': 'a', 'value': 'b'},
-            {'name': 'c', 'value': 'd', 'inline': False},
-        ]
-    })
+    assert valid(
+        {
+            "fields": [
+                {"name": "a", "value": "b"},
+                {"name": "c", "value": "d", "inline": False},
+            ]
+        }
+    )
 
-    assert invalid({
-        'fields': [
-            {'name': 'a'},
-        ]
-    })
+    assert invalid({"fields": [{"name": "a"}]})
 
 
 def test_path_exists():
     """Test the path_exists() function for embed sanitization."""
-    assert path_exists({'a': {'b': 2}}, 'a.b')
-    assert not path_exists({'a': 'b'}, 'a.b')
+    assert path_exists({"a": {"b": 2}}, "a.b")
+    assert not path_exists({"a": "b"}, "a.b")

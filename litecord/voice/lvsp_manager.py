@@ -31,6 +31,7 @@ log = Logger(__name__)
 @dataclass
 class Region:
     """Voice region data."""
+
     id: str
     vip: bool
 
@@ -40,6 +41,7 @@ class LVSPManager:
 
     Spawns :class:`LVSPConnection` as needed, etc.
     """
+
     def __init__(self, app, voice):
         self.app = app
         self.voice = voice
@@ -61,49 +63,50 @@ class LVSPManager:
     async def _spawn(self):
         """Spawn LVSPConnection for each region."""
 
-        regions = await self.app.db.fetch("""
+        regions = await self.app.db.fetch(
+            """
         SELECT id, vip
         FROM voice_regions
         WHERE deprecated = false
-        """)
+        """
+        )
 
-        regions = [Region(r['id'], r['vip']) for r in regions]
+        regions = [Region(r["id"], r["vip"]) for r in regions]
 
         if not regions:
-            log.warning('no regions are setup')
+            log.warning("no regions are setup")
             return
 
         for region in regions:
             # store it locally for region() function
             self.regions[region.id] = region
 
-            self.app.loop.create_task(
-                self._spawn_region(region)
-            )
+            self.app.loop.create_task(self._spawn_region(region))
 
     async def _spawn_region(self, region: Region):
         """Spawn a region. Involves fetching all the hostnames
         for the regions and spawning a LVSPConnection for each."""
-        servers = await self.app.db.fetch("""
+        servers = await self.app.db.fetch(
+            """
         SELECT hostname
         FROM voice_servers
         WHERE region_id = $1
-        """, region.id)
+        """,
+            region.id,
+        )
 
         if not servers:
-            log.warning('region {} does not have servers', region)
+            log.warning("region {} does not have servers", region)
             return
 
-        servers = [r['hostname'] for r in servers]
+        servers = [r["hostname"] for r in servers]
         self.servers[region.id] = servers
 
         for hostname in servers:
             conn = LVSPConnection(self, region.id, hostname)
             self.conns[hostname] = conn
 
-            self.app.loop.create_task(
-                conn.run()
-            )
+            self.app.loop.create_task(conn.run())
 
     async def del_conn(self, conn):
         """Delete a connection from the connection pool."""
@@ -119,11 +122,14 @@ class LVSPManager:
 
     async def guild_region(self, guild_id: int) -> Optional[str]:
         """Return the voice region of a guild."""
-        return await self.app.db.fetchval("""
+        return await self.app.db.fetchval(
+            """
         SELECT region
         FROM guilds
         WHERE id = $1
-        """, guild_id)
+        """,
+            guild_id,
+        )
 
     def get_health(self, hostname: str) -> float:
         """Get voice server health, given hostname."""
@@ -144,10 +150,7 @@ class LVSPManager:
             region = await self.guild_region(guild_id)
 
             # sort connected servers by health
-            sorted_servers = sorted(
-                self.servers[region],
-                key=self.get_health
-            )
+            sorted_servers = sorted(self.servers[region], key=self.get_health)
 
             try:
                 hostname = sorted_servers[0]

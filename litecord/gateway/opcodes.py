@@ -17,8 +17,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
+
 class OP:
     """Gateway OP codes."""
+
     DISPATCH = 0
     HEARTBEAT = 1
     IDENTIFY = 2

@@ -17,13 +17,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-MODE = 'CI'
+MODE = "CI"
 
 
 class Config:
     """Default configuration values for litecord."""
-    MAIN_URL = 'localhost:1'
-    NAME = 'gitlab ci'
+
+    MAIN_URL = "localhost:1"
+    NAME = "gitlab ci"
 
     # Enable debug logging?
     DEBUG = False
@@ -37,11 +38,11 @@ class Config:
     # Set this url to somewhere *your users*
     # will hit the websocket.
     # e.g 'gateway.example.com' for reverse proxies.
-    WEBSOCKET_URL = 'localhost:5001'
+    WEBSOCKET_URL = "localhost:5001"
 
     # Where to host the websocket?
     # (a local address the server will bind to)
-    WS_HOST = 'localhost'
+    WS_HOST = "localhost"
     WS_PORT = 5001
 
     # Postgres credentials
@@ -51,10 +52,10 @@ class Config:
 class Development(Config):
     DEBUG = True
     POSTGRES = {
-        'host': 'localhost',
-        'user': 'litecord',
-        'password': '123',
-        'database': 'litecord',
+        "host": "localhost",
+        "user": "litecord",
+        "password": "123",
+        "database": "litecord",
     }
 
 
@@ -66,8 +67,4 @@ class Production(Config):
 class CI(Config):
     DEBUG = True
 
-    POSTGRES = {
-        'host': 'postgres',
-        'user': 'postgres',
-        'password': ''
-    }
+    POSTGRES = {"host": "postgres", "user": "postgres", "password": ""}

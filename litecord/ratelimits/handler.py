@@ -31,10 +31,10 @@ async def _check_bucket(bucket):
     if retry_after:
         request.retry_after = retry_after
 
-        raise Ratelimited('You are being rate limited.', {
-            'retry_after': int(retry_after * 1000),
-            'global': request.bucket_global,
-        })
+        raise Ratelimited(
+            "You are being rate limited.",
+            {"retry_after": int(retry_after * 1000), "global": request.bucket_global},
+        )
 
 
 async def _handle_global(ratelimit):
@@ -59,13 +59,13 @@ async def _handle_specific(ratelimit):
     keys = ratelimit.keys
 
     # base key is the user id
-    key_components = [f'user_id:{user_id}']
+    key_components = [f"user_id:{user_id}"]
 
     for key in keys:
         val = request.view_args[key]
-        key_components.append(f'{key}:{val}')
+        key_components.append(f"{key}:{val}")
 
-    bucket_key = ':'.join(key_components)
+    bucket_key = ":".join(key_components)
     bucket = ratelimit.get_bucket(bucket_key)
     await _check_bucket(bucket)
 
@@ -78,9 +78,7 @@ async def ratelimit_handler():
     rule = request.url_rule
 
     if rule is None:
-        return await _handle_global(
-            app.ratelimiter.global_bucket
-        )
+        return await _handle_global(app.ratelimiter.global_bucket)
 
     # rule.endpoint is composed of '<blueprint>.<function>'
     # and so we can use that to make routes with different
@@ -97,6 +95,4 @@ async def ratelimit_handler():
         ratelimit = app.ratelimiter.get_ratelimit(rule_path)
         await _handle_specific(ratelimit)
     except KeyError:
-        await _handle_global(
-            app.ratelimiter.global_bucket
-        )
+        await _handle_global(app.ratelimiter.global_bucket)

@@ -27,13 +27,13 @@ from litecord.types import timestamp_
 from litecord.schemas import validate
 from litecord.admin_schemas import INSTANCE_INVITE
 
-bp = Blueprint('instance_invites', __name__)
+bp = Blueprint("instance_invites", __name__)
 ALPHABET = string.ascii_lowercase + string.ascii_uppercase + string.digits
 
 
 async def _gen_inv() -> str:
     """Generate an invite code"""
-    return ''.join(choice(ALPHABET) for _ in range(6))
+    return "".join(choice(ALPHABET) for _ in range(6))
 
 
 async def gen_inv(ctx) -> str:
@@ -41,11 +41,14 @@ async def gen_inv(ctx) -> str:
     for _ in range(10):
         possible_inv = await _gen_inv()
 
-        created_at = await ctx.db.fetchval("""
+        created_at = await ctx.db.fetchval(
+            """
         SELECT created_at
         FROM instance_invites
         WHERE code = $1
-        """, possible_inv)
+        """,
+            possible_inv,
+        )
 
         if created_at is None:
             return possible_inv
@@ -53,57 +56,71 @@ async def gen_inv(ctx) -> str:
     return None
 
 
-@bp.route('', methods=['GET'])
+@bp.route("", methods=["GET"])
 async def _all_instance_invites():
     await admin_check()
 
-    rows = await app.db.fetch("""
+    rows = await app.db.fetch(
+        """
     SELECT code, created_at, uses, max_uses
     FROM instance_invites
-    """)
+    """
+    )
 
     rows = [dict(row) for row in rows]
 
     for row in rows:
-        row['created_at'] = timestamp_(row['created_at'])
+        row["created_at"] = timestamp_(row["created_at"])
 
     return jsonify(rows)
 
 
-@bp.route('', methods=['PUT'])
+@bp.route("", methods=["PUT"])
 async def _create_invite():
     await admin_check()
 
     code = await gen_inv(app)
     if code is None:
-        return 'failed to make invite', 500
+        return "failed to make invite", 500
 
     j = validate(await request.get_json(), INSTANCE_INVITE)
 
-    await app.db.execute("""
+    await app.db.execute(
+        """
     INSERT INTO instance_invites (code, max_uses)
     VALUES ($1, $2)
-    """, code, j['max_uses'])
+    """,
+        code,
+        j["max_uses"],
+    )
 
-    inv = dict(await app.db.fetchrow("""
+    inv = dict(
+        await app.db.fetchrow(
+            """
     SELECT code, created_at, uses, max_uses
     FROM instance_invites
     WHERE code = $1
-    """, code))
+    """,
+            code,
+        )
+    )
 
     return jsonify(dict(inv))
 
 
-@bp.route('/<invite>', methods=['DELETE'])
+@bp.route("/<invite>", methods=["DELETE"])
 async def _del_invite(invite: str):
     await admin_check()
 
-    res = await app.db.execute("""
+    res = await app.db.execute(
+        """
     DELETE FROM instance_invites
     WHERE code = $1
-    """, invite)
+    """,
+        invite,
+    )
 
-    if res.lower() == 'delete 0':
-        return 'invite not found', 404
+    if res.lower() == "delete 0":
+        return "invite not found", 404
 
-    return '', 204
+    return "", 204

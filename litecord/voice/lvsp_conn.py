@@ -31,6 +31,7 @@ log = Logger(__name__)
 
 class LVSPConnection:
     """Represents a single LVSP connection."""
+
     def __init__(self, lvsp, region: str, hostname: str):
         self.lvsp = lvsp
         self.app = lvsp.app
@@ -46,7 +47,7 @@ class LVSPConnection:
 
     @property
     def _log_id(self):
-        return f'region={self.region} hostname={self.hostname}'
+        return f"region={self.region} hostname={self.hostname}"
 
     async def send(self, payload):
         """Send a payload down the websocket."""
@@ -61,50 +62,42 @@ class LVSPConnection:
 
     async def send_op(self, opcode: int, data: dict):
         """Send a message with an OP code included"""
-        await self.send({
-            'op': opcode,
-            'd': data
-        })
+        await self.send({"op": opcode, "d": data})
 
     async def send_info(self, info_type: str, info_data: Dict):
         """Send an INFO message down the websocket."""
-        await self.send({
-            'op': OP.info,
-            'd': {
-                'type': InfoTable[info_type.upper()],
-                'data': info_data
+        await self.send(
+            {
+                "op": OP.info,
+                "d": {"type": InfoTable[info_type.upper()], "data": info_data},
             }
-        })
+        )
 
     async def _heartbeater(self, hb_interval: int):
         try:
             await asyncio.sleep(hb_interval)
 
             # TODO: add self._seq
-            await self.send_op(OP.heartbeat, {
-                's': 0
-            })
+            await self.send_op(OP.heartbeat, {"s": 0})
 
             # give the server 300 milliseconds to reply.
             await asyncio.sleep(300)
-            await self.conn.close(4000, 'heartbeat timeout')
+            await self.conn.close(4000, "heartbeat timeout")
         except asyncio.CancelledError:
             pass
 
     def _start_hb(self):
-        self._hb_task = self.app.loop.create_task(
-            self._heartbeater(self._hb_interval)
-        )
+        self._hb_task = self.app.loop.create_task(self._heartbeater(self._hb_interval))
 
     def _stop_hb(self):
         self._hb_task.cancel()
 
     async def _handle_0(self, msg):
         """Handle HELLO message."""
-        data = msg['d']
+        data = msg["d"]
 
         # nonce = data['nonce']
-        self._hb_interval = data['heartbeat_interval']
+        self._hb_interval = data["heartbeat_interval"]
 
         # TODO: send identify
 
@@ -112,48 +105,52 @@ class LVSPConnection:
         """Update the health value of a given voice server."""
         self.health = new_health
 
-        await self.app.db.execute("""
+        await self.app.db.execute(
+            """
         UPDATE voice_servers
         SET health = $1
         WHERE hostname = $2
-        """, new_health, self.hostname)
+        """,
+            new_health,
+            self.hostname,
+        )
 
     async def _handle_3(self, msg):
         """Handle READY message.
 
         We only start heartbeating after READY.
         """
-        await self._update_health(msg['health'])
+        await self._update_health(msg["health"])
         self._start_hb()
 
     async def _handle_5(self, msg):
         """Handle HEARTBEAT_ACK."""
         self._stop_hb()
-        await self._update_health(msg['health'])
+        await self._update_health(msg["health"])
         self._start_hb()
 
     async def _handle_6(self, msg):
         """Handle INFO messages."""
-        info = msg['d']
-        info_type_str = InfoReverse[info['type']].lower()
+        info = msg["d"]
+        info_type_str = InfoReverse[info["type"]].lower()
 
         try:
-            info_handler = getattr(self, f'_handle_info_{info_type_str}')
+            info_handler = getattr(self, f"_handle_info_{info_type_str}")
         except AttributeError:
             return
 
-        await info_handler(info['data'])
+        await info_handler(info["data"])
 
     async def _handle_info_channel_assign(self, data: dict):
         """called by the server once we got a channel assign."""
         try:
-            channel_id = data['channel_id']
+            channel_id = data["channel_id"]
             channel_id = int(channel_id)
         except (TypeError, ValueError):
             return
 
         try:
-            guild_id = data['guild_id']
+            guild_id = data["guild_id"]
             guild_id = int(guild_id)
         except (TypeError, ValueError):
             guild_id = None
@@ -166,19 +163,19 @@ class LVSPConnection:
             msg = await self.recv()
 
             try:
-                opcode = msg['op']
-                handler = getattr(self, f'_handle_{opcode}')
+                opcode = msg["op"]
+                handler = getattr(self, f"_handle_{opcode}")
                 await handler(msg)
             except (KeyError, AttributeError):
                 # TODO: error codes in LVSP
-                raise Exception('invalid op code')
+                raise Exception("invalid op code")
 
     async def start(self):
         """Try to start a websocket connection."""
         try:
-            self.conn = await websockets.connect(f'wss://{self.hostname}')
+            self.conn = await websockets.connect(f"wss://{self.hostname}")
         except Exception:
-            log.exception('failed to start lvsp conn to {}', self.hostname)
+            log.exception("failed to start lvsp conn to {}", self.hostname)
 
     async def run(self):
         """Start the websocket."""
@@ -186,15 +183,15 @@ class LVSPConnection:
 
         try:
             if not self.conn:
-                log.error('failed to start lvsp connection, stopping')
+                log.error("failed to start lvsp connection, stopping")
                 return
 
             await self._loop()
         except websockets.exceptions.ConnectionClosed as err:
-            log.warning('conn close, {}, err={}', self._log_id, err)
+            log.warning("conn close, {}, err={}", self._log_id, err)
         # except WebsocketClose as err:
         #     log.warning('ws close, state={} err={}', self.state, err)
         #     await self.conn.close(code=err.code, reason=err.reason)
         except Exception as err:
-            log.exception('An exception has occoured. {}', self._log_id)
+            log.exception("An exception has occoured. {}", self._log_id)
             await self.conn.close(code=4000, reason=repr(err))

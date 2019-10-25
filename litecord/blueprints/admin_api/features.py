@@ -25,45 +25,53 @@ from litecord.errors import BadRequest
 from litecord.schemas import validate
 from litecord.admin_schemas import FEATURES
 
-bp = Blueprint('features_admin', __name__)
+bp = Blueprint("features_admin", __name__)
 
 
 async def _features_from_req() -> List[str]:
     j = validate(await request.get_json(), FEATURES)
-    return [feature.value for feature in j['features']]
+    return [feature.value for feature in j["features"]]
 
 
 async def _features(guild_id: int):
-    return jsonify({
-        'features': await app.storage.guild_features(guild_id)
-    })
+    return jsonify({"features": await app.storage.guild_features(guild_id)})
 
 
 async def _update_features(guild_id: int, features: list):
-    if 'VANITY_URL' not in features:
+    if "VANITY_URL" not in features:
         existing_inv = await app.storage.vanity_invite(guild_id)
 
-        await app.db.execute("""
+        await app.db.execute(
+            """
         DELETE FROM vanity_invites
         WHERE guild_id = $1
-        """, guild_id)
+        """,
+            guild_id,
+        )
 
-        await app.db.execute("""
+        await app.db.execute(
+            """
         DELETE FROM invites
         WHERE code = $1
-        """, existing_inv)
+        """,
+            existing_inv,
+        )
 
-    await app.db.execute("""
+    await app.db.execute(
+        """
     UPDATE guilds
     SET features = $1
     WHERE id = $2
-    """, features, guild_id)
+    """,
+        features,
+        guild_id,
+    )
 
     guild = await app.storage.get_guild_full(guild_id)
-    await app.dispatcher.dispatch('guild', guild_id, 'GUILD_UPDATE', guild)
+    await app.dispatcher.dispatch("guild", guild_id, "GUILD_UPDATE", guild)
 
 
-@bp.route('/<int:guild_id>/features', methods=['PATCH'])
+@bp.route("/<int:guild_id>/features", methods=["PATCH"])
 async def replace_features(guild_id: int):
     """Replace the feature list in a guild"""
     await admin_check()
@@ -76,7 +84,7 @@ async def replace_features(guild_id: int):
     return await _features(guild_id)
 
 
-@bp.route('/<int:guild_id>/features', methods=['PUT'])
+@bp.route("/<int:guild_id>/features", methods=["PUT"])
 async def insert_features(guild_id: int):
     """Insert a feature on a guild."""
     await admin_check()
@@ -93,7 +101,7 @@ async def insert_features(guild_id: int):
     return await _features(guild_id)
 
 
-@bp.route('/<int:guild_id>/features', methods=['DELETE'])
+@bp.route("/<int:guild_id>/features", methods=["DELETE"])
 async def remove_features(guild_id: int):
     """Remove a feature from a guild"""
     await admin_check()
@@ -104,7 +112,7 @@ async def remove_features(guild_id: int):
         try:
             features.remove(feature)
         except ValueError:
-            raise BadRequest('Trying to remove already removed feature.')
+            raise BadRequest("Trying to remove already removed feature.")
 
     await _update_features(guild_id, features)
     return await _features(guild_id)

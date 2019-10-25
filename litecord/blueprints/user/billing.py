@@ -33,7 +33,7 @@ from litecord.enums import UserFlags, PremiumType
 from litecord.blueprints.users import mass_user_update
 
 log = Logger(__name__)
-bp = Blueprint('users_billing', __name__)
+bp = Blueprint("users_billing", __name__)
 
 
 class PaymentSource(Enum):
@@ -68,78 +68,87 @@ class PaymentStatus:
 
 
 PLAN_ID_TO_TYPE = {
-    'premium_month_tier_1': PremiumType.TIER_1,
-    'premium_month_tier_2': PremiumType.TIER_2,
-    'premium_year_tier_1': PremiumType.TIER_1,
-    'premium_year_tier_2': PremiumType.TIER_2,
+    "premium_month_tier_1": PremiumType.TIER_1,
+    "premium_month_tier_2": PremiumType.TIER_2,
+    "premium_year_tier_1": PremiumType.TIER_1,
+    "premium_year_tier_2": PremiumType.TIER_2,
 }
 
 
 # how much should a payment be, depending
 # of the subscription
 AMOUNTS = {
-    'premium_month_tier_1': 499,
-    'premium_month_tier_2': 999,
-    'premium_year_tier_1': 4999,
-    'premium_year_tier_2': 9999,
+    "premium_month_tier_1": 499,
+    "premium_month_tier_2": 999,
+    "premium_year_tier_1": 4999,
+    "premium_year_tier_2": 9999,
 }
 
 
 CREATE_SUBSCRIPTION = {
-    'payment_gateway_plan_id': {'type': 'string'},
-    'payment_source_id': {'coerce': int}
+    "payment_gateway_plan_id": {"type": "string"},
+    "payment_source_id": {"coerce": int},
 }
 
 
 PAYMENT_SOURCE = {
-    'billing_address': {
-        'type': 'dict',
-        'schema': {
-            'country': {'type': 'string', 'required': True},
-            'city': {'type': 'string', 'required': True},
-            'name': {'type': 'string', 'required': True},
-            'line_1': {'type': 'string', 'required': False},
-            'line_2': {'type': 'string', 'required': False},
-            'postal_code': {'type': 'string', 'required': True},
-            'state': {'type': 'string', 'required': True},
-        }
+    "billing_address": {
+        "type": "dict",
+        "schema": {
+            "country": {"type": "string", "required": True},
+            "city": {"type": "string", "required": True},
+            "name": {"type": "string", "required": True},
+            "line_1": {"type": "string", "required": False},
+            "line_2": {"type": "string", "required": False},
+            "postal_code": {"type": "string", "required": True},
+            "state": {"type": "string", "required": True},
+        },
     },
-    'payment_gateway': {'type': 'number', 'required': True},
-    'token': {'type': 'string', 'required': True},
+    "payment_gateway": {"type": "number", "required": True},
+    "token": {"type": "string", "required": True},
 }
 
 
 async def get_payment_source_ids(user_id: int) -> list:
-    rows = await app.db.fetch("""
+    rows = await app.db.fetch(
+        """
     SELECT id
     FROM user_payment_sources
     WHERE user_id = $1
-    """, user_id)
+    """,
+        user_id,
+    )
 
-    return [r['id'] for r in rows]
+    return [r["id"] for r in rows]
 
 
 async def get_payment_ids(user_id: int, db=None) -> list:
     if not db:
         db = app.db
 
-    rows = await db.fetch("""
+    rows = await db.fetch(
+        """
     SELECT id
     FROM user_payments
     WHERE user_id = $1
-    """, user_id)
+    """,
+        user_id,
+    )
 
-    return [r['id'] for r in rows]
+    return [r["id"] for r in rows]
 
 
 async def get_subscription_ids(user_id: int) -> list:
-    rows = await app.db.fetch("""
+    rows = await app.db.fetch(
+        """
     SELECT id
     FROM user_subscriptions
     WHERE user_id = $1
-    """, user_id)
+    """,
+        user_id,
+    )
 
-    return [r['id'] for r in rows]
+    return [r["id"] for r in rows]
 
 
 async def get_payment_source(user_id: int, source_id: int, db=None) -> dict:
@@ -148,41 +157,44 @@ async def get_payment_source(user_id: int, source_id: int, db=None) -> dict:
     if not db:
         db = app.db
 
-    source_type = await db.fetchval("""
+    source_type = await db.fetchval(
+        """
     SELECT source_type
     FROM user_payment_sources
     WHERE id = $1 AND user_id = $2
-    """, source_id, user_id)
+    """,
+        source_id,
+        user_id,
+    )
 
     source_type = PaymentSource(source_type)
 
     specific_fields = {
-        PaymentSource.PAYPAL: ['paypal_email'],
-        PaymentSource.CREDIT: ['expires_month', 'expires_year',
-                               'brand', 'cc_full']
+        PaymentSource.PAYPAL: ["paypal_email"],
+        PaymentSource.CREDIT: ["expires_month", "expires_year", "brand", "cc_full"],
     }[source_type]
 
-    fields = ','.join(specific_fields)
+    fields = ",".join(specific_fields)
 
-    extras_row = await db.fetchrow(f"""
+    extras_row = await db.fetchrow(
+        f"""
     SELECT {fields}, billing_address, default_, id::text
     FROM user_payment_sources
     WHERE id = $1
-    """, source_id)
+    """,
+        source_id,
+    )
 
     derow = dict(extras_row)
 
     if source_type == PaymentSource.CREDIT:
-        derow['last_4'] = derow['cc_full'][-4:]
-        derow.pop('cc_full')
+        derow["last_4"] = derow["cc_full"][-4:]
+        derow.pop("cc_full")
 
-    derow['default'] = derow['default_']
-    derow.pop('default_')
+    derow["default"] = derow["default_"]
+    derow.pop("default_")
 
-    source = {
-        'id': str(source_id),
-        'type': source_type.value,
-    }
+    source = {"id": str(source_id), "type": source_type.value}
 
     return {**source, **derow}
 
@@ -192,7 +204,8 @@ async def get_subscription(subscription_id: int, db=None):
     if not db:
         db = app.db
 
-    row = await db.fetchrow("""
+    row = await db.fetchrow(
+        """
     SELECT id::text, source_id::text AS payment_source_id,
            user_id,
            payment_gateway, payment_gateway_plan_id,
@@ -201,14 +214,16 @@ async def get_subscription(subscription_id: int, db=None):
            canceled_at, s_type, status
     FROM user_subscriptions
     WHERE id = $1
-    """, subscription_id)
+    """,
+        subscription_id,
+    )
 
     drow = dict(row)
 
-    drow['type'] = drow['s_type']
-    drow.pop('s_type')
+    drow["type"] = drow["s_type"]
+    drow.pop("s_type")
 
-    to_tstamp = ['current_period_start', 'current_period_end', 'canceled_at']
+    to_tstamp = ["current_period_start", "current_period_end", "canceled_at"]
 
     for field in to_tstamp:
         drow[field] = timestamp_(drow[field])
@@ -221,27 +236,30 @@ async def get_payment(payment_id: int, db=None):
     if not db:
         db = app.db
 
-    row = await db.fetchrow("""
+    row = await db.fetchrow(
+        """
     SELECT id::text, source_id, subscription_id, user_id,
            amount, amount_refunded, currency,
            description, status, tax, tax_inclusive
     FROM user_payments
     WHERE id = $1
-    """, payment_id)
+    """,
+        payment_id,
+    )
 
     drow = dict(row)
 
-    drow.pop('source_id')
-    drow.pop('subscription_id')
-    drow.pop('user_id')
+    drow.pop("source_id")
+    drow.pop("subscription_id")
+    drow.pop("user_id")
 
-    drow['created_at'] = snowflake_datetime(int(drow['id']))
+    drow["created_at"] = snowflake_datetime(int(drow["id"]))
 
-    drow['payment_source'] = await get_payment_source(
-        row['user_id'], row['source_id'], db)
+    drow["payment_source"] = await get_payment_source(
+        row["user_id"], row["source_id"], db
+    )
 
-    drow['subscription'] = await get_subscription(
-        row['subscription_id'], db)
+    drow["subscription"] = await get_subscription(row["subscription_id"], db)
 
     return drow
 
@@ -255,7 +273,7 @@ async def create_payment(subscription_id, db=None):
 
     new_id = get_snowflake()
 
-    amount = AMOUNTS[sub['payment_gateway_plan_id']]
+    amount = AMOUNTS[sub["payment_gateway_plan_id"]]
 
     await db.execute(
         """
@@ -266,10 +284,16 @@ async def create_payment(subscription_id, db=None):
         )
         VALUES
             ($1, $2, $3, $4, $5, 0, $6, $7, $8, 0, false)
-        """, new_id, int(sub['payment_source_id']),
-        subscription_id, int(sub['user_id']),
-        amount, 'usd', 'FUCK NITRO',
-        PaymentStatus.SUCCESS)
+        """,
+        new_id,
+        int(sub["payment_source_id"]),
+        subscription_id,
+        int(sub["user_id"]),
+        amount,
+        "usd",
+        "FUCK NITRO",
+        PaymentStatus.SUCCESS,
+    )
 
     return new_id
 
@@ -278,29 +302,34 @@ async def process_subscription(app, subscription_id: int):
     """Process a single subscription."""
     sub = await get_subscription(subscription_id, app.db)
 
-    user_id = int(sub['user_id'])
+    user_id = int(sub["user_id"])
 
-    if sub['status'] != SubscriptionStatus.ACTIVE:
-        log.debug('ignoring sub {}, not active',
-                  subscription_id)
+    if sub["status"] != SubscriptionStatus.ACTIVE:
+        log.debug("ignoring sub {}, not active", subscription_id)
         return
 
     # if the subscription is still active
     # (should get cancelled status on failed
     #  payments), then we should update premium status
-    first_payment_id = await app.db.fetchval("""
+    first_payment_id = await app.db.fetchval(
+        """
     SELECT MIN(id)
     FROM user_payments
     WHERE subscription_id = $1
-    """, subscription_id)
+    """,
+        subscription_id,
+    )
 
     first_payment_ts = snowflake_datetime(first_payment_id)
 
-    premium_since = await app.db.fetchval("""
+    premium_since = await app.db.fetchval(
+        """
     SELECT premium_since
     FROM users
     WHERE id = $1
-    """, user_id)
+    """,
+        user_id,
+    )
 
     premium_since = premium_since or datetime.datetime.fromtimestamp(0)
 
@@ -312,27 +341,34 @@ async def process_subscription(app, subscription_id: int):
     if delta.total_seconds() < 24 * HOURS:
         return
 
-    old_flags = await app.db.fetchval("""
+    old_flags = await app.db.fetchval(
+        """
     SELECT flags
     FROM users
     WHERE id = $1
-    """, user_id)
+    """,
+        user_id,
+    )
 
     new_flags = old_flags | UserFlags.premium_early
-    log.debug('updating flags {}, {} => {}',
-              user_id, old_flags, new_flags)
+    log.debug("updating flags {}, {} => {}", user_id, old_flags, new_flags)
 
-    await app.db.execute("""
+    await app.db.execute(
+        """
     UPDATE users
     SET premium_since = $1, flags = $2
     WHERE id = $3
-    """, first_payment_ts, new_flags, user_id)
+    """,
+        first_payment_ts,
+        new_flags,
+        user_id,
+    )
 
     # dispatch updated user to all possible clients
     await mass_user_update(user_id, app)
 
 
-@bp.route('/@me/billing/payment-sources', methods=['GET'])
+@bp.route("/@me/billing/payment-sources", methods=["GET"])
 async def _get_billing_sources():
     user_id = await token_check()
     source_ids = await get_payment_source_ids(user_id)
@@ -346,7 +382,7 @@ async def _get_billing_sources():
     return jsonify(res)
 
 
-@bp.route('/@me/billing/subscriptions', methods=['GET'])
+@bp.route("/@me/billing/subscriptions", methods=["GET"])
 async def _get_billing_subscriptions():
     user_id = await token_check()
     sub_ids = await get_subscription_ids(user_id)
@@ -358,7 +394,7 @@ async def _get_billing_subscriptions():
     return jsonify(res)
 
 
-@bp.route('/@me/billing/payments', methods=['GET'])
+@bp.route("/@me/billing/payments", methods=["GET"])
 async def _get_billing_payments():
     user_id = await token_check()
     payment_ids = await get_payment_ids(user_id)
@@ -370,7 +406,7 @@ async def _get_billing_payments():
     return jsonify(res)
 
 
-@bp.route('/@me/billing/payment-sources', methods=['POST'])
+@bp.route("/@me/billing/payment-sources", methods=["POST"])
 async def _create_payment_source():
     user_id = await token_check()
     j = validate(await request.get_json(), PAYMENT_SOURCE)
@@ -383,34 +419,40 @@ async def _create_payment_source():
             default_, expires_month, expires_year, brand, cc_full,
             billing_address)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-        """, new_source_id, user_id, PaymentSource.CREDIT.value,
-        True, 12, 6969, 'Visa', '4242424242424242',
-        json.dumps(j['billing_address']))
-
-    return jsonify(
-        await get_payment_source(user_id, new_source_id)
+        """,
+        new_source_id,
+        user_id,
+        PaymentSource.CREDIT.value,
+        True,
+        12,
+        6969,
+        "Visa",
+        "4242424242424242",
+        json.dumps(j["billing_address"]),
     )
 
+    return jsonify(await get_payment_source(user_id, new_source_id))
 
-@bp.route('/@me/billing/subscriptions', methods=['POST'])
+
+@bp.route("/@me/billing/subscriptions", methods=["POST"])
 async def _create_subscription():
     user_id = await token_check()
     j = validate(await request.get_json(), CREATE_SUBSCRIPTION)
 
-    source = await get_payment_source(user_id, j['payment_source_id'])
+    source = await get_payment_source(user_id, j["payment_source_id"])
     if not source:
-        raise BadRequest('invalid source id')
+        raise BadRequest("invalid source id")
 
-    plan_id = j['payment_gateway_plan_id']
+    plan_id = j["payment_gateway_plan_id"]
 
     # tier 1 is lightro / classic
     # tier 2 is nitro
 
     period_end = {
-        'premium_month_tier_1': '1 month',
-        'premium_month_tier_2': '1 month',
-        'premium_year_tier_1': '1 year',
-        'premium_year_tier_2': '1 year',
+        "premium_month_tier_1": "1 month",
+        "premium_month_tier_2": "1 month",
+        "premium_year_tier_1": "1 year",
+        "premium_year_tier_2": "1 year",
     }[plan_id]
 
     new_id = get_snowflake()
@@ -422,9 +464,15 @@ async def _create_subscription():
             status, period_end)
         VALUES ($1, $2, $3, $4, $5, $6, $7,
             now()::timestamp + interval '{period_end}')
-        """, new_id, j['payment_source_id'], user_id,
-        SubscriptionType.PURCHASE, PaymentGateway.STRIPE,
-        plan_id, 1)
+        """,
+        new_id,
+        j["payment_source_id"],
+        user_id,
+        SubscriptionType.PURCHASE,
+        PaymentGateway.STRIPE,
+        plan_id,
+        1,
+    )
 
     await create_payment(new_id, app.db)
 
@@ -432,21 +480,17 @@ async def _create_subscription():
     # and dispatch respective user updates to other people.
     await process_subscription(app, new_id)
 
-    return jsonify(
-        await get_subscription(new_id)
-    )
+    return jsonify(await get_subscription(new_id))
 
 
-@bp.route('/@me/billing/subscriptions/<int:subscription_id>',
-          methods=['DELETE'])
+@bp.route("/@me/billing/subscriptions/<int:subscription_id>", methods=["DELETE"])
 async def _delete_subscription(subscription_id):
     # user_id = await token_check()
     # return '', 204
     pass
 
 
-@bp.route('/@me/billing/subscriptions/<int:subscription_id>',
-          methods=['PATCH'])
+@bp.route("/@me/billing/subscriptions/<int:subscription_id>", methods=["PATCH"])
 async def _patch_subscription(subscription_id):
     """change a subscription's payment source"""
     # user_id = await token_check()

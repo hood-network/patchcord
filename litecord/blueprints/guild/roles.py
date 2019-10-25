@@ -24,12 +24,8 @@ from logbook import Logger
 
 from litecord.auth import token_check
 
-from litecord.blueprints.checks import (
-    guild_check, guild_perm_check
-)
-from litecord.schemas import (
-    validate, ROLE_CREATE, ROLE_UPDATE, ROLE_UPDATE_POSITION
-)
+from litecord.blueprints.checks import guild_check, guild_perm_check
+from litecord.schemas import validate, ROLE_CREATE, ROLE_UPDATE, ROLE_UPDATE_POSITION
 
 from litecord.snowflake import get_snowflake
 from litecord.utils import dict_get
@@ -37,22 +33,19 @@ from litecord.permissions import get_role_perms
 
 DEFAULT_EVERYONE_PERMS = 104324161
 log = Logger(__name__)
-bp = Blueprint('guild_roles', __name__)
+bp = Blueprint("guild_roles", __name__)
 
 
-@bp.route('/<int:guild_id>/roles', methods=['GET'])
+@bp.route("/<int:guild_id>/roles", methods=["GET"])
 async def get_guild_roles(guild_id):
     """Get all roles in a guild."""
     user_id = await token_check()
     await guild_check(user_id, guild_id)
 
-    return jsonify(
-        await app.storage.get_role_data(guild_id)
-    )
+    return jsonify(await app.storage.get_role_data(guild_id))
 
 
-async def _maybe_lg(guild_id: int, event: str,
-                    role, force: bool = False):
+async def _maybe_lg(guild_id: int, event: str, role, force: bool = False):
     # sometimes we want to dispatch an event
     # even if the role isn't hoisted
 
@@ -61,11 +54,10 @@ async def _maybe_lg(guild_id: int, event: str,
 
     # check if is a dict first because role_delete
     # only receives the role id.
-    if isinstance(role, dict) and not role['hoist'] and not force:
+    if isinstance(role, dict) and not role["hoist"] and not force:
         return
 
-    await app.dispatcher.dispatch(
-        'lazy_guild', guild_id, event, role)
+    await app.dispatcher.dispatch("lazy_guild", guild_id, event, role)
 
 
 async def create_role(guild_id, name: str, **kwargs):
@@ -73,18 +65,20 @@ async def create_role(guild_id, name: str, **kwargs):
     new_role_id = get_snowflake()
 
     everyone_perms = await get_role_perms(guild_id, guild_id)
-    default_perms = dict_get(kwargs, 'default_perms',
-                             everyone_perms.binary)
+    default_perms = dict_get(kwargs, "default_perms", everyone_perms.binary)
 
     # update all roles so that we have space for pos 1, but without
     # sending GUILD_ROLE_UPDATE for everyone
-    await app.db.execute("""
+    await app.db.execute(
+        """
     UPDATE roles
     SET
         position = position + 1
     WHERE guild_id = $1
       AND NOT (position = 0)
-    """, guild_id)
+    """,
+        guild_id,
+    )
 
     await app.db.execute(
         """
@@ -95,42 +89,39 @@ async def create_role(guild_id, name: str, **kwargs):
         new_role_id,
         guild_id,
         name,
-        dict_get(kwargs, 'color', 0),
-        dict_get(kwargs, 'hoist', False),
-
+        dict_get(kwargs, "color", 0),
+        dict_get(kwargs, "hoist", False),
         # always set ourselves on position 1
         1,
-        int(dict_get(kwargs, 'permissions', default_perms)),
+        int(dict_get(kwargs, "permissions", default_perms)),
         False,
-        dict_get(kwargs, 'mentionable', False)
+        dict_get(kwargs, "mentionable", False),
     )
 
     role = await app.storage.get_role(new_role_id, guild_id)
 
     # we need to update the lazy guild handlers for the newly created group
-    await _maybe_lg(guild_id, 'new_role', role)
+    await _maybe_lg(guild_id, "new_role", role)
 
     await app.dispatcher.dispatch_guild(
-        guild_id, 'GUILD_ROLE_CREATE', {
-            'guild_id': str(guild_id),
-            'role': role,
-        })
+        guild_id, "GUILD_ROLE_CREATE", {"guild_id": str(guild_id), "role": role}
+    )
 
     return role
 
 
-@bp.route('/<int:guild_id>/roles', methods=['POST'])
+@bp.route("/<int:guild_id>/roles", methods=["POST"])
 async def create_guild_role(guild_id: int):
     """Add a role to a guild"""
     user_id = await token_check()
 
-    await guild_perm_check(user_id, guild_id, 'manage_roles')
+    await guild_perm_check(user_id, guild_id, "manage_roles")
 
     # client can just send null
     j = validate(await request.get_json() or {}, ROLE_CREATE)
 
-    role_name = j['name']
-    j.pop('name')
+    role_name = j["name"]
+    j.pop("name")
 
     role = await create_role(guild_id, role_name, **j)
 
@@ -141,12 +132,11 @@ async def _role_update_dispatch(role_id: int, guild_id: int):
     """Dispatch a GUILD_ROLE_UPDATE with updated information on a role."""
     role = await app.storage.get_role(role_id, guild_id)
 
-    await _maybe_lg(guild_id, 'role_pos_upd', role)
+    await _maybe_lg(guild_id, "role_pos_upd", role)
 
-    await app.dispatcher.dispatch_guild(guild_id, 'GUILD_ROLE_UPDATE', {
-        'guild_id': str(guild_id),
-        'role': role,
-    })
+    await app.dispatcher.dispatch_guild(
+        guild_id, "GUILD_ROLE_UPDATE", {"guild_id": str(guild_id), "role": role}
+    )
 
     return role
 
@@ -166,17 +156,25 @@ async def _role_pairs_update(guild_id: int, pairs: list):
         async with conn.transaction():
             # update happens in a transaction
             # so we don't fuck it up
-            await conn.execute("""
+            await conn.execute(
+                """
             UPDATE roles
             SET position = $1
             WHERE roles.id = $2
-            """, new_pos_1, role_1)
+            """,
+                new_pos_1,
+                role_1,
+            )
 
-            await conn.execute("""
+            await conn.execute(
+                """
             UPDATE roles
             SET position = $1
             WHERE roles.id = $2
-            """, new_pos_2, role_2)
+            """,
+                new_pos_2,
+                role_2,
+            )
 
         await app.db.release(conn)
 
@@ -184,11 +182,15 @@ async def _role_pairs_update(guild_id: int, pairs: list):
         await _role_update_dispatch(role_1, guild_id)
         await _role_update_dispatch(role_2, guild_id)
 
+
 PairList = List[Tuple[Tuple[int, int], Tuple[int, int]]]
 
-def gen_pairs(list_of_changes: List[Dict[str, int]],
-              current_state: Dict[int, int],
-              blacklist: List[int] = None) -> PairList:
+
+def gen_pairs(
+    list_of_changes: List[Dict[str, int]],
+    current_state: Dict[int, int],
+    blacklist: List[int] = None,
+) -> PairList:
     """Generate a list of pairs that, when applied to the database,
     will generate the desired state given in list_of_changes.
 
@@ -230,8 +232,9 @@ def gen_pairs(list_of_changes: List[Dict[str, int]],
     pairs = []
     blacklist = blacklist or []
 
-    preferred_state = {element['id']: element['position']
-                       for element in list_of_changes}
+    preferred_state = {
+        element["id"]: element["position"] for element in list_of_changes
+    }
 
     for blacklisted_id in blacklist:
         preferred_state.pop(blacklisted_id)
@@ -239,7 +242,7 @@ def gen_pairs(list_of_changes: List[Dict[str, int]],
     # for each change, we must find a matching change
     # in the same list, so we can make a swap pair
     for change in list_of_changes:
-        element_1, new_pos_1 = change['id'], change['position']
+        element_1, new_pos_1 = change["id"], change["position"]
 
         # check current pairs
         # so we don't repeat an element
@@ -267,36 +270,34 @@ def gen_pairs(list_of_changes: List[Dict[str, int]],
         # if its being swapped to leave space, add it
         # to the pairs list
         if new_pos_2 is not None:
-            pairs.append(
-                ((element_1, new_pos_1), (element_2, new_pos_2))
-            )
+            pairs.append(((element_1, new_pos_1), (element_2, new_pos_2)))
 
     return pairs
 
 
-@bp.route('/<int:guild_id>/roles', methods=['PATCH'])
+@bp.route("/<int:guild_id>/roles", methods=["PATCH"])
 async def update_guild_role_positions(guild_id):
     """Update the positions for a bunch of roles."""
     user_id = await token_check()
 
-    await guild_perm_check(user_id, guild_id, 'manage_roles')
+    await guild_perm_check(user_id, guild_id, "manage_roles")
 
     raw_j = await request.get_json()
 
     # we need to do this hackiness because thats
     # cerberus for ya.
-    j = validate({'roles': raw_j}, ROLE_UPDATE_POSITION)
+    j = validate({"roles": raw_j}, ROLE_UPDATE_POSITION)
 
     # extract the list out
-    j = j['roles']
+    j = j["roles"]
 
-    log.debug('role stuff: {!r}', j)
+    log.debug("role stuff: {!r}", j)
 
     all_roles = await app.storage.get_role_data(guild_id)
 
     # we'll have to calculate pairs of changing roles,
     # then do the changes, etc.
-    roles_pos = {role['position']: int(role['id']) for role in all_roles}
+    roles_pos = {role["position"]: int(role["id"]) for role in all_roles}
 
     # TODO: check if the user can even change the roles in the first place,
     #       preferrably when we have a proper perms system.
@@ -306,10 +307,9 @@ async def update_guild_role_positions(guild_id):
     pairs = gen_pairs(
         j,
         roles_pos,
-
         # always ignore people trying to change
         # the @everyone's role position
-        [guild_id]
+        [guild_id],
     )
 
     await _role_pairs_update(guild_id, pairs)
@@ -318,31 +318,36 @@ async def update_guild_role_positions(guild_id):
     return jsonify(await app.storage.get_role_data(guild_id))
 
 
-@bp.route('/<int:guild_id>/roles/<int:role_id>', methods=['PATCH'])
+@bp.route("/<int:guild_id>/roles/<int:role_id>", methods=["PATCH"])
 async def update_guild_role(guild_id, role_id):
     """Update a single role's information."""
     user_id = await token_check()
 
-    await guild_perm_check(user_id, guild_id, 'manage_roles')
+    await guild_perm_check(user_id, guild_id, "manage_roles")
 
     j = validate(await request.get_json(), ROLE_UPDATE)
 
     # we only update ints on the db, not Permissions
-    j['permissions'] = int(j['permissions'])
+    j["permissions"] = int(j["permissions"])
 
     for field in j:
-        await app.db.execute(f"""
+        await app.db.execute(
+            f"""
         UPDATE roles
         SET {field} = $1
         WHERE roles.id = $2 AND roles.guild_id = $3
-        """, j[field], role_id, guild_id)
+        """,
+            j[field],
+            role_id,
+            guild_id,
+        )
 
     role = await _role_update_dispatch(role_id, guild_id)
-    await _maybe_lg(guild_id, 'role_update', role, True)
+    await _maybe_lg(guild_id, "role_update", role, True)
     return jsonify(role)
 
 
-@bp.route('/<int:guild_id>/roles/<int:role_id>', methods=['DELETE'])
+@bp.route("/<int:guild_id>/roles/<int:role_id>", methods=["DELETE"])
 async def delete_guild_role(guild_id, role_id):
     """Delete a role.
 
@@ -350,21 +355,26 @@ async def delete_guild_role(guild_id, role_id):
     """
     user_id = await token_check()
 
-    await guild_perm_check(user_id, guild_id, 'manage_roles')
+    await guild_perm_check(user_id, guild_id, "manage_roles")
 
-    res = await app.db.execute("""
+    res = await app.db.execute(
+        """
     DELETE FROM roles
     WHERE guild_id = $1 AND id = $2
-    """, guild_id, role_id)
+    """,
+        guild_id,
+        role_id,
+    )
 
-    if res == 'DELETE 0':
-        return '', 204
+    if res == "DELETE 0":
+        return "", 204
 
-    await _maybe_lg(guild_id, 'role_delete', role_id, True)
+    await _maybe_lg(guild_id, "role_delete", role_id, True)
 
-    await app.dispatcher.dispatch_guild(guild_id, 'GUILD_ROLE_DELETE', {
-        'guild_id': str(guild_id),
-        'role_id': str(role_id),
-    })
+    await app.dispatcher.dispatch_guild(
+        guild_id,
+        "GUILD_ROLE_DELETE",
+        {"guild_id": str(guild_id), "role_id": str(role_id)},
+    )
 
-    return '', 204
+    return "", 204

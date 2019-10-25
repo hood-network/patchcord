@@ -21,7 +21,7 @@ import pytest
 
 
 async def _get_invs(test_cli):
-    resp = await test_cli.get('/api/v6/admin/instance/invites')
+    resp = await test_cli.get("/api/v6/admin/instance/invites")
 
     assert resp.status_code == 200
     rjson = await resp.json
@@ -39,7 +39,7 @@ async def test_get_invites(test_cli_staff):
 async def test_inv_delete_invalid(test_cli_staff):
     """Test errors happen when trying to delete a
     non-existing instance invite."""
-    resp = await test_cli_staff.delete('/api/v6/admin/instance/invites/aaaaaa')
+    resp = await test_cli_staff.delete("/api/v6/admin/instance/invites/aaaaaa")
 
     assert resp.status_code == 404
 
@@ -48,21 +48,20 @@ async def test_inv_delete_invalid(test_cli_staff):
 async def test_create_invite(test_cli_staff):
     """Test the creation of an instance invite, then listing it,
     then deleting it."""
-    resp = await test_cli_staff.put('/api/v6/admin/instance/invites', json={
-        'max_uses': 1
-    })
+    resp = await test_cli_staff.put(
+        "/api/v6/admin/instance/invites", json={"max_uses": 1}
+    )
 
     assert resp.status_code == 200
     rjson = await resp.json
     assert isinstance(rjson, dict)
-    code = rjson['code']
+    code = rjson["code"]
 
     # assert that the invite is in the list
     invites = await _get_invs(test_cli_staff)
-    assert any(inv['code'] == code for inv in invites)
+    assert any(inv["code"] == code for inv in invites)
 
     # delete it, and assert it worked
-    resp = await test_cli_staff.delete(
-        f'/api/v6/admin/instance/invites/{code}')
+    resp = await test_cli_staff.delete(f"/api/v6/admin/instance/invites/{code}")
 
     assert resp.status_code == 204

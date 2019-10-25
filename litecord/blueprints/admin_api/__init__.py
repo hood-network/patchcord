@@ -23,4 +23,4 @@ from .guilds import bp as guilds
 from .users import bp as users
 from .instance_invites import bp as instance_invites
 
-__all__ = ['voice', 'features', 'guilds', 'users', 'instance_invites']
+__all__ = ["voice", "features", "guilds", "users", "instance_invites"]

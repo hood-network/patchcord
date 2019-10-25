@@ -42,21 +42,18 @@ async def _json_send(conn, data):
 
 
 async def _json_send_op(conn, opcode, data=None):
-    await _json_send(conn, {
-        'op': opcode,
-        'd': data
-    })
+    await _json_send(conn, {"op": opcode, "d": data})
 
 
 async def _close(conn):
-    await conn.close(1000, 'test end')
+    await conn.close(1000, "test end")
 
 
 async def get_gw(test_cli) -> str:
     """Get the Gateway URL."""
-    gw_resp = await test_cli.get('/api/v6/gateway')
+    gw_resp = await test_cli.get("/api/v6/gateway")
     gw_json = await gw_resp.json
-    return gw_json['url']
+    return gw_json["url"]
 
 
 async def gw_start(test_cli, *, etf=False):
@@ -64,7 +61,7 @@ async def gw_start(test_cli, *, etf=False):
     gw_url = await get_gw(test_cli)
 
     if etf:
-        gw_url = f'{gw_url}?encoding=etf'
+        gw_url = f"{gw_url}?encoding=etf"
 
     return await websockets.connect(gw_url)
 
@@ -76,11 +73,11 @@ async def test_gw(test_cli):
     conn = await gw_start(test_cli)
 
     hello = await _json(conn)
-    assert hello['op'] == OP.HELLO
+    assert hello["op"] == OP.HELLO
 
-    assert isinstance(hello['d'], dict)
-    assert isinstance(hello['d']['heartbeat_interval'], int)
-    assert isinstance(hello['d']['_trace'], list)
+    assert isinstance(hello["d"], dict)
+    assert isinstance(hello["d"]["heartbeat_interval"], int)
+    assert isinstance(hello["d"]["_trace"], list)
 
     await _close(conn)
 
@@ -92,12 +89,9 @@ async def test_ready(test_cli_user):
     # get the hello frame but ignore it
     await _json(conn)
 
-    await _json_send(conn, {
-        'op': OP.IDENTIFY,
-        'd': {
-            'token': test_cli_user.user['token'],
-        }
-    })
+    await _json_send(
+        conn, {"op": OP.IDENTIFY, "d": {"token": test_cli_user.user["token"]}}
+    )
 
     # try to get a ready
     try:
@@ -116,35 +110,32 @@ async def test_ready_fields(test_cli_user):
     # get the hello frame but ignore it
     await _json(conn)
 
-    await _json_send(conn, {
-        'op': OP.IDENTIFY,
-        'd': {
-            'token': test_cli_user.user['token'],
-        }
-    })
+    await _json_send(
+        conn, {"op": OP.IDENTIFY, "d": {"token": test_cli_user.user["token"]}}
+    )
 
     try:
         ready = await _json(conn)
         assert isinstance(ready, dict)
-        assert ready['op'] == OP.DISPATCH
-        assert ready['t'] == 'READY'
+        assert ready["op"] == OP.DISPATCH
+        assert ready["t"] == "READY"
 
-        data = ready['d']
+        data = ready["d"]
         assert isinstance(data, dict)
 
         # NOTE: change if default gateway changes
-        assert data['v'] == 6
+        assert data["v"] == 6
 
         # make sure other fields exist and are with
         # proper types.
-        assert isinstance(data['user'], dict)
-        assert isinstance(data['private_channels'], list)
-        assert isinstance(data['guilds'], list)
-        assert isinstance(data['session_id'], str)
-        assert isinstance(data['_trace'], list)
+        assert isinstance(data["user"], dict)
+        assert isinstance(data["private_channels"], list)
+        assert isinstance(data["guilds"], list)
+        assert isinstance(data["session_id"], str)
+        assert isinstance(data["_trace"], list)
 
-        if 'shard' in data:
-            assert isinstance(data['shard'], list)
+        if "shard" in data:
+            assert isinstance(data["shard"], list)
     finally:
         await _close(conn)
 
@@ -156,24 +147,21 @@ async def test_heartbeat(test_cli_user):
     # get the hello frame but ignore it
     await _json(conn)
 
-    await _json_send(conn, {
-        'op': OP.IDENTIFY,
-        'd': {
-            'token': test_cli_user.user['token'],
-        }
-    })
+    await _json_send(
+        conn, {"op": OP.IDENTIFY, "d": {"token": test_cli_user.user["token"]}}
+    )
 
     # ignore ready data
     ready = await _json(conn)
     assert isinstance(ready, dict)
-    assert ready['op'] == OP.DISPATCH
-    assert ready['t'] == 'READY'
+    assert ready["op"] == OP.DISPATCH
+    assert ready["t"] == "READY"
 
     # test a heartbeat
     await _json_send_op(conn, OP.HEARTBEAT)
     recv = await _json(conn)
     assert isinstance(recv, dict)
-    assert recv['op'] == OP.HEARTBEAT_ACK
+    assert recv["op"] == OP.HEARTBEAT_ACK
 
     await _close(conn)
 
@@ -185,6 +173,6 @@ async def test_etf(test_cli):
 
     try:
         hello = await _etf(conn)
-        assert hello['op'] == OP.HELLO
+        assert hello["op"] == OP.HELLO
     finally:
         await _close(conn)

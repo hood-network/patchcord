@@ -39,6 +39,7 @@ class ManagerClose(Exception):
 class StateDictWrapper:
     """Wrap a mapping so that any kind of access to the mapping while the
     state manager is closed raises a ManagerClose error"""
+
     def __init__(self, state_manager, mapping):
         self.state_manager = state_manager
         self._map = mapping
@@ -98,7 +99,7 @@ class StateManager:
         """Insert a new state object."""
         user_states = self.states[state.user_id]
 
-        log.debug('inserting state: {!r}', state)
+        log.debug("inserting state: {!r}", state)
         user_states[state.session_id] = state
         self.states_raw[state.session_id] = state
 
@@ -128,7 +129,7 @@ class StateManager:
             pass
 
         try:
-            log.debug('removing state: {!r}', state)
+            log.debug("removing state: {!r}", state)
             self.states[state.user_id].pop(state.session_id)
         except KeyError:
             pass
@@ -152,8 +153,7 @@ class StateManager:
         """Fetch all states tied to a single user."""
         return list(self.states[user_id].values())
 
-    def guild_states(self, member_ids: List[int],
-                     guild_id: int) -> List[GatewayState]:
+    def guild_states(self, member_ids: List[int], guild_id: int) -> List[GatewayState]:
         """Fetch all possible states about members in a guild."""
         states = []
 
@@ -164,14 +164,14 @@ class StateManager:
             # since server start, so we need to add a dummy state
             if not member_states:
                 dummy_state = GatewayState(
-                    session_id='',
+                    session_id="",
                     user_id=member_id,
                     presence={
-                        'afk': False,
-                        'status': 'offline',
-                        'game': None,
-                        'since': 0
-                    }
+                        "afk": False,
+                        "status": "offline",
+                        "game": None,
+                        "since": 0,
+                    },
                 )
 
                 states.append(dummy_state)
@@ -187,9 +187,7 @@ class StateManager:
         """Send OP Reconnect to a single connection."""
         websocket = state.ws
 
-        await websocket.send({
-            'op': OP.RECONNECT
-        })
+        await websocket.send({"op": OP.RECONNECT})
 
         # wait 200ms
         # so that the client has time to process
@@ -198,12 +196,9 @@ class StateManager:
 
         try:
             # try to close the connection ourselves
-            await websocket.ws.close(
-                code=4000,
-                reason='litecord shutting down'
-            )
+            await websocket.ws.close(code=4000, reason="litecord shutting down")
         except ConnectionClosed:
-            log.info('client {} already closed', state)
+            log.info("client {} already closed", state)
 
     def gen_close_tasks(self):
         """Generate the tasks that will order the clients
@@ -222,11 +217,9 @@ class StateManager:
             if not state.ws:
                 continue
 
-            tasks.append(
-                self.shutdown_single(state)
-            )
+            tasks.append(self.shutdown_single(state))
 
-        log.info('made {} shutdown tasks', len(tasks))
+        log.info("made {} shutdown tasks", len(tasks))
         return tasks
 
     def close(self):

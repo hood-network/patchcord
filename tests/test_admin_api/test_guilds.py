@@ -24,24 +24,24 @@ import pytest
 from litecord.blueprints.guilds import delete_guild
 from litecord.errors import GuildNotFound
 
+
 async def _create_guild(test_cli_staff):
     genned_name = secrets.token_hex(6)
 
-    resp = await test_cli_staff.post('/api/v6/guilds', json={
-        'name': genned_name,
-        'region': None
-    })
+    resp = await test_cli_staff.post(
+        "/api/v6/guilds", json={"name": genned_name, "region": None}
+    )
 
     assert resp.status_code == 200
     rjson = await resp.json
     assert isinstance(rjson, dict)
-    assert rjson['name'] == genned_name
+    assert rjson["name"] == genned_name
 
     return rjson
 
 
 async def _fetch_guild(test_cli_staff, guild_id, *, ret_early=False):
-    resp = await test_cli_staff.get(f'/api/v6/admin/guilds/{guild_id}')
+    resp = await test_cli_staff.get(f"/api/v6/admin/guilds/{guild_id}")
 
     if ret_early:
         return resp
@@ -49,7 +49,7 @@ async def _fetch_guild(test_cli_staff, guild_id, *, ret_early=False):
     assert resp.status_code == 200
     rjson = await resp.json
     assert isinstance(rjson, dict)
-    assert rjson['id'] == guild_id
+    assert rjson["id"] == guild_id
 
     return rjson
 
@@ -58,7 +58,7 @@ async def _fetch_guild(test_cli_staff, guild_id, *, ret_early=False):
 async def test_guild_fetch(test_cli_staff):
     """Test the creation and fetching of a guild via the Admin API."""
     rjson = await _create_guild(test_cli_staff)
-    guild_id = rjson['id']
+    guild_id = rjson["id"]
 
     try:
         await _fetch_guild(test_cli_staff, guild_id)
@@ -70,8 +70,8 @@ async def test_guild_fetch(test_cli_staff):
 async def test_guild_update(test_cli_staff):
     """Test the update of a guild via the Admin API."""
     rjson = await _create_guild(test_cli_staff)
-    guild_id = rjson['id']
-    assert not rjson['unavailable']
+    guild_id = rjson["id"]
+    assert not rjson["unavailable"]
 
     try:
         # I believe setting up an entire gateway client registered to the guild
@@ -79,19 +79,17 @@ async def test_guild_update(test_cli_staff):
         # testing them. Yes, I know its a bad idea, but if someone has an easier
         # way to write that, do send an MR.
         resp = await test_cli_staff.patch(
-            f'/api/v6/admin/guilds/{guild_id}',
-            json={
-                'unavailable': True
-            })
+            f"/api/v6/admin/guilds/{guild_id}", json={"unavailable": True}
+        )
 
         assert resp.status_code == 200
         rjson = await resp.json
         assert isinstance(rjson, dict)
-        assert rjson['id'] == guild_id
-        assert rjson['unavailable']
+        assert rjson["id"] == guild_id
+        assert rjson["unavailable"]
 
         rjson = await _fetch_guild(test_cli_staff, guild_id)
-        assert rjson['unavailable']
+        assert rjson["unavailable"]
     finally:
         await delete_guild(int(guild_id), app_=test_cli_staff.app)
 
@@ -100,20 +98,19 @@ async def test_guild_update(test_cli_staff):
 async def test_guild_delete(test_cli_staff):
     """Test the update of a guild via the Admin API."""
     rjson = await _create_guild(test_cli_staff)
-    guild_id = rjson['id']
+    guild_id = rjson["id"]
 
     try:
-        resp = await test_cli_staff.delete(f'/api/v6/admin/guilds/{guild_id}')
+        resp = await test_cli_staff.delete(f"/api/v6/admin/guilds/{guild_id}")
 
         assert resp.status_code == 204
 
-        resp = await _fetch_guild(
-            test_cli_staff, guild_id, ret_early=True)
+        resp = await _fetch_guild(test_cli_staff, guild_id, ret_early=True)
 
         assert resp.status_code == 404
         rjson = await resp.json
         assert isinstance(rjson, dict)
-        assert rjson['error']
-        assert rjson['code'] == GuildNotFound.error_code
+        assert rjson["error"]
+        assert rjson["code"] == GuildNotFound.error_code
     finally:
         await delete_guild(int(guild_id), app_=test_cli_staff.app)

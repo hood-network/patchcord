@@ -34,7 +34,21 @@ from .static import bp as static
 from .attachments import bp as attachments
 from .dm_channels import bp as dm_channels
 
-__all__ = ['gateway', 'auth', 'users', 'guilds', 'channels',
-           'webhooks', 'science', 'voice', 'invites', 'relationships',
-           'dms', 'icons', 'nodeinfo', 'static', 'attachments',
-           'dm_channels']
+__all__ = [
+    "gateway",
+    "auth",
+    "users",
+    "guilds",
+    "channels",
+    "webhooks",
+    "science",
+    "voice",
+    "invites",
+    "relationships",
+    "dms",
+    "icons",
+    "nodeinfo",
+    "static",
+    "attachments",
+    "dm_channels",
+]

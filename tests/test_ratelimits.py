@@ -19,6 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import sys
 import os
+
 sys.path.append(os.getcwd())
 
 import pytest
@@ -38,10 +39,10 @@ def test_ratelimit():
 @pytest.mark.asyncio
 async def test_ratelimit_headers(test_cli):
     """Test if the basic ratelimit headers are sent."""
-    resp = await test_cli.get('/api/v6/gateway')
+    resp = await test_cli.get("/api/v6/gateway")
     assert resp.status_code == 200
     hdrs = resp.headers
-    assert 'X-RateLimit-Limit' in hdrs
-    assert 'X-RateLimit-Remaining' in hdrs
-    assert 'X-RateLimit-Reset' in hdrs
-    assert 'X-RateLimit-Global' in hdrs
+    assert "X-RateLimit-Limit" in hdrs
+    assert "X-RateLimit-Remaining" in hdrs
+    assert "X-RateLimit-Reset" in hdrs
+    assert "X-RateLimit-Global" in hdrs

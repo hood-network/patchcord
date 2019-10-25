@@ -43,6 +43,7 @@ def _construct_state(state_dict: dict) -> VoiceState:
 
 class VoiceManager:
     """Main voice manager class."""
+
     def __init__(self, app):
         self.app = app
 
@@ -56,7 +57,7 @@ class VoiceManager:
         """Return if a user can join a channel."""
 
         channel = await self.app.storage.get_channel(channel_id)
-        ctype = ChannelType(channel['type'])
+        ctype = ChannelType(channel["type"])
 
         if ctype not in VOICE_CHANNELS:
             return
@@ -65,14 +66,12 @@ class VoiceManager:
 
         # get_permissions returns ALL_PERMISSIONS when
         # the channel isn't from a guild
-        perms = await get_permissions(
-            user_id, channel_id, storage=self.app.storage
-        )
+        perms = await get_permissions(user_id, channel_id, storage=self.app.storage)
 
         # hacky user_limit but should work, as channels not
         # in guilds won't have that field.
-        is_full = states >= channel.get('user_limit', 100)
-        is_bot = (await self.app.storage.get_user(user_id))['bot']
+        is_full = states >= channel.get("user_limit", 100)
+        is_bot = (await self.app.storage.get_user(user_id))["bot"]
         is_manager = perms.bits.manage_channels
 
         # if the channel is full AND:
@@ -140,8 +139,8 @@ class VoiceManager:
 
         for field in prop:
             # NOTE: this should not happen, ever.
-            if field in ('channel_id', 'user_id'):
-                raise ValueError('properties are updating channel or user')
+            if field in ("channel_id", "user_id"):
+                raise ValueError("properties are updating channel or user")
 
             new_state_dict[field] = prop[field]
 
@@ -153,27 +152,28 @@ class VoiceManager:
     async def move_channels(self, old_voice_key: VoiceKey, channel_id: int):
         """Move a user between channels."""
         await self.del_state(old_voice_key)
-        await self.create_state(old_voice_key, {'channel_id': channel_id})
+        await self.create_state(old_voice_key, {"channel_id": channel_id})
 
     async def _lvsp_info_guild(self, guild_id, info_type, info_data):
         hostname = await self.lvsp.get_guild_server(guild_id)
         if hostname is None:
-            log.error('no voice server for guild id {}', guild_id)
+            log.error("no voice server for guild id {}", guild_id)
             return
 
         conn = self.lvsp.get_conn(hostname)
         await conn.send_info(info_type, info_data)
 
     async def _create_ctx_guild(self, guild_id, channel_id):
-        await self._lvsp_info_guild(guild_id, 'CHANNEL_REQ', {
-            'guild_id': str(guild_id),
-            'channel_id': str(channel_id),
-        })
+        await self._lvsp_info_guild(
+            guild_id,
+            "CHANNEL_REQ",
+            {"guild_id": str(guild_id), "channel_id": str(channel_id)},
+        )
 
     async def _start_voice_guild(self, voice_key: VoiceKey, data: dict):
         """Start a voice context in a guild."""
         user_id, guild_id = voice_key
-        channel_id = int(data['channel_id'])
+        channel_id = int(data["channel_id"])
 
         existing_states = self.states[voice_key]
         channel_exists = any(
@@ -183,11 +183,15 @@ class VoiceManager:
         if not channel_exists:
             await self._create_ctx_guild(guild_id, channel_id)
 
-        await self._lvsp_info_guild(guild_id, 'VST_CREATE', {
-            'user_id': str(user_id),
-            'guild_id': str(guild_id),
-            'channel_id': str(channel_id),
-        })
+        await self._lvsp_info_guild(
+            guild_id,
+            "VST_CREATE",
+            {
+                "user_id": str(user_id),
+                "guild_id": str(guild_id),
+                "channel_id": str(channel_id),
+            },
+        )
 
     async def create_state(self, voice_key: VoiceKey, data: dict):
         """Creates (or tries to create) a voice state.
@@ -249,10 +253,13 @@ class VoiceManager:
 
     async def voice_server_list(self, region: str) -> List[dict]:
         """Get a list of voice server objects"""
-        rows = await self.app.db.fetch("""
+        rows = await self.app.db.fetch(
+            """
         SELECT hostname, last_health
         FROM voice_servers
         WHERE region_id = $1
-        """, region)
+        """,
+            region,
+        )
 
         return list(map(dict, rows))

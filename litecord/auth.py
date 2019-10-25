@@ -55,44 +55,50 @@ async def raw_token_check(token: str, db=None) -> int:
 
     # just try by fragments instead of
     # unpacking
-    fragments = token.split('.')
+    fragments = token.split(".")
     user_id = fragments[0]
 
     try:
         user_id = base64.b64decode(user_id.encode())
         user_id = int(user_id)
     except (ValueError, binascii.Error):
-        raise Unauthorized('Invalid user ID type')
+        raise Unauthorized("Invalid user ID type")
 
-    pwd_hash = await db.fetchval("""
+    pwd_hash = await db.fetchval(
+        """
     SELECT password_hash
     FROM users
     WHERE id = $1
-    """, user_id)
+    """,
+        user_id,
+    )
 
     if not pwd_hash:
-        raise Unauthorized('User ID not found')
+        raise Unauthorized("User ID not found")
 
     signer = TimestampSigner(pwd_hash)
 
     try:
         signer.unsign(token)
-        log.debug('login for uid {} successful', user_id)
+        log.debug("login for uid {} successful", user_id)
 
         # update the user's last_session field
         # so that we can keep an exact track of activity,
         # even on long-lived single sessions (that can happen
         # with people leaving their clients open forever)
-        await db.execute("""
+        await db.execute(
+            """
         UPDATE users
         SET last_session = (now() at time zone 'utc')
         WHERE id = $1
-        """, user_id)
+        """,
+            user_id,
+        )
 
         return user_id
     except BadSignature:
-        log.warning('token failed for uid {}', user_id)
-        raise Forbidden('Invalid token')
+        log.warning("token failed for uid {}", user_id)
+        raise Forbidden("Invalid token")
 
 
 async def token_check() -> int:
@@ -104,12 +110,12 @@ async def token_check() -> int:
         pass
 
     try:
-        token = request.headers['Authorization']
+        token = request.headers["Authorization"]
     except KeyError:
-        raise Unauthorized('No token provided')
+        raise Unauthorized("No token provided")
 
-    if token.startswith('Bot '):
-        token = token.replace('Bot ', '')
+    if token.startswith("Bot "):
+        token = token.replace("Bot ", "")
 
     user_id = await raw_token_check(token)
     request.user_id = user_id
@@ -120,15 +126,18 @@ async def admin_check() -> int:
     """Check if the user is an admin."""
     user_id = await token_check()
 
-    flags = await app.db.fetchval("""
+    flags = await app.db.fetchval(
+        """
     SELECT flags
     FROM users
     WHERE id = $1
-    """, user_id)
+    """,
+        user_id,
+    )
 
     flags = UserFlags.from_int(flags)
     if not flags.is_staff:
-        raise Unauthorized('you are not staff')
+        raise Unauthorized("you are not staff")
 
     return user_id
 
@@ -138,9 +147,7 @@ async def hash_data(data: str, loop=None) -> str:
     loop = loop or app.loop
     buf = data.encode()
 
-    hashed = await loop.run_in_executor(
-        None, bcrypt.hashpw, buf, bcrypt.gensalt(14)
-    )
+    hashed = await loop.run_in_executor(None, bcrypt.hashpw, buf, bcrypt.gensalt(14))
 
     return hashed.decode()
 
@@ -148,22 +155,28 @@ async def hash_data(data: str, loop=None) -> str:
 async def check_username_usage(username: str, db=None):
     """Raise an error if too many people are with the same username."""
     db = db or app.db
-    same_username = await db.fetchval("""
+    same_username = await db.fetchval(
+        """
     SELECT COUNT(*)
     FROM users
     WHERE username = $1
-    """, username)
+    """,
+        username,
+    )
 
     if same_username > 9000:
-        raise BadRequest('Too many people.', {
-            'username': 'Too many people used the same username. '
-                        'Please choose another'
-        })
+        raise BadRequest(
+            "Too many people.",
+            {
+                "username": "Too many people used the same username. "
+                "Please choose another"
+            },
+        )
 
 
 def _raw_discrim() -> str:
     new_discrim = randint(1, 9999)
-    new_discrim = '%04d' % new_discrim
+    new_discrim = "%04d" % new_discrim
     return new_discrim
 
 
@@ -186,11 +199,15 @@ async def roll_discrim(username: str, *, db=None) -> Optional[str]:
         discrim = _raw_discrim()
 
         # check if anyone is with it
-        res = await db.fetchval("""
+        res = await db.fetchval(
+            """
         SELECT id
         FROM users
         WHERE username = $1 AND discriminator = $2
-        """, username, discrim)
+        """,
+            username,
+            discrim,
+        )
 
         # if no user is found with the (username, discrim)
         # pair, then this is unique! return it.
@@ -200,8 +217,9 @@ async def roll_discrim(username: str, *, db=None) -> Optional[str]:
     return None
 
 
-async def create_user(username: str, email: str, password: str,
-                      db=None, loop=None) -> Tuple[int, str]:
+async def create_user(
+    username: str, email: str, password: str, db=None, loop=None
+) -> Tuple[int, str]:
     """Create a single user.
 
     Generates a distriminator and other information. You can fetch the user
@@ -214,20 +232,28 @@ async def create_user(username: str, email: str, password: str,
     new_discrim = await roll_discrim(username, db=db)
 
     if new_discrim is None:
-        raise BadRequest('Unable to register.', {
-            'username': 'Too many people are with this username.'
-        })
+        raise BadRequest(
+            "Unable to register.",
+            {"username": "Too many people are with this username."},
+        )
 
     pwd_hash = await hash_data(password, loop)
 
     try:
-        await db.execute("""
+        await db.execute(
+            """
         INSERT INTO users
             (id, email, username, discriminator, password_hash)
         VALUES
             ($1, $2, $3, $4, $5)
-        """, new_id, email, username, new_discrim, pwd_hash)
+        """,
+            new_id,
+            email,
+            username,
+            new_discrim,
+            pwd_hash,
+        )
     except UniqueViolationError:
-        raise BadRequest('Email already used.')
+        raise BadRequest("Email already used.")
 
     return new_id, pwd_hash

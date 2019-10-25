@@ -38,23 +38,20 @@ def gdm_recipient_view(orig: dict, user_id: int) -> dict:
     # make a copy or the original channel object
     data = dict(orig)
 
-    idx = index_by_func(
-        lambda user: user['id'] == str(user_id),
-        data['recipients']
-    )
+    idx = index_by_func(lambda user: user["id"] == str(user_id), data["recipients"])
 
-    data['recipients'].pop(idx)
+    data["recipients"].pop(idx)
 
     return data
 
 
 class ChannelDispatcher(DispatcherWithFlags):
     """Main channel Pub/Sub logic."""
+
     KEY_TYPE = int
     VAL_TYPE = int
 
-    async def dispatch(self, channel_id,
-                       event: str, data: Any) -> List[str]:
+    async def dispatch(self, channel_id, event: str, data: Any) -> List[str]:
         """Dispatch an event to a channel."""
         # get everyone who is subscribed
         # and store the number of states we dispatched the event to
@@ -75,9 +72,11 @@ class ChannelDispatcher(DispatcherWithFlags):
             # TODO: make a fetch_states that fetches shards
             #        - with id 0 (count any) OR
             #        - single shards (id=0, count=1)
-            states = (self.sm.fetch_states(user_id, guild_id)
-                      if guild_id else
-                      self.sm.user_states(user_id))
+            states = (
+                self.sm.fetch_states(user_id, guild_id)
+                if guild_id
+                else self.sm.user_states(user_id)
+            )
 
             # unsub people who don't have any states tied to the channel.
             if not states:
@@ -85,28 +84,28 @@ class ChannelDispatcher(DispatcherWithFlags):
                 continue
 
             # skip typing events for users that don't want it
-            if event.startswith('TYPING_') and \
-                    not self.flags_get(channel_id, user_id, 'typing', True):
+            if event.startswith("TYPING_") and not self.flags_get(
+                channel_id, user_id, "typing", True
+            ):
                 continue
 
             cur_sess = []
 
-            if event in ('CHANNEL_CREATE', 'CHANNEL_UPDATE') \
-                and data.get('type') == ChannelType.GROUP_DM.value:
+            if (
+                event in ("CHANNEL_CREATE", "CHANNEL_UPDATE")
+                and data.get("type") == ChannelType.GROUP_DM.value
+            ):
                 # we edit the channel payload so it doesn't show
                 # the user as a recipient
 
                 new_data = gdm_recipient_view(data, user_id)
-                cur_sess = await self._dispatch_states(
-                    states, event, new_data)
+                cur_sess = await self._dispatch_states(states, event, new_data)
             else:
-                cur_sess = await self._dispatch_states(
-                    states, event, data)
+                cur_sess = await self._dispatch_states(states, event, data)
 
             sessions.extend(cur_sess)
             dispatched += len(cur_sess)
 
-        log.info('Dispatched chan={} {!r} to {} states',
-                 channel_id, event, dispatched)
+        log.info("Dispatched chan={} {!r} to {} states", channel_id, event, dispatched)
 
         return sessions

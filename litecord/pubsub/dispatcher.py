@@ -80,8 +80,7 @@ class Dispatcher:
         """
         raise NotImplementedError
 
-    async def _dispatch_states(self, states: list, event: str,
-                               data) -> List[str]:
+    async def _dispatch_states(self, states: list, event: str, data) -> List[str]:
         """Dispatch an event to a list of states."""
         res = []
 
@@ -90,7 +89,7 @@ class Dispatcher:
                 await state.ws.dispatch(event, data)
                 res.append(state.session_id)
             except Exception:
-                log.exception('error while dispatching')
+                log.exception("error while dispatching")
 
         return res
 
@@ -102,6 +101,7 @@ class DispatcherWithState(Dispatcher):
     of boilerplate code on Pub/Sub backends
     that have that dictionary.
     """
+
     def __init__(self, main):
         super().__init__(main)
 

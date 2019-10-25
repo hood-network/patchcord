@@ -32,18 +32,19 @@ from logbook import Logger
 log = Logger(__name__)
 
 
-Migration = namedtuple('Migration', 'id name path')
+Migration = namedtuple("Migration", "id name path")
 
 # line of change, 4 april 2019, at 1am (gmt+0)
 BREAK = datetime.datetime(2019, 4, 4, 1)
 
 # if a database has those tables, it ran 0_base.sql.
-HAS_BASE = ['users', 'guilds', 'e']
+HAS_BASE = ["users", "guilds", "e"]
 
 
 @dataclass
 class MigrationContext:
     """Hold information about migration."""
+
     migration_folder: Path
     scripts: Dict[int, Migration]
 
@@ -60,22 +61,21 @@ def make_migration_ctx() -> MigrationContext:
     script_folder = os.sep.join(script_path.split(os.sep)[:-1])
     script_folder = Path(script_folder)
 
-    migration_folder = script_folder / 'scripts'
+    migration_folder = script_folder / "scripts"
 
     mctx = MigrationContext(migration_folder, {})
 
-    for mig_path in migration_folder.glob('*.sql'):
+    for mig_path in migration_folder.glob("*.sql"):
         mig_path_str = str(mig_path)
 
         # extract migration script id and name
-        mig_filename = mig_path_str.split(os.sep)[-1].split('.')[0]
-        name_fragments = mig_filename.split('_')
+        mig_filename = mig_path_str.split(os.sep)[-1].split(".")[0]
+        name_fragments = mig_filename.split("_")
 
         mig_id = int(name_fragments[0])
-        mig_name = '_'.join(name_fragments[1:])
+        mig_name = "_".join(name_fragments[1:])
 
-        mctx.scripts[mig_id] = Migration(
-            mig_id, mig_name, mig_path)
+        mctx.scripts[mig_id] = Migration(mig_id, mig_name, mig_path)
 
     return mctx
 
@@ -83,7 +83,8 @@ def make_migration_ctx() -> MigrationContext:
 async def _ensure_changelog(app, ctx):
     # make sure we have the migration table up
     try:
-        await app.db.execute("""
+        await app.db.execute(
+            """
         CREATE TABLE migration_log (
             change_num bigint NOT NULL,
 
@@ -94,43 +95,56 @@ async def _ensure_changelog(app, ctx):
 
             PRIMARY KEY (change_num)
         );
-        """)
+        """
+        )
     except asyncpg.DuplicateTableError:
-        log.debug('existing migration table')
+        log.debug("existing migration table")
 
         # NOTE: this is a migration breakage,
         # only applying to databases that had their first migration
         # before 4 april 2019 (more on BREAK)
 
         # if migration_log is empty, just assume this is new
-        first = await app.db.fetchval("""
+        first = (
+            await app.db.fetchval(
+                """
         SELECT apply_ts FROM migration_log
         ORDER BY apply_ts ASC
         LIMIT 1
-        """) or BREAK
+        """
+            )
+            or BREAK
+        )
         if first < BREAK:
-            log.info('deleting migration_log due to migration structure change')
+            log.info("deleting migration_log due to migration structure change")
             await app.db.execute("DROP TABLE migration_log")
             await _ensure_changelog(app, ctx)
 
 
 async def _insert_log(app, migration_id: int, description) -> bool:
     try:
-        await app.db.execute("""
+        await app.db.execute(
+            """
         INSERT INTO migration_log (change_num, description)
         VALUES ($1, $2)
-        """, migration_id, description)
+        """,
+            migration_id,
+            description,
+        )
 
         return True
     except asyncpg.UniqueViolationError:
-        log.warning('already inserted {}', migration_id)
+        log.warning("already inserted {}", migration_id)
         return False
 
 
 async def _delete_log(app, migration_id: int):
-    await app.db.execute("""
+    await app.db.execute(
+        """
     DELETE FROM migration_log WHERE change_num = $1
-    """, migration_id)
+    """,
+        migration_id,
+    )
 
 
 async def apply_migration(app, migration: Migration) -> bool:
@@ -144,21 +158,20 @@ async def apply_migration(app, migration: Migration) -> bool:
 
     Returns a boolean signaling if this failed or not.
     """
-    migration_sql = migration.path.read_text(encoding='utf-8')
+    migration_sql = migration.path.read_text(encoding="utf-8")
 
-    res = await _insert_log(
-        app, migration.id, f'migration: {migration.name}')
+    res = await _insert_log(app, migration.id, f"migration: {migration.name}")
 
     if not res:
         return False
 
     try:
         await app.db.execute(migration_sql)
-        log.info('applied {} {}', migration.id, migration.name)
+        log.info("applied {} {}", migration.id, migration.name)
 
         return True
     except:
-        log.exception('failed to run migration, rollbacking log')
+        log.exception("failed to run migration, rollbacking log")
         await _delete_log(app, migration.id)
 
         return False
@@ -169,9 +182,11 @@ async def _check_base(app) -> bool:
     file."""
     try:
         for table in HAS_BASE:
-            await app.db.execute(f"""
+            await app.db.execute(
+                f"""
             SELECT * FROM {table} LIMIT 0
-            """)
+            """
+            )
     except asyncpg.UndefinedTableError:
         return False
 
@@ -197,14 +212,16 @@ async def migrate_cmd(app, _args):
     has_base = await _check_base(app)
 
     # fetch latest local migration that has been run on this database
-    local_change = await app.db.fetchval("""
+    local_change = await app.db.fetchval(
+        """
     SELECT max(change_num)
     FROM migration_log
-    """)
+    """
+    )
 
     # if base exists, add it to logs, if not, apply (and add to logs)
     if has_base:
-        await _insert_log(app, 0, 'migration setup (from existing)')
+        await _insert_log(app, 0, "migration setup (from existing)")
     else:
         await apply_migration(app, ctx.scripts[0])
 
@@ -215,10 +232,10 @@ async def migrate_cmd(app, _args):
     local_change = local_change or 0
     latest_change = ctx.latest
 
-    log.debug('local: {}, latest: {}', local_change, latest_change)
+    log.debug("local: {}, latest: {}", local_change, latest_change)
 
     if local_change == latest_change:
-        print('no changes to do, exiting')
+        print("no changes to do, exiting")
         return
 
     # we do local_change + 1 so we start from the
@@ -227,15 +244,13 @@ async def migrate_cmd(app, _args):
     for idx in range(local_change + 1, latest_change + 1):
         migration = ctx.scripts.get(idx)
 
-        print('applying', migration.id, migration.name)
+        print("applying", migration.id, migration.name)
         await apply_migration(app, migration)
 
 
 def setup(subparser):
     migrate_parser = subparser.add_parser(
-        'migrate',
-        help='Run migration tasks',
-        description=migrate_cmd.__doc__
+        "migrate", help="Run migration tasks", description=migrate_cmd.__doc__
     )
 
     migrate_parser.set_defaults(func=migrate_cmd)

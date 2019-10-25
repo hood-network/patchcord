@@ -36,22 +36,22 @@ from litecord.blueprints.auth import make_token
 from litecord.blueprints.users import delete_user
 
 
-@pytest.fixture(name='app')
+@pytest.fixture(name="app")
 def _test_app(unused_tcp_port, event_loop):
     set_blueprints(main_app)
-    main_app.config['_testing'] = True
+    main_app.config["_testing"] = True
 
     # reassign an unused tcp port for websockets
     # since the config might give a used one.
     ws_port = unused_tcp_port
 
-    main_app.config['IS_SSL'] = False
-    main_app.config['WS_PORT'] = ws_port
-    main_app.config['WEBSOCKET_URL'] = f'localhost:{ws_port}'
+    main_app.config["IS_SSL"] = False
+    main_app.config["WS_PORT"] = ws_port
+    main_app.config["WEBSOCKET_URL"] = f"localhost:{ws_port}"
 
     # testing user creations requires hardcoding this to true
     # on testing
-    main_app.config['REGISTRATIONS'] = True
+    main_app.config["REGISTRATIONS"] = True
 
     # make sure we're calling the before_serving hooks
     event_loop.run_until_complete(main_app.startup())
@@ -63,10 +63,11 @@ def _test_app(unused_tcp_port, event_loop):
     event_loop.run_until_complete(main_app.shutdown())
 
 
-@pytest.fixture(name='test_cli')
+@pytest.fixture(name="test_cli")
 def _test_cli(app):
     """Give a test client."""
     return app.test_client()
+
 
 # code shamelessly stolen from my elixire mr
 # https://gitlab.com/elixire/elixire/merge_requests/52
@@ -76,21 +77,26 @@ async def _user_fixture_setup(app):
     user_email = email()
 
     user_id, pwd_hash = await create_user(
-        username, user_email, password, app.db, app.loop)
+        username, user_email, password, app.db, app.loop
+    )
 
     # generate a token for api access
     user_token = make_token(user_id, pwd_hash)
 
-    return {'id': user_id, 'token': user_token,
-            'email': user_email, 'username': username,
-            'password': password}
+    return {
+        "id": user_id,
+        "token": user_token,
+        "email": user_email,
+        "username": username,
+        "password": password,
+    }
 
 
 async def _user_fixture_teardown(app, udata: dict):
-    await delete_user(udata['id'], app_=app)
+    await delete_user(udata["id"], app_=app)
 
 
-@pytest.fixture(name='test_user')
+@pytest.fixture(name="test_user")
 async def test_user_fixture(app):
     """Yield a randomly generated test user."""
     udata = await _user_fixture_setup(app)
@@ -113,18 +119,25 @@ async def test_cli_staff(test_cli):
     # same test_cli_user, which isn't acceptable.
     app = test_cli.app
     test_user = await _user_fixture_setup(app)
-    user_id = test_user['id']
+    user_id = test_user["id"]
 
     # copied from manage.cmd.users.set_user_staff.
-    old_flags = await app.db.fetchval("""
+    old_flags = await app.db.fetchval(
+        """
     SELECT flags FROM users WHERE id = $1
-    """, user_id)
+    """,
+        user_id,
+    )
 
     new_flags = old_flags | UserFlags.staff
 
-    await app.db.execute("""
+    await app.db.execute(
+        """
     UPDATE users SET flags = $1 WHERE id = $2
-    """, new_flags, user_id)
+    """,
+        new_flags,
+        user_id,
+    )
 
     yield TestClient(test_cli, test_user)
     await _user_fixture_teardown(test_cli.app, test_user)

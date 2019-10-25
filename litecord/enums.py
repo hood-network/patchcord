@@ -52,13 +52,14 @@ class Flags:
         >>> i2.is_field_3
         False
     """
+
     def __init_subclass__(cls, **_kwargs):
         attrs = inspect.getmembers(cls, lambda x: not inspect.isroutine(x))
 
         def _make_int(value):
             res = Flags()
 
-            setattr(res, 'value', value)
+            setattr(res, "value", value)
 
             for attr, val in attrs:
                 # get only the ones that represent a field in the
@@ -69,7 +70,7 @@ class Flags:
                 has_attr = (value & val) == val
 
                 # set each attribute
-                setattr(res, f'is_{attr}', has_attr)
+                setattr(res, f"is_{attr}", has_attr)
 
             return res
 
@@ -84,15 +85,14 @@ class ChannelType(EasyEnum):
     GUILD_CATEGORY = 4
 
 
-GUILD_CHANS = (ChannelType.GUILD_TEXT,
-               ChannelType.GUILD_VOICE,
-               ChannelType.GUILD_CATEGORY)
-
-
-VOICE_CHANNELS = (
-    ChannelType.DM, ChannelType.GUILD_VOICE,
-    ChannelType.GUILD_CATEGORY
+GUILD_CHANS = (
+    ChannelType.GUILD_TEXT,
+    ChannelType.GUILD_VOICE,
+    ChannelType.GUILD_CATEGORY,
 )
+
+
+VOICE_CHANNELS = (ChannelType.DM, ChannelType.GUILD_VOICE, ChannelType.GUILD_CATEGORY)
 
 
 class ActivityType(EasyEnum):
@@ -120,7 +120,7 @@ SYS_MESSAGES = (
     MessageType.CHANNEL_NAME_CHANGE,
     MessageType.CHANNEL_ICON_CHANGE,
     MessageType.CHANNEL_PINNED_MESSAGE,
-    MessageType.GUILD_MEMBER_JOIN
+    MessageType.GUILD_MEMBER_JOIN,
 )
 
 
@@ -137,6 +137,7 @@ class ActivityFlags(Flags):
 
     Only related to rich presence.
     """
+
     instance = 1
     join = 2
     spectate = 4
@@ -150,6 +151,7 @@ class UserFlags(Flags):
 
     Used by the client to show badges.
     """
+
     staff = 1
     partner = 2
     hypesquad = 4
@@ -166,6 +168,7 @@ class UserFlags(Flags):
 
 class MessageFlags(Flags):
     """Message flags."""
+
     none = 0
 
     crossposted = 1 << 0
@@ -175,11 +178,12 @@ class MessageFlags(Flags):
 
 class StatusType(EasyEnum):
     """All statuses there can be in a presence."""
-    ONLINE = 'online'
-    DND = 'dnd'
-    IDLE = 'idle'
-    INVISIBLE = 'invisible'
-    OFFLINE = 'offline'
+
+    ONLINE = "online"
+    DND = "dnd"
+    IDLE = "idle"
+    INVISIBLE = "invisible"
+    OFFLINE = "offline"
 
 
 class ExplicitFilter(EasyEnum):
@@ -187,6 +191,7 @@ class ExplicitFilter(EasyEnum):
 
     Also applies to guilds.
     """
+
     EDGE = 0
     FRIENDS = 1
     SAFE = 2
@@ -194,6 +199,7 @@ class ExplicitFilter(EasyEnum):
 
 class VerificationLevel(IntEnum):
     """Verification level for guilds."""
+
     NONE = 0
     LOW = 1
     MEDIUM = 2
@@ -205,6 +211,7 @@ class VerificationLevel(IntEnum):
 
 class RelationshipType(EasyEnum):
     """Relationship types between users."""
+
     FRIEND = 1
     BLOCK = 2
     INCOMING = 3
@@ -213,6 +220,7 @@ class RelationshipType(EasyEnum):
 
 class MessageNotifications(EasyEnum):
     """Message notifications"""
+
     ALL = 0
     MENTIONS = 1
     NOTHING = 2
@@ -220,6 +228,7 @@ class MessageNotifications(EasyEnum):
 
 class PremiumType:
     """Premium (Nitro) type."""
+
     TIER_1 = 1
     TIER_2 = 2
     NONE = None
@@ -227,12 +236,13 @@ class PremiumType:
 
 class Feature(EasyEnum):
     """Guild features."""
-    invite_splash = 'INVITE_SPLASH'
-    vip = 'VIP_REGIONS'
-    vanity = 'VANITY_URL'
-    emoji = 'MORE_EMOJI'
-    verified = 'VERIFIED'
+
+    invite_splash = "INVITE_SPLASH"
+    vip = "VIP_REGIONS"
+    vanity = "VANITY_URL"
+    emoji = "MORE_EMOJI"
+    verified = "VERIFIED"
 
     # unknown
-    commerce = 'COMMERCE'
-    news = 'NEWS'
+    commerce = "COMMERCE"
+    news = "NEWS"

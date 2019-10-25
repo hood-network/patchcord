@@ -29,21 +29,29 @@ from litecord.system_messages import send_sys_message
 from litecord.pubsub.channel import gdm_recipient_view
 
 log = Logger(__name__)
-bp = Blueprint('dm_channels', __name__)
+bp = Blueprint("dm_channels", __name__)
 
 
 async def _raw_gdm_add(channel_id, user_id):
-    await app.db.execute("""
+    await app.db.execute(
+        """
     INSERT INTO group_dm_members (id, member_id)
     VALUES ($1, $2)
-    """, channel_id, user_id)
+    """,
+        channel_id,
+        user_id,
+    )
 
 
 async def _raw_gdm_remove(channel_id, user_id):
-    await app.db.execute("""
+    await app.db.execute(
+        """
     DELETE FROM group_dm_members
     WHERE id = $1 AND member_id = $2
-    """, channel_id, user_id)
+    """,
+        channel_id,
+        user_id,
+    )
 
 
 async def gdm_create(user_id, peer_id) -> int:
@@ -53,24 +61,32 @@ async def gdm_create(user_id, peer_id) -> int:
     """
     channel_id = get_snowflake()
 
-    await app.db.execute("""
+    await app.db.execute(
+        """
     INSERT INTO channels (id, channel_type)
     VALUES ($1, $2)
-    """, channel_id, ChannelType.GROUP_DM.value)
+    """,
+        channel_id,
+        ChannelType.GROUP_DM.value,
+    )
 
-    await app.db.execute("""
+    await app.db.execute(
+        """
     INSERT INTO group_dm_channels (id, owner_id, name, icon)
     VALUES ($1, $2, NULL, NULL)
-    """, channel_id, user_id)
+    """,
+        channel_id,
+        user_id,
+    )
 
     await _raw_gdm_add(channel_id, user_id)
     await _raw_gdm_add(channel_id, peer_id)
 
-    await app.dispatcher.sub('channel', channel_id, user_id)
-    await app.dispatcher.sub('channel', channel_id, peer_id)
+    await app.dispatcher.sub("channel", channel_id, user_id)
+    await app.dispatcher.sub("channel", channel_id, peer_id)
 
     chan = await app.storage.get_channel(channel_id)
-    await app.dispatcher.dispatch('channel', channel_id, 'CHANNEL_CREATE', chan)
+    await app.dispatcher.dispatch("channel", channel_id, "CHANNEL_CREATE", chan)
 
     return channel_id
 
@@ -89,17 +105,16 @@ async def gdm_add_recipient(channel_id: int, peer_id: int, *, user_id=None):
 
     # the reasoning behind gdm_recipient_view is in its docstring.
     await app.dispatcher.dispatch(
-        'user', peer_id, 'CHANNEL_CREATE', gdm_recipient_view(chan, peer_id))
+        "user", peer_id, "CHANNEL_CREATE", gdm_recipient_view(chan, peer_id)
+    )
 
-    await app.dispatcher.dispatch(
-        'channel', channel_id, 'CHANNEL_UPDATE', chan)
+    await app.dispatcher.dispatch("channel", channel_id, "CHANNEL_UPDATE", chan)
 
-    await app.dispatcher.sub('channel', peer_id)
+    await app.dispatcher.sub("channel", peer_id)
 
     if user_id:
         await send_sys_message(
-            app, channel_id, MessageType.RECIPIENT_ADD,
-            user_id, peer_id
+            app, channel_id, MessageType.RECIPIENT_ADD, user_id, peer_id
         )
 
 
@@ -116,22 +131,22 @@ async def gdm_remove_recipient(channel_id: int, peer_id: int, *, user_id=None):
 
     chan = await app.storage.get_channel(channel_id)
     await app.dispatcher.dispatch(
-        'user', peer_id, 'CHANNEL_DELETE', gdm_recipient_view(chan, user_id))
+        "user", peer_id, "CHANNEL_DELETE", gdm_recipient_view(chan, user_id)
+    )
 
-    await app.dispatcher.unsub('channel', peer_id)
+    await app.dispatcher.unsub("channel", peer_id)
 
     await app.dispatcher.dispatch(
-        'channel', channel_id, 'CHANNEL_RECIPIENT_REMOVE', {
-            'channel_id': str(channel_id),
-            'user': await app.storage.get_user(peer_id)
-        }
+        "channel",
+        channel_id,
+        "CHANNEL_RECIPIENT_REMOVE",
+        {"channel_id": str(channel_id), "user": await app.storage.get_user(peer_id)},
     )
 
     author_id = peer_id if user_id is None else user_id
 
     await send_sys_message(
-        app, channel_id, MessageType.RECIPIENT_REMOVE,
-        author_id, peer_id
+        app, channel_id, MessageType.RECIPIENT_REMOVE, author_id, peer_id
     )
 
 
@@ -139,40 +154,51 @@ async def gdm_destroy(channel_id):
     """Destroy a Group DM."""
     chan = await app.storage.get_channel(channel_id)
 
-    await app.db.execute("""
+    await app.db.execute(
+        """
     DELETE FROM group_dm_members
     WHERE id = $1
-    """, channel_id)
-
-    await app.db.execute("""
-    DELETE FROM group_dm_channels
-    WHERE id = $1
-    """, channel_id)
-
-    await app.db.execute("""
-    DELETE FROM channels
-    WHERE id = $1
-    """, channel_id)
-
-    await app.dispatcher.dispatch(
-        'channel', channel_id, 'CHANNEL_DELETE', chan
+    """,
+        channel_id,
     )
 
-    await app.dispatcher.remove('channel', channel_id)
+    await app.db.execute(
+        """
+    DELETE FROM group_dm_channels
+    WHERE id = $1
+    """,
+        channel_id,
+    )
+
+    await app.db.execute(
+        """
+    DELETE FROM channels
+    WHERE id = $1
+    """,
+        channel_id,
+    )
+
+    await app.dispatcher.dispatch("channel", channel_id, "CHANNEL_DELETE", chan)
+
+    await app.dispatcher.remove("channel", channel_id)
 
 
 async def gdm_is_member(channel_id: int, user_id: int) -> bool:
     """Return if the given user is a member of the Group DM."""
-    row = await app.db.fetchval("""
+    row = await app.db.fetchval(
+        """
     SELECT id
     FROM group_dm_members
     WHERE id = $1 AND member_id = $2
-    """, channel_id, user_id)
+    """,
+        channel_id,
+        user_id,
+    )
 
     return row is not None
 
 
-@bp.route('/<int:dm_chan>/recipients/<int:peer_id>', methods=['PUT'])
+@bp.route("/<int:dm_chan>/recipients/<int:peer_id>", methods=["PUT"])
 async def add_to_group_dm(dm_chan, peer_id):
     """Adds a member to a group dm OR creates a group dm."""
     user_id = await token_check()
@@ -182,8 +208,7 @@ async def add_to_group_dm(dm_chan, peer_id):
 
     # other_id is the peer of the dm if the given channel is a dm
     ctype, other_id = await channel_check(
-        user_id, dm_chan,
-        only=[ChannelType.DM, ChannelType.GROUP_DM]
+        user_id, dm_chan, only=[ChannelType.DM, ChannelType.GROUP_DM]
     )
 
     # check relationship with the given user id
@@ -191,30 +216,24 @@ async def add_to_group_dm(dm_chan, peer_id):
     friends = await app.user_storage.are_friends_with(user_id, peer_id)
 
     if not friends:
-        raise BadRequest('Cant insert peer into dm')
+        raise BadRequest("Cant insert peer into dm")
 
     if ctype == ChannelType.DM:
-        dm_chan = await gdm_create(
-            user_id, other_id
-        )
+        dm_chan = await gdm_create(user_id, other_id)
 
     await gdm_add_recipient(dm_chan, peer_id, user_id=user_id)
 
-    return jsonify(
-        await app.storage.get_channel(dm_chan)
-    )
+    return jsonify(await app.storage.get_channel(dm_chan))
 
 
-@bp.route('/<int:dm_chan>/recipients/<int:peer_id>', methods=['DELETE'])
+@bp.route("/<int:dm_chan>/recipients/<int:peer_id>", methods=["DELETE"])
 async def remove_from_group_dm(dm_chan, peer_id):
     """Remove users from group dm."""
     user_id = await token_check()
-    _ctype, owner_id = await channel_check(
-        user_id, dm_chan, only=ChannelType.GROUP_DM
-    )
+    _ctype, owner_id = await channel_check(user_id, dm_chan, only=ChannelType.GROUP_DM)
 
     if owner_id != user_id:
-        raise Forbidden('You are now the owner of the group DM')
+        raise Forbidden("You are now the owner of the group DM")
 
     await gdm_remove_recipient(dm_chan, peer_id)
-    return '', 204
+    return "", 204

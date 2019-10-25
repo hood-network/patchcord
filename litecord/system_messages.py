@@ -24,6 +24,7 @@ from litecord.enums import MessageType
 
 log = Logger(__name__)
 
+
 async def _handle_pin_msg(app, channel_id, _pinned_id, author_id):
     """Handle a message pin."""
     new_id = get_snowflake()
@@ -37,8 +38,10 @@ async def _handle_pin_msg(app, channel_id, _pinned_id, author_id):
             ($1, $2, NULL, $3, NULL, '',
              $4)
         """,
-        new_id, channel_id, author_id,
-        MessageType.CHANNEL_PINNED_MESSAGE.value
+        new_id,
+        channel_id,
+        author_id,
+        MessageType.CHANNEL_PINNED_MESSAGE.value,
     )
 
     return new_id
@@ -56,13 +59,14 @@ async def _handle_recp_add(app, channel_id, author_id, peer_id):
         VALUES
             ($1, $2, $3, NULL, $4, $5)
         """,
-        new_id, channel_id, author_id,
-        f'<@{peer_id}>',
-        MessageType.RECIPIENT_ADD.value
+        new_id,
+        channel_id,
+        author_id,
+        f"<@{peer_id}>",
+        MessageType.RECIPIENT_ADD.value,
     )
 
     return new_id
-
 
 
 async def _handle_recp_rmv(app, channel_id, author_id, peer_id):
@@ -76,9 +80,11 @@ async def _handle_recp_rmv(app, channel_id, author_id, peer_id):
         VALUES
             ($1, $2, $3, NULL, $4, $5)
         """,
-        new_id, channel_id, author_id,
-        f'<@{peer_id}>',
-        MessageType.RECIPIENT_REMOVE.value
+        new_id,
+        channel_id,
+        author_id,
+        f"<@{peer_id}>",
+        MessageType.RECIPIENT_REMOVE.value,
     )
 
     return new_id
@@ -87,13 +93,16 @@ async def _handle_recp_rmv(app, channel_id, author_id, peer_id):
 async def _handle_gdm_name_edit(app, channel_id, author_id):
     new_id = get_snowflake()
 
-    gdm_name = await app.db.fetchval("""
+    gdm_name = await app.db.fetchval(
+        """
     SELECT name FROM group_dm_channels
     WHERE id = $1
-    """, channel_id)
+    """,
+        channel_id,
+    )
 
     if not gdm_name:
-        log.warning('no gdm name found for sys message')
+        log.warning("no gdm name found for sys message")
         return
 
     await app.db.execute(
@@ -104,9 +113,11 @@ async def _handle_gdm_name_edit(app, channel_id, author_id):
         VALUES
             ($1, $2, $3, NULL, $4, $5)
         """,
-        new_id, channel_id, author_id,
+        new_id,
+        channel_id,
+        author_id,
         gdm_name,
-        MessageType.CHANNEL_NAME_CHANGE.value
+        MessageType.CHANNEL_NAME_CHANGE.value,
     )
 
     return new_id
@@ -123,16 +134,19 @@ async def _handle_gdm_icon_edit(app, channel_id, author_id):
         VALUES
             ($1, $2, $3, NULL, $4, $5)
         """,
-        new_id, channel_id, author_id,
-        '',
-        MessageType.CHANNEL_ICON_CHANGE.value
+        new_id,
+        channel_id,
+        author_id,
+        "",
+        MessageType.CHANNEL_ICON_CHANGE.value,
     )
 
     return new_id
 
 
-async def send_sys_message(app, channel_id: int, m_type: MessageType,
-                           *args, **kwargs) -> int:
+async def send_sys_message(
+    app, channel_id: int, m_type: MessageType, *args, **kwargs
+) -> int:
     """Send a system message.
 
     The handler for a given message type MUST return an integer, that integer
@@ -156,22 +170,19 @@ async def send_sys_message(app, channel_id: int, m_type: MessageType,
     try:
         handler = {
             MessageType.CHANNEL_PINNED_MESSAGE: _handle_pin_msg,
-
             # gdm specific
             MessageType.RECIPIENT_ADD: _handle_recp_add,
             MessageType.RECIPIENT_REMOVE: _handle_recp_rmv,
             MessageType.CHANNEL_NAME_CHANGE: _handle_gdm_name_edit,
-            MessageType.CHANNEL_ICON_CHANGE: _handle_gdm_icon_edit
+            MessageType.CHANNEL_ICON_CHANGE: _handle_gdm_icon_edit,
         }[m_type]
     except KeyError:
-        raise ValueError('Invalid system message type')
+        raise ValueError("Invalid system message type")
 
     message_id = await handler(app, channel_id, *args, **kwargs)
 
     message = await app.storage.get_message(message_id)
 
-    await app.dispatcher.dispatch(
-        'channel', channel_id, 'MESSAGE_CREATE', message
-    )
+    await app.dispatcher.dispatch("channel", channel_id, "MESSAGE_CREATE", message)
 
     return message_id

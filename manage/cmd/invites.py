@@ -26,7 +26,7 @@ ALPHABET = string.ascii_lowercase + string.ascii_uppercase + string.digits
 
 async def _gen_inv() -> str:
     """Generate an invite code"""
-    return ''.join(choice(ALPHABET) for _ in range(6))
+    return "".join(choice(ALPHABET) for _ in range(6))
 
 
 async def gen_inv(ctx) -> str:
@@ -34,11 +34,14 @@ async def gen_inv(ctx) -> str:
     for _ in range(10):
         possible_inv = await _gen_inv()
 
-        created_at = await ctx.db.fetchval("""
+        created_at = await ctx.db.fetchval(
+            """
         SELECT created_at
         FROM instance_invites
         WHERE code = $1
-        """, possible_inv)
+        """,
+            possible_inv,
+        )
 
         if created_at is None:
             return possible_inv
@@ -51,27 +54,32 @@ async def make_inv(ctx, args):
 
     max_uses = args.max_uses
 
-    await ctx.db.execute("""
+    await ctx.db.execute(
+        """
     INSERT INTO instance_invites (code, max_uses)
     VALUES ($1, $2)
-    """, code, max_uses)
+    """,
+        code,
+        max_uses,
+    )
 
-    print(f'invite created with {max_uses} max uses', code)
+    print(f"invite created with {max_uses} max uses", code)
 
 
 async def list_invs(ctx, args):
-    rows = await ctx.db.fetch("""
+    rows = await ctx.db.fetch(
+        """
     SELECT code, created_at, uses, max_uses
     FROM instance_invites
-    """)
+    """
+    )
 
-    print(len(rows), 'invites')
+    print(len(rows), "invites")
 
     for row in rows:
-        max_uses = row['max_uses']
-        delta = datetime.datetime.utcnow() - row['created_at']
-        usage = ('infinite uses' if max_uses == -1
-                 else f'{row["uses"]} / {max_uses}')
+        max_uses = row["max_uses"]
+        delta = datetime.datetime.utcnow() - row["created_at"]
+        usage = "infinite uses" if max_uses == -1 else f'{row["uses"]} / {max_uses}'
 
         print(f'\t{row["code"]}, {usage}, made {delta} ago')
 
@@ -79,40 +87,37 @@ async def list_invs(ctx, args):
 async def delete_inv(ctx, args):
     inv = args.invite_code
 
-    res = await ctx.db.execute("""
+    res = await ctx.db.execute(
+        """
     DELETE FROM instance_invites
     WHERE code = $1
-    """, inv)
+    """,
+        inv,
+    )
 
-    if res == 'DELETE 0':
-        print('NOT FOUND')
+    if res == "DELETE 0":
+        print("NOT FOUND")
         return
 
-    print('OK')
+    print("OK")
 
 
 def setup(subparser):
-    makeinv_parser = subparser.add_parser(
-        'makeinv',
-        help='create an invite',
-    )
+    makeinv_parser = subparser.add_parser("makeinv", help="create an invite")
 
     makeinv_parser.add_argument(
-        'max_uses', nargs='?', type=int, default=-1,
-        help='Maximum amount of uses before the invite is unavailable',
+        "max_uses",
+        nargs="?",
+        type=int,
+        default=-1,
+        help="Maximum amount of uses before the invite is unavailable",
     )
 
     makeinv_parser.set_defaults(func=make_inv)
 
-    listinv_parser = subparser.add_parser(
-        'listinv',
-        help='list all invites',
-    )
+    listinv_parser = subparser.add_parser("listinv", help="list all invites")
     listinv_parser.set_defaults(func=list_invs)
 
-    delinv_parser = subparser.add_parser(
-        'delinv',
-        help='delete an invite',
-    )
-    delinv_parser.add_argument('invite_code')
+    delinv_parser = subparser.add_parser("delinv", help="delete an invite")
+    delinv_parser.add_argument("invite_code")
     delinv_parser.set_defaults(func=delete_inv)

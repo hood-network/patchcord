@@ -24,16 +24,17 @@ from PIL import Image
 
 from litecord.images import resize_gif
 
-bp = Blueprint('attachments', __name__)
-ATTACHMENTS = Path.cwd() / 'attachments'
+bp = Blueprint("attachments", __name__)
+ATTACHMENTS = Path.cwd() / "attachments"
 
 
-async def _resize_gif(attach_id: int, resized_path: Path,
-                      width: int, height: int) -> str:
+async def _resize_gif(
+    attach_id: int, resized_path: Path, width: int, height: int
+) -> str:
     """Resize a GIF attachment."""
 
     # get original gif bytes
-    orig_path = ATTACHMENTS / f'{attach_id}.gif'
+    orig_path = ATTACHMENTS / f"{attach_id}.gif"
     orig_bytes = orig_path.read_bytes()
 
     # give them and the target size to the
@@ -47,10 +48,7 @@ async def _resize_gif(attach_id: int, resized_path: Path,
     return str(resized_path)
 
 
-FORMAT_HARDCODE = {
-    'jpg': 'jpeg',
-    'jpe': 'jpeg'
-}
+FORMAT_HARDCODE = {"jpg": "jpeg", "jpe": "jpeg"}
 
 
 def to_format(ext: str) -> str:
@@ -63,11 +61,10 @@ def to_format(ext: str) -> str:
     return ext
 
 
-async def _resize(image, attach_id: int, ext: str,
-                  width: int, height: int) -> str:
+async def _resize(image, attach_id: int, ext: str, width: int, height: int) -> str:
     """Resize an image."""
     # check if we have it on the folder
-    resized_path = ATTACHMENTS / f'{attach_id}_{width}_{height}.{ext}'
+    resized_path = ATTACHMENTS / f"{attach_id}_{width}_{height}.{ext}"
 
     # keep a str-fied instance since that is what
     # we'll return.
@@ -81,7 +78,7 @@ async def _resize(image, attach_id: int, ext: str,
 
     # the process is different for gif files because we need
     # gifsicle. doing it manually is too troublesome.
-    if ext == 'gif':
+    if ext == "gif":
         return await _resize_gif(attach_id, resized_path, width, height)
 
     # NOTE: this is the same resize mode for icons.
@@ -91,38 +88,42 @@ async def _resize(image, attach_id: int, ext: str,
     return resized_path_s
 
 
-@bp.route('/attachments'
-          '/<int:channel_id>/<int:message_id>/<filename>',
-          methods=['GET'])
-async def _get_attachment(channel_id: int, message_id: int,
-                          filename: str):
+@bp.route(
+    "/attachments" "/<int:channel_id>/<int:message_id>/<filename>", methods=["GET"]
+)
+async def _get_attachment(channel_id: int, message_id: int, filename: str):
 
-    attach_id = await app.db.fetchval("""
+    attach_id = await app.db.fetchval(
+        """
     SELECT id
     FROM attachments
     WHERE channel_id = $1
       AND message_id = $2
       AND filename = $3
-    """, channel_id, message_id, filename)
+    """,
+        channel_id,
+        message_id,
+        filename,
+    )
 
     if attach_id is None:
-        return '', 404
+        return "", 404
 
-    ext = filename.split('.')[-1]
-    filepath = f'./attachments/{attach_id}.{ext}'
+    ext = filename.split(".")[-1]
+    filepath = f"./attachments/{attach_id}.{ext}"
 
     image = Image.open(filepath)
     im_width, im_height = image.size
 
     try:
-        width = int(request.args.get('width', 0)) or im_width
+        width = int(request.args.get("width", 0)) or im_width
     except ValueError:
-        return '', 400
+        return "", 400
 
     try:
-        height = int(request.args.get('height', 0)) or im_height
+        height = int(request.args.get("height", 0)) or im_height
     except ValueError:
-        return '', 400
+        return "", 400
 
     # if width and height are the same (happens if they weren't provided)
     if width == im_width and height == im_height:

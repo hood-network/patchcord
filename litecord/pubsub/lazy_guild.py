@@ -28,16 +28,17 @@ lazy guilds:
 
 import asyncio
 from collections import defaultdict
-from typing import (
-    Any, List, Dict, Union, Optional, Iterable, Iterator, Tuple, Set
-)
+from typing import Any, List, Dict, Union, Optional, Iterable, Iterator, Tuple, Set
 from dataclasses import dataclass, asdict, field
 
 from logbook import Logger
 
 from litecord.pubsub.dispatcher import Dispatcher
 from litecord.permissions import (
-    Permissions, overwrite_find_mix, get_permissions, role_permissions
+    Permissions,
+    overwrite_find_mix,
+    get_permissions,
+    role_permissions,
 )
 from litecord.utils import index_by_func
 from litecord.utils import mmh3
@@ -55,6 +56,7 @@ MAX_ROLES = 250
 @dataclass
 class GroupInfo:
     """Store information about a specific group."""
+
     gid: GroupID
     name: str
     position: int
@@ -85,6 +87,7 @@ class MemberList:
         channel, and since only roles with Read Messages
         can be in the list, we need to store that information)
     """
+
     groups: List[GroupInfo] = field(default_factory=list)
     data: Dict[GroupID, List[int]] = field(default_factory=dict)
     presences: Dict[int, Presence] = field(default_factory=dict)
@@ -98,8 +101,7 @@ class MemberList:
 
         # ignore the bool status of overwrites
         return all(
-            bool(list_dict[k])
-            for k in ('groups', 'data', 'presences', 'members')
+            bool(list_dict[k]) for k in ("groups", "data", "presences", "members")
         )
 
     def __iter__(self):
@@ -125,7 +127,7 @@ class MemberList:
         for group, member_ids in self:
             count = len(member_ids)
 
-            if group.gid == 'offline':
+            if group.gid == "offline":
                 yield group, member_ids
                 continue
 
@@ -163,38 +165,36 @@ class MemberList:
 @dataclass
 class Operation:
     """Represents a member list operation."""
+
     list_op: str
     params: Dict[str, Any]
 
     @property
     def to_dict(self) -> dict:
         """Return a dictionary representation of the operation."""
-        if self.list_op not in ('SYNC', 'INVALIDATE',
-                                'INSERT', 'UPDATE', 'DELETE'):
-            raise ValueError('Invalid list operator')
+        if self.list_op not in ("SYNC", "INVALIDATE", "INSERT", "UPDATE", "DELETE"):
+            raise ValueError("Invalid list operator")
 
-        res = {
-            'op': self.list_op
-        }
+        res = {"op": self.list_op}
 
-        if self.list_op == 'SYNC':
-            res['items'] = self.params['items']
+        if self.list_op == "SYNC":
+            res["items"] = self.params["items"]
 
-        if self.list_op in ('SYNC', 'INVALIDATE'):
-            res['range'] = self.params['range']
+        if self.list_op in ("SYNC", "INVALIDATE"):
+            res["range"] = self.params["range"]
 
-        if self.list_op in ('INSERT', 'DELETE', 'UPDATE'):
-            res['index'] = self.params['index']
+        if self.list_op in ("INSERT", "DELETE", "UPDATE"):
+            res["index"] = self.params["index"]
 
-        if self.list_op in ('INSERT', 'UPDATE'):
-            res['item'] = self.params['item']
+        if self.list_op in ("INSERT", "UPDATE"):
+            res["item"] = self.params["item"]
 
         return res
 
 
 def _to_simple_group(presence: dict) -> str:
     """Return a simple group (not a role), given a presence."""
-    return 'offline' if presence['status'] == 'offline' else 'online'
+    return "offline" if presence["status"] == "offline" else "online"
 
 
 async def everyone_allow(gml) -> bool:
@@ -206,10 +206,7 @@ async def everyone_allow(gml) -> bool:
     If the role can't access the list, then the list keeps its list ID.
     """
     everyone_perms = await role_permissions(
-        gml.guild_id,
-        gml.guild_id,
-        gml.channel_id,
-        storage=gml.storage
+        gml.guild_id, gml.guild_id, gml.channel_id, storage=gml.storage
     )
 
     return bool(everyone_perms.bits.read_messages)
@@ -218,16 +215,17 @@ async def everyone_allow(gml) -> bool:
 def merge(member: dict, presence: Presence) -> dict:
     """Merge a member dictionary and a presence dictionary
     into an item."""
-    return {**member, **{
-        'presence': {
-            'user': {
-                'id': str(member['user']['id']),
-            },
-            'status': presence['status'],
-            'game': presence['game'],
-            'activities': presence['activities']
-        }
-    }}
+    return {
+        **member,
+        **{
+            "presence": {
+                "user": {"id": str(member["user"]["id"])},
+                "status": presence["status"],
+                "game": presence["game"],
+                "activities": presence["activities"],
+            }
+        },
+    }
 
 
 class GuildMemberList:
@@ -257,8 +255,8 @@ class GuildMemberList:
         lazy guilds to all of the userbase, but users that are bots,
         for example, can still rely on PRESENCE_UPDATEs.
     """
-    def __init__(self, guild_id: int,
-                 channel_id: int, main_lg):
+
+    def __init__(self, guild_id: int, channel_id: int, main_lg):
         self.guild_id = guild_id
         self.channel_id = channel_id
 
@@ -294,9 +292,7 @@ class GuildMemberList:
     @property
     def list_id(self):
         """get the id of the member list."""
-        return ('everyone'
-                if self.channel_id == self.guild_id
-                else self._calculated_id)
+        return "everyone" if self.channel_id == self.guild_id else self._calculated_id
 
     @property
     def _calculated_id(self):
@@ -310,16 +306,16 @@ class GuildMemberList:
 
         for actor_id, overwrite in self.list.overwrites.items():
             allow, deny = (
-                Permissions(overwrite['allow']),
-                Permissions(overwrite['deny'])
+                Permissions(overwrite["allow"]),
+                Permissions(overwrite["deny"]),
             )
 
             if allow.bits.read_messages:
-                ovs_i.append(f'allow:{actor_id}')
+                ovs_i.append(f"allow:{actor_id}")
             elif deny.bits.read_messages:
-                ovs_i.append(f'deny:{actor_id}')
+                ovs_i.append(f"deny:{actor_id}")
 
-        hash_in = ','.join(ovs_i)
+        hash_in = ",".join(ovs_i)
         return str(mmh3(hash_in))
 
     def _set_empty_list(self):
@@ -334,7 +330,7 @@ class GuildMemberList:
 
     async def _fetch_overwrites(self):
         overwrites = await self.storage.chan_overwrites(self.channel_id)
-        overwrites = {int(ov['id']): ov for ov in overwrites}
+        overwrites = {int(ov["id"]): ov for ov in overwrites}
         self.list.overwrites = overwrites
 
     def _calc_member_group(self, roles: List[int], status: str):
@@ -344,12 +340,11 @@ class GuildMemberList:
             # the first group in the list
             # that the member is entitled to is
             # the selected group for the member.
-            group_id = next(g.gid for g in self.list.groups
-                            if g.gid in roles)
+            group_id = next(g.gid for g in self.list.groups if g.gid in roles)
         except StopIteration:
             # no group was found, so we fallback
             # to simple group
-            group_id = _to_simple_group({'status': status})
+            group_id = _to_simple_group({"status": status})
 
         return group_id
 
@@ -361,7 +356,8 @@ class GuildMemberList:
         # then the final perms for that role if
         # any overwrite exists in the channel
         final_perms = overwrite_find_mix(
-            role_perms, self.list.overwrites, int(group.gid))
+            role_perms, self.list.overwrites, int(group.gid)
+        )
 
         # update the group's permissions
         # with the mixed ones
@@ -385,26 +381,25 @@ class GuildMemberList:
 
         The list is sorted by each role's position.
         """
-        roledata = await self.storage.db.fetch("""
+        roledata = await self.storage.db.fetch(
+            """
         SELECT id, name, hoist, position, permissions
         FROM roles
         WHERE guild_id = $1
-        """, self.guild_id)
+        """,
+            self.guild_id,
+        )
 
         hoisted = [
             GroupInfo(
-                row['id'], row['name'],
-                row['position'],
-                Permissions(row['permissions'])
+                row["id"], row["name"], row["position"], Permissions(row["permissions"])
             )
-            for row in roledata if row['hoist']
+            for row in roledata
+            if row["hoist"]
         ]
 
         # sort role list by position
-        hoisted = sorted(
-            hoisted, key=lambda group: group.position,
-            reverse=True
-        )
+        hoisted = sorted(hoisted, key=lambda group: group.position, reverse=True)
 
         # we need to store the overwrites since
         # we have incoming presences to manage.
@@ -419,28 +414,32 @@ class GuildMemberList:
         # inject default groups 'online' and 'offline'
         # their position is always going to be the last ones.
         self.list.groups = role_groups + [
-            GroupInfo('online', 'online', MAX_ROLES + 1, 0),
-            GroupInfo('offline', 'offline', MAX_ROLES + 2, 0)
+            GroupInfo("online", "online", MAX_ROLES + 1, 0),
+            GroupInfo("offline", "offline", MAX_ROLES + 2, 0),
         ]
 
-    async def _get_group_for_member(self, member_id: int,
-                                    roles: List[Union[str, int]],
-                                    status: str) -> Optional[GroupID]:
+    async def _get_group_for_member(
+        self, member_id: int, roles: List[Union[str, int]], status: str
+    ) -> Optional[GroupID]:
         """Return a fitting group ID for the member."""
         member_roles = list(map(int, roles))
 
         # get the member's permissions relative to the channel
         # (accounting for channel overwrites)
         member_perms = await get_permissions(
-            member_id, self.channel_id, storage=self.storage)
+            member_id, self.channel_id, storage=self.storage
+        )
 
         if not member_perms.bits.read_messages:
             return None
 
         # if the member is offline, we
         # default give them the offline group.
-        group_id = ('offline' if status == 'offline'
-                    else self._calc_member_group(member_roles, status))
+        group_id = (
+            "offline"
+            if status == "offline"
+            else self._calc_member_group(member_roles, status)
+        )
 
         return group_id
 
@@ -450,7 +449,7 @@ class GuildMemberList:
             presence = self.list.presences[member_id]
 
             group_id = await self._get_group_for_member(
-                member_id, presence['roles'], presence['status']
+                member_id, presence["roles"], presence["status"]
             )
 
             # skip members that don't have any group assigned.
@@ -458,9 +457,7 @@ class GuildMemberList:
             if group_id is None:
                 continue
 
-            member = await self.storage.get_member_data_one(
-                self.guild_id, member_id
-            )
+            member = await self.storage.get_member_data_one(self.guild_id, member_id)
 
             self.list.members[member_id] = member
             self.list.data[group_id].append(member_id)
@@ -476,33 +473,28 @@ class GuildMemberList:
         except KeyError:
             return None
 
-        username = member['user']['username']
-        nickname = member['nick']
+        username = member["user"]["username"]
+        nickname = member["nick"]
 
         return nickname or username
 
     async def _sort_groups(self):
         for member_ids in self.list.data.values():
             # this should update the list in-place
-            member_ids.sort(
-                key=self._display_name)
+            member_ids.sort(key=self._display_name)
 
     async def __init_member_list(self):
         """Generate the main member list with groups."""
         member_ids = await self.storage.get_member_ids(self.guild_id)
 
-        presences = await self.presence.guild_presences(
-            member_ids, self.guild_id)
+        presences = await self.presence.guild_presences(member_ids, self.guild_id)
 
         # set presences in the list
-        self.list.presences = {int(p['user']['id']): p
-                               for p in presences}
+        self.list.presences = {int(p["user"]["id"]): p for p in presences}
 
         await self._set_groups()
 
-        log.debug('init: {} members, {} groups',
-                  len(member_ids),
-                  len(self.list.groups))
+        log.debug("init: {} members, {} groups", len(member_ids), len(self.list.groups))
 
         # allocate a list per group
         self.list.data = {group.gid: [] for group in self.list.groups}
@@ -547,17 +539,10 @@ class GuildMemberList:
             if not member_ids:
                 continue
 
-            res.append({
-                'group': {
-                    'id': str(group.gid),
-                    'count': len(member_ids),
-                }
-            })
+            res.append({"group": {"id": str(group.gid), "count": len(member_ids)}})
 
             for member_id in member_ids:
-                res.append({
-                    'member': self._get_member_as_item(member_id)
-                })
+                res.append({"member": self._get_member_as_item(member_id)})
 
         return res
 
@@ -591,27 +576,21 @@ class GuildMemberList:
         except KeyError:
             return None
 
-    async def _dispatch_sess(self, session_ids: Iterable[str],
-                             operations: List[Operation]):
+    async def _dispatch_sess(
+        self, session_ids: Iterable[str], operations: List[Operation]
+    ):
         """Dispatch a GUILD_MEMBER_LIST_UPDATE to the
         given session ids."""
 
         # construct the payload to dispatch
         payload = {
-            'id': self.list_id,
-            'guild_id': str(self.guild_id),
-
-            'groups': [
-                {
-                    'id': str(group.gid),
-                    'count': count,
-                } for group, count in self.list.groups_complete
+            "id": self.list_id,
+            "guild_id": str(self.guild_id),
+            "groups": [
+                {"id": str(group.gid), "count": count}
+                for group, count in self.list.groups_complete
             ],
-
-            'ops': [
-                operation.to_dict
-                for operation in operations
-            ]
+            "ops": [operation.to_dict for operation in operations],
         }
 
         states = map(self._get_state, session_ids)
@@ -621,15 +600,13 @@ class GuildMemberList:
             if state is None:
                 continue
 
-            await state.ws.dispatch(
-                'GUILD_MEMBER_LIST_UPDATE', payload)
+            await state.ws.dispatch("GUILD_MEMBER_LIST_UPDATE", payload)
 
             dispatched.append(state.session_id)
 
         return dispatched
 
-    async def _resync(self, session_ids: List[str],
-                      item_index: int) -> List[str]:
+    async def _resync(self, session_ids: List[str], item_index: int) -> List[str]:
         """Send a SYNC event to all states that are subscribed to an item.
 
         Returns
@@ -649,18 +626,23 @@ class GuildMemberList:
 
             try:
                 # get the only range where the group is in
-                role_range = next((r_min, r_max) for r_min, r_max in ranges
-                                  if r_min <= item_index <= r_max)
+                role_range = next(
+                    (r_min, r_max)
+                    for r_min, r_max in ranges
+                    if r_min <= item_index <= r_max
+                )
             except StopIteration:
-                log.debug('ignoring sess_id={}, no range for item {}, {}',
-                          session_id, item_index, ranges)
+                log.debug(
+                    "ignoring sess_id={}, no range for item {}, {}",
+                    session_id,
+                    item_index,
+                    ranges,
+                )
                 continue
 
             # do resync-ing in the background
             result.append(session_id)
-            self.loop.create_task(
-                self.shard_query(session_id, [role_range])
-            )
+            self.loop.create_task(self.shard_query(session_id, [role_range]))
 
         return result
 
@@ -669,10 +651,7 @@ class GuildMemberList:
         if item_index is None:
             return []
 
-        return await self._resync(
-            self._get_subs(item_index),
-            item_index
-        )
+        return await self._resync(self._get_subs(item_index), item_index)
 
     async def shard_query(self, session_id: str, ranges: list):
         """Send a GUILD_MEMBER_LIST_UPDATE event
@@ -699,18 +678,13 @@ class GuildMemberList:
         # we direct the request to the 'everyone' gml instance
         # instead of the current one.
         everyone_perms = await role_permissions(
-            self.guild_id,
-            self.guild_id,
-            self.channel_id,
-            storage=self.storage
+            self.guild_id, self.guild_id, self.channel_id, storage=self.storage
         )
 
-        if everyone_perms.bits.read_messages and list_id != 'everyone':
+        if everyone_perms.bits.read_messages and list_id != "everyone":
             everyone_gml = await self.main.get_gml(self.guild_id)
 
-            return await everyone_gml.shard_query(
-                session_id, ranges
-            )
+            return await everyone_gml.shard_query(session_id, ranges)
 
         await self._init_check()
 
@@ -725,10 +699,11 @@ class GuildMemberList:
 
             self.state[session_id].add((start, end))
 
-            ops.append(Operation('SYNC', {
-                'range': [start, end],
-                'items': self.items[start:end]
-            }))
+            ops.append(
+                Operation(
+                    "SYNC", {"range": [start, end], "items": self.items[start:end]}
+                )
+            )
 
         # send SYNCs to the state that requested
         await self._dispatch_sess([session_id], ops)
@@ -780,8 +755,7 @@ class GuildMemberList:
     def _get_subs(self, item_index: int) -> Iterable[str]:
         """Get the list of subscribed states to a given item."""
         return filter(
-            lambda sess_id: self._is_subbed(item_index, sess_id),
-            self.state.keys()
+            lambda sess_id: self._is_subbed(item_index, sess_id), self.state.keys()
         )
 
     async def _pres_update_simple(self, user_id: int):
@@ -794,8 +768,7 @@ class GuildMemberList:
         item_index = self._get_item_index(user_id)
 
         if item_index is None:
-            log.warning('lazy guild got invalid pres update uid={}',
-                        user_id)
+            log.warning("lazy guild got invalid pres update uid={}", user_id)
             return []
 
         item = self.items[item_index]
@@ -804,19 +777,12 @@ class GuildMemberList:
         # simple update means we just give an UPDATE
         # operation
         return await self._dispatch_sess(
-            session_ids,
-            [
-                Operation('UPDATE', {
-                    'index': item_index,
-                    'item': item,
-                })
-            ]
+            session_ids, [Operation("UPDATE", {"index": item_index, "item": item})]
         )
 
     async def _pres_update_complex(
-            self, user_id: int,
-            old_group: GroupID, rel_index: int,
-            new_group: GroupID):
+        self, user_id: int, old_group: GroupID, rel_index: int, new_group: GroupID
+    ):
         """Move a member between groups.
 
         Parameters
@@ -831,17 +797,20 @@ class GuildMemberList:
             The group the user has to move to.
         """
 
-        log.debug('complex update: uid={} old={} rel_idx={} new={}',
-                  user_id, old_group, rel_index, new_group)
+        log.debug(
+            "complex update: uid={} old={} rel_idx={} new={}",
+            user_id,
+            old_group,
+            rel_index,
+            new_group,
+        )
 
         ops = []
 
         old_user_index = self._get_item_index(user_id)
         old_group_index = self._get_group_item_index(old_group)
 
-        ops.append(Operation('DELETE', {
-            'index': old_user_index
-        }))
+        ops.append(Operation("DELETE", {"index": old_user_index}))
 
         # do the necessary changes
         self.list.data[old_group].remove(user_id)
@@ -851,30 +820,35 @@ class GuildMemberList:
 
         new_user_index = self._get_item_index(user_id)
 
-        ops.append(Operation('INSERT', {
-            'index': new_user_index,
-
-            # TODO: maybe construct the new item manually
-            # instead of resorting to items list?
-            'item': self.items[new_user_index]
-        }))
+        ops.append(
+            Operation(
+                "INSERT",
+                {
+                    "index": new_user_index,
+                    # TODO: maybe construct the new item manually
+                    # instead of resorting to items list?
+                    "item": self.items[new_user_index],
+                },
+            )
+        )
 
         # put a INSERT operation if this is
         # the first member in the group.
-        if self.list.is_birth(new_group) and new_group != 'offline':
-            ops.append(Operation('INSERT', {
-                'index': self._get_group_item_index(new_group),
-                'item': {
-                    'group': str(new_group), 'count': 1
-                }
-            }))
+        if self.list.is_birth(new_group) and new_group != "offline":
+            ops.append(
+                Operation(
+                    "INSERT",
+                    {
+                        "index": self._get_group_item_index(new_group),
+                        "item": {"group": str(new_group), "count": 1},
+                    },
+                )
+            )
 
         # only add DELETE for the old group after
         # both operations.
         if self.list.is_empty(old_group):
-            ops.append(Operation('DELETE', {
-                'index': old_group_index,
-            }))
+            ops.append(Operation("DELETE", {"index": old_group_index}))
 
         session_ids_old = list(self._get_subs(old_user_index))
         session_ids_new = list(self._get_subs(new_user_index))
@@ -894,42 +868,39 @@ class GuildMemberList:
         # )
 
         # merge both results together
-        return (await self._resync(session_ids_old, old_user_index) +
-                await self._resync(session_ids_new, new_user_index))
+        return await self._resync(session_ids_old, old_user_index) + await self._resync(
+            session_ids_new, new_user_index
+        )
 
     async def new_member(self, user_id: int):
         """Insert a new member."""
         if not self.list:
-            log.info('lazy: ignoring new member from not-init {}',
-                     user_id)
+            log.info("lazy: ignoring new member from not-init {}", user_id)
             return
 
         # fetch the new member's presence
-        pres = await self.presence.guild_presences(
-            [user_id], self.guild_id)
+        pres = await self.presence.guild_presences([user_id], self.guild_id)
 
         try:
             pres = pres[0]
         except IndexError:
-            log.warning('lazy: did not find pres for new uid {}',
-                        user_id)
+            log.warning("lazy: did not find pres for new uid {}", user_id)
             return
 
         # insert to pres dict
         self.list.presences[user_id] = pres
 
-        member = await self.storage.get_member_data_one(
-            self.guild_id, user_id)
+        member = await self.storage.get_member_data_one(self.guild_id, user_id)
 
         self.list.members[user_id] = member
 
         # find a group for the newcomer
         group_id = await self._get_group_for_member(
-            user_id, member['roles'], pres['status'])
+            user_id, member["roles"], pres["status"]
+        )
 
         if group_id is None:
-            log.warning('lazy: not adding uid {}, no group',
-                        user_id)
+            log.warning("lazy: not adding uid {}, no group", user_id)
             return
 
         self.list.data[group_id].append(user_id)
@@ -938,16 +909,14 @@ class GuildMemberList:
         user_index = self._get_item_index(user_id)
 
         if not user_index:
-            log.warning('lazy: new uid {} was not assigned idx',
-                        user_id)
+            log.warning("lazy: new uid {} was not assigned idx", user_id)
 
         return await self._resync_by_item(user_index)
 
     async def remove_member(self, user_id: int):
         """Remove a member from the list."""
         if not self.list:
-            log.warning('lazy: unitialized, ignoring del uid {}',
-                        user_id)
+            log.warning("lazy: unitialized, ignoring del uid {}", user_id)
             return
 
         # we need the old index to resync later on
@@ -975,34 +944,34 @@ class GuildMemberList:
         old_len = len(state_keys)
         removed = old_len - len(self.state)
 
-        log.info('lazy: removed {} states due to remove_member {}',
-                 removed, user_id)
+        log.info("lazy: removed {} states due to remove_member {}", removed, user_id)
 
         # then clean anything on the internal member list
         # about the member being removed.
         try:
             pres = self.list.presences.pop(user_id)
         except KeyError:
-            log.warning('lazy: unknown pres uid {}', user_id)
+            log.warning("lazy: unknown pres uid {}", user_id)
             return
 
         try:
             member = self.list.members.pop(user_id)
         except KeyError:
-            log.warning('lazy: unknown member uid {}', user_id)
+            log.warning("lazy: unknown member uid {}", user_id)
             return
 
         group_id = await self._get_group_for_member(
-            user_id, member['roles'], pres['status'])
+            user_id, member["roles"], pres["status"]
+        )
 
         if not group_id:
-            log.warning('lazy: unknown group uid {}', user_id)
+            log.warning("lazy: unknown group uid {}", user_id)
             return
 
         self.list.data[group_id].remove(user_id)
 
         if old_idx is None:
-            log.warning('lazy: unknown old idx uid {}', user_id)
+            log.warning("lazy: unknown old idx uid {}", user_id)
             return
 
         # tell everyone about the removal.
@@ -1014,20 +983,17 @@ class GuildMemberList:
             return
 
         if user_id not in self.list.members:
-            log.warning('lazy: ignoring unknown uid {}',
-                        user_id)
+            log.warning("lazy: ignoring unknown uid {}", user_id)
             return
 
         # update user information inside self.list.members
-        self.list.members[user_id]['user'] = \
-            await self.storage.get_user(user_id)
+        self.list.members[user_id]["user"] = await self.storage.get_user(user_id)
 
         # redispatch
         user_idx = self._get_item_index(user_id)
         return await self._resync_by_item(user_idx)
 
-    async def pres_update(self, user_id: int,
-                          partial_presence: Presence):
+    async def pres_update(self, user_id: int, partial_presence: Presence):
         """Update a presence inside the member list.
 
         There are 5 types of updates that can happen for a user in a group:
@@ -1052,13 +1018,13 @@ class GuildMemberList:
 
         old_group = None
         old_presence = self.list.presences[user_id]
-        has_nick = 'nick' in partial_presence
+        has_nick = "nick" in partial_presence
 
         # partial presences don't have 'nick'. we only use it
         # as a flag that we're doing a mixed update (complex
         # but without any inter-group changes)
         try:
-            partial_presence.pop('nick')
+            partial_presence.pop("nick")
         except KeyError:
             pass
 
@@ -1066,11 +1032,10 @@ class GuildMemberList:
             try:
                 old_index = member_ids.index(user_id)
             except ValueError:
-                log.debug('skipping group {}', group)
+                log.debug("skipping group {}", group)
                 continue
 
-            log.debug('found index for uid={}: gid={}',
-                      user_id, group.gid)
+            log.debug("found index for uid={}: gid={}", user_id, group.gid)
 
             old_group = group.gid
             break
@@ -1080,33 +1045,35 @@ class GuildMemberList:
         # wasn't in the list in the first place
 
         if not old_group:
-            log.warning('pres update with unknown old group uid={}',
-                        user_id)
+            log.warning("pres update with unknown old group uid={}", user_id)
             return []
 
-        roles = partial_presence.get('roles', old_presence['roles'])
-        status = partial_presence.get('status', old_presence['status'])
+        roles = partial_presence.get("roles", old_presence["roles"])
+        status = partial_presence.get("status", old_presence["status"])
 
         # calculate a possible new group
         # TODO: handle when new_group is None (member loses perms)
-        new_group = await self._get_group_for_member(
-            user_id, roles, status)
+        new_group = await self._get_group_for_member(user_id, roles, status)
 
-        log.debug('pres update: gid={} cid={} old_g={} new_g={}',
-                  self.guild_id, self.channel_id, old_group, new_group)
+        log.debug(
+            "pres update: gid={} cid={} old_g={} new_g={}",
+            self.guild_id,
+            self.channel_id,
+            old_group,
+            new_group,
+        )
 
         # update our presence with the given partial presence
         # since in both cases we'd update it anyways
         self.list.presences[user_id].update(partial_presence)
-        self.list.members[user_id]['roles'] = roles
+        self.list.members[user_id]["roles"] = roles
 
         # if we're going to the same group AND there are no
         # nickname changes, treat this as a simple update
         if old_group == new_group and not has_nick:
             return await self._pres_update_simple(user_id)
 
-        return await self._pres_update_complex(
-            user_id, old_group, old_index, new_group)
+        return await self._pres_update_complex(user_id, old_group, old_index, new_group)
 
     async def new_role(self, role: dict):
         """Add a new role to the list.
@@ -1117,25 +1084,28 @@ class GuildMemberList:
         if not self.list:
             return
 
-        group_id = int(role['id'])
+        group_id = int(role["id"])
 
         new_group = GroupInfo(
-            group_id, role['name'],
-            role['position'], Permissions(role['permissions'])
+            group_id, role["name"], role["position"], Permissions(role["permissions"])
         )
 
         # check if new role has good perms
         await self._fetch_overwrites()
 
         if not self._can_read_chan(new_group):
-            log.info('ignoring incoming group {}', new_group)
+            log.info("ignoring incoming group {}", new_group)
             return
 
-        log.debug('new_role: inserted rid={} (gid={}, cid={})',
-                  group_id, self.guild_id, self.channel_id)
+        log.debug(
+            "new_role: inserted rid={} (gid={}, cid={})",
+            group_id,
+            self.guild_id,
+            self.channel_id,
+        )
 
         # maintain role sorting
-        self.list.groups.insert(role['position'], new_group)
+        self.list.groups.insert(role["position"], new_group)
 
         # since this is a new group, we can set it
         # as a new empty list (as nobody is in the
@@ -1160,18 +1130,18 @@ class GuildMemberList:
              - role is not found inside the group list.
         """
         if not self.list:
-            log.warning('uninitialized list for gid={} cid={} rid={}',
-                        self.guild_id, self.channel_id, role_id)
+            log.warning(
+                "uninitialized list for gid={} cid={} rid={}",
+                self.guild_id,
+                self.channel_id,
+                role_id,
+            )
             return None
 
-        groups_idx = index_by_func(
-            lambda g: g.gid == role_id,
-            self.list.groups
-        )
+        groups_idx = index_by_func(lambda g: g.gid == role_id, self.list.groups)
 
         if groups_idx is None:
-            log.info('ignoring rid={}, unknown group',
-                     role_id)
+            log.info("ignoring rid={}, unknown group", role_id)
             return None
 
         return groups_idx
@@ -1183,43 +1153,53 @@ class GuildMemberList:
         This resorts the entire group list, which might be
         an inefficient operation.
         """
-        role_id = int(role['id'])
+        role_id = int(role["id"])
 
         old_index = self._get_group_item_index(role_id)
 
         if not old_index:
-            log.warning('lazy role_pos_update: unknown group {}', role_id)
+            log.warning("lazy role_pos_update: unknown group {}", role_id)
             return
 
         old_sessions = list(self._get_subs(old_index))
 
         groups_idx = self._get_role_as_group_idx(role_id)
         if groups_idx is None:
-            log.debug('ignoring rid={} because not group (gid={}, cid={})',
-                      role_id, self.guild_id, self.channel_id)
+            log.debug(
+                "ignoring rid={} because not group (gid={}, cid={})",
+                role_id,
+                self.guild_id,
+                self.channel_id,
+            )
             return
 
         group = self.list.groups[groups_idx]
-        group.position = role['position']
+        group.position = role["position"]
 
         # TODO: maybe this can be more efficient?
         # we could self.list.groups.insert... but I don't know.
         # I'm taking the safe route right now by using sorted()
-        new_groups = sorted(self.list.groups,
-                            key=lambda group: group.position,
-                            reverse=True)
+        new_groups = sorted(
+            self.list.groups, key=lambda group: group.position, reverse=True
+        )
 
-        log.debug('resorted groups from role pos upd '
-                  'rid={} rpos={} (gid={}, cid={}) '
-                  'res={}',
-                  role_id, group.position, self.guild_id, self.channel_id,
-                  [g.gid for g in new_groups])
+        log.debug(
+            "resorted groups from role pos upd "
+            "rid={} rpos={} (gid={}, cid={}) "
+            "res={}",
+            role_id,
+            group.position,
+            self.guild_id,
+            self.channel_id,
+            [g.gid for g in new_groups],
+        )
 
         self.list.groups = new_groups
         new_index = self._get_group_item_index(role_id)
 
-        return (await self._resync(old_sessions, old_index) +
-                await self._resync_by_item(new_index))
+        return await self._resync(old_sessions, old_index) + await self._resync_by_item(
+            new_index
+        )
 
     async def role_update(self, role: dict):
         """Update a role.
@@ -1232,23 +1212,26 @@ class GuildMemberList:
         if not self.list:
             return
 
-        role_id = int(role['id'])
+        role_id = int(role["id"])
 
         group_idx = self._get_role_as_group_idx(role_id)
 
-        if not group_idx and role['hoist']:
+        if not group_idx and role["hoist"]:
             # this is a new group, so we'll treat it accordingly.
-            log.debug('role_update promote to new_role call rid={}',
-                      role_id)
+            log.debug("role_update promote to new_role call rid={}", role_id)
             return await self.new_role(role)
 
         if not group_idx:
-            log.debug('role is not group {} (gid={}, cid={})',
-                      role_id, self.guild_id, self.channel_id)
+            log.debug(
+                "role is not group {} (gid={}, cid={})",
+                role_id,
+                self.guild_id,
+                self.channel_id,
+            )
             return
 
         group = self.list.groups[group_idx]
-        group.permissions = Permissions(role['permissions'])
+        group.permissions = Permissions(role["permissions"])
 
         await self._fetch_overwrites()
 
@@ -1260,15 +1243,16 @@ class GuildMemberList:
         # respective GUILD_MEMBER_LIST_UPDATE events
         # down to the subscribers.
         if not self._can_read_chan(group):
-            log.debug('role_update promote to role_delete '
-                      'call rid={} (lost perms)',
-                      role_id)
+            log.debug(
+                "role_update promote to role_delete " "call rid={} (lost perms)",
+                role_id,
+            )
             return await self.role_delete(role_id)
 
-        if not role['hoist']:
-            log.debug('role_update promote to role_delete '
-                      'call rid={} (no hoist)',
-                      role_id)
+        if not role["hoist"]:
+            log.debug(
+                "role_update promote to role_delete " "call rid={} (no hoist)", role_id
+            )
             return await self.role_delete(role_id)
 
     async def role_delete(self, role_id: int):
@@ -1293,20 +1277,19 @@ class GuildMemberList:
 
         # using a filter object would cause problems
         # as we only resync AFTER we delete the group
-        sess_ids_resync = (list(self._get_subs(role_item_index))
-                           if role_item_index is not None
-                           else [])
+        sess_ids_resync = (
+            list(self._get_subs(role_item_index)) if role_item_index is not None else []
+        )
 
         # remove the group info off the list
         groups_index = index_by_func(
-            lambda group: group.gid == role_id,
-            self.list.groups
+            lambda group: group.gid == role_id, self.list.groups
         )
 
         if groups_index is not None:
             del self.list.groups[groups_index]
         else:
-            log.warning('list unstable: {} not on group list', role_id)
+            log.warning("list unstable: {} not on group list", role_id)
 
         # now the data info
         try:
@@ -1318,13 +1301,11 @@ class GuildMemberList:
             # when generating the guild, we can reassign
             # the presences into new groups and sort
             # the new presences so we achieve the correct state
-            log.debug('reassigning {} presences', len(member_ids))
-            await self._list_fill_groups(
-                member_ids
-            )
+            log.debug("reassigning {} presences", len(member_ids))
+            await self._list_fill_groups(member_ids)
             await self._sort_groups()
         except KeyError:
-            log.warning('list unstable: {} not in data dict', role_id)
+            log.warning("list unstable: {} not in data dict", role_id)
 
         try:
             self.list.overwrites.pop(role_id)
@@ -1336,11 +1317,18 @@ class GuildMemberList:
         # after removing, we do a resync with the
         # shards that had the group.
 
-        log.info('role_delete rid={} (gid={}, cid={})',
-                 role_id, self.guild_id, self.channel_id)
+        log.info(
+            "role_delete rid={} (gid={}, cid={})",
+            role_id,
+            self.guild_id,
+            self.channel_id,
+        )
 
-        log.debug('there are {} session ids to resync (for item {})',
-                  len(sess_ids_resync), role_item_index)
+        log.debug(
+            "there are {} session ids to resync (for item {})",
+            len(sess_ids_resync),
+            role_item_index,
+        )
 
         if role_item_index is not None:
             return await self._resync(sess_ids_resync, role_item_index)
@@ -1357,7 +1345,7 @@ class GuildMemberList:
         # await self._list_fill_groups()
         # await self._sort_groups()
 
-        if self.list_id == 'everyone':
+        if self.list_id == "everyone":
             return
 
         # we are on a non-everyone gml, time to check everyone perms
@@ -1370,8 +1358,12 @@ class GuildMemberList:
 
     def close(self):
         """Remove data."""
-        log.info('closing GML gid={} cid={}, {} subscribers',
-                 self.guild_id, self.channel_id, len(self.state))
+        log.info(
+            "closing GML gid={} cid={}, {} subscribers",
+            self.guild_id,
+            self.channel_id,
+            len(self.state),
+        )
 
         self.guild_id = None
         self.channel_id = None
@@ -1382,6 +1374,7 @@ class GuildMemberList:
 
 class LazyGuildDispatcher(Dispatcher):
     """Main class holding the member lists for lazy guilds."""
+
     # channel ids
     KEY_TYPE = int
 
@@ -1407,9 +1400,7 @@ class LazyGuildDispatcher(Dispatcher):
         try:
             return self.state[channel_id]
         except KeyError:
-            guild_id = await self.storage.guild_from_channel(
-                channel_id
-            )
+            guild_id = await self.storage.guild_from_channel(channel_id)
 
             # if we don't find a guild, we just
             # set it the same as the channel.
@@ -1423,10 +1414,7 @@ class LazyGuildDispatcher(Dispatcher):
 
     def get_gml_guild(self, guild_id: int) -> List[GuildMemberList]:
         """Get all member lists for a given guild."""
-        return list(map(
-            self.state.get,
-            self.guild_map[guild_id]
-        ))
+        return list(map(self.state.get, self.guild_map[guild_id]))
 
     async def unsub(self, chan_id, session_id):
         """Unsubscribe a session from the list."""
@@ -1436,9 +1424,9 @@ class LazyGuildDispatcher(Dispatcher):
     async def dispatch(self, guild_id, event: str, *args, **kwargs):
         """Call a function specialized in handling the given event"""
         try:
-            handler = getattr(self, f'_handle_{event.lower()}')
+            handler = getattr(self, f"_handle_{event.lower()}")
         except AttributeError:
-            log.warning('unknown event: {}', event)
+            log.warning("unknown event: {}", event)
             return
 
         await handler(guild_id, *args, **kwargs)
@@ -1464,8 +1452,7 @@ class LazyGuildDispatcher(Dispatcher):
     async def _call_all_lists(self, guild_id, method_str: str, *args):
         lists = self.get_gml_guild(guild_id)
 
-        log.debug('calling method={} to all {} lists',
-                  method_str, len(lists))
+        log.debug("calling method={} to all {} lists", method_str, len(lists))
 
         for lazy_list in lists:
             method = getattr(lazy_list, method_str)
@@ -1474,31 +1461,26 @@ class LazyGuildDispatcher(Dispatcher):
     async def _handle_new_role(self, guild_id: int, new_role: dict):
         """Handle the addition of a new group by dispatching it to
         the member lists."""
-        await self._call_all_lists(guild_id, 'new_role', new_role)
+        await self._call_all_lists(guild_id, "new_role", new_role)
 
     async def _handle_role_pos_upd(self, guild_id, role: dict):
-        await self._call_all_lists(guild_id, 'role_pos_update', role)
+        await self._call_all_lists(guild_id, "role_pos_update", role)
 
     async def _handle_role_update(self, guild_id, role: dict):
         # handle name and hoist changes
-        await self._call_all_lists(guild_id, 'role_update', role)
+        await self._call_all_lists(guild_id, "role_update", role)
 
     async def _handle_role_delete(self, guild_id, role_id: int):
-        await self._call_all_lists(guild_id, 'role_delete', role_id)
+        await self._call_all_lists(guild_id, "role_delete", role_id)
 
-    async def _handle_pres_update(self, guild_id, user_id: int,
-                                  partial: dict):
-        await self._call_all_lists(
-            guild_id, 'pres_update', user_id, partial)
+    async def _handle_pres_update(self, guild_id, user_id: int, partial: dict):
+        await self._call_all_lists(guild_id, "pres_update", user_id, partial)
 
     async def _handle_new_member(self, guild_id, user_id: int):
-        await self._call_all_lists(
-            guild_id, 'new_member', user_id)
+        await self._call_all_lists(guild_id, "new_member", user_id)
 
     async def _handle_remove_member(self, guild_id, user_id: int):
-        await self._call_all_lists(
-            guild_id, 'remove_member', user_id)
+        await self._call_all_lists(guild_id, "remove_member", user_id)
 
     async def _handle_update_user(self, guild_id, user_id: int):
-        await self._call_all_lists(
-            guild_id, 'update_user', user_id)
+        await self._call_all_lists(guild_id, "update_user", user_id)

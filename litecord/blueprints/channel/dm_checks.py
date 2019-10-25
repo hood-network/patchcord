@@ -30,13 +30,18 @@ class ForbiddenDM(Forbidden):
 async def dm_pre_check(user_id: int, channel_id: int, peer_id: int):
     """Check if the user can DM the peer."""
     # first step is checking if there is a block in any direction
-    blockrow = await app.db.fetchrow("""
+    blockrow = await app.db.fetchrow(
+        """
     SELECT rel_type
     FROM relationships
     WHERE rel_type = $3
       AND user_id IN ($1, $2)
       AND peer_id IN ($1, $2)
-    """, user_id, peer_id, RelationshipType.BLOCK.value)
+    """,
+        user_id,
+        peer_id,
+        RelationshipType.BLOCK.value,
+    )
 
     if blockrow is not None:
         raise ForbiddenDM()
@@ -58,8 +63,8 @@ async def dm_pre_check(user_id: int, channel_id: int, peer_id: int):
     user_settings = await app.user_storage.get_user_settings(user_id)
     peer_settings = await app.user_storage.get_user_settings(peer_id)
 
-    restricted_user_ = [int(v) for v in user_settings['restricted_guilds']]
-    restricted_peer_ = [int(v) for v in peer_settings['restricted_guilds']]
+    restricted_user_ = [int(v) for v in user_settings["restricted_guilds"]]
+    restricted_peer_ = [int(v) for v in peer_settings["restricted_guilds"]]
 
     restricted_user = set(restricted_user_)
     restricted_peer = set(restricted_peer_)

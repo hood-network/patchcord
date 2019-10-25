@@ -17,16 +17,17 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-MODE = 'Development'
+MODE = "Development"
 
 
 class Config:
     """Default configuration values for litecord."""
+
     #: Main URL of the instance.
-    MAIN_URL = 'discordapp.io'
+    MAIN_URL = "discordapp.io"
 
     #: Name of the instance
-    NAME = 'Litecord/Nya'
+    NAME = "Litecord/Nya"
 
     #: Enable debug logging?
     DEBUG = False
@@ -45,17 +46,17 @@ class Config:
     # Set this url to somewhere *your users*
     # will hit the websocket.
     # e.g 'gateway.example.com' for reverse proxies.
-    WEBSOCKET_URL = 'localhost:5001'
+    WEBSOCKET_URL = "localhost:5001"
 
     #: Where to host the websocket?
     #  (a local address the server will bind to)
-    WS_HOST = '0.0.0.0'
+    WS_HOST = "0.0.0.0"
     WS_PORT = 5001
 
     #: Mediaproxy URL on the internet
     #  mediaproxy is made to prevent client IPs being leaked.
     #  None is a valid value if you don't want to deploy mediaproxy.
-    MEDIA_PROXY = 'localhost:5002'
+    MEDIA_PROXY = "localhost:5002"
 
     #: Postgres credentials
     POSTGRES = {}
@@ -65,10 +66,10 @@ class Development(Config):
     DEBUG = True
 
     POSTGRES = {
-        'host': 'localhost',
-        'user': 'litecord',
-        'password': '123',
-        'database': 'litecord',
+        "host": "localhost",
+        "user": "litecord",
+        "password": "123",
+        "database": "litecord",
     }
 
 
@@ -77,8 +78,8 @@ class Production(Config):
     IS_SSL = True
 
     POSTGRES = {
-        'host': 'some_production_postgres',
-        'user': 'some_production_user',
-        'password': 'some_production_password',
-        'database': 'litecord_or_anything_else_really',
+        "host": "some_production_postgres",
+        "user": "some_production_user",
+        "password": "some_production_password",
+        "database": "litecord_or_anything_else_really",
     }

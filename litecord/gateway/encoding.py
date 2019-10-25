@@ -25,8 +25,7 @@ from litecord.utils import LitecordJSONEncoder
 
 def encode_json(payload) -> str:
     """Encode a given payload to JSON."""
-    return json.dumps(payload, separators=(',', ':'),
-                      cls=LitecordJSONEncoder)
+    return json.dumps(payload, separators=(",", ":"), cls=LitecordJSONEncoder)
 
 
 def decode_json(data: str):
@@ -70,6 +69,7 @@ def _etf_decode_dict(data):
         result[new_k] = _etf_decode_dict(data[key])
 
     return result
+
 
 def decode_etf(data: bytes):
     """Decode data in ETF to any."""

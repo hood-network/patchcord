@@ -19,4 +19,4 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from .sanitizer import sanitize_embed
 
-__all__ = ['sanitize_embed']
+__all__ = ["sanitize_embed"]

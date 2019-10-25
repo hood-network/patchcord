@@ -24,20 +24,16 @@ import pytest
 from litecord.enums import UserFlags
 
 
-async def _search(test_cli, *, username='', discrim=''):
-    query_string = {
-        'username': username,
-        'discriminator': discrim
-    }
+async def _search(test_cli, *, username="", discrim=""):
+    query_string = {"username": username, "discriminator": discrim}
 
-    return await test_cli.get('/api/v6/admin/users', query_string=query_string)
+    return await test_cli.get("/api/v6/admin/users", query_string=query_string)
 
 
 @pytest.mark.asyncio
 async def test_list_users(test_cli_staff):
     """Try to list as many users as possible."""
-    resp = await _search(
-        test_cli_staff, username=test_cli_staff.user['username'])
+    resp = await _search(test_cli_staff, username=test_cli_staff.user["username"])
 
     assert resp.status_code == 200
     rjson = await resp.json
@@ -48,36 +44,42 @@ async def test_list_users(test_cli_staff):
 async def _setup_user(test_cli) -> dict:
     genned = secrets.token_hex(7)
 
-    resp = await test_cli.post('/api/v6/admin/users', json={
-        'username': genned,
-        'email': f'{genned}@{genned}.com',
-        'password': genned,
-    })
+    resp = await test_cli.post(
+        "/api/v6/admin/users",
+        json={
+            "username": genned,
+            "email": f"{genned}@{genned}.com",
+            "password": genned,
+        },
+    )
 
     assert resp.status_code == 200
     rjson = await resp.json
     assert isinstance(rjson, dict)
-    assert rjson['username'] == genned
+    assert rjson["username"] == genned
 
     return rjson
 
 
 async def _del_user(test_cli, user_id):
     """Delete a user."""
-    resp = await test_cli.delete(f'/api/v6/admin/users/{user_id}')
+    resp = await test_cli.delete(f"/api/v6/admin/users/{user_id}")
 
     assert resp.status_code == 200
     rjson = await resp.json
     assert isinstance(rjson, dict)
-    assert rjson['new']['id'] == user_id
-    assert rjson['old']['id'] == rjson['new']['id']
+    assert rjson["new"]["id"] == user_id
+    assert rjson["old"]["id"] == rjson["new"]["id"]
 
     # delete the original record since the DELETE endpoint will just
     # replace the user by a "Deleted User <random hex>", and we don't want
     # to have obsolete users filling up our db every time we run tests
-    await test_cli.app.db.execute("""
+    await test_cli.app.db.execute(
+        """
     DELETE FROM users WHERE id = $1
-    """, int(user_id))
+    """,
+        int(user_id),
+    )
 
 
 @pytest.mark.asyncio
@@ -85,8 +87,8 @@ async def test_create_delete(test_cli_staff):
     """Create a user. Then delete them."""
     rjson = await _setup_user(test_cli_staff)
 
-    genned = rjson['username']
-    genned_uid = rjson['id']
+    genned = rjson["username"]
+    genned_uid = rjson["id"]
 
     try:
         # check if side-effects went through with a search
@@ -95,7 +97,7 @@ async def test_create_delete(test_cli_staff):
         assert resp.status_code == 200
         rjson = await resp.json
         assert isinstance(rjson, list)
-        assert rjson[0]['id'] == genned_uid
+        assert rjson[0]["id"] == genned_uid
     finally:
         await _del_user(test_cli_staff, genned_uid)
 
@@ -105,22 +107,20 @@ async def test_user_update(test_cli_staff):
     """Test user update."""
     rjson = await _setup_user(test_cli_staff)
 
-    user_id = rjson['id']
+    user_id = rjson["id"]
 
     # test update
 
     try:
         # set them as partner flag
         resp = await test_cli_staff.patch(
-            f'/api/v6/admin/users/{user_id}',
-            json={
-                'flags': UserFlags.partner,
-            })
+            f"/api/v6/admin/users/{user_id}", json={"flags": UserFlags.partner}
+        )
 
         assert resp.status_code == 200
         rjson = await resp.json
-        assert rjson['id'] == user_id
-        assert rjson['flags'] == UserFlags.partner
+        assert rjson["id"] == user_id
+        assert rjson["flags"] == UserFlags.partner
 
         # TODO: maybe we can check for side effects by fetching the
         # user manually too...

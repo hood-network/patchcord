@@ -33,47 +33,42 @@ from logbook import Logger
 from PIL import Image
 
 
-IMAGE_FOLDER = Path('./images')
+IMAGE_FOLDER = Path("./images")
 log = Logger(__name__)
 
 
-EXTENSIONS = {
-    'image/jpeg': 'jpeg',
-    'image/webp': 'webp'
-}
+EXTENSIONS = {"image/jpeg": "jpeg", "image/webp": "webp"}
 
 
 MIMES = {
-    'jpg': 'image/jpeg',
-    'jpe': 'image/jpeg',
-    'jpeg': 'image/jpeg',
-    'webp': 'image/webp',
+    "jpg": "image/jpeg",
+    "jpe": "image/jpeg",
+    "jpeg": "image/jpeg",
+    "webp": "image/webp",
 }
 
-STATIC_IMAGE_MIMES = [
-    'image/png',
-    'image/jpeg',
-    'image/webp'
-]
+STATIC_IMAGE_MIMES = ["image/png", "image/jpeg", "image/webp"]
+
 
 def get_ext(mime: str) -> str:
     if mime in EXTENSIONS:
         return EXTENSIONS[mime]
 
     extensions = mimetypes.guess_all_extensions(mime)
-    return extensions[0].strip('.')
+    return extensions[0].strip(".")
 
 
 def get_mime(ext: str):
     if ext in MIMES:
         return MIMES[ext]
 
-    return mimetypes.types_map[f'.{ext}']
+    return mimetypes.types_map[f".{ext}"]
 
 
 @dataclass
 class Icon:
     """Main icon class"""
+
     key: Optional[str]
     icon_hash: Optional[str]
     mime: Optional[str]
@@ -85,7 +80,7 @@ class Icon:
             return None
 
         ext = get_ext(self.mime)
-        return str(IMAGE_FOLDER / f'{self.key}_{self.icon_hash}.{ext}')
+        return str(IMAGE_FOLDER / f"{self.key}_{self.icon_hash}.{ext}")
 
     @property
     def as_pathlib(self) -> Optional[Path]:
@@ -106,13 +101,14 @@ class Icon:
 
 class ImageError(Exception):
     """Image error class."""
+
     pass
 
 
 def to_raw(data_type: str, data: str) -> Optional[bytes]:
     """Given a data type in the data URI and data,
     give the raw bytes being encoded."""
-    if data_type == 'base64':
+    if data_type == "base64":
         return base64.b64decode(data)
 
     return None
@@ -136,7 +132,7 @@ def _calculate_hash(fhandler) -> str:
     """
     hash_obj = sha256()
 
-    for chunk in iter(lambda: fhandler.read(4096), b''):
+    for chunk in iter(lambda: fhandler.read(4096), b""):
         hash_obj.update(chunk)
 
     # so that we can reuse the same handler
@@ -162,39 +158,36 @@ async def calculate_hash(fhandle, loop=None) -> str:
 def parse_data_uri(string) -> tuple:
     """Extract image data."""
     try:
-        header, headered_data = string.split(';')
+        header, headered_data = string.split(";")
 
-        _, given_mime = header.split(':')
-        data_type, data = headered_data.split(',')
+        _, given_mime = header.split(":")
+        data_type, data = headered_data.split(",")
 
         raw_data = to_raw(data_type, data)
         if raw_data is None:
-            raise ImageError('Unknown data header')
+            raise ImageError("Unknown data header")
 
         return given_mime, raw_data
     except ValueError:
-        raise ImageError('data URI invalid syntax')
+        raise ImageError("data URI invalid syntax")
 
 
 def _gen_update_sql(scope: str) -> str:
     # match a scope to (table, field)
     field = {
-        'user': 'avatar',
-        'guild': 'icon',
-        'splash': 'splash',
-        'banner': 'banner',
-
-        'channel-icons': 'icon',
+        "user": "avatar",
+        "guild": "icon",
+        "splash": "splash",
+        "banner": "banner",
+        "channel-icons": "icon",
     }[scope]
 
     table = {
-        'user': 'users',
-
-        'guild': 'guilds',
-        'splash': 'guilds',
-        'banner': 'guilds',
-
-        'channel-icons': 'group_dm_channels'
+        "user": "users",
+        "guild": "guilds",
+        "splash": "guilds",
+        "banner": "guilds",
+        "channel-icons": "group_dm_channels",
     }[scope]
 
     return f"""
@@ -204,10 +197,10 @@ def _gen_update_sql(scope: str) -> str:
 
 def _invalid(kwargs: dict) -> Optional[Icon]:
     """Send an invalid value."""
-    if not kwargs.get('always_icon', False):
+    if not kwargs.get("always_icon", False):
         return None
 
-    return Icon(None, None, '')
+    return Icon(None, None, "")
 
 
 def try_unlink(path: Union[Path, str]):
@@ -225,18 +218,17 @@ def try_unlink(path: Union[Path, str]):
 async def resize_gif(raw_data: bytes, target: tuple) -> tuple:
     """Resize a GIF image."""
     # generate a temporary file to call gifsticle to and from.
-    input_fd, input_path = tempfile.mkstemp(suffix='.gif')
-    _, output_path = tempfile.mkstemp(suffix='.gif')
+    input_fd, input_path = tempfile.mkstemp(suffix=".gif")
+    _, output_path = tempfile.mkstemp(suffix=".gif")
 
-    input_handler = os.fdopen(input_fd, 'wb')
+    input_handler = os.fdopen(input_fd, "wb")
 
     # make sure its valid image data
     data_fd = BytesIO(raw_data)
     image = Image.open(data_fd)
     image.close()
 
-    log.info('resizing a GIF from {} to {}',
-             image.size, target)
+    log.info("resizing a GIF from {} to {}", image.size, target)
 
     # insert image info on input_handler
     # close it to make it ready for consumption by gifsicle
@@ -244,12 +236,11 @@ async def resize_gif(raw_data: bytes, target: tuple) -> tuple:
     input_handler.close()
 
     # call gifsicle under subprocess
-    log.debug('input: {}', input_path)
-    log.debug('output: {}', output_path)
+    log.debug("input: {}", input_path)
+    log.debug("output: {}", output_path)
 
     process = await asyncio.create_subprocess_shell(
-        f'gifsicle --resize {target[0]}x{target[1]} '
-        f'{input_path} > {output_path}',
+        f"gifsicle --resize {target[0]}x{target[1]} " f"{input_path} > {output_path}",
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
@@ -257,11 +248,11 @@ async def resize_gif(raw_data: bytes, target: tuple) -> tuple:
     # run it, etc.
     out, err = await process.communicate()
 
-    log.debug('out + err from gifsicle: {}', out + err)
+    log.debug("out + err from gifsicle: {}", out + err)
 
     # write over an empty data_fd
     data_fd = BytesIO()
-    output_handler = open(output_path, 'rb')
+    output_handler = open(output_path, "rb")
     data_fd.write(output_handler.read())
 
     # close unused handlers
@@ -283,40 +274,40 @@ async def resize_gif(raw_data: bytes, target: tuple) -> tuple:
 
 class IconManager:
     """Main icon manager."""
+
     def __init__(self, app):
         self.app = app
         self.storage = app.storage
 
     async def _convert_ext(self, icon: Icon, target: str):
-        target = 'jpeg' if target == 'jpg' else target
+        target = "jpeg" if target == "jpg" else target
 
         target_mime = get_mime(target)
-        log.info('converting from {} to {}', icon.mime, target_mime)
+        log.info("converting from {} to {}", icon.mime, target_mime)
 
-        target_path = IMAGE_FOLDER / f'{icon.key}_{icon.icon_hash}.{target}'
+        target_path = IMAGE_FOLDER / f"{icon.key}_{icon.icon_hash}.{target}"
 
         if target_path.exists():
             return Icon(icon.key, icon.icon_hash, target_mime)
 
         image = Image.open(icon.as_path)
-        target_fd = target_path.open('wb')
+        target_fd = target_path.open("wb")
 
-        if target == 'jpeg':
-            image = image.convert('RGB')
+        if target == "jpeg":
+            image = image.convert("RGB")
 
         image.save(target_fd, format=target)
         target_fd.close()
 
         return Icon(icon.key, icon.icon_hash, target_mime)
 
-    async def generic_get(self, scope, key, icon_hash,
-                          **kwargs) -> Optional[Icon]:
+    async def generic_get(self, scope, key, icon_hash, **kwargs) -> Optional[Icon]:
         """Get any icon."""
 
-        log.debug('GET {} {} {}', scope, key, icon_hash)
+        log.debug("GET {} {} {}", scope, key, icon_hash)
         key = str(key)
 
-        hash_query = 'AND hash = $3' if icon_hash else ''
+        hash_query = "AND hash = $3" if icon_hash else ""
 
         # hacky solution to only add icon_hash
         # when needed.
@@ -325,18 +316,21 @@ class IconManager:
         if icon_hash:
             args.append(icon_hash)
 
-        icon_row = await self.storage.db.fetchrow(f"""
+        icon_row = await self.storage.db.fetchrow(
+            f"""
         SELECT key, hash, mime
         FROM icons
         WHERE scope = $1
           AND key = $2
           {hash_query}
-        """, *args)
+        """,
+            *args,
+        )
 
         if not icon_row:
             return None
 
-        icon = Icon(icon_row['key'], icon_row['hash'], icon_row['mime'])
+        icon = Icon(icon_row["key"], icon_row["hash"], icon_row["mime"])
 
         # ensure we aren't messing with NULLs everywhere.
         if icon.as_pathlib is None:
@@ -349,18 +343,16 @@ class IconManager:
         if icon.extension is None:
             return None
 
-        if 'ext' in kwargs and kwargs['ext'] != icon.extension:
-            return await self._convert_ext(icon, kwargs['ext'])
+        if "ext" in kwargs and kwargs["ext"] != icon.extension:
+            return await self._convert_ext(icon, kwargs["ext"])
 
         return icon
 
     async def get_guild_icon(self, guild_id: int, icon_hash: str, **kwargs):
         """Get an icon for a guild."""
-        return await self.generic_get(
-            'guild', guild_id, icon_hash, **kwargs)
+        return await self.generic_get("guild", guild_id, icon_hash, **kwargs)
 
-    async def put(self, scope: str, key: str,
-                  b64_data: str, **kwargs) -> Icon:
+    async def put(self, scope: str, key: str, b64_data: str, **kwargs) -> Icon:
         """Insert an icon."""
         if b64_data is None:
             return _invalid(kwargs)
@@ -373,23 +365,22 @@ class IconManager:
         # get an extension for the given data uri
         extension = get_ext(mime)
 
-        if 'bsize' in kwargs and len(raw_data) > kwargs['bsize']:
+        if "bsize" in kwargs and len(raw_data) > kwargs["bsize"]:
             return _invalid(kwargs)
 
         # size management is different for gif files
         # as they're composed of multiple frames.
-        if 'size' in kwargs and mime == 'image/gif':
-            data_fd, raw_data = await resize_gif(raw_data, kwargs['size'])
-        elif 'size' in kwargs:
+        if "size" in kwargs and mime == "image/gif":
+            data_fd, raw_data = await resize_gif(raw_data, kwargs["size"])
+        elif "size" in kwargs:
             image = Image.open(data_fd)
 
-            if mime == 'image/jpeg':
+            if mime == "image/jpeg":
                 image = image.convert("RGB")
 
-            want = kwargs['size']
+            want = kwargs["size"]
 
-            log.info('resizing from {} to {}',
-                     image.size, want)
+            log.info("resizing from {} to {}", image.size, want)
 
             resized = image.resize(want, resample=Image.LANCZOS)
 
@@ -404,23 +395,26 @@ class IconManager:
 
         # calculate sha256
         # ignore icon hashes if we're talking about emoji
-        icon_hash = (await calculate_hash(data_fd)
-                     if scope != 'emoji'
-                     else None)
+        icon_hash = await calculate_hash(data_fd) if scope != "emoji" else None
 
-        if scope == 'user' and mime == 'image/gif':
-            icon_hash = f'a_{icon_hash}'
+        if scope == "user" and mime == "image/gif":
+            icon_hash = f"a_{icon_hash}"
 
-        log.debug('PUT icon {!r} {!r} {!r} {!r}',
-                  scope, key, icon_hash, mime)
+        log.debug("PUT icon {!r} {!r} {!r} {!r}", scope, key, icon_hash, mime)
 
-        await self.storage.db.execute("""
+        await self.storage.db.execute(
+            """
         INSERT INTO icons (scope, key, hash, mime)
         VALUES ($1, $2, $3, $4)
-        """, scope, str(key), icon_hash, mime)
+        """,
+            scope,
+            str(key),
+            icon_hash,
+            mime,
+        )
 
         # write it off to fs
-        icon_path = IMAGE_FOLDER / f'{key}_{icon_hash}.{extension}'
+        icon_path = IMAGE_FOLDER / f"{key}_{icon_hash}.{extension}"
         icon_path.write_bytes(raw_data)
 
         # copy from data_fd to icon_fd
@@ -434,57 +428,80 @@ class IconManager:
         if not icon:
             return
 
-        log.debug('DEL {}',
-                  icon)
+        log.debug("DEL {}", icon)
 
         # dereference
-        await self.storage.db.execute("""
+        await self.storage.db.execute(
+            """
         UPDATE users
         SET avatar = NULL
         WHERE avatar = $1
-        """, icon.icon_hash)
+        """,
+            icon.icon_hash,
+        )
 
-        await self.storage.db.execute("""
+        await self.storage.db.execute(
+            """
         UPDATE group_dm_channels
         SET icon = NULL
         WHERE icon = $1
-        """, icon.icon_hash)
+        """,
+            icon.icon_hash,
+        )
 
-        await self.storage.db.execute("""
+        await self.storage.db.execute(
+            """
         DELETE FROM guild_emoji
         WHERE image = $1
-        """, icon.icon_hash)
+        """,
+            icon.icon_hash,
+        )
 
-        await self.storage.db.execute("""
+        await self.storage.db.execute(
+            """
         UPDATE guilds
         SET icon = NULL
         WHERE icon = $1
-        """, icon.icon_hash)
+        """,
+            icon.icon_hash,
+        )
 
-        await self.storage.db.execute("""
+        await self.storage.db.execute(
+            """
         UPDATE guilds
         SET splash = NULL
         WHERE splash = $1
-        """, icon.icon_hash)
+        """,
+            icon.icon_hash,
+        )
 
-        await self.storage.db.execute("""
+        await self.storage.db.execute(
+            """
         UPDATE guilds
         SET banner = NULL
         WHERE banner = $1
-        """, icon.icon_hash)
+        """,
+            icon.icon_hash,
+        )
 
-        await self.storage.db.execute("""
+        await self.storage.db.execute(
+            """
         UPDATE group_dm_channels
         SET icon = NULL
         WHERE icon = $1
-        """, icon.icon_hash)
+        """,
+            icon.icon_hash,
+        )
 
-        await self.storage.db.execute("""
+        await self.storage.db.execute(
+            """
         DELETE FROM icons
         WHERE hash = $1
-        """, icon.icon_hash)
+        """,
+            icon.icon_hash,
+        )
 
-        paths = IMAGE_FOLDER.glob(f'{icon.key}_{icon.icon_hash}.*')
+        paths = IMAGE_FOLDER.glob(f"{icon.key}_{icon.icon_hash}.*")
 
         for path in paths:
             try:
@@ -492,11 +509,9 @@ class IconManager:
             except FileNotFoundError:
                 pass
 
-    async def update(self, scope: str, key: str,
-                     new_icon_data: str, **kwargs) -> Icon:
+    async def update(self, scope: str, key: str, new_icon_data: str, **kwargs) -> Icon:
         """Update an icon on a key."""
-        old_icon_hash = await self.storage.db.fetchval(
-            _gen_update_sql(scope), key)
+        old_icon_hash = await self.storage.db.fetchval(_gen_update_sql(scope), key)
 
         # converting key to str only here since from here onwards
         # its operations on the icons table (or a dereference with

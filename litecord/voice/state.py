@@ -23,6 +23,7 @@ from dataclasses import dataclass, asdict
 @dataclass
 class VoiceState:
     """Represents a voice state."""
+
     guild_id: int
     channel_id: int
     user_id: int
@@ -55,7 +56,7 @@ class VoiceState:
 
         # a better approach would be actually using
         # the suppressed_by field for backend efficiency.
-        self_dict['suppress'] = user_id == self.suppressed_by
-        self_dict.pop('suppressed_by')
+        self_dict["suppress"] = user_id == self.suppressed_by
+        self_dict.pop("suppressed_by")
 
         return self_dict

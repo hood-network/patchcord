@@ -46,7 +46,7 @@ async def task_wrapper(name: str, coro):
     except asyncio.CancelledError:
         pass
     except:
-        log.exception('{} task error', name)
+        log.exception("{} task error", name)
 
 
 def dict_get(mapping, key, default):
@@ -84,54 +84,66 @@ def mmh3(inp_str: str, seed: int = 0):
     h1 = seed
 
     # mm3 constants
-    c1 = 0xcc9e2d51
-    c2 = 0x1b873593
+    c1 = 0xCC9E2D51
+    c2 = 0x1B873593
     i = 0
 
     while i < bytecount:
         k1 = (
-            (key[i] & 0xff) |
-            ((key[i + 1] & 0xff) << 8) |
-            ((key[i + 2] & 0xff) << 16) |
-            ((key[i + 3] & 0xff) << 24)
+            (key[i] & 0xFF)
+            | ((key[i + 1] & 0xFF) << 8)
+            | ((key[i + 2] & 0xFF) << 16)
+            | ((key[i + 3] & 0xFF) << 24)
         )
 
         i += 4
 
-        k1 = ((((k1 & 0xffff) * c1) + ((((_u(k1) >> 16) * c1) & 0xffff) << 16))) & 0xffffffff
+        k1 = (
+            (((k1 & 0xFFFF) * c1) + ((((_u(k1) >> 16) * c1) & 0xFFFF) << 16))
+        ) & 0xFFFFFFFF
         k1 = (k1 << 15) | (_u(k1) >> 17)
-        k1 = ((((k1 & 0xffff) * c2) + ((((_u(k1) >> 16) * c2) & 0xffff) << 16))) & 0xffffffff;
+        k1 = (
+            (((k1 & 0xFFFF) * c2) + ((((_u(k1) >> 16) * c2) & 0xFFFF) << 16))
+        ) & 0xFFFFFFFF
 
         h1 ^= k1
-        h1 = (h1 << 13) | (_u(h1) >> 19);
-        h1b = ((((h1 & 0xffff) * 5) + ((((_u(h1) >> 16) * 5) & 0xffff) << 16))) & 0xffffffff;
-        h1 = (((h1b & 0xffff) + 0x6b64) + ((((_u(h1b) >> 16) + 0xe654) & 0xffff) << 16))
-
+        h1 = (h1 << 13) | (_u(h1) >> 19)
+        h1b = (
+            (((h1 & 0xFFFF) * 5) + ((((_u(h1) >> 16) * 5) & 0xFFFF) << 16))
+        ) & 0xFFFFFFFF
+        h1 = ((h1b & 0xFFFF) + 0x6B64) + ((((_u(h1b) >> 16) + 0xE654) & 0xFFFF) << 16)
 
     k1 = 0
     v = None
 
     if remainder == 3:
-        v = (key[i + 2] & 0xff) << 16
+        v = (key[i + 2] & 0xFF) << 16
     elif remainder == 2:
-        v = (key[i + 1] & 0xff) << 8
+        v = (key[i + 1] & 0xFF) << 8
     elif remainder == 1:
-        v = (key[i] & 0xff)
+        v = key[i] & 0xFF
 
     if v is not None:
         k1 ^= v
 
-    k1 = (((k1 & 0xffff) * c1) + ((((_u(k1) >> 16) * c1) & 0xffff) << 16)) & 0xffffffff
+    k1 = (((k1 & 0xFFFF) * c1) + ((((_u(k1) >> 16) * c1) & 0xFFFF) << 16)) & 0xFFFFFFFF
     k1 = (k1 << 15) | (_u(k1) >> 17)
-    k1 = (((k1 & 0xffff) * c2) + ((((_u(k1) >> 16) * c2) & 0xffff) << 16)) & 0xffffffff
+    k1 = (((k1 & 0xFFFF) * c2) + ((((_u(k1) >> 16) * c2) & 0xFFFF) << 16)) & 0xFFFFFFFF
     h1 ^= k1
 
     h1 ^= len(key)
 
     h1 ^= _u(h1) >> 16
-    h1 = (((h1 & 0xffff) * 0x85ebca6b) + ((((_u(h1) >> 16) * 0x85ebca6b) & 0xffff) << 16)) & 0xffffffff
+    h1 = (
+        ((h1 & 0xFFFF) * 0x85EBCA6B) + ((((_u(h1) >> 16) * 0x85EBCA6B) & 0xFFFF) << 16)
+    ) & 0xFFFFFFFF
     h1 ^= _u(h1) >> 13
-    h1 = ((((h1 & 0xffff) * 0xc2b2ae35) + ((((_u(h1) >> 16) * 0xc2b2ae35) & 0xffff) << 16))) & 0xffffffff
+    h1 = (
+        (
+            ((h1 & 0xFFFF) * 0xC2B2AE35)
+            + ((((_u(h1) >> 16) * 0xC2B2AE35) & 0xFFFF) << 16)
+        )
+    ) & 0xFFFFFFFF
     h1 ^= _u(h1) >> 16
 
     return _u(h1) >> 0
@@ -139,6 +151,7 @@ def mmh3(inp_str: str, seed: int = 0):
 
 class LitecordJSONEncoder(JSONEncoder):
     """Custom JSON encoder for Litecord."""
+
     def default(self, value: Any):
         """By default, this will try to get the to_json attribute of a given
         value being JSON encoded."""
@@ -151,17 +164,17 @@ class LitecordJSONEncoder(JSONEncoder):
 async def pg_set_json(con):
     """Set JSON and JSONB codecs for an asyncpg connection."""
     await con.set_type_codec(
-        'json',
+        "json",
         encoder=lambda v: json.dumps(v, cls=LitecordJSONEncoder),
         decoder=json.loads,
-        schema='pg_catalog'
+        schema="pg_catalog",
     )
 
     await con.set_type_codec(
-        'jsonb',
+        "jsonb",
         encoder=lambda v: json.dumps(v, cls=LitecordJSONEncoder),
         decoder=json.loads,
-        schema='pg_catalog'
+        schema="pg_catalog",
     )
 
 
@@ -177,7 +190,8 @@ def yield_chunks(input_list: Sequence[Any], chunk_size: int):
     # range accepts step param, so we use that to
     # make the chunks
     for idx in range(0, len(input_list), chunk_size):
-        yield input_list[idx:idx + chunk_size]
+        yield input_list[idx : idx + chunk_size]
+
 
 def to_update(j: dict, orig: dict, field: str) -> bool:
     """Compare values to check if j[field] is actually updating
@@ -193,27 +207,23 @@ async def search_result_from_list(rows: List) -> Dict[str, Any]:
      - An int (?) on `total_results`
      - Two bigint[], each on `before` and `after` respectively.
     """
-    results = 0 if not rows else rows[0]['total_results']
+    results = 0 if not rows else rows[0]["total_results"]
     res = []
 
     for row in rows:
         before, after = [], []
 
-        for before_id in reversed(row['before']):
+        for before_id in reversed(row["before"]):
             before.append(await app.storage.get_message(before_id))
 
-        for after_id in row['after']:
+        for after_id in row["after"]:
             after.append(await app.storage.get_message(after_id))
 
-        msg = await app.storage.get_message(row['current_id'])
-        msg['hit'] = True
+        msg = await app.storage.get_message(row["current_id"])
+        msg["hit"] = True
         res.append(before + [msg] + after)
 
-    return {
-        'total_results': results,
-        'messages': res,
-        'analytics_id': '',
-    }
+    return {"total_results": results, "messages": res, "analytics_id": ""}
 
 
 def maybe_int(val: Any) -> Union[int, Any]:

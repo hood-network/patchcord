@@ -19,9 +19,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import asyncio
 
+
 class WebsocketFileHandler:
     """A handler around a websocket that wraps normal I/O calls into
     the websocket's respective asyncio calls via asyncio.ensure_future."""
+
     def __init__(self, ws):
         self.ws = ws
 

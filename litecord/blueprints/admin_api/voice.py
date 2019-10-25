@@ -27,10 +27,10 @@ from litecord.admin_schemas import VOICE_SERVER, VOICE_REGION
 from litecord.errors import BadRequest
 
 log = Logger(__name__)
-bp = Blueprint('voice_admin', __name__)
+bp = Blueprint("voice_admin", __name__)
 
 
-@bp.route('/regions/<region>', methods=['GET'])
+@bp.route("/regions/<region>", methods=["GET"])
 async def get_region_servers(region):
     """Return a list of all servers for a region."""
     await admin_check()
@@ -38,18 +38,25 @@ async def get_region_servers(region):
     return jsonify(servers)
 
 
-@bp.route('/regions', methods=['PUT'])
+@bp.route("/regions", methods=["PUT"])
 async def insert_new_region():
     """Create a voice region."""
     await admin_check()
     j = validate(await request.get_json(), VOICE_REGION)
 
-    j['id'] = j['id'].lower()
+    j["id"] = j["id"].lower()
 
-    await app.db.execute("""
+    await app.db.execute(
+        """
     INSERT INTO voice_regions (id, name, vip, deprecated, custom)
     VALUES ($1, $2, $3, $4, $5)
-    """, j['id'], j['name'], j['vip'], j['deprecated'], j['custom'])
+    """,
+        j["id"],
+        j["name"],
+        j["vip"],
+        j["deprecated"],
+        j["custom"],
+    )
 
     regions = await app.storage.all_voice_regions()
     region_count = len(regions)
@@ -57,34 +64,41 @@ async def insert_new_region():
     # if region count is 1, this is the first region to be created,
     # so we should update all guilds to that region
     if region_count == 1:
-        res = await app.db.execute("""
+        res = await app.db.execute(
+            """
         UPDATE guilds
         SET region = $1
-        """, j['id'])
+        """,
+            j["id"],
+        )
 
-        log.info('updating guilds to first voice region: {}', res)
+        log.info("updating guilds to first voice region: {}", res)
 
     return jsonify(regions)
 
 
-@bp.route('/regions/<region>/servers', methods=['PUT'])
+@bp.route("/regions/<region>/servers", methods=["PUT"])
 async def put_region_server(region):
     """Insert a voice server to a region"""
     await admin_check()
     j = validate(await request.get_json(), VOICE_SERVER)
 
     try:
-        await app.db.execute("""
+        await app.db.execute(
+            """
         INSERT INTO voice_servers (hostname, region_id)
         VALUES ($1, $2)
-        """, j['hostname'], region)
+        """,
+            j["hostname"],
+            region,
+        )
     except asyncpg.UniqueViolationError:
-        raise BadRequest('voice server already exists with given hostname')
+        raise BadRequest("voice server already exists with given hostname")
 
-    return '', 204
+    return "", 204
 
 
-@bp.route('/regions/<region>/deprecate', methods=['PUT'])
+@bp.route("/regions/<region>/deprecate", methods=["PUT"])
 async def deprecate_region(region):
     """Deprecate a voice region."""
     await admin_check()
@@ -92,13 +106,16 @@ async def deprecate_region(region):
     # TODO: write this
     await app.voice.disable_region(region)
 
-    await app.db.execute("""
+    await app.db.execute(
+        """
     UPDATE voice_regions
     SET deprecated = true
     WHERE id = $1
-    """, region)
+    """,
+        region,
+    )
 
-    return '', 204
+    return "", 204
 
 
 async def guild_region_check(app_):
@@ -112,10 +129,11 @@ async def guild_region_check(app_):
     regions = await app_.storage.all_voice_regions()
 
     if not regions:
-        log.info('region check: no regions to move guilds to')
+        log.info("region check: no regions to move guilds to")
         return
 
-    res = await app_.db.execute("""
+    res = await app_.db.execute(
+        """
     UPDATE guilds
     SET region = (
         SELECT id
@@ -124,6 +142,8 @@ async def guild_region_check(app_):
         LIMIT 1
     )
     WHERE region = NULL
-    """, len(regions))
+    """,
+        len(regions),
+    )
 
-    log.info('region check: updating guild.region=null: {!r}', res)
+    log.info("region check: updating guild.region=null: {!r}", res)

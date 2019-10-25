@@ -17,8 +17,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
+
 class OPCodes:
     """LVSP OP codes."""
+
     hello = 0
     identify = 1
     resume = 2
@@ -29,13 +31,13 @@ class OPCodes:
 
 
 InfoTable = {
-    'CHANNEL_REQ': 0,
-    'CHANNEL_ASSIGN': 1,
-    'CHANNEL_UPDATE': 2,
-    'CHANNEL_DESTROY': 3,
-    'VST_CREATE': 4,
-    'VST_UPDATE': 5,
-    'VST_LEAVE': 6,
+    "CHANNEL_REQ": 0,
+    "CHANNEL_ASSIGN": 1,
+    "CHANNEL_UPDATE": 2,
+    "CHANNEL_DESTROY": 3,
+    "VST_CREATE": 4,
+    "VST_UPDATE": 5,
+    "VST_LEAVE": 6,
 }
 
 InfoReverse = {v: k for k, v in InfoTable.items()}

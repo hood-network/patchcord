@@ -20,10 +20,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 from setuptools import setup
 
 setup(
-    name='litecord',
-    version='0.0.1',
-    description='Implementation of the Discord API',
-    url='https://litecord.top',
-    author='Luna Mendes',
-    python_requires='>=3.7'
+    name="litecord",
+    version="0.0.1",
+    description="Implementation of the Discord API",
+    url="https://litecord.top",
+    author="Luna Mendes",
+    python_requires=">=3.7",
 )

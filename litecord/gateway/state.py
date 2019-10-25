@@ -32,6 +32,7 @@ class PayloadStore:
     This will only store a maximum of MAX_STORE_SIZE,
     dropping the older payloads when adding new ones.
     """
+
     MAX_STORE_SIZE = 250
 
     def __init__(self):
@@ -60,20 +61,20 @@ class GatewayState:
     """
 
     def __init__(self, **kwargs):
-        self.session_id = kwargs.get('session_id', gen_session_id())
+        self.session_id = kwargs.get("session_id", gen_session_id())
 
         #: event sequence number
-        self.seq = kwargs.get('seq', 0)
+        self.seq = kwargs.get("seq", 0)
 
         #: last seq sent by us, the backend
         self.last_seq = 0
 
         #: shard information about the state,
         #  its id and shard count
-        self.shard = kwargs.get('shard', [0, 1])
+        self.shard = kwargs.get("shard", [0, 1])
 
-        self.user_id = kwargs.get('user_id')
-        self.bot = kwargs.get('bot', False)
+        self.user_id = kwargs.get("user_id")
+        self.bot = kwargs.get("bot", False)
 
         #: set by the gateway connection
         #  on OP STATUS_UPDATE
@@ -90,5 +91,4 @@ class GatewayState:
             self.__dict__[key] = value
 
     def __repr__(self):
-        return (f'GatewayState<seq={self.seq} '
-                f'shard={self.shard} uid={self.user_id}>')
+        return f"GatewayState<seq={self.seq} " f"shard={self.shard} uid={self.user_id}>"
