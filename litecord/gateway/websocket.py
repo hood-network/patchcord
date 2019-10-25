@@ -938,7 +938,7 @@ class GatewayWebsocket:
 
             await member_list.shard_query(self.state.session_id, ranges)
 
-    async def _handle_23(self, payload):
+    async def handle_23(self, payload):
         # TODO reverse-engineer opcode 23, sent by client
         pass
 
