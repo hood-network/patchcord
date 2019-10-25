@@ -62,9 +62,7 @@ async def set_user_staff(user_id, ctx):
 
 async def adduser(ctx, args):
     """Create a single user."""
-    uid, _ = await create_user(
-        args.username, args.email, args.password, ctx.db, ctx.loop
-    )
+    uid, _ = await create_user(args.username, args.email, args.password)
 
     user = await ctx.storage.get_user(uid)
 
