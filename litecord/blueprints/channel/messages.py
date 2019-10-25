@@ -383,12 +383,8 @@ async def msg_add_attachment(message_id: int, channel_id: int, attachment_file) 
     return attachment_id
 
 
-async def _spawn_embed(app_, payload, **kwargs):
-    app_.sched.spawn(
-        process_url_embed(
-            app_.config, app_.storage, app_.dispatcher, app_.session, payload, **kwargs
-        )
-    )
+async def _spawn_embed(payload, **kwargs):
+    app.sched.spawn(process_url_embed(payload, **kwargs))
 
 
 @bp.route("/<int:channel_id>/messages", methods=["POST"])
@@ -458,7 +454,7 @@ async def _create_message(channel_id):
     # spawn url processor for embedding of images
     perms = await get_permissions(user_id, channel_id)
     if perms.bits.embed_links:
-        await _spawn_embed(app, payload)
+        await _spawn_embed(payload)
 
     # update read state for the author
     await app.db.execute(
@@ -536,7 +532,6 @@ async def edit_message(channel_id, message_id):
         perms = await get_permissions(user_id, channel_id)
         if perms.bits.embed_links:
             await _spawn_embed(
-                app,
                 {
                     "id": message_id,
                     "channel_id": channel_id,

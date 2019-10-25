@@ -22,6 +22,7 @@ import asyncio
 import urllib.parse
 from pathlib import Path
 
+from quart import current_app as app
 from logbook import Logger
 
 from litecord.embed.sanitizer import proxify, fetch_metadata, fetch_embed
@@ -33,10 +34,10 @@ log = Logger(__name__)
 MEDIA_EXTENSIONS = ("png", "jpg", "jpeg", "gif", "webm")
 
 
-async def insert_media_meta(url, config, session):
+async def insert_media_meta(url):
     """Insert media metadata as an embed."""
-    img_proxy_url = proxify(url, config=config)
-    meta = await fetch_metadata(url, config=config, session=session)
+    img_proxy_url = proxify(url)
+    meta = await fetch_metadata(url)
 
     if meta is None:
         return
@@ -56,19 +57,19 @@ async def insert_media_meta(url, config, session):
     }
 
 
-async def msg_update_embeds(payload, new_embeds, storage, dispatcher):
+async def msg_update_embeds(payload, new_embeds):
     """Update the message with the given embeds and dispatch a MESSAGE_UPDATE
     to users."""
 
     message_id = int(payload["id"])
     channel_id = int(payload["channel_id"])
 
-    await storage.execute_with_json(
+    await app.storage.execute_with_json(
         """
-    UPDATE messages
-    SET embeds = $1
-    WHERE messages.id = $2
-    """,
+        UPDATE messages
+        SET embeds = $1
+        WHERE messages.id = $2
+        """,
         new_embeds,
         message_id,
     )
@@ -85,7 +86,9 @@ async def msg_update_embeds(payload, new_embeds, storage, dispatcher):
     if "flags" in payload:
         update_payload["flags"] = payload["flags"]
 
-    await dispatcher.dispatch("channel", channel_id, "MESSAGE_UPDATE", update_payload)
+    await app.dispatcher.dispatch(
+        "channel", channel_id, "MESSAGE_UPDATE", update_payload
+    )
 
 
 def is_media_url(url) -> bool:
@@ -102,15 +105,13 @@ def is_media_url(url) -> bool:
     return extension in MEDIA_EXTENSIONS
 
 
-async def insert_mp_embed(parsed, config, session):
+async def insert_mp_embed(parsed):
     """Insert mediaproxy embed."""
-    embed = await fetch_embed(parsed, config=config, session=session)
+    embed = await fetch_embed(parsed)
     return embed
 
 
-async def process_url_embed(
-    config, storage, dispatcher, session, payload: dict, *, delay=0
-):
+async def process_url_embed(payload: dict, *, delay=0):
     """Process URLs in a message and generate embeds based on that."""
     await asyncio.sleep(delay)
 
@@ -145,9 +146,9 @@ async def process_url_embed(
         url = EmbedURL(url)
 
         if is_media_url(url):
-            embed = await insert_media_meta(url, config, session)
+            embed = await insert_media_meta(url)
         else:
-            embed = await insert_mp_embed(url, config, session)
+            embed = await insert_mp_embed(url)
 
         if not embed:
             continue
@@ -160,4 +161,4 @@ async def process_url_embed(
 
     log.debug("made {} embeds for mid {}", len(new_embeds), message_id)
 
-    await msg_update_embeds(payload, new_embeds, storage, dispatcher)
+    await msg_update_embeds(payload, new_embeds)
