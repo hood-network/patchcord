@@ -21,8 +21,7 @@ from typing import Optional, List
 
 from quart import Blueprint, request, current_app as app, jsonify
 
-from litecord.blueprints.guild.channels import create_guild_channel
-from litecord.blueprints.guild.roles import create_role, DEFAULT_EVERYONE_PERMS
+from litecord.common.guilds import create_role, create_guild_channel, delete_guild
 
 from ..auth import token_check
 from ..snowflake import get_snowflake
@@ -34,12 +33,13 @@ from ..schemas import (
     SEARCH_CHANNEL,
     VANITY_URL_PATCH,
 )
-from .channels import channel_ack
 from .checks import guild_check, guild_owner_check, guild_perm_check
+from ..common.channels import channel_ack
 from litecord.utils import to_update, search_result_from_list
 from litecord.errors import BadRequest
 from litecord.permissions import get_permissions
 
+DEFAULT_EVERYONE_PERMS = 104324161
 
 bp = Blueprint("guilds", __name__)
 
@@ -391,34 +391,6 @@ async def _update_guild(guild_id):
     await app.dispatcher.dispatch_guild(guild_id, "GUILD_UPDATE", guild)
 
     return jsonify(guild)
-
-
-async def delete_guild(guild_id: int):
-    """Delete a single guild."""
-    await app.db.execute(
-        """
-        DELETE FROM guilds
-        WHERE guilds.id = $1
-        """,
-        guild_id,
-    )
-
-    # Discord's client expects IDs being string
-    await app.dispatcher.dispatch(
-        "guild",
-        guild_id,
-        "GUILD_DELETE",
-        {
-            "guild_id": str(guild_id),
-            "id": str(guild_id),
-            # 'unavailable': False,
-        },
-    )
-
-    # remove from the dispatcher so nobody
-    # becomes the little memer that tries to fuck up with
-    # everybody's gateway
-    await app.dispatcher.remove("guild", guild_id)
 
 
 @bp.route("/<int:guild_id>", methods=["DELETE"])
