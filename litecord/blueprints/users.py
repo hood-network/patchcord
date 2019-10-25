@@ -41,40 +41,37 @@ bp = Blueprint("user", __name__)
 log = Logger(__name__)
 
 
-async def mass_user_update(user_id, app_=None):
+async def mass_user_update(user_id):
     """Dispatch USER_UPDATE in a mass way."""
-    if app_ is None:
-        app_ = app
-
     # by using dispatch_with_filter
     # we're guaranteeing all shards will get
     # a USER_UPDATE once and not any others.
 
     session_ids = []
 
-    public_user = await app_.storage.get_user(user_id)
-    private_user = await app_.storage.get_user(user_id, secure=True)
+    public_user = await app.storage.get_user(user_id)
+    private_user = await app.storage.get_user(user_id, secure=True)
 
     session_ids.extend(
-        await app_.dispatcher.dispatch_user(user_id, "USER_UPDATE", private_user)
+        await app.dispatcher.dispatch_user(user_id, "USER_UPDATE", private_user)
     )
 
-    guild_ids = await app_.user_storage.get_user_guilds(user_id)
-    friend_ids = await app_.user_storage.get_friend_ids(user_id)
+    guild_ids = await app.user_storage.get_user_guilds(user_id)
+    friend_ids = await app.user_storage.get_friend_ids(user_id)
 
     session_ids.extend(
-        await app_.dispatcher.dispatch_many_filter_list(
+        await app.dispatcher.dispatch_many_filter_list(
             "guild", guild_ids, session_ids, "USER_UPDATE", public_user
         )
     )
 
     session_ids.extend(
-        await app_.dispatcher.dispatch_many_filter_list(
+        await app.dispatcher.dispatch_many_filter_list(
             "friend", friend_ids, session_ids, "USER_UPDATE", public_user
         )
     )
 
-    await app_.dispatcher.dispatch_many("lazy_guild", guild_ids, "update_user", user_id)
+    await app.dispatcher.dispatch_many("lazy_guild", guild_ids, "update_user", user_id)
 
     return public_user, private_user
 
@@ -495,12 +492,9 @@ async def _del_from_table(db, table: str, user_id: int):
     log.info("Deleting uid {} from {}, res: {!r}", user_id, table, res)
 
 
-async def delete_user(user_id, *, app_=None):
+async def delete_user(user_id, *, mass_update: bool = True):
     """Delete a user. Does not disconnect the user."""
-    if app_ is None:
-        app_ = app
-
-    db = app_.db
+    db = app.db
 
     new_username = f"Deleted User {rand_hex()}"
 
@@ -559,7 +553,8 @@ async def delete_user(user_id, *, app_=None):
 
     # after updating the user, we send USER_UPDATE so that all the other
     # clients can refresh their caches on the now-deleted user
-    await mass_user_update(user_id, app_=app_)
+    if mass_update:
+        await mass_user_update(user_id)
 
 
 async def user_disconnect(user_id: int):

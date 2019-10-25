@@ -129,7 +129,8 @@ async def del_user(ctx, args):
         print("not confirmed")
         return
 
-    await delete_user(uid, app_=ctx)
+    # we don't have pubsub context in the manage process to send update events
+    await delete_user(uid, mass_update=False)
     print("ok")
 
 
