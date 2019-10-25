@@ -24,7 +24,6 @@ from logbook import Logger
 
 from litecord.blueprints.auth import token_check
 from litecord.blueprints.checks import channel_check, channel_perm_check
-from litecord.blueprints.dms import try_dm_state
 from litecord.errors import MessageNotFound, Forbidden
 from litecord.enums import MessageType, ChannelType, GUILD_CHANS
 from litecord.snowflake import get_snowflake
