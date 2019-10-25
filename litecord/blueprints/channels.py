@@ -799,7 +799,7 @@ async def suppress_embeds(channel_id: int, message_id: int):
 
         message["flags"] = message.get("flags", 0) | MessageFlags.suppress_embeds
 
-        await msg_update_embeds(message, [], app.storage, app.dispatcher)
+        await msg_update_embeds(message, [])
     elif not suppress and not url_embeds:
         # spawn process_url_embed to restore the embeds, if any
         await _msg_unset_flags(message_id, MessageFlags.suppress_embeds)

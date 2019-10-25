@@ -499,9 +499,7 @@ async def execute_webhook(webhook_id: int, webhook_token):
     await app.dispatcher.dispatch("channel", channel_id, "MESSAGE_CREATE", payload)
 
     # spawn embedder in the background, even when we're on a webhook.
-    app.sched.spawn(
-        process_url_embed(app.config, app.storage, app.dispatcher, app.session, payload)
-    )
+    app.sched.spawn(process_url_embed(payload))
 
     # we can assume its a guild text channel, so just call it
     await msg_guild_text_mentions(payload, guild_id, mentions_everyone, mentions_here)
