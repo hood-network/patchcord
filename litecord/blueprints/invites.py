@@ -214,6 +214,31 @@ async def use_invite(user_id, invite_code):
         pass
 
 
+async def _check_max_invites(guild_id, channel_id):
+    """Check that the maximum invite count (1000) isn't being blown."""
+    if guild_id is not None:
+        invite_count = await app.db.fetchval(
+            """
+            SELECT COUNT(*)
+            FROM invites
+            WHERE guild_id = $1
+            """,
+            guild_id,
+        )
+    else:
+        invite_count = await app.db.fetchval(
+            """
+            SELECT COUNT(*)
+            FROM invites
+            WHERE channel_id = $1
+            """,
+            channel_id,
+        )
+
+    if invite_count >= 1000:
+        raise BadRequest(30016)
+
+
 @bp.route("/channels/<int:channel_id>/invites", methods=["POST"])
 async def create_invite(channel_id):
     """Create an invite to a channel."""
@@ -240,6 +265,8 @@ async def create_invite(channel_id):
         guild_id = maybe_guild_id
     else:
         guild_id = None
+
+    await _check_max_invites(guild_id, channel_id)
 
     await app.db.execute(
         """
