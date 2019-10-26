@@ -738,7 +738,7 @@ class GatewayWebsocket:
         await self._resume(range(seq, state.seq))
 
     async def _req_guild_members(
-        self, guild_id, user_ids: List[int], query: str, limit: int
+        self, guild_id, user_ids: List[int], query: str, limit: int, presences: bool
     ):
         try:
             guild_id = int(guild_id)
@@ -760,39 +760,43 @@ class GatewayWebsocket:
         if user_ids:
             members = await self.storage.get_member_multi(guild_id, user_ids)
             mids = [m["user"]["id"] for m in members]
+
             not_found = [uid for uid in user_ids if uid not in mids]
+            body = {
+                "guild_id": str(guild_id),
+                "members": members,
+                "not_found": not_found,
+            }
+        else:
+            members = await self.storage.query_members(guild_id, query, limit)
+            mids = [m["user"]["id"] for m in members]
+            body = {"guild_id": str(guild_id), "members": members}
 
-            await self.dispatch(
-                "GUILD_MEMBERS_CHUNK",
-                {"guild_id": str(guild_id), "members": members, "not_found": not_found},
-            )
+        if presences:
+            presences = await self.presence.guild_presences(mids, guild_id)
+            body["presences"] = presences
 
-            return
-
-        # do the search
-        result = await self.storage.query_members(guild_id, query, limit)
-        await self.dispatch(
-            "GUILD_MEMBERS_CHUNK", {"guild_id": str(guild_id), "members": result}
-        )
+        await self.dispatch("GUILD_MEMBERS_CHUNK", body)
 
     async def handle_8(self, payload: Dict):
         """Handle OP 8 Request Guild Members."""
         data = payload["d"]
         gids = data["guild_id"]
 
-        uids, query, limit = (
+        uids, query, limit, presences = (
             data.get("user_ids", []),
             data.get("query", ""),
             data.get("limit", 0),
+            data.get("presences", False),
         )
 
         if isinstance(gids, str):
-            await self._req_guild_members(gids, uids, query, limit)
+            await self._req_guild_members(gids, uids, query, limit, presences)
             return
 
         for gid in gids:
             # ignore uids on multiple guilds
-            await self._req_guild_members(gid, [], query, limit)
+            await self._req_guild_members(gid, [], query, limit, presences)
 
     async def _guild_sync(self, guild_id: int):
         """Synchronize a guild.
