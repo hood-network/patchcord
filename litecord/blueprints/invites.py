@@ -38,7 +38,7 @@ from litecord.blueprints.checks import (
 )
 
 from litecord.blueprints.dm_channels import gdm_is_member, gdm_add_recipient
-from litecord.common.guilds import create_guild_settings
+from litecord.common.guilds import add_member
 
 log = Logger(__name__)
 bp = Blueprint("invites", __name__)
@@ -94,7 +94,7 @@ async def invite_precheck(user_id: int, guild_id: int):
     )
 
     if banned is not None:
-        raise InvalidInvite("You are banned.")
+        raise InvalidInvite(40007)
 
 
 async def invite_precheck_gdm(user_id: int, channel_id: int):
@@ -121,58 +121,6 @@ async def _inv_check_age(inv: dict):
         raise InvalidInvite("Too many uses")
 
 
-async def _guild_add_member(guild_id: int, user_id: int):
-    """Add a user to a guild.
-
-    Dispatches:
-     - GUILD_MEMBER_ADD to all members.
-     - lazy guild events for member add.
-     - subscribes the peer to the guild.
-     - dispatches a GUILD_CREATE to the peer.
-    """
-
-    # TODO: system message for member join
-    await app.db.execute(
-        """
-    INSERT INTO members (user_id, guild_id)
-    VALUES ($1, $2)
-    """,
-        user_id,
-        guild_id,
-    )
-
-    await create_guild_settings(guild_id, user_id)
-
-    # add the @everyone role to the invited member
-    await app.db.execute(
-        """
-    INSERT INTO member_roles (user_id, guild_id, role_id)
-    VALUES ($1, $2, $3)
-    """,
-        user_id,
-        guild_id,
-        guild_id,
-    )
-
-    # tell current members a new member came up
-    member = await app.storage.get_member_data_one(guild_id, user_id)
-    await app.dispatcher.dispatch_guild(
-        guild_id, "GUILD_MEMBER_ADD", {**member, **{"guild_id": str(guild_id)}}
-    )
-
-    # update member lists for the new member
-    await app.dispatcher.dispatch("lazy_guild", guild_id, "new_member", user_id)
-
-    # subscribe new member to guild, so they get events n stuff
-    await app.dispatcher.sub("guild", guild_id, user_id)
-
-    # tell the new member that theres the guild it just joined.
-    # we use dispatch_user_guild so that we send the GUILD_CREATE
-    # just to the shards that are actually tied to it.
-    guild = await app.storage.get_guild_full(guild_id, user_id, 250)
-    await app.dispatcher.dispatch_user_guild(user_id, guild_id, "GUILD_CREATE", guild)
-
-
 async def use_invite(user_id, invite_code):
     """Try using an invite"""
     inv = await app.db.fetchrow(
@@ -186,7 +134,7 @@ async def use_invite(user_id, invite_code):
     )
 
     if inv is None:
-        raise UnknownInvite("Unknown invite")
+        raise UnknownInvite(10006)
 
     await _inv_check_age(inv)
 
@@ -200,7 +148,7 @@ async def use_invite(user_id, invite_code):
             await gdm_add_recipient(channel_id, user_id)
         else:
             await invite_precheck(user_id, guild_id)
-            await _guild_add_member(guild_id, user_id)
+            await add_member(guild_id, user_id)
 
         await app.db.execute(
             """

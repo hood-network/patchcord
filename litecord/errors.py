@@ -43,6 +43,7 @@ ERR_MSG_MAP = {
     30013: "Maximum number of guild channels reached (500)",
     30016: "Maximum number of invites reached (1000)",
     40001: "Unauthorized",
+    40007: "The user is banned from this guild",
     50001: "Missing access",
     50002: "Invalid account type",
     50003: "Cannot execute action on a DM channel",

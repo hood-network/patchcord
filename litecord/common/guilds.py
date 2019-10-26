@@ -232,3 +232,54 @@ async def create_guild_settings(guild_id: int, user_id: int):
         guild_id,
         m_notifs,
     )
+
+
+async def add_member(guild_id: int, user_id: int, *, basic=False):
+    """Add a user to a guild.
+
+    If `basic` is set to true, side-effects from member adding won't be
+    propagated.
+    """
+    await app.db.execute(
+        """
+        INSERT INTO members (user_id, guild_id)
+        VALUES ($1, $2)
+        """,
+        user_id,
+        guild_id,
+    )
+
+    await create_guild_settings(guild_id, user_id)
+
+    if basic:
+        return
+
+    # TODO: system message for member join
+
+    await app.db.execute(
+        """
+    INSERT INTO member_roles (user_id, guild_id, role_id)
+    VALUES ($1, $2, $3)
+    """,
+        user_id,
+        guild_id,
+        guild_id,
+    )
+
+    # tell current members a new member came up
+    member = await app.storage.get_member_data_one(guild_id, user_id)
+    await app.dispatcher.dispatch_guild(
+        guild_id, "GUILD_MEMBER_ADD", {**member, **{"guild_id": str(guild_id)}}
+    )
+
+    # update member lists for the new member
+    await app.dispatcher.dispatch("lazy_guild", guild_id, "new_member", user_id)
+
+    # subscribe new member to guild, so they get events n stuff
+    await app.dispatcher.sub("guild", guild_id, user_id)
+
+    # tell the new member that theres the guild it just joined.
+    # we use dispatch_user_guild so that we send the GUILD_CREATE
+    # just to the shards that are actually tied to it.
+    guild = await app.storage.get_guild_full(guild_id, user_id, 250)
+    await app.dispatcher.dispatch_user_guild(user_id, guild_id, "GUILD_CREATE", guild)

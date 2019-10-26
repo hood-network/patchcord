@@ -26,6 +26,7 @@ from litecord.common.guilds import (
     create_guild_channel,
     delete_guild,
     create_guild_settings,
+    add_member,
 )
 
 from ..auth import token_check
@@ -47,20 +48,6 @@ from litecord.permissions import get_permissions
 DEFAULT_EVERYONE_PERMS = 104324161
 
 bp = Blueprint("guilds", __name__)
-
-
-async def add_member(guild_id: int, user_id: int):
-    """Add a user to a guild."""
-    await app.db.execute(
-        """
-    INSERT INTO members (user_id, guild_id)
-    VALUES ($1, $2)
-    """,
-        user_id,
-        guild_id,
-    )
-
-    await create_guild_settings(guild_id, user_id)
 
 
 async def guild_create_roles_prep(guild_id: int, roles: list):
@@ -159,7 +146,7 @@ async def create_guild():
         j.get("explicit_content_filter", 0),
     )
 
-    await add_member(guild_id, user_id)
+    await add_member(guild_id, user_id, basic=True)
 
     # create the default @everyone role (everyone has it by default,
     # so we don't insert that in the table)
