@@ -95,31 +95,28 @@ async def _update_member_roles(guild_id: int, member_id: int, wanted_roles: set)
     # in wanted_roles
     removed_roles = roles - wanted_roles
 
-    conn = await app.db.acquire()
+    async with app.db.acquire() as conn:
+        async with conn.transaction():
+            # add roles
+            await app.db.executemany(
+                """
+            INSERT INTO member_roles (user_id, guild_id, role_id)
+            VALUES ($1, $2, $3)
+            """,
+                [(member_id, guild_id, role_id) for role_id in added_roles],
+            )
 
-    async with conn.transaction():
-        # add roles
-        await app.db.executemany(
-            """
-        INSERT INTO member_roles (user_id, guild_id, role_id)
-        VALUES ($1, $2, $3)
-        """,
-            [(member_id, guild_id, role_id) for role_id in added_roles],
-        )
-
-        # remove roles
-        await app.db.executemany(
-            """
-        DELETE FROM member_roles
-        WHERE
-            user_id = $1
-        AND guild_id = $2
-        AND role_id = $3
-        """,
-            [(member_id, guild_id, role_id) for role_id in removed_roles],
-        )
-
-    await app.db.release(conn)
+            # remove roles
+            await app.db.executemany(
+                """
+            DELETE FROM member_roles
+            WHERE
+                user_id = $1
+            AND guild_id = $2
+            AND role_id = $3
+            """,
+                [(member_id, guild_id, role_id) for role_id in removed_roles],
+            )
 
 
 @bp.route("/<int:guild_id>/members/<int:member_id>", methods=["PATCH"])
