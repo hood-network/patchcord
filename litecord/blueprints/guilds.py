@@ -29,7 +29,7 @@ from litecord.common.guilds import (
 )
 
 from ..auth import token_check
-from ..snowflake import get_snowflake
+from winter import gewinter
 from ..enums import ChannelType
 from ..schemas import (
     validate,
@@ -79,7 +79,7 @@ async def guild_create_roles_prep(guild_id: int, roles: list):
 async def guild_create_channels_prep(guild_id: int, channels: list):
     """Create channels pre-guild create"""
     for channel_raw in channels:
-        channel_id = get_snowflake()
+        channel_id = gewinter()
         ctype = ChannelType(channel_raw["type"])
 
         await create_guild_channel(guild_id, channel_id, ctype)
@@ -120,7 +120,7 @@ async def create_guild():
     user_id = await token_check()
     j = validate(await request.get_json(), GUILD_CREATE)
 
-    guild_id = get_snowflake()
+    guild_id = gewinter()
 
     if "icon" in j:
         image = await put_guild_icon(guild_id, j["icon"])
@@ -152,7 +152,7 @@ async def create_guild():
 
     # we also don't use create_role because the id of the role
     # is the same as the id of the guild, and create_role
-    # generates a new snowflake.
+    # generates a newinter.
     await app.db.execute(
         """
     INSERT INTO roles (id, guild_id, name, position, permissions)
@@ -177,7 +177,7 @@ async def create_guild():
     )
 
     # create a single #general channel.
-    general_id = get_snowflake()
+    general_id = gewinter()
 
     await create_guild_channel(
         guild_id, general_id, ChannelType.GUILD_TEXT, name="general"

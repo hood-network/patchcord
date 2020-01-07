@@ -19,7 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from logbook import Logger
 
-from litecord.snowflake import get_snowflake
+from winter import get_snowflake
 from litecord.enums import MessageType
 
 log = Logger(__name__)

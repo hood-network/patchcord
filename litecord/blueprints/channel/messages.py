@@ -26,7 +26,7 @@ from litecord.blueprints.auth import token_check
 from litecord.blueprints.checks import channel_check, channel_perm_check
 from litecord.errors import MessageNotFound, Forbidden
 from litecord.enums import MessageType, ChannelType, GUILD_CHANS
-from litecord.snowflake import get_snowflake
+from winter import gewinter
 from litecord.schemas import validate, MESSAGE_CREATE
 from litecord.utils import pg_set_json, query_tuple_from_args, extract_limit
 from litecord.permissions import get_permissions
@@ -148,7 +148,7 @@ async def _dm_pre_dispatch(channel_id, peer_id):
 async def create_message(
     channel_id: int, actual_guild_id: int, author_id: int, data: dict
 ) -> int:
-    message_id = get_snowflake()
+    message_id = gewinter()
 
     async with app.db.acquire() as conn:
         await pg_set_json(conn)

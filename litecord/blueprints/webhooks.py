@@ -39,7 +39,7 @@ from litecord.schemas import (
     WEBHOOK_MESSAGE_CREATE,
 )
 from litecord.enums import ChannelType
-from litecord.snowflake import get_snowflake
+from winter import gewinter
 from litecord.utils import async_map
 from litecord.errors import WebhookNotFound, Unauthorized, ChannelNotFound, BadRequest
 
@@ -173,7 +173,7 @@ async def create_webhook(channel_id: int):
 
     guild_id = await app.storage.guild_from_channel(channel_id)
 
-    webhook_id = get_snowflake()
+    webhook_id = gewinter()
 
     # I'd say generating a full fledged token with itsdangerous is
     # relatively wasteful since webhooks don't even have a password_hash,
@@ -348,7 +348,7 @@ async def del_webhook_tokened(webhook_id, webhook_token):
 
 async def create_message_webhook(guild_id, channel_id, webhook_id, data):
     """Create a message, but for webhooks only."""
-    message_id = get_snowflake()
+    message_id = gewinter()
 
     async with app.db.acquire() as conn:
         await pg_set_json(conn)

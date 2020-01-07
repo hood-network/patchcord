@@ -26,7 +26,7 @@ from logbook import Logger
 
 from ..schemas import validate, CREATE_DM, CREATE_GROUP_DM
 from ..enums import ChannelType
-from ..snowflake import get_snowflake
+from winter import gewinter
 
 from .auth import token_check
 
@@ -70,7 +70,7 @@ async def create_dm(user_id, recipient_id):
 
     # if no dm was found, create a new one
 
-    dm_id = get_snowflake()
+    dm_id = gewinter()
     await app.db.execute(
         """
     INSERT INTO channels (id, channel_type)
