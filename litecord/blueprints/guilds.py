@@ -29,7 +29,7 @@ from litecord.common.guilds import (
 )
 
 from ..auth import token_check
-from winter import gewinter
+from winter import get_snowflake
 from ..enums import ChannelType
 from ..schemas import (
     validate,
@@ -79,7 +79,7 @@ async def guild_create_roles_prep(guild_id: int, roles: list):
 async def guild_create_channels_prep(guild_id: int, channels: list):
     """Create channels pre-guild create"""
     for channel_raw in channels:
-        channel_id = gewinter()
+        channel_id = get_snowflake()
         ctype = ChannelType(channel_raw["type"])
 
         await create_guild_channel(guild_id, channel_id, ctype)
@@ -120,7 +120,7 @@ async def create_guild():
     user_id = await token_check()
     j = validate(await request.get_json(), GUILD_CREATE)
 
-    guild_id = gewinter()
+    guild_id = get_snowflake()
 
     if "icon" in j:
         image = await put_guild_icon(guild_id, j["icon"])
@@ -177,7 +177,7 @@ async def create_guild():
     )
 
     # create a single #general channel.
-    general_id = gewinter()
+    general_id = get_snowflake()
 
     await create_guild_channel(
         guild_id, general_id, ChannelType.GUILD_TEXT, name="general"

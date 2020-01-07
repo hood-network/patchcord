@@ -29,7 +29,7 @@ from litecord.auth import token_check
 from litecord.common.users import create_user
 from litecord.schemas import validate, REGISTER, REGISTER_WITH_INVITE
 from litecord.errors import BadRequest
-from winter import gewinter
+from winter import get_snowflake
 from .invites import use_invite
 
 log = Logger(__name__)
@@ -186,7 +186,7 @@ async def _logout():
 @bp.route("/fingerprint", methods=["POST"])
 async def _fingerprint():
     """No idea what this route is about."""
-    fingerprint_id = gewinter()
+    fingerprint_id = get_snowflake()
     fingerprint = f"{fingerprint_id}.{secrets.token_urlsafe(32)}"
 
     return jsonify({"fingerprint": fingerprint})

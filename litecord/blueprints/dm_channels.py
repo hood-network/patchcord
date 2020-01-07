@@ -24,7 +24,7 @@ from litecord.blueprints.auth import token_check
 from litecord.blueprints.checks import channel_check
 from litecord.enums import ChannelType, MessageType
 from litecord.errors import BadRequest, Forbidden
-from winter import gewinter
+from winter import get_snowflake
 from litecord.system_messages import send_sys_message
 from litecord.pubsub.channel import gdm_recipient_view
 
@@ -59,7 +59,7 @@ async def gdm_create(user_id, peer_id) -> int:
 
     Returns the new GDM id.
     """
-    channel_id = gewinter()
+    channel_id = get_snowflake()
 
     await app.db.execute(
         """

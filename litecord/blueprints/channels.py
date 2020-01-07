@@ -41,7 +41,7 @@ from litecord.system_messages import send_sys_message
 from litecord.blueprints.dm_channels import gdm_remove_recipient, gdm_destroy
 from litecord.utils import search_result_from_list
 from litecord.embed.messages import process_url_embed, msg_update_embeds
-from winter imporwinter_datetime
+from winter import snowflake_datetime
 from litecord.common.channels import channel_ack
 
 log = Logger(__name__)
@@ -788,7 +788,7 @@ async def bulk_delete(channel_id: int):
     # we must error. a cuter behavior would be returning the message ids
     # that were deleted, ignoring the 2 week+ old ones.
     for message_id in message_ids:
-        message_dt winter_datetime(message_id)
+        message_dt = snowflake_datetime(message_id)
         delta = datetime.datetime.utcnow() - message_dt
 
         if delta.days > 14:

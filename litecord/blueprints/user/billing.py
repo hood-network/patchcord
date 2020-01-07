@@ -26,7 +26,7 @@ from logbook import Logger
 
 from litecord.auth import token_check
 from litecord.schemas import validate
-from winter imporwinter_datetime, gewinter
+from winter import snowflake_datetime, get_snowflake
 from litecord.errors import BadRequest
 from litecord.types import timestamp_, HOURS
 from litecord.enums import UserFlags, PremiumType
@@ -240,7 +240,7 @@ async def get_payment(payment_id: int):
     drow.pop("subscription_id")
     drow.pop("user_id")
 
-    drow["created_at"] winter_datetime(int(drow["id"]))
+    drow["created_at"] = snowflake_datetime(int(drow["id"]))
 
     drow["payment_source"] = await get_payment_source(row["user_id"], row["source_id"])
 
@@ -253,7 +253,7 @@ async def create_payment(subscription_id):
     """Create a payment."""
     sub = await get_subscription(subscription_id)
 
-    new_id = gewinter()
+    new_id = get_snowflake()
 
     amount = AMOUNTS[sub["payment_gateway_plan_id"]]
 
@@ -302,7 +302,7 @@ async def process_subscription(subscription_id: int):
         subscription_id,
     )
 
-    first_payment_ts winter_datetime(first_payment_id)
+    first_payment_ts = snowflake_datetime(first_payment_id)
 
     premium_since = await app.db.fetchval(
         """
@@ -393,7 +393,7 @@ async def _create_payment_source():
     user_id = await token_check()
     j = validate(await request.get_json(), PAYMENT_SOURCE)
 
-    new_source_id = gewinter()
+    new_source_id = get_snowflake()
 
     await app.db.execute(
         """
@@ -437,7 +437,7 @@ async def _create_subscription():
         "premium_year_tier_2": "1 year",
     }[plan_id]
 
-    new_id = gewinter()
+    new_id = get_snowflake()
 
     await app.db.execute(
         f"""
