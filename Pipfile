@@ -15,6 +15,7 @@ quart = "==0.10.0"
 pillow = "*"
 aiohttp = "==3.6.0"
 zstandard = "*"
+winter = {editable = true,git = "https://gitlab.com/elixire/winter.git"}
 
 [dev-packages]
 pytest = "==5.1.2"
