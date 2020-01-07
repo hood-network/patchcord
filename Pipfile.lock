@@ -406,7 +406,7 @@
         "winter": {
             "editable": true,
             "git": "https://gitlab.com/elixire/winter.git",
-            "ref": "8ce818479ea42a28010671b12a1225c9d3c7c2b7"
+            "ref": "c265df768899da0be2e25333444b73f58dae6523"
         },
         "wsproto": {
             "hashes": [
