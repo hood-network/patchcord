@@ -111,7 +111,7 @@ def proxify(url) -> str:
 
 async def _md_client_req(
     scope: str, url, *, ret_resp=False
-) -> Optional[Union[Tuple, Dict]]:
+) -> Optional[Union[Tuple, Dict, List[Dict]]]:
     """Makes a request to the mediaproxy.
 
     This has common code between all the main mediaproxy request functions
@@ -143,37 +143,41 @@ async def _md_client_req(
 
             return await resp.json()
 
-        body = await resp.text()
+        body = await resp.read()
         log.warning("failed to call {!r}, {} {!r}", request_url, resp.status, body)
         return None
 
 
 async def fetch_metadata(url) -> Optional[Dict]:
     """Fetch metadata for a url (image width, mime, etc)."""
-    return await _md_client_req("meta", url)
+    body = await _md_client_req("meta", url)
+    assert body is not None
+    assert isinstance(body, dict)
+    return body
 
 
-async def fetch_raw_img(url) -> Optional[tuple]:
+async def fetch_mediaproxy_img(url) -> Optional[tuple]:
     """Fetch raw data for a url (the bytes given off, used to proxy images).
 
     Returns a tuple containing the response object and the raw bytes given by
     the website.
     """
     tup = await _md_client_req("img", url, ret_resp=True)
-
-    if not tup:
-        return None
-
+    assert tup is not None
+    assert isinstance(tup, tuple)
     return tup
 
 
-async def fetch_embed(url) -> Dict[str, Any]:
+async def fetch_mediaproxy_embed(url) -> List[Dict[str, Any]]:
     """Fetch an embed for a given webpage (an automatically generated embed
     by the mediaproxy, look over the project on how it generates embeds).
 
     Returns a discord embed object.
     """
-    return await _md_client_req("embed", url)
+    resp = await _md_client_req("embed", url)
+    assert resp is not None
+    assert isinstance(resp, list)
+    return resp
 
 
 async def fill_embed(embed: Optional[Embed]) -> Optional[Embed]:

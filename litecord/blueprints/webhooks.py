@@ -49,7 +49,7 @@ from litecord.common.messages import (
     msg_add_attachment,
     msg_guild_text_mentions,
 )
-from litecord.embed.sanitizer import fill_embed, fetch_raw_img
+from litecord.embed.sanitizer import fill_embed, fetch_mediaproxy_img
 from litecord.embed.messages import process_url_embed, is_media_url
 from litecord.embed.schemas import EmbedURL
 from litecord.utils import pg_set_json
@@ -423,7 +423,7 @@ async def _create_avatar(webhook_id: int, avatar_url: EmbedURL) -> str:
     # we still fetch the URL to check its validity, mimetypes, etc
     # but in the end, we will store it under the webhook_avatars table,
     # not IconManager.
-    resp, raw = await fetch_raw_img(avatar_url)
+    resp, raw = await fetch_mediaproxy_img(avatar_url)
     # raw_b64 = base64.b64encode(raw).decode()
 
     mime = resp.headers["content-type"]

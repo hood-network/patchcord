@@ -21,11 +21,12 @@ import re
 import asyncio
 import urllib.parse
 from pathlib import Path
+from typing import List
 
 from quart import current_app as app
 from logbook import Logger
 
-from litecord.embed.sanitizer import proxify, fetch_metadata, fetch_embed
+from litecord.embed.sanitizer import proxify, fetch_metadata, fetch_mediaproxy_embed
 from litecord.embed.schemas import EmbedURL
 
 log = Logger(__name__)
@@ -34,7 +35,7 @@ log = Logger(__name__)
 MEDIA_EXTENSIONS = ("png", "jpg", "jpeg", "gif", "webm")
 
 
-async def insert_media_meta(url):
+async def fetch_mediaproxy_img_meta(url) -> dict:
     """Insert media metadata as an embed."""
     img_proxy_url = proxify(url)
     meta = await fetch_metadata(url)
@@ -105,12 +106,6 @@ def is_media_url(url) -> bool:
     return extension in MEDIA_EXTENSIONS
 
 
-async def insert_mp_embed(parsed):
-    """Insert mediaproxy embed."""
-    embed = await fetch_embed(parsed)
-    return embed
-
-
 async def process_url_embed(payload: dict, *, delay=0):
     """Process URLs in a message and generate embeds based on that."""
     await asyncio.sleep(delay)
@@ -143,17 +138,17 @@ async def process_url_embed(payload: dict, *, delay=0):
     new_embeds = []
 
     for url in urls:
-        url = EmbedURL(url)
+        url: List[dict] = EmbedURL(url)
 
         if is_media_url(url):
-            embed = await insert_media_meta(url)
+            embeds = [await fetch_mediaproxy_img_meta(url)]
         else:
-            embed = await insert_mp_embed(url)
+            embeds = await fetch_mediaproxy_embed(url)
 
-        if not embed:
+        if not embeds:
             continue
 
-        new_embeds.append(embed)
+        new_embeds.extend(embeds)
 
     # update if we got embeds
     if not new_embeds:
