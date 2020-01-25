@@ -87,4 +87,5 @@ def test_fields():
 def test_path_exists():
     """Test the path_exists() function for embed sanitization."""
     assert path_exists({"a": {"b": 2}}, "a.b")
+    assert path_exists({"a": "b"}, "a")
     assert not path_exists({"a": "b"}, "a.b")
