@@ -173,26 +173,24 @@ class GatewayWebsocket:
                 payload.get("t"),
             )
 
-        # treat encoded as bytes
-        if not isinstance(encoded, bytes):
+        if isinstance(encoded, str):
             encoded = encoded.encode()
 
         if self.wsp.compress == "zlib-stream":
             await self._zlib_stream_send(encoded)
         elif self.wsp.compress == "zstd-stream":
             await self._zstd_stream_send(encoded)
-        elif self.state and self.state.compress and len(encoded) > 1024:
-            # TODO: should we only compress on >1KB packets? or maybe we
-            # should do all?
+        elif (
+            self.state
+            and self.state.compress
+            and len(encoded) > 8192
+            and self.wsp.encoding != "etf"
+        ):
+            # TODO determine better conditions to trigger a compress set
+            # by identify
             await self.ws.send(zlib.compress(encoded))
         else:
-            try:
-                # assume encoded is string, json based, decoding it
-                # should give reasonable messages down the websocket
-                await self.ws.send(encoded.decode())
-            except UnicodeDecodeError:
-                # in here, encoded is ETF, its bytes(), so we send it raw
-                await self.ws.send(encoded)
+            await self.ws.send(encoded)
 
     async def send_op(self, op_code: int, data: Any):
         """Send a packet but just the OP code information is filled in."""
