@@ -603,7 +603,7 @@ GET_MENTIONS = {
 
 VANITY_URL_PATCH = {
     # TODO: put proper values in maybe an invite data type
-    "code": {"type": "string", "minlength": 5, "maxlength": 30}
+    "code": {"type": "string", "minlength": 2, "maxlength": 32}
 }
 
 WEBHOOK_CREATE = {
