@@ -25,11 +25,11 @@ from litecord.blueprints.guilds import delete_guild
 from litecord.errors import GuildNotFound
 
 
-async def _create_guild(test_cli_staff):
+async def _create_guild(test_cli_staff, *, region=None) -> dict:
     genned_name = secrets.token_hex(6)
 
     resp = await test_cli_staff.post(
-        "/api/v6/guilds", json={"name": genned_name, "region": None}
+        "/api/v6/guilds", json={"name": genned_name, "region": region}
     )
 
     assert resp.status_code == 200
@@ -119,3 +119,31 @@ async def test_guild_delete(test_cli_staff):
         assert rjson["code"] == GuildNotFound.error_code
     finally:
         await _delete_guild(test_cli_staff, int(guild_id))
+
+
+@pytest.mark.asyncio
+async def test_guild_create_voice(test_cli_staff):
+    region_id = secrets.token_hex(6)
+    region_name = secrets.token_hex(6)
+    resp = await test_cli_staff.put(
+        "/api/v6/admin/voice/regions", json={"id": region_id, "name": region_name}
+    )
+    assert resp.status_code == 200
+    guild_id = None
+
+    try:
+        rjson = await resp.json
+        assert isinstance(rjson, list)
+        assert region_id in [r["id"] for r in rjson]
+        guild_id = await _create_guild(test_cli_staff, region=region_id)
+    finally:
+        if guild_id:
+            await _delete_guild(test_cli_staff, int(guild_id["id"]))
+
+        await test_cli_staff.app.db.execute(
+            """
+            DELETE FROM voice_regions
+            WHERE id = $1
+            """,
+            region_id,
+        )
