@@ -58,17 +58,16 @@ class LVSPManager:
         # quick storage for Region dataclass instances.
         self.regions = {}
 
-        self.app.sched.spawn(self._spawn())
+        self.app.sched.spawn(self.refresh_regions())
 
-    async def _spawn(self):
+    async def refresh_regions(self):
         """Spawn LVSPConnection for each region."""
-
         regions = await self.app.db.fetch(
             """
-        SELECT id, vip
-        FROM voice_regions
-        WHERE deprecated = false
-        """
+            SELECT id, vip
+            FROM voice_regions
+            WHERE deprecated = false
+            """
         )
 
         regions = [Region(r["id"], r["vip"]) for r in regions]
@@ -78,9 +77,13 @@ class LVSPManager:
             return
 
         for region in regions:
-            # store it locally for region() function
-            self.regions[region.id] = region
+            # this function can be run multiple times, and so we ignore
+            # regions that are already in self.regions, since they already have
+            # their lvsp connections spawned.
+            if region.id in self.regions:
+                continue
 
+            self.regions[region.id] = region
             self.app.loop.create_task(self._spawn_region(region))
 
     async def _spawn_region(self, region: Region):

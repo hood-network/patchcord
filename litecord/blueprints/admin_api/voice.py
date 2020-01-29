@@ -74,6 +74,7 @@ async def insert_new_region():
 
         log.info("updating guilds to first voice region: {}", res)
 
+    await app.voice.lvsp.refresh_regions()
     return jsonify(regions)
 
 
