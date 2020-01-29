@@ -17,19 +17,19 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-import logging
 from random import randint
 from typing import Tuple, Optional
 
 from quart import current_app as app
 from asyncpg import UniqueViolationError
+from logbook import Logger
 
 from ..snowflake import get_snowflake
 from ..errors import BadRequest
 from ..auth import hash_data
 from ..utils import rand_hex
 
-log = logging.getLogger(__name__)
+log = Logger(__name__)
 
 
 async def mass_user_update(user_id):
