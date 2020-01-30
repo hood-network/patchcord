@@ -31,8 +31,15 @@ from logbook import Logger
 from litecord.auth import raw_token_check
 from litecord.enums import RelationshipType, ChannelType
 from litecord.schemas import validate, GW_STATUS_UPDATE
-from litecord.utils import task_wrapper, yield_chunks, maybe_int
+from litecord.utils import (
+    task_wrapper,
+    yield_chunks,
+    maybe_int,
+    want_bytes,
+    want_string,
+)
 from litecord.permissions import get_permissions
+from litecord.presence import BasePresence
 
 from litecord.gateway.opcodes import OP
 from litecord.gateway.state import GatewayState
@@ -173,13 +180,15 @@ class GatewayWebsocket:
                 payload.get("t"),
             )
 
+        # TODO encode to bytes only when absolutely needed e.g
+        # when compressing, because encoding == json means bytes won't work
         if isinstance(encoded, str):
             encoded = encoded.encode()
 
         if self.wsp.compress == "zlib-stream":
-            await self._zlib_stream_send(encoded)
+            await self._zlib_stream_send(want_bytes(encoded))
         elif self.wsp.compress == "zstd-stream":
-            await self._zstd_stream_send(encoded)
+            await self._zstd_stream_send(want_bytes(encoded))
         elif (
             self.state
             and self.state.compress
@@ -188,9 +197,13 @@ class GatewayWebsocket:
         ):
             # TODO determine better conditions to trigger a compress set
             # by identify
-            await self.ws.send(zlib.compress(encoded))
+            await self.ws.send(zlib.compress(want_bytes(encoded)))
         else:
-            await self.ws.send(encoded)
+            await self.ws.send(
+                want_bytes(encoded)
+                if self.wsp.encoding == "etf"
+                else want_string(encoded)
+            )
 
     async def send_op(self, op_code: int, data: Any):
         """Send a packet but just the OP code information is filled in."""
@@ -343,7 +356,7 @@ class GatewayWebsocket:
             "guilds": guilds,
             "session_id": self.state.session_id,
             "_trace": ["transbian"],
-            "shard": self.state.shard,
+            "shard": [self.state.current_shard, self.state.shard_count],
         }
 
         await self.dispatch("READY", {**base_ready, **user_ready})
@@ -442,7 +455,7 @@ class GatewayWebsocket:
             log.info("subscribing to {} friends", len(friend_ids))
             await self.app.dispatcher.sub_many("friend", user_id, friend_ids)
 
-    async def update_status(self, status: dict):
+    async def update_status(self, incoming_status: dict):
         """Update the status of the current websocket connection."""
         if not self.state:
             return
@@ -452,7 +465,7 @@ class GatewayWebsocket:
             # are just silently dropped.
             return
 
-        default_status = {
+        status = {
             "afk": False,
             # TODO: fetch status from settings
             "status": "online",
@@ -460,8 +473,7 @@ class GatewayWebsocket:
             # TODO: this
             "since": 0,
         }
-
-        status = {**(status or {}), **default_status}
+        status.update(incoming_status or {})
 
         try:
             status = validate(status, GW_STATUS_UPDATE)
@@ -479,15 +491,10 @@ class GatewayWebsocket:
         else:
             game = status["game"]
 
-        # construct final status
-        status = {
-            "afk": status.get("afk", False),
-            "status": status.get("status", "online"),
-            "game": game,
-            "since": status.get("since", 0),
-        }
+        pres_status = status.get("status") or "online"
+        pres_status = "offline" if pres_status == "invisible" else pres_status
+        self.state.presence = BasePresence(status=pres_status, game=game)
 
-        self.state.presence = status
         log.info(
             f'Updating presence status={status["status"]} for '
             f"uid={self.state.user_id}"
@@ -523,6 +530,8 @@ class GatewayWebsocket:
         except KeyError:
             raise DecodeError("Invalid identify parameters")
 
+        # TODO proper validation of this payload
+
         compress = data.get("compress", False)
         large = data.get("large_threshold", 50)
 
@@ -552,11 +561,11 @@ class GatewayWebsocket:
             bot=bot,
             compress=compress,
             large=large,
-            shard=shard,
             current_shard=shard[0],
             shard_count=shard[1],
-            ws=self,
         )
+
+        self.state.ws = self
 
         # link the state to the user
         self.app.state_manager.insert(self.state)
@@ -1004,24 +1013,23 @@ class GatewayWebsocket:
         if not user_id:
             return
 
-        # TODO: account for sharding
-        # this only updates status to offline once
-        # ALL shards have come offline
+        # TODO: account for sharding. this only checks to dispatch an offline
+        # when all the shards have come fully offline, which is inefficient.
+
+        # TODO why is this inneficient?
         states = self.app.state_manager.user_states(user_id)
-        with_ws = [s for s in states if s.ws]
-
-        # there arent any other states with websocket
-        if not with_ws:
-            offline = {"afk": False, "status": "offline", "game": None, "since": 0}
-
-            await self.app.presence.dispatch_pres(user_id, offline)
+        if not any(s.ws for s in states):
+            await self.app.presence.dispatch_pres(
+                user_id, BasePresence(status="offline")
+            )
 
     async def run(self):
         """Wrap :meth:`listen_messages` inside
         a try/except block for WebsocketClose handling."""
         try:
-            await self._send_hello()
-            await self._listen_messages()
+            async with self.app.app_context():
+                await self._send_hello()
+                await self._listen_messages()
         except websockets.exceptions.ConnectionClosed as err:
             log.warning("conn close, state={}, err={}", self.state, err)
         except WebsocketClose as err:

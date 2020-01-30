@@ -290,3 +290,11 @@ def query_tuple_from_args(args: dict, limit: int) -> tuple:
 def rand_hex(length: int = 8) -> str:
     """Generate random hex characters."""
     return secrets.token_hex(length)[:length]
+
+
+def want_bytes(data: Union[str, bytes]) -> bytes:
+    return data if isinstance(data, bytes) else data.encode()
+
+
+def want_string(data: Union[str, bytes]) -> str:
+    return data.decode() if isinstance(data, bytes) else data
