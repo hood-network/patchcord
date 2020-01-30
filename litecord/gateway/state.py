@@ -20,6 +20,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import hashlib
 import os
 
+from typing import Optional
+from litecord.presence import BasePresence
+
 
 def gen_session_id() -> str:
     """Generate a random session ID."""
@@ -61,34 +64,35 @@ class GatewayState:
     """
 
     def __init__(self, **kwargs):
-        self.session_id = kwargs.get("session_id", gen_session_id())
+        self.session_id: str = kwargs.get("session_id", gen_session_id())
 
-        #: event sequence number
-        self.seq = kwargs.get("seq", 0)
+        #: last seq received by the client
+        self.seq: int = int(kwargs.get("seq") or 0)
 
-        #: last seq sent by us, the backend
-        self.last_seq = 0
+        #: last seq sent by gateway
+        self.last_seq: int = 0
 
-        #: shard information about the state,
-        #  its id and shard count
-        self.shard = kwargs.get("shard", [0, 1])
+        #: shard information (id and total count)
+        shard = kwargs.get("shard") or [0, 1]
+        self.current_shard: int = int(shard[0])
+        self.shard_count: int = int(shard[1])
 
-        self.user_id = kwargs.get("user_id")
-        self.bot = kwargs.get("bot", False)
+        self.user_id: int = int(kwargs["user_id"])
+        self.bot: bool = bool(kwargs.get("bot") or False)
 
         #: set by the gateway connection
         #  on OP STATUS_UPDATE
-        self.presence = {}
+        self.presence: Optional[BasePresence] = None
 
         #: set by the backend once identify happens
         self.ws = None
 
-        #: store (kind of) all payloads sent by us
+        #: store of all payloads sent by the gateway (for recovery purposes)
         self.store = PayloadStore()
 
-        for key in kwargs:
-            value = kwargs[key]
-            self.__dict__[key] = value
+        self.compress: bool = kwargs.get("compress") or False
+
+        self.large: int = kwargs.get("large") or 50
 
     def __repr__(self):
-        return f"GatewayState<seq={self.seq} " f"shard={self.shard} uid={self.user_id}>"
+        return f"GatewayState<seq={self.seq} shard={self.current_shard},{self.shard_count} uid={self.user_id}>"

@@ -24,6 +24,7 @@ from quart import current_app as app
 from asyncpg import UniqueViolationError
 from logbook import Logger
 
+from ..presence import BasePresence
 from ..snowflake import get_snowflake
 from ..errors import BadRequest
 from ..auth import hash_data
@@ -268,6 +269,4 @@ async def user_disconnect(user_id: int):
         await state.ws.ws.close(4000)
 
     # force everyone to see the user as offline
-    await app.presence.dispatch_pres(
-        user_id, {"afk": False, "status": "offline", "game": None, "since": 0}
-    )
+    await app.presence.dispatch_pres(user_id, BasePresence(status="offline"))
