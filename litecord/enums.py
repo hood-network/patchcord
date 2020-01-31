@@ -149,7 +149,7 @@ class UserFlags(Flags):
     staff = 1
     partner = 2
     hypesquad = 4
-    bug_hunter = 8
+    bug_hunter_1 = 8
     mfa_sms = 16
     premium_dismissed = 32
 
@@ -158,6 +158,11 @@ class UserFlags(Flags):
     hsquad_house_3 = 256
 
     premium_early = 512
+
+    unread_system = 4096
+    unread_urgent_system = 8192
+
+    bug_hunter_2 = 16384
 
 
 class MessageFlags(Flags):
