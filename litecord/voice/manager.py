@@ -60,7 +60,7 @@ class VoiceManager:
         ctype = ChannelType(channel["type"])
 
         if ctype not in VOICE_CHANNELS:
-            return
+            return False
 
         states = await self.app.voice.state_count(channel_id)
 
@@ -79,7 +79,7 @@ class VoiceManager:
         #  - user is not manage channels
         # then it fails
         if not is_bot and not is_manager and is_full:
-            return
+            return False
 
         # all good
         return True
@@ -161,6 +161,10 @@ class VoiceManager:
             return
 
         conn = self.lvsp.get_conn(hostname)
+        if conn is None:
+            log.error("not connected to server {!r}", hostname)
+            return
+
         await conn.send_info(info_type, info_data)
 
     async def _create_ctx_guild(self, guild_id, channel_id):
@@ -263,3 +267,25 @@ class VoiceManager:
         )
 
         return list(map(dict, rows))
+
+    async def disable_region(self, region: str) -> None:
+        """Disable a region."""
+        guild_ids = await self.app.db.fetch(
+            """
+            UPDATE guilds
+            SET region = null
+            WHERE region = $1
+            RETURNING guild_id
+            """,
+            region,
+        )
+
+        guild_count = len(guild_ids)
+        log.info("updated {} guilds. region={} to null", guild_count, region)
+
+        # slow, but it be like that, also copied from other users...
+        for guild_id in guild_ids:
+            guild = await self.app.storage.get_guild_full(guild_id, None)
+            await self.app.dispatcher.dispatch_guild(guild_id, "GUILD_UPDATE", guild)
+
+        # TODO propagate the channel deprecation to LVSP connections

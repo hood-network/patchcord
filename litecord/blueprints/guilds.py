@@ -350,9 +350,7 @@ async def _update_guild(guild_id):
         )
 
     guild = await app.storage.get_guild_full(guild_id, user_id)
-
     await app.dispatcher.dispatch_guild(guild_id, "GUILD_UPDATE", guild)
-
     return jsonify(guild)
 
 

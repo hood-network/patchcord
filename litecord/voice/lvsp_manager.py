@@ -169,3 +169,6 @@ class LVSPManager:
     def region(self, region_id: str) -> Optional[Region]:
         """Get a :class:`Region` instance"""
         return self.regions.get(region_id)
+
+    def get_conn(self, hostname: str) -> Optional[LVSPConnection]:
+        return self.conns.get(hostname)
