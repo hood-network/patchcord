@@ -78,7 +78,7 @@ async def insert_new_region():
     return jsonify(regions)
 
 
-@bp.route("/regions/<region>/servers", methods=["PUT"])
+@bp.route("/regions/<region>/server", methods=["PUT"])
 async def put_region_server(region):
     """Insert a voice server to a region"""
     await admin_check()
