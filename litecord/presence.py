@@ -215,7 +215,8 @@ class PresenceManager:
         #  - all shards with count = 1 (single shards)
         good_shards = list(
             filter(
-                lambda state: state.shard[0] == 0 or state.shard[1] == 1, friend_states
+                lambda state: state.current_shard == 0 or state.shard_count == 1,
+                friend_states,
             )
         )
 
