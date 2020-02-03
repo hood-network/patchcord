@@ -52,10 +52,12 @@ class LVSPConnection:
     async def send(self, payload):
         """Send a payload down the websocket."""
         msg = json.dumps(payload)
+        assert self.conn is not None
         await self.conn.send(msg)
 
     async def recv(self):
         """Receive a payload."""
+        assert self.conn is not None
         msg = await self.conn.recv()
         msg = json.dumps(msg)
         return msg
@@ -82,6 +84,8 @@ class LVSPConnection:
 
             # give the server 300 milliseconds to reply.
             await asyncio.sleep(300)
+
+            assert self.conn is not None
             await self.conn.close(4000, "heartbeat timeout")
         except asyncio.CancelledError:
             pass
@@ -182,7 +186,7 @@ class LVSPConnection:
         await self.start()
 
         try:
-            if not self.conn:
+            if self.conn is None:
                 log.error("failed to start lvsp connection, stopping")
                 return
 
