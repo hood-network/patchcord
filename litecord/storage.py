@@ -813,11 +813,11 @@ class Storage:
         """Get all reactions in a message."""
         reactions = await self.db.fetch(
             """
-        SELECT user_id, emoji_type, emoji_id, emoji_text
-        FROM message_reactions
-        WHERE message_id = $1
-        ORDER BY react_ts
-        """,
+            SELECT user_id, emoji_type, emoji_id, emoji_text
+            FROM message_reactions
+            WHERE message_id = $1
+            ORDER BY react_ts
+            """,
             message_id,
         )
 

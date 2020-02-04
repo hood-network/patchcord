@@ -20,6 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import inspect
 import os
 import datetime
+import sys
 
 from pathlib import Path
 from dataclasses import dataclass
@@ -147,6 +148,25 @@ async def _delete_log(app, migration_id: int):
     )
 
 
+async def run_migration(app, conn, migration):
+    migration_sql = migration.path.read_text(encoding="utf-8")
+    statements = migration_sql.split(";")
+
+    # NOTE: is bodge, split by ; breaks function definitions. sorry.
+    if migration.id == 0:
+        statements = [migration_sql]
+
+    for index, stmt in enumerate(statements):
+        if not stmt.strip():
+            break
+
+        try:
+            await app.db.execute(stmt)
+        except Exception:
+            log.exception("error at statement {}", index + 1)
+            raise Exception()
+
+
 async def apply_migration(app, migration: Migration) -> bool:
     """Apply a single migration.
 
@@ -158,7 +178,6 @@ async def apply_migration(app, migration: Migration) -> bool:
 
     Returns a boolean signaling if this failed or not.
     """
-    migration_sql = migration.path.read_text(encoding="utf-8")
 
     res = await _insert_log(app, migration.id, f"migration: {migration.name}")
 
@@ -166,14 +185,15 @@ async def apply_migration(app, migration: Migration) -> bool:
         return False
 
     try:
-        await app.db.execute(migration_sql)
-        log.info("applied {} {}", migration.id, migration.name)
+        async with app.db.acquire() as conn:
+            async with conn.transaction():
+                await run_migration(app, conn, migration)
 
+        log.info("applied {} {}", migration.id, migration.name)
         return True
     except Exception:
         log.exception("failed to run migration, rollbacking log")
         await _delete_log(app, migration.id)
-
         return False
 
 
@@ -245,7 +265,9 @@ async def migrate_cmd(app, _args):
         migration = ctx.scripts.get(idx)
 
         print("applying", migration.id, migration.name)
-        await apply_migration(app, migration)
+        if not await apply_migration(app, migration):
+            print("stopped migration due to error.")
+            sys.exit(1)
 
 
 def setup(subparser):
