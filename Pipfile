@@ -6,7 +6,7 @@ name = "pypi"
 [packages]
 bcrypt = "==3.1.7"
 itsdangerous = "==1.1.0"
-asyncpg = "==0.18.3"
+asyncpg = "==0.20.1"
 websockets = "==8.0.2"
 Earl-ETF = "==2.1.2"
 logbook = "==1.5.2"

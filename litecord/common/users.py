@@ -218,6 +218,7 @@ async def delete_user(user_id, *, mass_update: bool = True):
     )
 
     # remove the user from various tables
+    await _del_from_table(db, "notes", user_id)
     await _del_from_table(db, "user_settings", user_id)
     await _del_from_table(db, "user_payment_sources", user_id)
     await _del_from_table(db, "user_subscriptions", user_id)

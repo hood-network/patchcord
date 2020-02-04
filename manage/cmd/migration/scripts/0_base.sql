@@ -217,8 +217,14 @@ CREATE TABLE IF NOT EXISTS user_subscriptions (
 -- payment logs
 CREATE TABLE IF NOT EXISTS user_payments (
     id bigint PRIMARY KEY,
+
+    -- NOTE: has ON DELETE SET NULL (migration 4)
     source_id bigint REFERENCES user_payment_sources (id),
+
+    -- NOTE: has ON DELETE SET NULL (migration 4)
     subscription_id bigint REFERENCES user_subscriptions (id),
+
+    -- NOTE: has ON DELETE SET NULL (migration 4)
     user_id bigint REFERENCES users (id),
 
     currency text DEFAULT 'usd',
@@ -278,6 +284,8 @@ CREATE TABLE IF NOT EXISTS channels (
 
 CREATE TABLE IF NOT EXISTS user_read_state (
     user_id bigint REFERENCES users (id),
+
+    -- NOTE: has ON DELETE CASCADE (migration 4)
     channel_id bigint REFERENCES channels (id),
 
     -- we don't really need to link
@@ -318,6 +326,8 @@ CREATE TABLE IF NOT EXISTS voice_regions (
 CREATE TABLE IF NOT EXISTS voice_servers (
     -- hostname is a reachable url, e.g "brazil2.example.com"
     hostname text PRIMARY KEY,
+
+    -- NOTE: has ON DELETE CASCADE (migration 4)
     region_id text REFERENCES voice_regions (id),
 
     -- health values are more thoroughly defined in the LVSP documentation
@@ -505,6 +515,7 @@ CREATE TABLE IF NOT EXISTS invites (
 
 -- vanity url table, the mapping is 1-1 for guilds and vanity urls
 CREATE TABLE IF NOT EXISTS vanity_invites (
+    -- NOTE: has ON DELETE CASCADE (migration 4)
     guild_id bigint REFERENCES guilds (id) PRIMARY KEY,
     code text REFERENCES invites (code) ON DELETE CASCADE
 );
@@ -683,6 +694,8 @@ CREATE TABLE IF NOT EXISTS attachments (
 
     -- keeping channel_id and message_id
     -- make a way "better" attachment url.
+
+    -- NOTE: has ON DELETE CASCADE (migration 4)
     channel_id bigint REFERENCES channels (id),
     message_id bigint REFERENCES messages (id),
 

@@ -18,11 +18,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from enum import IntEnum
+from typing import List, Union, Tuple
 
 from quart import Blueprint, request, current_app as app, jsonify
 from logbook import Logger
 
-
+from litecord.errors import BadRequest
 from litecord.utils import async_map, query_tuple_from_args, extract_limit
 from litecord.blueprints.auth import token_check
 from litecord.blueprints.checks import channel_check, channel_perm_check
@@ -48,8 +49,7 @@ def emoji_info_from_str(emoji: str) -> tuple:
     # unicode emoji just have the raw unicode.
 
     # try checking if the emoji is custom or unicode
-    emoji_type = 0 if ":" in emoji else 1
-    emoji_type = EmojiType(emoji_type)
+    emoji_type = EmojiType(0 if ":" in emoji else 1)
 
     # extract the emoji id OR the unicode value of the emoji
     # depending if it is custom or not
@@ -85,22 +85,25 @@ async def add_reaction(channel_id: int, message_id: int, emoji: str):
     ctype, guild_id = await channel_check(user_id, channel_id)
     await channel_perm_check(user_id, channel_id, "read_history")
 
-    emoji_type, emoji_id, emoji_name = emoji_info_from_str(emoji)
+    emoji_type, upstream_emoji_id, emoji_name = emoji_info_from_str(emoji)
 
-    emoji_id = emoji_id if emoji_type == EmojiType.CUSTOM else None
-    emoji_text = emoji_id if emoji_type == EmojiType.UNICODE else None
+    emoji_id = upstream_emoji_id if emoji_type == EmojiType.CUSTOM else None
+    emoji_text = upstream_emoji_id if emoji_type == EmojiType.UNICODE else None
+
+    # either one must exist
+    assert emoji_id or emoji_text
 
     # ADD_REACTIONS is only checked when this is the first
     # reaction in a message.
     reaction_count = await app.db.fetchval(
         """
-    SELECT COUNT(*)
-    FROM message_reactions
-    WHERE message_id = $1
-      AND emoji_type = $2
-      AND emoji_id = $3
-      AND emoji_text = $4
-    """,
+        SELECT COUNT(*)
+        FROM message_reactions
+        WHERE message_id = $1
+        AND emoji_type = $2
+        AND emoji_id = $3
+        AND emoji_text = $4
+        """,
         message_id,
         emoji_type,
         emoji_id,
@@ -112,9 +115,10 @@ async def add_reaction(channel_id: int, message_id: int, emoji: str):
 
     await app.db.execute(
         """
-        INSERT INTO message_reactions (message_id, user_id,
-            emoji_type, emoji_id, emoji_text)
-        VALUES ($1, $2, $3, $4, $5)
+        INSERT INTO message_reactions
+            (message_id, user_id, emoji_type, emoji_id, emoji_text)
+        VALUES
+            ($1, $2, $3, $4, $5)
         """,
         message_id,
         user_id,
@@ -139,20 +143,26 @@ async def add_reaction(channel_id: int, message_id: int, emoji: str):
     return "", 204
 
 
-def emoji_sql(emoji_type, emoji_id, emoji_name, param=4):
-    """Extract SQL clauses to search for specific emoji
-    in the message_reactions table."""
-    param = f"${param}"
+def emoji_sql(
+    emoji_type, emoji_id, emoji_name, param_index: int = 4
+) -> Tuple[str, Union[int, str]]:
+    """Extract SQL clauses to search for specific emoji in the message_reactions table."""
+    param = f"${param_index}"
 
-    # know which column to filter with
-    where_ext = (
-        f"AND emoji_id = {param}"
-        if emoji_type == EmojiType.CUSTOM
-        else f"AND emoji_text = {param}"
-    )
+    assert emoji_type in (EmojiType.CUSTOM, EmojiType.UNICODE)
 
-    # which emoji to remove (custom or unicode)
-    main_emoji = emoji_id if emoji_type == EmojiType.CUSTOM else emoji_name
+    if emoji_type == EmojiType.CUSTOM:
+        where_ext = f"AND emoji_id = {param}"
+        main_emoji = emoji_id
+    elif emoji_type == EmojiType.UNICODE:
+
+        # fun fact, emojis are length 1 in python? i'll use this to the
+        # best of my ability, lol
+        if len(emoji_name) != 1:
+            raise BadRequest("Invalid emoji name")
+
+        where_ext = f"AND emoji_text = {param}"
+        main_emoji = emoji_name
 
     return where_ext, main_emoji
 
@@ -227,21 +237,26 @@ async def list_users_reaction(channel_id, message_id, emoji):
     limit = extract_limit(request, 25)
     before, after = query_tuple_from_args(request.args, limit)
 
-    before_clause = "AND user_id < $2" if before else ""
-    after_clause = "AND user_id > $3" if after else ""
+    args: List[Union[int, str]] = [message_id]
 
-    where_ext, main_emoji = _emoji_sql_simple(emoji, 4)
+    before_clause = "AND user_id < $2" if before else ""
+    if before_clause:
+        args.append(before)
+
+    after_clause = f"AND user_id > ${len(args) + 1}" if after else ""
+    if after_clause:
+        args.append(after)
+
+    where_ext, main_emoji = _emoji_sql_simple(emoji, len(args) + 1)
+    args.append(main_emoji)
 
     rows = await app.db.fetch(
         f"""
-    SELECT user_id
-    FROM message_reactions
-    WHERE message_id = $1 {before_clause} {after_clause} {where_ext}
-    """,
-        message_id,
-        before,
-        after,
-        main_emoji,
+        SELECT user_id
+        FROM message_reactions
+        WHERE message_id = $1 {before_clause} {after_clause} {where_ext}
+        """,
+        *args,
     )
 
     user_ids = [r["user_id"] for r in rows]

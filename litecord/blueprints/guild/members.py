@@ -98,7 +98,7 @@ async def _update_member_roles(guild_id: int, member_id: int, wanted_roles: set)
     async with app.db.acquire() as conn:
         async with conn.transaction():
             # add roles
-            await app.db.executemany(
+            await conn.executemany(
                 """
             INSERT INTO member_roles (user_id, guild_id, role_id)
             VALUES ($1, $2, $3)
@@ -107,7 +107,7 @@ async def _update_member_roles(guild_id: int, member_id: int, wanted_roles: set)
             )
 
             # remove roles
-            await app.db.executemany(
+            await conn.executemany(
                 """
             DELETE FROM member_roles
             WHERE
