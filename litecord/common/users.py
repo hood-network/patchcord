@@ -18,7 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from random import randint
-from typing import Tuple, Optional
+from typing import Tuple, Optional, List
 
 from quart import current_app as app
 from asyncpg import UniqueViolationError
@@ -33,13 +33,13 @@ from ..utils import rand_hex
 log = Logger(__name__)
 
 
-async def mass_user_update(user_id):
+async def mass_user_update(user_id: int):
     """Dispatch USER_UPDATE in a mass way."""
     # by using dispatch_with_filter
     # we're guaranteeing all shards will get
     # a USER_UPDATE once and not any others.
 
-    session_ids = []
+    session_ids: List[str] = []
 
     public_user = await app.storage.get_user(user_id)
     private_user = await app.storage.get_user(user_id, secure=True)

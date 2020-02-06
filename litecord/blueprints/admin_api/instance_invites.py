@@ -19,6 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import string
 from random import choice
+from typing import Optional
 
 from quart import Blueprint, jsonify, current_app as app, request
 
@@ -36,7 +37,7 @@ async def _gen_inv() -> str:
     return "".join(choice(ALPHABET) for _ in range(6))
 
 
-async def gen_inv(ctx) -> str:
+async def gen_inv(ctx) -> Optional[str]:
     """Generate an invite."""
     for _ in range(10):
         possible_inv = await _gen_inv()

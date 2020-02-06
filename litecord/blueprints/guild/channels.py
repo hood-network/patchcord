@@ -130,14 +130,11 @@ async def modify_channel_pos(guild_id):
     # the same schema and all.
     raw_j = await request.get_json()
     j = validate({"roles": raw_j}, ROLE_UPDATE_POSITION)
-    j = j["roles"]
+    roles = j["roles"]
 
     channels = await app.storage.get_channel_data(guild_id)
 
     channel_positions = {chan["position"]: int(chan["id"]) for chan in channels}
-
-    swap_pairs = gen_pairs(j, channel_positions)
-
+    swap_pairs = gen_pairs(roles, channel_positions)
     await _do_channel_swaps(guild_id, swap_pairs)
-
     return "", 204

@@ -21,7 +21,7 @@ import re
 import asyncio
 import urllib.parse
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 from quart import current_app as app
 from logbook import Logger
@@ -35,16 +35,16 @@ log = Logger(__name__)
 MEDIA_EXTENSIONS = ("png", "jpg", "jpeg", "gif", "webm")
 
 
-async def fetch_mediaproxy_img_meta(url) -> dict:
+async def fetch_mediaproxy_img_meta(url) -> Optional[dict]:
     """Insert media metadata as an embed."""
     img_proxy_url = proxify(url)
     meta = await fetch_metadata(url)
 
     if meta is None:
-        return
+        return None
 
     if not meta["image"]:
-        return
+        return None
 
     return {
         "type": "image",
@@ -135,13 +135,15 @@ async def process_url_embed(payload: dict, *, delay=0):
     # if it isn't, we forward an /embed/ scope call to mediaproxy
     # to generate an embed for us out of the url.
 
-    new_embeds = []
+    new_embeds: List[dict] = []
 
-    for url in urls:
-        url: List[dict] = EmbedURL(url)
+    for upstream_url in urls:
+        url = EmbedURL(upstream_url)
 
         if is_media_url(url):
-            embeds = [await fetch_mediaproxy_img_meta(url)]
+            embed = await fetch_mediaproxy_img_meta(url)
+            if embed is not None:
+                embeds = [embed]
         else:
             embeds = await fetch_mediaproxy_embed(url)
 

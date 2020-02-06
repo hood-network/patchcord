@@ -17,7 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from typing import Union, List
+from typing import Union, List, Optional
 
 from quart import current_app as app
 
@@ -66,7 +66,7 @@ async def guild_owner_check(user_id: int, guild_id: int):
 
 
 async def channel_check(
-    user_id, channel_id, *, only: Union[ChannelType, List[ChannelType]] = None
+    user_id, channel_id, *, only: Optional[Union[ChannelType, List[ChannelType]]] = None
 ):
     """Check if the current user is authorized
     to read the channel's information."""
@@ -77,10 +77,10 @@ async def channel_check(
 
     ctype = ChannelType(chan_type)
 
-    if only and not isinstance(only, list):
+    if (only is not None) and not isinstance(only, list):
         only = [only]
 
-    if only and ctype not in only:
+    if (only is not None) and ctype not in only:
         raise ChannelNotFound("invalid channel type")
 
     if ctype in GUILD_CHANS:

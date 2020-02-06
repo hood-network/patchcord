@@ -18,7 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from enum import IntEnum
-from typing import List, Union, Tuple
+from typing import List, Union, Tuple, TypedDict, Optional
 
 from quart import Blueprint, request, current_app as app, jsonify
 from logbook import Logger
@@ -60,7 +60,12 @@ def emoji_info_from_str(emoji: str) -> tuple:
     return emoji_type, emoji_id, emoji_name
 
 
-def partial_emoji(emoji_type, emoji_id, emoji_name) -> dict:
+class PartialEmoji(TypedDict):
+    id: Optional[int]
+    name: str
+
+
+def partial_emoji(emoji_type, emoji_id, emoji_name) -> PartialEmoji:
     print(emoji_type, emoji_id, emoji_name)
     return {
         "id": None if emoji_type == EmojiType.UNICODE else emoji_id,

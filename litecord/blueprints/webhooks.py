@@ -222,14 +222,14 @@ async def get_guild_webhook(guild_id):
 async def get_single_webhook(webhook_id):
     """Get a single webhook's information."""
     await _webhook_check_fw(webhook_id)
-    return await jsonify(await get_webhook(webhook_id))
+    return jsonify(await get_webhook(webhook_id))
 
 
 @bp.route("/webhooks/<int:webhook_id>/<webhook_token>", methods=["GET"])
 async def get_tokened_webhook(webhook_id, webhook_token):
     """Get a webhook using its token."""
     await webhook_token_check(webhook_id, webhook_token)
-    return await jsonify(await get_webhook(webhook_id, secure=False))
+    return jsonify(await get_webhook(webhook_id, secure=False))
 
 
 async def _update_webhook(webhook_id: int, j: dict):
@@ -289,6 +289,7 @@ async def modify_webhook(webhook_id: int):
     await _update_webhook(webhook_id, j)
 
     webhook = await get_webhook(webhook_id)
+    assert webhook is not None
 
     # we don't need to cast channel_id to int since that isn't
     # used in the dispatcher call
@@ -313,7 +314,9 @@ async def modify_webhook_tokened(webhook_id, webhook_token):
 async def delete_webhook(webhook_id: int):
     """Delete a webhook."""
     webhook = await get_webhook(webhook_id)
+    assert webhook is not None
 
+    # TODO use returning?
     res = await app.db.execute(
         """
     DELETE FROM webhooks
@@ -423,7 +426,10 @@ async def _create_avatar(webhook_id: int, avatar_url: EmbedURL) -> str:
     # we still fetch the URL to check its validity, mimetypes, etc
     # but in the end, we will store it under the webhook_avatars table,
     # not IconManager.
-    resp, raw = await fetch_mediaproxy_img(avatar_url)
+    res = await fetch_mediaproxy_img(avatar_url)
+    if res is None:
+        raise BadRequest("Failed to fetch URL.")
+    resp, raw = res
     # raw_b64 = base64.b64encode(raw).decode()
 
     mime = resp.headers["content-type"]
@@ -469,6 +475,7 @@ async def execute_webhook(webhook_id: int, webhook_token):
     given_embeds = j.get("embeds", [])
 
     webhook = await get_webhook(webhook_id)
+    assert webhook is not None
 
     # webhooks have TWO avatars. one is from settings, the other is from
     # the json's icon_url. one can be handled gracefully by IconManager,

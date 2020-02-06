@@ -18,6 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from logbook import Logger
+from quart import current_app as app
 
 from winter import get_snowflake
 from litecord.enums import MessageType
@@ -25,7 +26,7 @@ from litecord.enums import MessageType
 log = Logger(__name__)
 
 
-async def _handle_pin_msg(app, channel_id, _pinned_id, author_id):
+async def _handle_pin_msg(channel_id, _pinned_id, author_id):
     """Handle a message pin."""
     new_id = get_snowflake()
 
@@ -48,7 +49,7 @@ async def _handle_pin_msg(app, channel_id, _pinned_id, author_id):
 
 
 # TODO: decrease repetition between add and remove handlers
-async def _handle_recp_add(app, channel_id, author_id, peer_id):
+async def _handle_recp_add(channel_id, author_id, peer_id):
     new_id = get_snowflake()
 
     await app.db.execute(
@@ -69,7 +70,7 @@ async def _handle_recp_add(app, channel_id, author_id, peer_id):
     return new_id
 
 
-async def _handle_recp_rmv(app, channel_id, author_id, peer_id):
+async def _handle_recp_rmv(channel_id, author_id, peer_id):
     new_id = get_snowflake()
 
     await app.db.execute(
@@ -90,7 +91,7 @@ async def _handle_recp_rmv(app, channel_id, author_id, peer_id):
     return new_id
 
 
-async def _handle_gdm_name_edit(app, channel_id, author_id):
+async def _handle_gdm_name_edit(channel_id, author_id):
     new_id = get_snowflake()
 
     gdm_name = await app.db.fetchval(
@@ -123,7 +124,7 @@ async def _handle_gdm_name_edit(app, channel_id, author_id):
     return new_id
 
 
-async def _handle_gdm_icon_edit(app, channel_id, author_id):
+async def _handle_gdm_icon_edit(channel_id, author_id):
     new_id = get_snowflake()
 
     await app.db.execute(
@@ -145,7 +146,7 @@ async def _handle_gdm_icon_edit(app, channel_id, author_id):
 
 
 async def send_sys_message(
-    app, channel_id: int, m_type: MessageType, *args, **kwargs
+    channel_id: int, m_type: MessageType, *args, **kwargs
 ) -> int:
     """Send a system message.
 
@@ -179,7 +180,7 @@ async def send_sys_message(
     except KeyError:
         raise ValueError("Invalid system message type")
 
-    message_id = await handler(app, channel_id, *args, **kwargs)
+    message_id = await handler(channel_id, *args, **kwargs)
 
     message = await app.storage.get_message(message_id)
 
