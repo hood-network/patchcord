@@ -17,6 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
+from typing import List
 from logbook import Logger
 
 from .dispatcher import DispatcherWithState
@@ -38,7 +39,7 @@ class FriendDispatcher(DispatcherWithState):
     async def dispatch_filter(self, user_id: int, func, event, data):
         """Dispatch an event to all of a users' friends."""
         peer_ids = self.state[user_id]
-        sessions = []
+        sessions: List[str] = []
 
         for peer_id in peer_ids:
             # dispatch to the user instead of the "shards tied to a guild"

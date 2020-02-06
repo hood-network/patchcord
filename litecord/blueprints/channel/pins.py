@@ -114,7 +114,7 @@ async def add_pin(channel_id, message_id):
     )
 
     await send_sys_message(
-        app, channel_id, MessageType.CHANNEL_PINNED_MESSAGE, message_id, user_id
+        channel_id, MessageType.CHANNEL_PINNED_MESSAGE, message_id, user_id
     )
 
     return "", 204

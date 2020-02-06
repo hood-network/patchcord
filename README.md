@@ -66,7 +66,7 @@ or third party libraries (such as [Eris](https://github.com/abalabahaha/eris)).
 
 Requirements:
 
-- **Python 3.7+**
+- **Python 3.8+**
 - PostgreSQL (tested using 9.6+), SQL knowledge is recommended.
 - gifsicle for GIF emoji and avatar handling
 - [pipenv]

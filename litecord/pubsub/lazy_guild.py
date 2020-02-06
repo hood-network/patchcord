@@ -39,6 +39,7 @@ from litecord.permissions import (
     overwrite_find_mix,
     get_permissions,
     role_permissions,
+    EMPTY_PERMISSIONS,
 )
 from litecord.utils import index_by_func
 from litecord.utils import mmh3
@@ -264,8 +265,8 @@ class GuildMemberList:
         self.list = MemberList()
 
         #: store the states that are subscribed to the list.
-        #  type is {session_id: set[list]}
-        self.state: Dict[str, Set[List[int, int]]] = defaultdict(set)
+        #  type is {session_id: set[tuple]}
+        self.state: Dict[str, Set[Tuple[int, int]]] = defaultdict(set)
 
         self._list_lock = asyncio.Lock()
 
@@ -414,8 +415,8 @@ class GuildMemberList:
         # inject default groups 'online' and 'offline'
         # their position is always going to be the last ones.
         self.list.groups = role_groups + [
-            GroupInfo("online", "online", MAX_ROLES + 1, 0),
-            GroupInfo("offline", "offline", MAX_ROLES + 2, 0),
+            GroupInfo("online", "online", MAX_ROLES + 1, EMPTY_PERMISSIONS),
+            GroupInfo("offline", "offline", MAX_ROLES + 2, EMPTY_PERMISSIONS),
         ]
 
     async def _get_group_for_member(
@@ -808,6 +809,8 @@ class GuildMemberList:
         ops = []
 
         old_user_index = self._get_item_index(user_id)
+        assert old_user_index is not None
+
         old_group_index = self._get_group_item_index(old_group)
 
         ops.append(Operation("DELETE", {"index": old_user_index}))
@@ -819,6 +822,7 @@ class GuildMemberList:
         await self._sort_groups()
 
         new_user_index = self._get_item_index(user_id)
+        assert new_user_index is not None
 
         ops.append(
             Operation(
@@ -931,6 +935,7 @@ class GuildMemberList:
             # if unknown state, remove from the subscriber list
             if state is None:
                 self.state.pop(session_id)
+                continue
 
             # if we aren't talking about the state the user
             # being removed is subscribed to, ignore
@@ -1365,8 +1370,8 @@ class GuildMemberList:
             len(self.state),
         )
 
-        self.guild_id = None
-        self.channel_id = None
+        self.guild_id = 0
+        self.channel_id = 0
         self.main = None
         self._set_empty_list()
         self.state = {}
@@ -1392,7 +1397,7 @@ class LazyGuildDispatcher(Dispatcher):
         #: store which guilds have their
         #  respective GMLs
         # {guild_id: [chan_id, ...], ...}
-        self.guild_map = defaultdict(list)
+        self.guild_map: Dict[int, List[int]] = defaultdict(list)
 
     async def get_gml(self, channel_id: int):
         """Get a guild list for a channel ID,
@@ -1414,7 +1419,18 @@ class LazyGuildDispatcher(Dispatcher):
 
     def get_gml_guild(self, guild_id: int) -> List[GuildMemberList]:
         """Get all member lists for a given guild."""
-        return list(map(self.state.get, self.guild_map[guild_id]))
+        res: List[GuildMemberList] = []
+
+        channel_ids: List[int] = self.guild_map[guild_id]
+        for channel_id in channel_ids:
+            guild_list: Optional[GuildMemberList] = self.state.get(channel_id)
+            if guild_list is None:
+                self.guild_map[guild_id].remove(channel_id)
+                continue
+
+            res.append(guild_list)
+
+        return res
 
     async def unsub(self, chan_id, session_id):
         """Unsubscribe a session from the list."""

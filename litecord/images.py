@@ -98,6 +98,9 @@ class Icon:
 
         return get_ext(self.mime)
 
+    def __bool__(self):
+        return self.key and self.icon_hash and self.mime
+
 
 class ImageError(Exception):
     """Image error class."""
@@ -197,6 +200,9 @@ def _gen_update_sql(scope: str) -> str:
 
 def _invalid(kwargs: dict) -> Optional[Icon]:
     """Send an invalid value."""
+    # TODO: remove optinality off this (really badly designed):
+    #  - also remove kwargs off this function
+    #  - also make an Icon.empty() constructor, and remove need for this entirely
     if not kwargs.get("always_icon", False):
         return None
 
@@ -519,6 +525,7 @@ class IconManager:
         key = str(key)
 
         old_icon = await self.generic_get(scope, key, old_icon_hash)
-        await self.delete(old_icon)
+        if old_icon:
+            await self.delete(old_icon)
 
         return await self.put(scope, key, new_icon_data, **kwargs)

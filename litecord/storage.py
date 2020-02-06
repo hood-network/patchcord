@@ -17,13 +17,18 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union, TypedDict
 
 from logbook import Logger
 
 from litecord.enums import ChannelType
 from litecord.schemas import USER_MENTION, ROLE_MENTION
-from litecord.blueprints.channel.reactions import EmojiType, emoji_sql, partial_emoji
+from litecord.blueprints.channel.reactions import (
+    EmojiType,
+    emoji_sql,
+    partial_emoji,
+    PartialEmoji,
+)
 
 from litecord.blueprints.user.billing import PLAN_ID_TO_TYPE
 
@@ -62,6 +67,12 @@ def _filter_recipients(recipients: List[Dict[str, Any]], user_id: str):
     """Filter recipients in a list of recipients, removing
     the one that is reundant (ourselves)."""
     return list(filter(lambda recipient: recipient["id"] != user_id, recipients))
+
+
+class EmojiStats(TypedDict):
+    count: int
+    me: bool
+    emoji: PartialEmoji
 
 
 class Storage:
@@ -373,7 +384,7 @@ class Storage:
         members = await self.get_member_multi(guild_id, mids)
         return members
 
-    async def chan_last_message(self, channel_id: int):
+    async def chan_last_message(self, channel_id: int) -> Optional[int]:
         """Get the last message ID in a channel."""
         return await self.db.fetchval(
             """
@@ -491,7 +502,7 @@ class Storage:
         return [r["member_id"] for r in user_ids]
 
     async def _gdm_recipients(
-        self, channel_id: int, reference_id: int = None
+        self, channel_id: int, reference_id: Optional[int] = None
     ) -> List[Dict]:
         """Get the list of users that are recipients of the
         given Group DM."""
@@ -576,11 +587,12 @@ class Storage:
 
             drow = dict(gdm_row)
             drow["type"] = chan_type
-            drow["recipients"] = await self._gdm_recipients(
-                channel_id, kwargs.get("user_id")
-            )
-            drow["last_message_id"] = await self.chan_last_message_str(channel_id)
 
+            user_id: Optional[int] = kwargs.get("user_id")
+            assert user_id is not None
+            drow["recipients"] = await self._gdm_recipients(channel_id, user_id)
+
+            drow["last_message_id"] = await self.chan_last_message_str(channel_id)
             return drow
 
         return None
@@ -634,7 +646,7 @@ class Storage:
         return channels
 
     async def get_role(
-        self, role_id: int, guild_id: int = None
+        self, role_id: int, guild_id: Optional[int] = None
     ) -> Optional[Dict[str, Any]]:
         """get a single role's information."""
 
@@ -732,6 +744,8 @@ class Storage:
 
         mids = [int(m["user"]["id"]) for m in members]
 
+        assert self.presence is not None
+
         return {
             **res,
             **{
@@ -822,10 +836,10 @@ class Storage:
         )
 
         # ordered list of emoji
-        emoji = []
+        emoji: List[Union[int, str]] = []
 
         # the current state of emoji info
-        react_stats = {}
+        react_stats: Dict[Union[str, int], EmojiStats] = {}
 
         # to generate the list, we pass through all
         # all reactions and insert them all.
@@ -1007,6 +1021,7 @@ class Storage:
         # calculate user mentions and role mentions by regex
         async def _get_member(user_id):
             user = await self.get_user(user_id)
+            assert user is not None
             member = None
 
             if guild_id:
@@ -1143,6 +1158,7 @@ class Storage:
             return {}
 
         mids = await self.get_member_ids(guild_id)
+        assert self.presence is not None
         pres = await self.presence.guild_presences(mids, guild_id)
         online_count = sum(1 for p in pres if p["status"] == "online")
 
@@ -1172,7 +1188,7 @@ class Storage:
 
         return dinv
 
-    async def get_dm(self, dm_id: int, user_id: int = None) -> Optional[Dict]:
+    async def get_dm(self, dm_id: int, user_id: Optional[int] = None) -> Optional[Dict]:
         """Get a DM channel."""
         dm_chan = await self.get_channel(dm_id)
 

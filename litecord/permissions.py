@@ -88,6 +88,7 @@ class Permissions(ctypes.Union):
 
 
 ALL_PERMISSIONS = Permissions(0b01111111111101111111110111111111)
+EMPTY_PERMISSIONS = Permissions(0)
 
 
 async def get_role_perms(guild_id, role_id, storage=None) -> Permissions:

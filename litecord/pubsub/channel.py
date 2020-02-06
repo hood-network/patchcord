@@ -89,7 +89,7 @@ class ChannelDispatcher(DispatcherWithFlags):
             ):
                 continue
 
-            cur_sess = []
+            cur_sess: List[str] = []
 
             if (
                 event in ("CHANNEL_CREATE", "CHANNEL_UPDATE")

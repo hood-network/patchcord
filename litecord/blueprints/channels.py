@@ -386,14 +386,14 @@ async def put_channel_overwrite(channel_id: int, overwrite_id: int):
     return "", 204
 
 
-async def _update_channel_common(channel_id, guild_id: int, j: dict):
+async def _update_channel_common(channel_id: int, guild_id: int, j: dict):
     if "name" in j:
         await app.db.execute(
             """
-        UPDATE guild_channels
-        SET name = $1
-        WHERE id = $2
-        """,
+            UPDATE guild_channels
+            SET name = $1
+            WHERE id = $2
+            """,
             j["name"],
             channel_id,
         )
@@ -401,7 +401,9 @@ async def _update_channel_common(channel_id, guild_id: int, j: dict):
     if "position" in j:
         channel_data = await app.storage.get_channel_data(guild_id)
 
-        chans = [None] * len(channel_data)
+        # get an ordered list of the chans array by position
+        # TODO bad impl. can break easily. maybe dict?
+        chans: List[Optional[int]] = [None] * len(channel_data)
         for chandata in channel_data:
             chans.insert(chandata["position"], int(chandata["id"]))
 
@@ -422,7 +424,7 @@ async def _update_channel_common(channel_id, guild_id: int, j: dict):
         left_shift = new_pos > current_pos
 
         # find all channels that we'll have to shift
-        shift_block = (
+        shift_block: List[Optional[int]] = (
             chans[current_pos:new_pos] if left_shift else chans[new_pos:current_pos]
         )
 
@@ -509,9 +511,7 @@ async def _update_group_dm(channel_id: int, j: dict, author_id: int):
             channel_id,
         )
 
-        await send_sys_message(
-            app, channel_id, MessageType.CHANNEL_NAME_CHANGE, author_id
-        )
+        await send_sys_message(channel_id, MessageType.CHANNEL_NAME_CHANGE, author_id)
 
     if "icon" in j:
         new_icon = await app.icons.update(
@@ -528,13 +528,11 @@ async def _update_group_dm(channel_id: int, j: dict, author_id: int):
             channel_id,
         )
 
-        await send_sys_message(
-            app, channel_id, MessageType.CHANNEL_ICON_CHANGE, author_id
-        )
+        await send_sys_message(channel_id, MessageType.CHANNEL_ICON_CHANGE, author_id)
 
 
 @bp.route("/<int:channel_id>", methods=["PUT", "PATCH"])
-async def update_channel(channel_id):
+async def update_channel(channel_id: int):
     """Update a channel's information"""
     user_id = await token_check()
     ctype, guild_id = await channel_check(user_id, channel_id)

@@ -17,7 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Optional
 
 from quart import Blueprint, request, current_app as app, jsonify
 from logbook import Logger
@@ -122,7 +122,7 @@ PairList = List[Tuple[Tuple[int, int], Tuple[int, int]]]
 def gen_pairs(
     list_of_changes: List[Dict[str, int]],
     current_state: Dict[int, int],
-    blacklist: List[int] = None,
+    blacklist: Optional[List[int]] = None,
 ) -> PairList:
     """Generate a list of pairs that, when applied to the database,
     will generate the desired state given in list_of_changes.
@@ -162,7 +162,7 @@ def gen_pairs(
         List of swaps to do to achieve the preferred
         state given by ``list_of_changes``.
     """
-    pairs = []
+    pairs: PairList = []
     blacklist = blacklist or []
 
     preferred_state = {
@@ -222,9 +222,9 @@ async def update_guild_role_positions(guild_id):
     j = validate({"roles": raw_j}, ROLE_UPDATE_POSITION)
 
     # extract the list out
-    j = j["roles"]
+    roles = j["roles"]
 
-    log.debug("role stuff: {!r}", j)
+    log.debug("role stuff: {!r}", roles)
 
     all_roles = await app.storage.get_role_data(guild_id)
 
@@ -238,7 +238,7 @@ async def update_guild_role_positions(guild_id):
     # NOTE: ^ this is related to the positioning of the roles.
 
     pairs = gen_pairs(
-        j,
+        roles,
         roles_pos,
         # always ignore people trying to change
         # the @everyone's role position

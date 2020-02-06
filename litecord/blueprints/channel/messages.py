@@ -18,6 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from pathlib import Path
+from typing import Optional
 
 from quart import Blueprint, request, current_app as app, jsonify
 from logbook import Logger
@@ -146,7 +147,7 @@ async def _dm_pre_dispatch(channel_id, peer_id):
 
 
 async def create_message(
-    channel_id: int, actual_guild_id: int, author_id: int, data: dict
+    channel_id: int, actual_guild_id: Optional[int], author_id: int, data: dict
 ) -> int:
     message_id = get_snowflake()
 
@@ -159,7 +160,7 @@ async def create_message(
                 content, tts, mention_everyone, nonce, message_type,
                 embeds)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-        """,
+            """,
             message_id,
             channel_id,
             actual_guild_id,
@@ -186,7 +187,7 @@ async def _create_message(channel_id):
     user_id = await token_check()
     ctype, guild_id = await channel_check(user_id, channel_id)
 
-    actual_guild_id = None
+    actual_guild_id: Optional[int] = None
 
     if ctype in GUILD_CHANS:
         await channel_perm_check(user_id, channel_id, "send_messages")

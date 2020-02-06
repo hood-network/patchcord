@@ -96,7 +96,7 @@ def sanitize_icon(icon: Optional[str]) -> Optional[str]:
     return f"data:image/jpeg;base64,{icon}" if icon else None
 
 
-async def _general_guild_icon(scope: str, guild_id: int, icon: str, **kwargs):
+async def _general_guild_icon(scope: str, guild_id: int, icon: Optional[str], **kwargs):
     encoded = sanitize_icon(icon)
 
     icon_kwargs = {"always_icon": True}

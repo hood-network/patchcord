@@ -16,6 +16,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
+from typing import Optional
 from quart import current_app as app
 
 
@@ -24,12 +25,15 @@ from litecord.enums import RelationshipType
 
 
 async def channel_ack(
-    user_id: int, guild_id: int, channel_id: int, message_id: int = None
+    user_id: int, guild_id: int, channel_id: int, message_id: Optional[int] = None
 ):
     """ACK a channel."""
 
-    if not message_id:
-        message_id = await app.storage.chan_last_message(channel_id)
+    message_id = message_id or await app.storage.chan_last_message(channel_id)
+
+    # never ack without a message, as that breaks read state.
+    if message_id is None:
+        return
 
     await app.db.execute(
         """

@@ -113,9 +113,7 @@ async def gdm_add_recipient(channel_id: int, peer_id: int, *, user_id=None):
     await app.dispatcher.sub("channel", peer_id)
 
     if user_id:
-        await send_sys_message(
-            app, channel_id, MessageType.RECIPIENT_ADD, user_id, peer_id
-        )
+        await send_sys_message(channel_id, MessageType.RECIPIENT_ADD, user_id, peer_id)
 
 
 async def gdm_remove_recipient(channel_id: int, peer_id: int, *, user_id=None):
@@ -145,9 +143,7 @@ async def gdm_remove_recipient(channel_id: int, peer_id: int, *, user_id=None):
 
     author_id = peer_id if user_id is None else user_id
 
-    await send_sys_message(
-        app, channel_id, MessageType.RECIPIENT_REMOVE, author_id, peer_id
-    )
+    await send_sys_message(channel_id, MessageType.RECIPIENT_REMOVE, author_id, peer_id)
 
 
 async def gdm_destroy(channel_id):
