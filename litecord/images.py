@@ -99,7 +99,7 @@ class Icon:
         return get_ext(self.mime)
 
     def __bool__(self):
-        return self.key and self.icon_hash and self.mime
+        return bool(self.key and self.icon_hash and self.mime)
 
 
 class ImageError(Exception):
