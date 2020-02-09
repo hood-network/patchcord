@@ -20,6 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 from typing import Tuple, Dict, List
 from collections import defaultdict
 from dataclasses import fields
+from quart import current_app as app
 
 from logbook import Logger
 
@@ -286,6 +287,6 @@ class VoiceManager:
         # slow, but it be like that, also copied from other users...
         for guild_id in guild_ids:
             guild = await self.app.storage.get_guild_full(guild_id, None)
-            await self.app.dispatcher.dispatch_guild(guild_id, "GUILD_UPDATE", guild)
+            await app.dispatcher.guild.dispatch(guild_id, ("GUILD_UPDATE", guild))
 
         # TODO propagate the channel deprecation to LVSP connections

@@ -17,30 +17,20 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from .dispatcher import Dispatcher
+from typing import List
+from quart import current_app as app
+from .dispatcher import GatewayEvent
+from .utils import send_event_to_states
 
 
-class MemberDispatcher(Dispatcher):
-    """Member backend for Pub/Sub."""
+async def dispatch_member(
+    guild_id: int, user_id: int, event: GatewayEvent
+) -> List[str]:
+    states = app.state_manager.fetch_states(user_id, guild_id)
 
-    KEY_TYPE = tuple
+    # if no states were found, we should unsub the user from the guild
+    if not states:
+        await app.dispatcher.guild.unsub(guild_id, user_id)
+        return []
 
-    async def dispatch(self, key, event, data):
-        """Dispatch a single event to a member.
-
-        This is shard-aware.
-        """
-        # we don't keep any state on this dispatcher, so the key
-        # is just (guild_id, user_id)
-        guild_id, user_id = key
-
-        # fetch shards
-        states = self.sm.fetch_states(user_id, guild_id)
-
-        # if no states were found, we should
-        # unsub the user from the GUILD channel
-        if not states:
-            await self.main_dispatcher.unsub("guild", guild_id, user_id)
-            return
-
-        return await self._dispatch_states(states, event, data)
+    return await send_event_to_states(states, event)

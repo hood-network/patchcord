@@ -20,9 +20,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import time
 import datetime
 from typing import List, Optional
+from dataclasses import dataclass
 
 from quart import Blueprint, request, current_app as app, jsonify
 from logbook import Logger
+from winter import snowflake_datetime
 
 from litecord.auth import token_check
 from litecord.enums import ChannelType, GUILD_CHANS, MessageType, MessageFlags
@@ -41,8 +43,9 @@ from litecord.system_messages import send_sys_message
 from litecord.blueprints.dm_channels import gdm_remove_recipient, gdm_destroy
 from litecord.utils import search_result_from_list
 from litecord.embed.messages import process_url_embed, msg_update_embeds
-from winter import snowflake_datetime
 from litecord.common.channels import channel_ack
+from litecord.pubsub.user import dispatch_user
+from litecord.permissions import get_permissions, Permissions
 
 log = Logger(__name__)
 bp = Blueprint("channels", __name__)
@@ -80,9 +83,7 @@ async def __guild_chan_sql(guild_id, channel_id, field: str) -> str:
 
 async def _update_guild_chan_text(guild_id: int, channel_id: int):
     res_embed = await __guild_chan_sql(guild_id, channel_id, "embed_channel_id")
-
     res_widget = await __guild_chan_sql(guild_id, channel_id, "widget_channel_id")
-
     res_system = await __guild_chan_sql(guild_id, channel_id, "system_channel_id")
 
     # if none of them were actually updated,
@@ -93,7 +94,7 @@ async def _update_guild_chan_text(guild_id: int, channel_id: int):
     # at least one of the fields were updated,
     # dispatch GUILD_UPDATE
     guild = await app.storage.get_guild(guild_id)
-    await app.dispatcher.dispatch_guild(guild_id, "GUILD_UPDATE", guild)
+    await app.dispatcher.guild.dispatch(guild_id, ("GUILD_UPDATE", guild))
 
 
 async def _update_guild_chan_voice(guild_id: int, channel_id: int):
@@ -104,7 +105,7 @@ async def _update_guild_chan_voice(guild_id: int, channel_id: int):
         return
 
     guild = await app.storage.get_guild(guild_id)
-    await app.dispatcher.dispatch_guild(guild_id, "GUILD_UPDATE", guild)
+    await app.dispatcher.dispatch(guild_id, ("GUILD_UPDATE", guild))
 
 
 async def _update_guild_chan_cat(guild_id: int, channel_id: int):
@@ -134,7 +135,7 @@ async def _update_guild_chan_cat(guild_id: int, channel_id: int):
     # tell all people in the guild of the category removal
     for child_id in childs:
         child = await app.storage.get_channel(child_id)
-        await app.dispatcher.dispatch_guild(guild_id, "CHANNEL_UPDATE", child)
+        await app.dispatcher.guild.dispatch(guild_id, ("CHANNEL_UPDATE", child))
 
 
 async def _delete_messages(channel_id):
@@ -249,12 +250,10 @@ async def close_channel(channel_id):
         )
 
         # clean its member list representation
-        lazy_guilds = app.dispatcher.backends["lazy_guild"]
-        lazy_guilds.remove_channel(channel_id)
+        app.lazy_guild.remove_channel(channel_id)
 
-        await app.dispatcher.dispatch_guild(guild_id, "CHANNEL_DELETE", chan)
-
-        await app.dispatcher.remove("channel", channel_id)
+        await app.dispatcher.guild.dispatch(guild_id, ("CHANNEL_DELETE", chan))
+        await app.dispatcher.channel.drop(channel_id)
         return jsonify(chan)
 
     if ctype == ChannelType.DM:
@@ -273,11 +272,9 @@ async def close_channel(channel_id):
             channel_id,
         )
 
-        # unsubscribe
-        await app.dispatcher.unsub("channel", channel_id, user_id)
-
         # nothing happens to the other party of the dm channel
-        await app.dispatcher.dispatch_user(user_id, "CHANNEL_DELETE", chan)
+        await app.dispatcher.channel.unsub(channel_id, user_id)
+        await dispatch_user(user_id, ("CHANNEL_DELETE", chan))
 
         return jsonify(chan)
 
@@ -318,10 +315,54 @@ async def _mass_chan_update(guild_id, channel_ids: List[Optional[int]]):
             continue
 
         chan = await app.storage.get_channel(channel_id)
-        await app.dispatcher.dispatch("guild", guild_id, "CHANNEL_UPDATE", chan)
+        await app.dispatcher.guild.dispatch(guild_id, "CHANNEL_UPDATE", chan)
 
 
-async def _process_overwrites(channel_id: int, overwrites: list):
+@dataclass
+class Target:
+    type: int
+    user_id: Optional[int]
+    role_id: Optional[int]
+
+    @property
+    def is_user(self):
+        return self.type == 0
+
+    @property
+    def is_role(self):
+        return self.type == 1
+
+
+async def _dispatch_action(guild_id: int, channel_id: int, user_id: int, perms) -> None:
+    """Apply an action of sub/unsub to all states of a user."""
+    states = app.state_manager.fetch_states(user_id, guild_id)
+    for state in states:
+        if perms.read_messages:
+            await app.dispatcher.channel.sub(channel_id, state.session_id)
+        else:
+            await app.dispatcher.channel.unsub(channel_id, state.session_id)
+
+
+async def _process_overwrites(guild_id: int, channel_id: int, overwrites: list) -> None:
+    # user_ids serves as a "prospect" user id list.
+    # for each overwrite we apply, we fill this list with user ids we
+    # want to check later to subscribe/unsubscribe from the channel.
+    # (users without read_messages are automatically unsubbed since we
+    #  don't want to leak messages to them when they dont have perms anymore)
+
+    # the expensiveness of large overwrite/role chains shines here.
+    # since each user id we fill in implies an entire get_permissions call
+    # (because we don't have the answer if a user is to be subbed/unsubbed
+    #  with only overwrites, an overwrite for a user allowing them might be
+    #  overwritten by a role overwrite denying them if they have the role),
+    # we get a lot of tension on that, causing channel updates to lag a bit.
+
+    # there may be some good optimizations to do here, such as doing some
+    # precalculations like fetching get_permissions for everyone first, then
+    # applying the new overwrites one by one, then subbing/unsubbing at the
+    # end, but it would be very memory intensive.
+    user_ids: List[int] = []
+
     for overwrite in overwrites:
 
         # 0 for member overwrite, 1 for role overwrite
@@ -329,7 +370,9 @@ async def _process_overwrites(channel_id: int, overwrites: list):
         target_role = None if target_type == 0 else overwrite["id"]
         target_user = overwrite["id"] if target_type == 0 else None
 
-        col_name = "target_user" if target_type == 0 else "target_role"
+        target = Target(target_type, target_role, target_user)
+
+        col_name = "target_user" if target.is_user else "target_role"
         constraint_name = f"channel_overwrites_{col_name}_uniq"
 
         await app.db.execute(
@@ -352,6 +395,17 @@ async def _process_overwrites(channel_id: int, overwrites: list):
             overwrite["deny"],
         )
 
+        if target.is_user:
+            perms = Permissions(overwrite["allow"] & ~overwrite["deny"])
+            await _dispatch_action(guild_id, channel_id, target.user_id, perms)
+
+        elif target.is_role:
+            user_ids.extend(await app.storage.get_role_members(target.role_id))
+
+    for user_id in user_ids:
+        perms = await get_permissions(user_id, channel_id)
+        await _dispatch_action(guild_id, channel_id, target.user_id, perms)
+
 
 @bp.route("/<int:channel_id>/permissions/<int:overwrite_id>", methods=["PUT"])
 async def put_channel_overwrite(channel_id: int, overwrite_id: int):
@@ -371,6 +425,7 @@ async def put_channel_overwrite(channel_id: int, overwrite_id: int):
     )
 
     await _process_overwrites(
+        guild_id,
         channel_id,
         [
             {
@@ -447,7 +502,7 @@ async def _update_channel_common(channel_id: int, guild_id: int, j: dict):
 
     if "channel_overwrites" in j:
         overwrites = j["channel_overwrites"]
-        await _process_overwrites(channel_id, overwrites)
+        await _process_overwrites(guild_id, channel_id, overwrites)
 
 
 async def _common_guild_chan(channel_id, j: dict):
@@ -566,9 +621,9 @@ async def update_channel(channel_id: int):
     chan = await app.storage.get_channel(channel_id)
 
     if is_guild:
-        await app.dispatcher.dispatch("guild", guild_id, "CHANNEL_UPDATE", chan)
+        await app.dispatcher.guild.dispatch(guild_id, ("CHANNEL_UPDATE", chan))
     else:
-        await app.dispatcher.dispatch("channel", channel_id, "CHANNEL_UPDATE", chan)
+        await app.dispatcher.channel.dispatch(channel_id, ("CHANNEL_UPDATE", chan))
 
     return jsonify(chan)
 
@@ -578,17 +633,18 @@ async def trigger_typing(channel_id):
     user_id = await token_check()
     ctype, guild_id = await channel_check(user_id, channel_id)
 
-    await app.dispatcher.dispatch(
-        "channel",
+    await app.dispatcher.channel.dispatch(
         channel_id,
-        "TYPING_START",
-        {
-            "channel_id": str(channel_id),
-            "user_id": str(user_id),
-            "timestamp": int(time.time()),
-            # guild_id for lazy guilds
-            "guild_id": str(guild_id) if ctype == ChannelType.GUILD_TEXT else None,
-        },
+        (
+            "TYPING_START",
+            {
+                "channel_id": str(channel_id),
+                "user_id": str(user_id),
+                "timestamp": int(time.time()),
+                # guild_id for lazy guilds
+                "guild_id": str(guild_id) if ctype == ChannelType.GUILD_TEXT else None,
+            },
+        ),
     )
 
     return "", 204
@@ -816,5 +872,5 @@ async def bulk_delete(channel_id: int):
     if res == "DELETE 0":
         raise BadRequest("No messages were removed")
 
-    await app.dispatcher.dispatch("channel", channel_id, "MESSAGE_DELETE_BULK", payload)
+    await app.dispatcher.channel.dispatch(channel_id, ("MESSAGE_DELETE_BULK", payload))
     return "", 204

@@ -709,7 +709,9 @@ class Storage:
 
         return res
 
-    async def get_guild_extra(self, guild_id: int, user_id=None, large=None) -> Dict:
+    async def get_guild_extra(
+        self, guild_id: int, user_id: Optional[int] = None, large: Optional[int] = None
+    ) -> Dict:
         """Get extra information about a guild."""
         res = {}
 

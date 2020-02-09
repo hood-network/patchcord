@@ -18,6 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import urllib.parse
+from typing import Optional
 from litecord.gateway.websocket import GatewayWebsocket
 
 
@@ -44,17 +45,18 @@ async def websocket_handler(app, ws, url):
         return await ws.close(1000, "Invalid gateway encoding")
 
     try:
-        gw_compress = args["compress"][0]
+        gw_compress: Optional[str] = args["compress"][0]
     except (KeyError, IndexError):
         gw_compress = None
 
     if gw_compress and gw_compress not in ("zlib-stream", "zstd-stream"):
         return await ws.close(1000, "Invalid gateway compress")
 
-    gws = GatewayWebsocket(
-        ws, app, v=gw_version, encoding=gw_encoding, compress=gw_compress
-    )
+    async with app.app_context():
+        gws = GatewayWebsocket(
+            ws, v=gw_version, encoding=gw_encoding, compress=gw_compress
+        )
 
-    # this can be run with a single await since this whole coroutine
-    # is already running in the background.
-    await gws.run()
+        # this can be run with a single await since this whole coroutine
+        # is already running in the background.
+        await gws.run()

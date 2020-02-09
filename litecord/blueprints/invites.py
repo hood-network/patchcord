@@ -116,7 +116,7 @@ async def _inv_check_age(inv: dict):
         await delete_invite(inv["code"])
         raise InvalidInvite("Invite is expired")
 
-    if inv["max_uses"] is not -1 and inv["uses"] > inv["max_uses"]:
+    if inv["max_uses"] != -1 and inv["uses"] > inv["max_uses"]:
         await delete_invite(inv["code"])
         raise InvalidInvite("Too many uses")
 

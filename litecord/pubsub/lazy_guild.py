@@ -30,10 +30,10 @@ import asyncio
 from collections import defaultdict
 from typing import Any, List, Dict, Union, Optional, Iterable, Iterator, Tuple, Set
 from dataclasses import dataclass, asdict, field
+from quart import current_app as app
 
 from logbook import Logger
 
-from litecord.pubsub.dispatcher import Dispatcher
 from litecord.permissions import (
     Permissions,
     overwrite_find_mix,
@@ -239,9 +239,6 @@ class GuildMemberList:
 
     Attributes
     ----------
-    main_lg: LazyGuildDispatcher
-        Main instance of :class:`LazyGuildDispatcher`,
-        so that we're able to use things such as :class:`Storage`.
     guild_id: int
         The Guild ID this instance is referring to.
     channel_id: int
@@ -257,11 +254,10 @@ class GuildMemberList:
         for example, can still rely on PRESENCE_UPDATEs.
     """
 
-    def __init__(self, guild_id: int, channel_id: int, main_lg):
+    def __init__(self, guild_id: int, channel_id: int):
         self.guild_id = guild_id
         self.channel_id = channel_id
 
-        self.main = main_lg
         self.list = MemberList()
 
         #: store the states that are subscribed to the list.
@@ -273,22 +269,22 @@ class GuildMemberList:
     @property
     def loop(self):
         """Get the main asyncio loop instance."""
-        return self.main.app.loop
+        return app.loop
 
     @property
     def storage(self):
         """Get the global :class:`Storage` instance."""
-        return self.main.app.storage
+        return app.storage
 
     @property
     def presence(self):
         """Get the global :class:`PresenceManager` instance."""
-        return self.main.app.presence
+        return app.presence
 
     @property
     def state_man(self):
         """Get the global :class:`StateManager` instance."""
-        return self.main.app.state_manager
+        return app.state_manager
 
     @property
     def list_id(self):
@@ -572,8 +568,7 @@ class GuildMemberList:
         Wrapper for :meth:`StateManager.fetch_raw`
         """
         try:
-            state = self.state_man.fetch_raw(session_id)
-            return state
+            return self.state_man.fetch_raw(session_id)
         except KeyError:
             return None
 
@@ -643,7 +638,7 @@ class GuildMemberList:
 
             # do resync-ing in the background
             result.append(session_id)
-            self.loop.create_task(self.shard_query(session_id, [role_range]))
+            app.sched.spawn(self.shard_query(session_id, [role_range]))
 
         return result
 
@@ -683,8 +678,7 @@ class GuildMemberList:
         )
 
         if everyone_perms.bits.read_messages and list_id != "everyone":
-            everyone_gml = await self.main.get_gml(self.guild_id)
-
+            everyone_gml = await app.lazy_guild.get_gml(self.guild_id)
             return await everyone_gml.shard_query(session_id, ranges)
 
         await self._init_check()
@@ -1372,47 +1366,36 @@ class GuildMemberList:
 
         self.guild_id = 0
         self.channel_id = 0
-        self.main = None
         self._set_empty_list()
         self.state = {}
 
 
-class LazyGuildDispatcher(Dispatcher):
+class LazyGuildManager:
     """Main class holding the member lists for lazy guilds."""
 
-    # channel ids
-    KEY_TYPE = int
-
-    # the session ids subscribing to channels
-    VAL_TYPE = str
-
-    def __init__(self, main):
-        super().__init__(main)
-
-        self.storage = main.app.storage
-
+    def __init__(self):
         # {chan_id: gml, ...}
-        self.state = {}
+        self.state: Dict[int, GuildMemberList] = {}
 
         #: store which guilds have their
         #  respective GMLs
         # {guild_id: [chan_id, ...], ...}
         self.guild_map: Dict[int, List[int]] = defaultdict(list)
 
-    async def get_gml(self, channel_id: int):
+    async def get_gml(self, channel_id: int) -> GuildMemberList:
         """Get a guild list for a channel ID,
         generating it if it doesn't exist."""
         try:
             return self.state[channel_id]
         except KeyError:
-            guild_id = await self.storage.guild_from_channel(channel_id)
+            guild_id = await app.storage.guild_from_channel(channel_id)
 
             # if we don't find a guild, we just
             # set it the same as the channel.
             if not guild_id:
                 guild_id = channel_id
 
-            gml = GuildMemberList(guild_id, channel_id, self)
+            gml = GuildMemberList(guild_id, channel_id)
             self.state[channel_id] = gml
             self.guild_map[guild_id].append(channel_id)
             return gml
@@ -1436,16 +1419,6 @@ class LazyGuildDispatcher(Dispatcher):
         """Unsubscribe a session from the list."""
         gml = await self.get_gml(chan_id)
         gml.unsub(session_id)
-
-    async def dispatch(self, guild_id, event: str, *args, **kwargs):
-        """Call a function specialized in handling the given event"""
-        try:
-            handler = getattr(self, f"_handle_{event.lower()}")
-        except AttributeError:
-            log.warning("unknown event: {}", event)
-            return
-
-        await handler(guild_id, *args, **kwargs)
 
     def remove_channel(self, channel_id: int):
         """Remove a channel from the manager."""
@@ -1474,29 +1447,29 @@ class LazyGuildDispatcher(Dispatcher):
             method = getattr(lazy_list, method_str)
             await method(*args)
 
-    async def _handle_new_role(self, guild_id: int, new_role: dict):
+    async def new_role(self, guild_id: int, new_role: dict):
         """Handle the addition of a new group by dispatching it to
         the member lists."""
         await self._call_all_lists(guild_id, "new_role", new_role)
 
-    async def _handle_role_pos_upd(self, guild_id, role: dict):
+    async def role_position_update(self, guild_id, role: dict):
         await self._call_all_lists(guild_id, "role_pos_update", role)
 
-    async def _handle_role_update(self, guild_id, role: dict):
+    async def role_update(self, guild_id, role: dict):
         # handle name and hoist changes
         await self._call_all_lists(guild_id, "role_update", role)
 
-    async def _handle_role_delete(self, guild_id, role_id: int):
+    async def role_delete(self, guild_id, role_id: int):
         await self._call_all_lists(guild_id, "role_delete", role_id)
 
-    async def _handle_pres_update(self, guild_id, user_id: int, partial: dict):
+    async def pres_update(self, guild_id, user_id: int, partial: dict):
         await self._call_all_lists(guild_id, "pres_update", user_id, partial)
 
-    async def _handle_new_member(self, guild_id, user_id: int):
+    async def new_member(self, guild_id, user_id: int):
         await self._call_all_lists(guild_id, "new_member", user_id)
 
-    async def _handle_remove_member(self, guild_id, user_id: int):
+    async def remove_member(self, guild_id, user_id: int):
         await self._call_all_lists(guild_id, "remove_member", user_id)
 
-    async def _handle_update_user(self, guild_id, user_id: int):
+    async def update_user(self, guild_id, user_id: int):
         await self._call_all_lists(guild_id, "update_user", user_id)

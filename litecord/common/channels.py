@@ -22,6 +22,8 @@ from quart import current_app as app
 
 from litecord.errors import ForbiddenDM
 from litecord.enums import RelationshipType
+from litecord.pubsub.member import dispatch_member
+from litecord.pubsub.user import dispatch_user
 
 
 async def channel_ack(
@@ -54,20 +56,24 @@ async def channel_ack(
     )
 
     if guild_id:
-        await app.dispatcher.dispatch_user_guild(
-            user_id,
+        await dispatch_member(
             guild_id,
-            "MESSAGE_ACK",
-            {"message_id": str(message_id), "channel_id": str(channel_id)},
+            user_id,
+            (
+                "MESSAGE_ACK",
+                {"message_id": str(message_id), "channel_id": str(channel_id)},
+            ),
         )
     else:
         # we don't use ChannelDispatcher here because since
         # guild_id is None, all user devices are already subscribed
         # to the given channel (a dm or a group dm)
-        await app.dispatcher.dispatch_user(
+        await dispatch_user(
             user_id,
-            "MESSAGE_ACK",
-            {"message_id": str(message_id), "channel_id": str(channel_id)},
+            (
+                "MESSAGE_ACK",
+                {"message_id": str(message_id), "channel_id": str(channel_id)},
+            ),
         )
 
 

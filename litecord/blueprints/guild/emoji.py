@@ -32,14 +32,15 @@ bp = Blueprint("guild.emoji", __name__)
 
 async def _dispatch_emojis(guild_id):
     """Dispatch a Guild Emojis Update payload to a guild."""
-    await app.dispatcher.dispatch(
-        "guild",
+    await app.dispatcher.guild.dispatch(
         guild_id,
-        "GUILD_EMOJIS_UPDATE",
-        {
-            "guild_id": str(guild_id),
-            "emojis": await app.storage.get_guild_emojis(guild_id),
-        },
+        (
+            "GUILD_EMOJIS_UPDATE",
+            {
+                "guild_id": str(guild_id),
+                "emojis": await app.storage.get_guild_emojis(guild_id),
+            },
+        ),
     )
 
 

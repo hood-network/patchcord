@@ -22,6 +22,7 @@ import asyncio
 from typing import List
 from collections import defaultdict
 
+from quart import current_app as app
 from websockets.exceptions import ConnectionClosed
 from logbook import Logger
 
@@ -225,3 +226,16 @@ class StateManager:
     def close(self):
         """Close the state manager."""
         self.closed = True
+
+    async def fetch_user_states_for_channel(
+        self, channel_id: int, user_id: int
+    ) -> List[GatewayState]:
+        """Get a list of gateway states for a user that can receive events on a certain channel."""
+        # TODO optimize this with an in-memory store
+        guild_id = await app.storage.guild_from_channel(channel_id)
+
+        if guild_id:
+            return self.fetch_states(user_id, guild_id)
+
+        # DMs and GDMs use all user states
+        return self.user_states(user_id)

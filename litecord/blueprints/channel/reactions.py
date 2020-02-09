@@ -141,10 +141,7 @@ async def add_reaction(channel_id: int, message_id: int, emoji: str):
     if ctype in GUILD_CHANS:
         payload["guild_id"] = str(guild_id)
 
-    await app.dispatcher.dispatch(
-        "channel", channel_id, "MESSAGE_REACTION_ADD", payload
-    )
-
+    await app.dispatcher.channel.dispatch(channel_id, ("MESSAGE_REACTION_ADD", payload))
     return "", 204
 
 
@@ -206,8 +203,8 @@ async def _remove_reaction(channel_id: int, message_id: int, user_id: int, emoji
     if ctype in GUILD_CHANS:
         payload["guild_id"] = str(guild_id)
 
-    await app.dispatcher.dispatch(
-        "channel", channel_id, "MESSAGE_REACTION_REMOVE", payload
+    await app.dispatcher.channel.dispatch(
+        channel_id, ("MESSAGE_REACTION_REMOVE", payload)
     )
 
 
@@ -290,6 +287,6 @@ async def remove_all_reactions(channel_id, message_id):
     if ctype in GUILD_CHANS:
         payload["guild_id"] = str(guild_id)
 
-    await app.dispatcher.dispatch(
-        "channel", channel_id, "MESSAGE_REACTION_REMOVE_ALL", payload
+    await app.dispatcher.channel.dispatch(
+        channel_id, ("MESSAGE_REACTION_REMOVE_ALL", payload)
     )

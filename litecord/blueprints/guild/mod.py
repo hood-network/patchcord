@@ -86,10 +86,12 @@ async def create_ban(guild_id, member_id):
 
     await remove_member(guild_id, member_id)
 
-    await app.dispatcher.dispatch_guild(
+    await app.dispatcher.guild.dispatch(
         guild_id,
-        "GUILD_BAN_ADD",
-        {"guild_id": str(guild_id), "user": await app.storage.get_user(member_id)},
+        (
+            "GUILD_BAN_ADD",
+            {"guild_id": str(guild_id), "user": await app.storage.get_user(member_id)},
+        ),
     )
 
     return "", 204
@@ -115,10 +117,12 @@ async def remove_ban(guild_id, banned_id):
     if res == "DELETE 0":
         return "", 204
 
-    await app.dispatcher.dispatch_guild(
+    await app.dispatcher.guild.dispatch(
         guild_id,
-        "GUILD_BAN_REMOVE",
-        {"guild_id": str(guild_id), "user": await app.storage.get_user(banned_id)},
+        (
+            "GUILD_BAN_REMOVE",
+            {"guild_id": str(guild_id), "user": await app.storage.get_user(banned_id)},
+        ),
     )
 
     return "", 204

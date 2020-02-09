@@ -192,12 +192,9 @@ async def modify_guild_member(guild_id, member_id):
     if nick_flag:
         partial["nick"] = j["nick"]
 
-    await app.dispatcher.dispatch(
-        "lazy_guild", guild_id, "pres_update", user_id, partial
-    )
-
-    await app.dispatcher.dispatch_guild(
-        guild_id, "GUILD_MEMBER_UPDATE", {**{"guild_id": str(guild_id)}, **member}
+    await app.lazy_guild.pres_update(guild_id, user_id, partial)
+    await app.dispatcher.guild.dispatch(
+        guild_id, ("GUILD_MEMBER_UPDATE", {**{"guild_id": str(guild_id)}, **member})
     )
 
     return "", 204
@@ -228,12 +225,9 @@ async def update_nickname(guild_id):
     member.pop("joined_at")
 
     # call pres_update for nick changes, etc.
-    await app.dispatcher.dispatch(
-        "lazy_guild", guild_id, "pres_update", user_id, {"nick": j["nick"]}
-    )
-
-    await app.dispatcher.dispatch_guild(
-        guild_id, "GUILD_MEMBER_UPDATE", {**{"guild_id": str(guild_id)}, **member}
+    await app.lazy_guild.pres_update(guild_id, user_id, {"nick": j["nick"]})
+    await app.dispatcher.guild.dispatch(
+        guild_id, ("GUILD_MEMBER_UPDATE", {**{"guild_id": str(guild_id)}, **member})
     )
 
     return j["nick"]

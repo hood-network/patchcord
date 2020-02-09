@@ -106,11 +106,15 @@ async def add_pin(channel_id, message_id):
 
     timestamp = snowflake_datetime(row["message_id"])
 
-    await app.dispatcher.dispatch(
-        "channel",
+    await app.dispatcher.channel.dispatch(
         channel_id,
-        "CHANNEL_PINS_UPDATE",
-        {"channel_id": str(channel_id), "last_pin_timestamp": timestamp_(timestamp)},
+        (
+            "CHANNEL_PINS_UPDATE",
+            {
+                "channel_id": str(channel_id),
+                "last_pin_timestamp": timestamp_(timestamp),
+            },
+        ),
     )
 
     await send_sys_message(
@@ -149,11 +153,15 @@ async def delete_pin(channel_id, message_id):
 
     timestamp = snowflake_datetime(row["message_id"])
 
-    await app.dispatcher.dispatch(
-        "channel",
+    await app.dispatcher.channel.dispatch(
         channel_id,
-        "CHANNEL_PINS_UPDATE",
-        {"channel_id": str(channel_id), "last_pin_timestamp": timestamp.isoformat()},
+        (
+            "CHANNEL_PINS_UPDATE",
+            {
+                "channel_id": str(channel_id),
+                "last_pin_timestamp": timestamp.isoformat(),
+            },
+        ),
     )
 
     return "", 204

@@ -63,10 +63,10 @@ async def update_guild(guild_id: int):
 
     if old_unavailable and not new_unavailable:
         # guild became available
-        await app.dispatcher.dispatch_guild(guild_id, "GUILD_CREATE", guild)
+        await app.dispatcher.guild.dispatch(guild_id, ("GUILD_CREATE", guild))
     else:
         # guild became unavailable
-        await app.dispatcher.dispatch_guild(guild_id, "GUILD_DELETE", guild)
+        await app.dispatcher.guild.dispatch(guild_id, ("GUILD_DELETE", guild))
 
     return jsonify(guild)
 

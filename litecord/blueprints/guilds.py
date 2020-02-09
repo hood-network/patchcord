@@ -191,8 +191,9 @@ async def create_guild():
 
     guild_total = await app.storage.get_guild_full(guild_id, user_id, 250)
 
-    await app.dispatcher.sub("guild", guild_id, user_id)
-    await app.dispatcher.dispatch_guild(guild_id, "GUILD_CREATE", guild_total)
+    await app.dispatcher.guild.sub_user(guild_id, user_id)
+
+    await app.dispatcher.guild.dispatch(guild_id, ("GUILD_CREATE", guild_total))
     return jsonify(guild_total)
 
 
@@ -350,7 +351,7 @@ async def _update_guild(guild_id):
         )
 
     guild = await app.storage.get_guild_full(guild_id, user_id)
-    await app.dispatcher.dispatch_guild(guild_id, "GUILD_UPDATE", guild)
+    await app.dispatcher.guild.dispatch(guild_id, ("GUILD_UPDATE", guild))
     return jsonify(guild)
 
 

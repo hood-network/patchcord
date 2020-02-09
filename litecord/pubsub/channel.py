@@ -17,13 +17,15 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from typing import Any, List
+from typing import List
+from dataclasses import dataclass
 
+from quart import current_app as app
 from logbook import Logger
 
-from .dispatcher import DispatcherWithFlags
 from litecord.enums import ChannelType
 from litecord.utils import index_by_func
+from .dispatcher import DispatcherWithFlags, GatewayEvent
 
 log = Logger(__name__)
 
@@ -37,75 +39,66 @@ def gdm_recipient_view(orig: dict, user_id: int) -> dict:
     """
     # make a copy or the original channel object
     data = dict(orig)
-
     idx = index_by_func(lambda user: user["id"] == str(user_id), data["recipients"])
-
     data["recipients"].pop(idx)
-
     return data
 
 
-class ChannelDispatcher(DispatcherWithFlags):
-    """Main channel Pub/Sub logic."""
+@dataclass
+class ChannelFlags:
+    typing: bool
 
-    KEY_TYPE = int
-    VAL_TYPE = int
 
-    async def dispatch(self, channel_id, event: str, data: Any) -> List[str]:
+class ChannelDispatcher(
+    DispatcherWithFlags[int, str, GatewayEvent, List[str], ChannelFlags]
+):
+    """Main channel Pub/Sub logic. Handles both Guild, DM, and Group DM channels."""
+
+    async def dispatch(self, channel_id: int, event: GatewayEvent) -> List[str]:
         """Dispatch an event to a channel."""
-        # get everyone who is subscribed
-        # and store the number of states we dispatched the event to
-        user_ids = self.state[channel_id]
-        dispatched = 0
+        session_ids = set(self.state[channel_id])
         sessions: List[str] = []
 
-        # making a copy of user_ids since
-        # we'll modify it later on.
-        for user_id in set(user_ids):
-            guild_id = await self.app.storage.guild_from_channel(channel_id)
+        event_type, event_data = event
+        assert isinstance(event_data, dict)
 
-            # if we are dispatching to a guild channel,
-            # we should only dispatch to the states / shards
-            # that are connected to the guild (via their shard id).
-
-            # if we aren't, we just get all states tied to the user.
-            # TODO: make a fetch_states that fetches shards
-            #        - with id 0 (count any) OR
-            #        - single shards (id=0, count=1)
-            states = (
-                self.sm.fetch_states(user_id, guild_id)
-                if guild_id
-                else self.sm.user_states(user_id)
-            )
-
-            # unsub people who don't have any states tied to the channel.
-            if not states:
-                await self.unsub(channel_id, user_id)
+        for session_id in session_ids:
+            try:
+                state = app.state_manager.fetch_raw(session_id)
+            except KeyError:
+                await self.unsub(channel_id, session_id)
                 continue
 
-            # skip typing events for users that don't want it
-            if event.startswith("TYPING_") and not self.flags_get(
-                channel_id, user_id, "typing", True
-            ):
+            try:
+                flags = self.get_flags(channel_id, session_id)
+            except KeyError:
+                log.warning("no flags for {!r}, ignoring", session_id)
+                flags = ChannelFlags(typing=True)
+
+            if event_type.lower().startswith("typing_") and not flags.typing:
                 continue
 
-            cur_sess: List[str] = []
-
+            correct_event = event
+            # for cases where we are talking about group dms, we create an edited
+            # event data so that it doesn't show the user we're dispatching
+            # to in data.recipients (clients already assume they are recipients)
             if (
-                event in ("CHANNEL_CREATE", "CHANNEL_UPDATE")
-                and data.get("type") == ChannelType.GROUP_DM.value
+                event_type in ("CHANNEL_CREATE", "CHANNEL_UPDATE")
+                and event_data.get("type") == ChannelType.GROUP_DM.value
             ):
-                # we edit the channel payload so it doesn't show
-                # the user as a recipient
+                new_data = gdm_recipient_view(event_data, state.user_id)
+                correct_event = (event_type, new_data)
 
-                new_data = gdm_recipient_view(data, user_id)
-                cur_sess = await self._dispatch_states(states, event, new_data)
-            else:
-                cur_sess = await self._dispatch_states(states, event, data)
+            try:
+                await state.ws.dispatch(*correct_event)
+            except Exception:
+                log.exception("error while dispatching to {}", state.session_id)
+                continue
 
-            sessions.extend(cur_sess)
-            dispatched += len(cur_sess)
+            sessions.append(session_id)
 
-        log.info("Dispatched chan={} {!r} to {} states", channel_id, event, dispatched)
+        log.info(
+            "Dispatched chan={} {!r} to {} states", channel_id, event[0], len(sessions)
+        )
 
         return sessions

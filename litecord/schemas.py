@@ -482,6 +482,9 @@ INVITE = {
         "required": False,
         "nullable": True,
     },  # discord client sends invite code there
+    # sent by official client, unknown purpose
+    "target_user_id": {"type": "snowflake", "required": False, "nullable": True},
+    "target_user_type": {"type": "number", "required": False, "nullable": True},
 }
 
 USER_SETTINGS = {

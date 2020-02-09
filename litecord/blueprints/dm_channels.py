@@ -27,6 +27,7 @@ from litecord.errors import BadRequest, Forbidden
 from winter import get_snowflake
 from litecord.system_messages import send_sys_message
 from litecord.pubsub.channel import gdm_recipient_view
+from litecord.pubsub.user import dispatch_user
 
 log = Logger(__name__)
 bp = Blueprint("dm_channels", __name__)
@@ -82,11 +83,11 @@ async def gdm_create(user_id, peer_id) -> int:
     await _raw_gdm_add(channel_id, user_id)
     await _raw_gdm_add(channel_id, peer_id)
 
-    await app.dispatcher.sub("channel", channel_id, user_id)
-    await app.dispatcher.sub("channel", channel_id, peer_id)
+    await app.dispatcher.channel.sub(channel_id, user_id)
+    await app.dispatcher.channel.sub(channel_id, peer_id)
 
     chan = await app.storage.get_channel(channel_id)
-    await app.dispatcher.dispatch("channel", channel_id, "CHANNEL_CREATE", chan)
+    await app.dispatcher.channel.dispatch(channel_id, ("CHANNEL_CREATE", chan))
 
     return channel_id
 
@@ -104,13 +105,10 @@ async def gdm_add_recipient(channel_id: int, peer_id: int, *, user_id=None):
     chan = await app.storage.get_channel(channel_id)
 
     # the reasoning behind gdm_recipient_view is in its docstring.
-    await app.dispatcher.dispatch(
-        "user", peer_id, "CHANNEL_CREATE", gdm_recipient_view(chan, peer_id)
-    )
+    await dispatch_user(peer_id, ("CHANNEL_CREATE", gdm_recipient_view(chan, peer_id)))
 
-    await app.dispatcher.dispatch("channel", channel_id, "CHANNEL_UPDATE", chan)
-
-    await app.dispatcher.sub("channel", peer_id)
+    await app.dispatcher.channel.dispatch(channel_id, ("CHANNEL_UPDATE", chan))
+    await app.dispatcher.channel.sub(peer_id)
 
     if user_id:
         await send_sys_message(channel_id, MessageType.RECIPIENT_ADD, user_id, peer_id)
@@ -128,17 +126,19 @@ async def gdm_remove_recipient(channel_id: int, peer_id: int, *, user_id=None):
     await _raw_gdm_remove(channel_id, peer_id)
 
     chan = await app.storage.get_channel(channel_id)
-    await app.dispatcher.dispatch(
-        "user", peer_id, "CHANNEL_DELETE", gdm_recipient_view(chan, user_id)
-    )
+    await dispatch_user(peer_id, ("CHANNEL_DELETE", gdm_recipient_view(chan, user_id)))
 
-    await app.dispatcher.unsub("channel", peer_id)
+    await app.dispatcher.channel.unsub(peer_id)
 
-    await app.dispatcher.dispatch(
-        "channel",
+    await app.dispatcher.channel.dispatch(
         channel_id,
-        "CHANNEL_RECIPIENT_REMOVE",
-        {"channel_id": str(channel_id), "user": await app.storage.get_user(peer_id)},
+        (
+            "CHANNEL_RECIPIENT_REMOVE",
+            {
+                "channel_id": str(channel_id),
+                "user": await app.storage.get_user(peer_id),
+            },
+        ),
     )
 
     author_id = peer_id if user_id is None else user_id
@@ -174,9 +174,8 @@ async def gdm_destroy(channel_id):
         channel_id,
     )
 
-    await app.dispatcher.dispatch("channel", channel_id, "CHANNEL_DELETE", chan)
-
-    await app.dispatcher.remove("channel", channel_id)
+    await app.dispatcher.channel.dispatch(channel_id, ("CHANNEL_DELETE", chan))
+    await app.dispatcher.channel.drop(channel_id)
 
 
 async def gdm_is_member(channel_id: int, user_id: int) -> bool:

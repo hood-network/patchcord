@@ -17,7 +17,18 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from typing import List
+from typing import (
+    List,
+    Generic,
+    TypeVar,
+    Any,
+    Callable,
+    Dict,
+    Set,
+    Mapping,
+    Iterable,
+    Tuple,
+)
 from collections import defaultdict
 
 from logbook import Logger
@@ -25,79 +36,63 @@ from logbook import Logger
 log = Logger(__name__)
 
 
-def _identity(_self, x):
-    return x
+K = TypeVar("K")
+V = TypeVar("V")
+F = TypeVar("F")
+EventType = TypeVar("EventType")
+DispatchType = TypeVar("DispatchType")
+F_Map = Mapping[V, F]
+
+GatewayEvent = Tuple[str, Any]
+
+__all__ = ["Dispatcher", "DispatcherWithState", "DispatcherWithFlags", "GatewayEvent"]
 
 
-class Dispatcher:
+class Dispatcher(Generic[K, V, EventType, DispatchType]):
     """Pub/Sub backend dispatcher.
 
-    This just declares functions all Dispatcher subclasses
-    can implement. This does not mean all Dispatcher
-    subclasses have them implemented.
+    Classes must implement this protocol.
     """
 
-    KEY_TYPE = _identity
-    VAL_TYPE = _identity
+    async def sub(self, key: K, identifier: V) -> None:
+        """Subscribe a given identifier to a given key."""
+        ...
 
-    def __init__(self, main):
-        #: main EventDispatcher
-        self.main_dispatcher = main
+    async def sub_many(self, key: K, identifier_list: Iterable[V]) -> None:
+        for identifier in identifier_list:
+            await self.sub(key, identifier)
 
-        #: gateway state storage
-        self.sm = main.state_manager
+    async def unsub(self, key: K, identifier: V) -> None:
+        """Unsubscribe a given identifier to a given key."""
+        ...
 
-        self.app = main.app
+    async def dispatch(self, key: K, event: EventType) -> DispatchType:
+        ...
 
-    async def sub(self, _key, _id):
-        """Subscribe an element to the channel/key."""
-        raise NotImplementedError
+    async def dispatch_many(self, keys: List[K], *args: Any, **kwargs: Any) -> None:
+        log.info("MULTI DISPATCH in {!r}, {} keys", self, len(keys))
+        for key in keys:
+            await self.dispatch(key, *args, **kwargs)
 
-    async def unsub(self, _key, _id):
-        """Unsubscribe an elemtnt from the channel/key."""
-        raise NotImplementedError
+    async def drop(self, key: K) -> None:
+        """Drop a key."""
+        ...
 
-    async def dispatch_filter(self, _key, _func, *_args):
-        """Selectively dispatch to the list of subscribed users.
+    async def clear(self, key: K) -> None:
+        """Clear a key from the backend."""
+        ...
 
-        The selection logic is completly arbitraty and up to the
-        Pub/Sub backend.
+    async def dispatch_filter(
+        self, key: K, filter_function: Callable[[K], bool], event: EventType
+    ) -> List[str]:
+        """Selectively dispatch to the list of subscribers.
+
+        Function must return a list of separate identifiers for composability.
         """
-        raise NotImplementedError
-
-    async def dispatch(self, _key, *_args):
-        """Dispatch an event to the given channel/key."""
-        raise NotImplementedError
-
-    async def reset(self, _key):
-        """Reset a key from the backend."""
-        raise NotImplementedError
-
-    async def remove(self, _key):
-        """Remove a key from the backend.
-
-        The meaning from reset() and remove()
-        is different, reset() is to clear all
-        subscribers from the given key,
-        remove() is to remove the key as well.
-        """
-        raise NotImplementedError
-
-    async def _dispatch_states(self, states: list, event: str, data) -> List[str]:
-        """Dispatch an event to a list of states."""
-        res = []
-
-        for state in states:
-            try:
-                await state.ws.dispatch(event, data)
-                res.append(state.session_id)
-            except Exception:
-                log.exception("error while dispatching")
-
-        return res
+        ...
 
 
-class DispatcherWithState(Dispatcher):
+class DispatcherWithState(Dispatcher[K, V, EventType, DispatchType]):
     """Pub/Sub backend with a state dictionary.
 
     This class was made to decrease the amount
@@ -105,58 +100,58 @@ class DispatcherWithState(Dispatcher):
     that have that dictionary.
     """
 
-    def __init__(self, main):
-        super().__init__(main)
+    def __init__(self):
+        super().__init__()
 
         #: the default dict is to a set
         #  so we make sure someone calling sub()
         #  twice won't get 2x the events for the
         #  same channel.
-        self.state = defaultdict(set)
+        self.state: Dict[K, Set[V]] = defaultdict(set)
 
-    async def sub(self, key, identifier):
+    async def sub(self, key: K, identifier: V):
         self.state[key].add(identifier)
 
-    async def unsub(self, key, identifier):
+    async def unsub(self, key: K, identifier: V):
         self.state[key].discard(identifier)
 
-    async def reset(self, key):
+    async def reset(self, key: K):
         self.state[key] = set()
 
-    async def remove(self, key):
+    async def drop(self, key: K):
         try:
             self.state.pop(key)
         except KeyError:
             pass
 
-    async def dispatch(self, key, *args):
-        raise NotImplementedError
 
-
-class DispatcherWithFlags(DispatcherWithState):
+class DispatcherWithFlags(
+    DispatcherWithState, Generic[K, V, EventType, DispatchType, F],
+):
     """Pub/Sub backend with both a state and a flags store."""
 
-    def __init__(self, main):
-        super().__init__(main)
+    def __init__(self):
+        super().__init__()
+        self.flags: Mapping[K, Dict[V, F]] = defaultdict(dict)
 
-        #: keep flags for subscribers, so for example
-        # a subscriber could drop all presence events at the
-        # pubsub level. see gateway's guild_subscriptions field for more
-        self.flags = defaultdict(dict)
+    def set_flags(self, key: K, identifier: V, flags: F):
+        """Set flags for the given identifier."""
+        self.flags[key][identifier] = flags
 
-    async def sub(self, key, identifier, flags=None):
-        """Subscribe a user to the guild."""
-        await super().sub(key, identifier)
-        self.flags[key][identifier] = flags or {}
-
-    async def unsub(self, key, identifier):
-        """Unsubscribe a user from the guild."""
-        await super().unsub(key, identifier)
+    def remove_flags(self, key: K, identifier: V):
+        """Set flags for the given identifier."""
         self.flags[key].pop(identifier)
 
-    def flags_get(self, key, identifier, field: str, default):
+    def get_flags(self, key: K, identifier: V):
         """Get a single field from the flags store."""
-        # yes, i know its simply an indirection from the main flags store,
-        # but i'd rather have this than change every call if i ever change
-        # the structure of the flags store.
-        return self.flags[key][identifier].get(field, default)
+        return self.flags[key][identifier]
+
+    async def sub_with_flags(self, key: K, identifier: V, flags: F):
+        """Subscribe a user to the guild."""
+        await super().sub(key, identifier)
+        self.set_flags(key, identifier, flags)
+
+    async def unsub(self, key: K, identifier: V):
+        """Unsubscribe a user from the guild."""
+        await super().unsub(key, identifier)
+        self.remove_flags(key, identifier)

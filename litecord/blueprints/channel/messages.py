@@ -42,6 +42,7 @@ from litecord.common.messages import (
     msg_add_attachment,
     msg_guild_text_mentions,
 )
+from litecord.pubsub.user import dispatch_user
 
 
 log = Logger(__name__)
@@ -136,10 +137,10 @@ async def _dm_pre_dispatch(channel_id, peer_id):
 
     # dispatch CHANNEL_CREATE so the client knows which
     # channel the future event is about
-    await app.dispatcher.dispatch_user(peer_id, "CHANNEL_CREATE", dm_chan)
+    await dispatch_user(peer_id, "CHANNEL_CREATE", dm_chan)
 
     # subscribe the peer to the channel
-    await app.dispatcher.sub("channel", channel_id, peer_id)
+    await app.dispatcher.channel.sub(channel_id, peer_id)
 
     # insert it on dm_channel_state so the client
     # is subscribed on the future
@@ -242,7 +243,7 @@ async def _create_message(channel_id):
         await _dm_pre_dispatch(channel_id, user_id)
         await _dm_pre_dispatch(channel_id, guild_id)
 
-    await app.dispatcher.dispatch("channel", channel_id, "MESSAGE_CREATE", payload)
+    await app.dispatcher.channel.dispatch(channel_id, ("MESSAGE_CREATE", payload))
 
     # spawn url processor for embedding of images
     perms = await get_permissions(user_id, channel_id)
@@ -350,7 +351,7 @@ async def edit_message(channel_id, message_id):
     # only dispatch MESSAGE_UPDATE if any update
     # actually happened
     if updated:
-        await app.dispatcher.dispatch("channel", channel_id, "MESSAGE_UPDATE", message)
+        await app.dispatcher.channel.dispatch(channel_id, ("MESSAGE_UPDATE", message))
 
     return jsonify(message)
 
@@ -427,16 +428,17 @@ async def delete_message(channel_id, message_id):
         message_id,
     )
 
-    await app.dispatcher.dispatch(
-        "channel",
+    await app.dispatcher.channel.dispatch(
         channel_id,
-        "MESSAGE_DELETE",
-        {
-            "id": str(message_id),
-            "channel_id": str(channel_id),
-            # for lazy guilds
-            "guild_id": str(guild_id),
-        },
+        (
+            "MESSAGE_DELETE",
+            {
+                "id": str(message_id),
+                "channel_id": str(channel_id),
+                # for lazy guilds
+                "guild_id": str(guild_id),
+            },
+        ),
     )
 
     return "", 204

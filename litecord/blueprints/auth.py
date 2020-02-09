@@ -24,12 +24,13 @@ import itsdangerous
 import bcrypt
 from quart import Blueprint, jsonify, request, current_app as app
 from logbook import Logger
+from winter import get_snowflake
 
 from litecord.auth import token_check
 from litecord.common.users import create_user
 from litecord.schemas import validate, REGISTER, REGISTER_WITH_INVITE
 from litecord.errors import BadRequest
-from winter import get_snowflake
+from litecord.pubsub.user import dispatch_user
 from .invites import use_invite
 
 log = Logger(__name__)
@@ -172,7 +173,7 @@ async def verify_user():
     )
 
     new_user = await app.storage.get_user(user_id, True)
-    await app.dispatcher.dispatch_user(user_id, "USER_UPDATE", new_user)
+    await dispatch_user(user_id, ("USER_UPDATE", new_user))
 
     return "", 204
 
