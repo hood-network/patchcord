@@ -29,41 +29,48 @@ from ..snowflake import get_snowflake
 from ..errors import BadRequest
 from ..auth import hash_data
 from ..utils import rand_hex
+from ..pubsub.user import dispatch_user
 
 log = Logger(__name__)
 
 
-async def mass_user_update(user_id: int):
-    """Dispatch USER_UPDATE in a mass way."""
-    # by using dispatch_with_filter
-    # we're guaranteeing all shards will get
-    # a USER_UPDATE once and not any others.
+async def mass_user_update(user_id: int) -> Tuple[dict, dict]:
+    """Dispatch a USER_UPDATE to everyone that is subscribed to the user.
 
+    This function guarantees all states will get one USER_UPDATE for simple
+    cases. Lazy guild users might get updates N times depending of how many
+    lists are they subscribed to.
+    """
     session_ids: List[str] = []
 
     public_user = await app.storage.get_user(user_id)
     private_user = await app.storage.get_user(user_id, secure=True)
 
-    session_ids.extend(
-        await app.dispatcher.dispatch_user(user_id, "USER_UPDATE", private_user)
-    )
+    session_ids.extend(await dispatch_user(user_id, ("USER_UPDATE", private_user)))
 
-    guild_ids = await app.user_storage.get_user_guilds(user_id)
-    friend_ids = await app.user_storage.get_friend_ids(user_id)
+    guild_ids: List[int] = await app.user_storage.get_user_guilds(user_id)
+    friend_ids: List[int] = await app.user_storage.get_friend_ids(user_id)
 
-    session_ids.extend(
-        await app.dispatcher.dispatch_many_filter_list(
-            "guild", guild_ids, session_ids, "USER_UPDATE", public_user
+    for guild_id in guild_ids:
+        session_ids.extend(
+            await app.dispatcher.guild.dispatch_filter(
+                guild_id,
+                lambda sess_id: sess_id not in session_ids,
+                ("USER_UPDATE", public_user),
+            )
         )
-    )
 
-    session_ids.extend(
-        await app.dispatcher.dispatch_many_filter_list(
-            "friend", friend_ids, session_ids, "USER_UPDATE", public_user
+    for friend_id in friend_ids:
+        session_ids.extend(
+            await app.dispatcher.friend.dispatch_filter(
+                friend_id,
+                lambda sess_id: sess_id not in session_ids,
+                ("USER_UPDATE", public_user),
+            )
         )
-    )
 
-    await app.dispatcher.dispatch_many("lazy_guild", guild_ids, "update_user", user_id)
+    for guild_id in guild_ids:
+        await app.lazy_guild.update_user(guild_id, user_id)
 
     return public_user, private_user
 

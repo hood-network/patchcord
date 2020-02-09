@@ -17,13 +17,15 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
+from typing import List
 from logbook import Logger
 from quart import current_app as app
 
 from ..snowflake import get_snowflake
-from ..permissions import get_role_perms
+from ..permissions import get_role_perms, get_permissions
 from ..utils import dict_get, maybe_lazy_guild_dispatch
 from ..enums import ChannelType
+from litecord.pubsub.member import dispatch_member
 
 log = Logger(__name__)
 
@@ -41,21 +43,20 @@ async def remove_member(guild_id: int, member_id: int):
         member_id,
     )
 
-    await app.dispatcher.dispatch_user_guild(
-        member_id,
+    await dispatch_member(
         guild_id,
-        "GUILD_DELETE",
-        {"guild_id": str(guild_id), "unavailable": False},
+        member_id,
+        ("GUILD_DELETE", {"guild_id": str(guild_id), "unavailable": False}),
     )
 
-    await app.dispatcher.unsub("guild", guild_id, member_id)
-
-    await app.dispatcher.dispatch("lazy_guild", guild_id, "remove_member", member_id)
-
-    await app.dispatcher.dispatch_guild(
+    await app.dispatcher.guild.unsub(guild_id, member_id)
+    await app.lazy_guild.remove_member(member_id)
+    await app.dispatcher.guild.dispatch(
         guild_id,
-        "GUILD_MEMBER_REMOVE",
-        {"guild_id": str(guild_id), "user": await app.storage.get_user(member_id)},
+        (
+            "GUILD_MEMBER_REMOVE",
+            {"guild_id": str(guild_id), "user": await app.storage.get_user(member_id)},
+        ),
     )
 
 
@@ -108,8 +109,8 @@ async def create_role(guild_id, name: str, **kwargs):
     # we need to update the lazy guild handlers for the newly created group
     await maybe_lazy_guild_dispatch(guild_id, "new_role", role)
 
-    await app.dispatcher.dispatch_guild(
-        guild_id, "GUILD_ROLE_CREATE", {"guild_id": str(guild_id), "role": role}
+    await app.dispatcher.guild.dispatch(
+        guild_id, ("GUILD_ROLE_CREATE", {"guild_id": str(guild_id), "role": role})
     )
 
     return role
@@ -135,6 +136,39 @@ async def _specific_chan_create(channel_id, ctype, **kwargs):
             kwargs.get("bitrate", 64),
             kwargs.get("user_limit", 0),
         )
+
+
+async def _subscribe_users_new_channel(guild_id: int, channel_id: int) -> None:
+
+    # for each state currently subscribed to guild, we check on the database
+    # which states can also subscribe to the new channel at its creation.
+
+    # the list of users that can subscribe are then used again for a pass
+    # over the states and states that have user ids in that list become
+    # subscribers of the new channel.
+    users_to_sub: List[str] = []
+
+    for session_id in app.dispatcher.guild.state[guild_id]:
+        try:
+            state = app.state_manager.fetch_raw(session_id)
+        except KeyError:
+            continue
+
+        if state.user_id in users_to_sub:
+            continue
+
+        perms = await get_permissions(state.user_id, channel_id)
+        if perms.read_messages:
+            users_to_sub.append(state.user_id)
+
+    for session_id in app.dispatcher.guild.state[guild_id]:
+        try:
+            state = app.state_manager.fetch_raw(session_id)
+        except KeyError:
+            continue
+
+        if state.user_id in users_to_sub:
+            await app.dispatcher.channel.sub(channel_id, session_id)
 
 
 async def create_guild_channel(
@@ -180,6 +214,8 @@ async def create_guild_channel(
     # so we use this function.
     await _specific_chan_create(channel_id, ctype, **kwargs)
 
+    await _subscribe_users_new_channel(guild_id, channel_id)
+
 
 async def _del_from_table(table: str, user_id: int):
     """Delete a row from a table."""
@@ -206,21 +242,22 @@ async def delete_guild(guild_id: int):
     )
 
     # Discord's client expects IDs being string
-    await app.dispatcher.dispatch(
-        "guild",
+    await app.dispatcher.guild.dispatch(
         guild_id,
-        "GUILD_DELETE",
-        {
-            "guild_id": str(guild_id),
-            "id": str(guild_id),
-            # 'unavailable': False,
-        },
+        (
+            "GUILD_DELETE",
+            {
+                "guild_id": str(guild_id),
+                "id": str(guild_id),
+                # 'unavailable': False,
+            },
+        ),
     )
 
     # remove from the dispatcher so nobody
     # becomes the little memer that tries to fuck up with
     # everybody's gateway
-    await app.dispatcher.remove("guild", guild_id)
+    await app.dispatcher.guild.drop(guild_id)
 
 
 async def create_guild_settings(guild_id: int, user_id: int):
@@ -285,18 +322,17 @@ async def add_member(guild_id: int, user_id: int, *, basic=False):
 
     # tell current members a new member came up
     member = await app.storage.get_member_data_one(guild_id, user_id)
-    await app.dispatcher.dispatch_guild(
-        guild_id, "GUILD_MEMBER_ADD", {**member, **{"guild_id": str(guild_id)}}
+    await app.dispatcher.guild.dispatch(
+        guild_id, ("GUILD_MEMBER_ADD", {**member, **{"guild_id": str(guild_id)}})
     )
 
-    # update member lists for the new member
-    await app.dispatcher.dispatch("lazy_guild", guild_id, "new_member", user_id)
+    # pubsub changes for new member
+    await app.lazy_guild.new_member(guild_id, user_id)
+    states = await app.dispatcher.guild.sub_user(guild_id, user_id)
 
-    # subscribe new member to guild, so they get events n stuff
-    await app.dispatcher.sub("guild", guild_id, user_id)
-
-    # tell the new member that theres the guild it just joined.
-    # we use dispatch_user_guild so that we send the GUILD_CREATE
-    # just to the shards that are actually tied to it.
     guild = await app.storage.get_guild_full(guild_id, user_id, 250)
-    await app.dispatcher.dispatch_user_guild(user_id, guild_id, "GUILD_CREATE", guild)
+    for state in states:
+        try:
+            await state.ws.dispatch("GUILD_CREATE", guild)
+        except Exception:
+            log.exception("failed to dispatch to session_id={!r}", state.session_id)

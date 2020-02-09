@@ -17,16 +17,25 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from .guild import GuildDispatcher
-from .member import dispatch_member
-from .user import dispatch_user
-from .channel import ChannelDispatcher
-from .friend import FriendDispatcher
+import logging
+from typing import List, Tuple, Any
+from ..gateway.state import GatewayState
 
-__all__ = [
-    "GuildDispatcher",
-    "dispatch_member",
-    "dispatch_user",
-    "ChannelDispatcher",
-    "FriendDispatcher",
-]
+log = logging.getLogger(__name__)
+
+
+async def send_event_to_states(
+    states: List[GatewayState], event_data: Tuple[str, Any]
+) -> List[str]:
+    """Dispatch an event to a list of states."""
+    res = []
+
+    for state in states:
+        try:
+            event, data = event_data
+            await state.ws.dispatch(event, data)
+            res.append(state.session_id)
+        except Exception:
+            log.exception("error while dispatching")
+
+    return res

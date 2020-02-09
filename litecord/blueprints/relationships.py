@@ -24,6 +24,7 @@ from ..auth import token_check
 from ..schemas import validate, RELATIONSHIP, SPECIFIC_FRIEND
 from ..enums import RelationshipType
 from litecord.errors import BadRequest
+from litecord.pubsub.user import dispatch_user
 
 
 bp = Blueprint("relationship", __name__)
@@ -36,17 +37,17 @@ async def get_me_relationships():
 
 
 async def _dispatch_single_pres(user_id, presence: dict):
-    await app.dispatcher.dispatch("user", user_id, "PRESENCE_UPDATE", presence)
+    await dispatch_user(user_id, ("PRESENCE_UPDATE", presence))
 
 
 async def _unsub_friend(user_id, peer_id):
-    await app.dispatcher.unsub("friend", user_id, peer_id)
-    await app.dispatcher.unsub("friend", peer_id, user_id)
+    await app.dispatcher.friend.unsub(user_id, peer_id)
+    await app.dispatcher.friend.unsub(peer_id, user_id)
 
 
 async def _sub_friend(user_id, peer_id):
-    await app.dispatcher.sub("friend", user_id, peer_id)
-    await app.dispatcher.sub("friend", peer_id, user_id)
+    await app.dispatcher.friend.sub(user_id, peer_id)
+    await app.dispatcher.friend.sub(peer_id, user_id)
 
     # dispatch presence update to the user and peer about
     # eachother's presence.
@@ -107,8 +108,8 @@ async def make_friend(
                 _friend,
             )
 
-            await app.dispatcher.dispatch_user(
-                peer_id, "RELATIONSHIP_REMOVE", {"type": _friend, "id": str(user_id)}
+            await dispatch_user(
+                peer_id, ("RELATIONSHIP_REMOVE", {"type": _friend, "id": str(user_id)})
             )
 
             await _unsub_friend(user_id, peer_id)
@@ -130,35 +131,41 @@ async def make_friend(
         _friend,
     )
 
-    _dispatch = app.dispatcher.dispatch_user
+    _dispatch = dispatch_user
 
     if existing:
         # accepted a friend request, dispatch respective
         # relationship events
         await _dispatch(
             user_id,
-            "RELATIONSHIP_REMOVE",
-            {"type": RelationshipType.INCOMING.value, "id": str(peer_id)},
+            (
+                "RELATIONSHIP_REMOVE",
+                {"type": RelationshipType.INCOMING.value, "id": str(peer_id)},
+            ),
         )
 
         await _dispatch(
             user_id,
-            "RELATIONSHIP_ADD",
-            {
-                "type": _friend,
-                "id": str(peer_id),
-                "user": await app.storage.get_user(peer_id),
-            },
+            (
+                "RELATIONSHIP_ADD",
+                {
+                    "type": _friend,
+                    "id": str(peer_id),
+                    "user": await app.storage.get_user(peer_id),
+                },
+            ),
         )
 
         await _dispatch(
             peer_id,
             "RELATIONSHIP_ADD",
-            {
-                "type": _friend,
-                "id": str(user_id),
-                "user": await app.storage.get_user(user_id),
-            },
+            (
+                {
+                    "type": _friend,
+                    "id": str(user_id),
+                    "user": await app.storage.get_user(user_id),
+                },
+            ),
         )
 
         await _sub_friend(user_id, peer_id)
@@ -169,22 +176,26 @@ async def make_friend(
     if rel_type == _friend:
         await _dispatch(
             user_id,
-            "RELATIONSHIP_ADD",
-            {
-                "id": str(peer_id),
-                "type": RelationshipType.OUTGOING.value,
-                "user": await app.storage.get_user(peer_id),
-            },
+            (
+                "RELATIONSHIP_ADD",
+                {
+                    "id": str(peer_id),
+                    "type": RelationshipType.OUTGOING.value,
+                    "user": await app.storage.get_user(peer_id),
+                },
+            ),
         )
 
         await _dispatch(
             peer_id,
-            "RELATIONSHIP_ADD",
-            {
-                "id": str(user_id),
-                "type": RelationshipType.INCOMING.value,
-                "user": await app.storage.get_user(user_id),
-            },
+            (
+                "RELATIONSHIP_ADD",
+                {
+                    "id": str(user_id),
+                    "type": RelationshipType.INCOMING.value,
+                    "user": await app.storage.get_user(user_id),
+                },
+            ),
         )
 
         # we don't make the pubsub link
@@ -240,7 +251,7 @@ async def add_relationship(peer_id: int):
     # make_friend did not succeed, so we
     # assume it is a block and dispatch
     # the respective RELATIONSHIP_ADD.
-    await app.dispatcher.dispatch_user(
+    await dispatch_user(
         user_id,
         "RELATIONSHIP_ADD",
         {
@@ -261,7 +272,7 @@ async def remove_relationship(peer_id: int):
     user_id = await token_check()
     _friend = RelationshipType.FRIEND.value
     _block = RelationshipType.BLOCK.value
-    _dispatch = app.dispatcher.dispatch_user
+    _dispatch = dispatch_user
 
     rel_type = await app.db.fetchval(
         """
@@ -307,7 +318,8 @@ async def remove_relationship(peer_id: int):
         )
 
         await _dispatch(
-            user_id, "RELATIONSHIP_REMOVE", {"id": str(peer_id), "type": user_del_type}
+            user_id,
+            ("RELATIONSHIP_REMOVE", {"id": str(peer_id), "type": user_del_type}),
         )
 
         peer_del_type = (
@@ -315,7 +327,8 @@ async def remove_relationship(peer_id: int):
         )
 
         await _dispatch(
-            peer_id, "RELATIONSHIP_REMOVE", {"id": str(user_id), "type": peer_del_type}
+            peer_id,
+            ("RELATIONSHIP_REMOVE", {"id": str(user_id), "type": peer_del_type}),
         )
 
         await _unsub_friend(user_id, peer_id)
@@ -334,7 +347,7 @@ async def remove_relationship(peer_id: int):
     )
 
     await _dispatch(
-        user_id, "RELATIONSHIP_REMOVE", {"id": str(peer_id), "type": _block}
+        user_id, ("RELATIONSHIP_REMOVE", {"id": str(peer_id), "type": _block})
     )
 
     await _unsub_friend(user_id, peer_id)

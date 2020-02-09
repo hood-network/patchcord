@@ -181,9 +181,6 @@ async def send_sys_message(
         raise ValueError("Invalid system message type")
 
     message_id = await handler(channel_id, *args, **kwargs)
-
     message = await app.storage.get_message(message_id)
-
-    await app.dispatcher.dispatch("channel", channel_id, "MESSAGE_CREATE", message)
-
+    await app.dispatcher.channel.dispatch(channel_id, ("MESSAGE_CREATE", message))
     return message_id

@@ -17,11 +17,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from typing import Optional
+from typing import Optional, Dict, List
 from collections import defaultdict
 from dataclasses import dataclass
 
 from logbook import Logger
+from quart import current_app as app
 
 from litecord.voice.lvsp_conn import LVSPConnection
 
@@ -42,15 +43,15 @@ class LVSPManager:
     Spawns :class:`LVSPConnection` as needed, etc.
     """
 
-    def __init__(self, app, voice):
-        self.app = app
+    def __init__(self, app_, voice):
+        self.app = app_
         self.voice = voice
 
         # map servers to LVSPConnection
-        self.conns = {}
+        self.conns: Dict[str, LVSPConnection] = {}
 
         # maps regions to server hostnames
-        self.servers = defaultdict(list)
+        self.servers: Dict[str, List[str]] = defaultdict(list)
 
         # maps Union[GuildID, DMId, GroupDMId] to server hostnames
         self.assign = {}
@@ -84,7 +85,7 @@ class LVSPManager:
                 continue
 
             self.regions[region.id] = region
-            self.app.loop.create_task(self._spawn_region(region))
+            app.sched.spawn(self._spawn_region(region))
 
     async def _spawn_region(self, region: Region):
         """Spawn a region. Involves fetching all the hostnames

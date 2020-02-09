@@ -252,7 +252,7 @@ async def maybe_lazy_guild_dispatch(
     if isinstance(role, dict) and not role["hoist"] and not force:
         return
 
-    await app.dispatcher.dispatch("lazy_guild", guild_id, event, role)
+    await (getattr(app.lazy_guild, event))(guild_id, role)
 
 
 def extract_limit(request_, default: int = 50, max_val: int = 100):

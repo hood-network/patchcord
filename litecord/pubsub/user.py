@@ -17,23 +17,27 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from .dispatcher import Dispatcher
+from typing import Callable, List
+
+from quart import current_app as app
+from .dispatcher import GatewayEvent
+from .utils import send_event_to_states
 
 
-class UserDispatcher(Dispatcher):
-    """User backend for Pub/Sub."""
-
-    KEY_TYPE = int
-
-    async def dispatch_filter(self, user_id: int, func, event, data):
-        """Dispatch an event to all shards of a user."""
-
-        # filter only states where func() gives true
-        states = list(
-            filter(lambda state: func(state.session_id), self.sm.user_states(user_id))
+async def dispatch_user_filter(
+    user_id: int, filter_func: Callable[[str], bool], event_data: GatewayEvent
+) -> List[str]:
+    """Dispatch to a given user's states, but only for states
+    where filter_func returns true."""
+    states = list(
+        filter(
+            lambda state: filter_func(state.session_id),
+            app.state_manager.user_states(user_id),
         )
+    )
 
-        return await self._dispatch_states(states, event, data)
+    return await send_event_to_states(states, event_data)
 
-    async def dispatch(self, user_id: int, event, data):
-        return await self.dispatch_filter(user_id, lambda sess_id: True, event, data)
+
+async def dispatch_user(user_id: int, event_data: GatewayEvent) -> List[str]:
+    return await dispatch_user_filter(user_id, lambda sess_id: True, event_data)

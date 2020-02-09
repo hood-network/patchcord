@@ -27,6 +27,7 @@ from random import randint
 import websockets
 import zstandard as zstd
 from logbook import Logger
+from quart import current_app as app
 
 from litecord.auth import raw_token_check
 from litecord.enums import RelationshipType, ChannelType
@@ -43,7 +44,6 @@ from litecord.presence import BasePresence
 
 from litecord.gateway.opcodes import OP
 from litecord.gateway.state import GatewayState
-
 from litecord.errors import WebsocketClose, Unauthorized, Forbidden, BadRequest
 from litecord.gateway.errors import (
     DecodeError,
@@ -52,8 +52,9 @@ from litecord.gateway.errors import (
     ShardingRequired,
 )
 from litecord.gateway.encoding import encode_json, decode_json, encode_etf, decode_etf
-
 from litecord.gateway.utils import WebsocketFileHandler
+from litecord.pubsub.guild import GuildFlags
+from litecord.pubsub.channel import ChannelFlags
 
 from litecord.storage import int_
 
@@ -67,7 +68,7 @@ WebsocketProperties = collections.namedtuple(
 class GatewayWebsocket:
     """Main gateway websocket logic."""
 
-    def __init__(self, ws, app, **kwargs):
+    def __init__(self, ws, **kwargs):
         self.app = app
         self.storage = app.storage
         self.user_storage = app.user_storage
@@ -230,7 +231,7 @@ class GatewayWebsocket:
         if task:
             task.cancel()
 
-        self.wsp.tasks["heartbeat"] = self.app.loop.create_task(
+        self.wsp.tasks["heartbeat"] = app.sched.spawn(
             task_wrapper("hb wait", self._hb_wait(interval))
         )
 
@@ -247,6 +248,7 @@ class GatewayWebsocket:
 
     async def dispatch(self, event: str, data: Any):
         """Dispatch an event to the websocket."""
+        assert self.state is not None
         self.state.seq += 1
 
         payload = {
@@ -282,6 +284,7 @@ class GatewayWebsocket:
 
     async def _guild_dispatch(self, unavailable_guilds: List[Dict[str, Any]]):
         """Dispatch GUILD_CREATE information."""
+        assert self.state is not None
 
         # Users don't get asynchronous guild dispatching.
         if not self.state.bot:
@@ -360,9 +363,7 @@ class GatewayWebsocket:
         }
 
         await self.dispatch("READY", {**base_ready, **user_ready})
-
-        # async dispatch of guilds
-        self.app.loop.create_task(self._guild_dispatch(guilds))
+        app.sched.spawn(self._guild_dispatch(guilds))
 
     async def _check_shards(self, shard, user_id):
         """Check if the given `shard` value in IDENTIFY has good enough values.
@@ -412,6 +413,7 @@ class GatewayWebsocket:
         Note: subscribing to channels is already handled
             by GuildDispatcher.sub
         """
+        assert self.state is not None
         user_id = self.state.user_id
         guild_ids = await self._guild_ids()
 
@@ -434,26 +436,50 @@ class GatewayWebsocket:
         #  (presence and typing events)
 
         # we enable processing of guild_subscriptions by adding flags
-        # when subscribing to the given backend. those are optional.
-        channels_to_sub = [
-            (
-                "guild",
-                guild_ids,
-                {"presence": guild_subscriptions, "typing": guild_subscriptions},
-            ),
-            ("channel", dm_ids),
-            ("channel", gdm_ids),
-        ]
+        # when subscribing to the given backend.
+        session_id = self.state.session_id
+        channel_ids: List[int] = []
 
-        await self.app.dispatcher.mass_sub(user_id, channels_to_sub)
+        for guild_id in guild_ids:
+            await app.dispatcher.guild.sub_with_flags(
+                guild_id,
+                session_id,
+                GuildFlags(presence=guild_subscriptions, typing=guild_subscriptions),
+            )
 
+            # instead of calculating which channels to subscribe to
+            # inside guild dispatcher, we calculate them in here, so that
+            # we remove complexity of the dispatcher.
+
+            guild_chan_ids = await app.storage.get_channel_ids(guild_id)
+            for channel_id in guild_chan_ids:
+                perms = await get_permissions(
+                    self.state.user_id, channel_id, storage=self.storage
+                )
+
+                if perms.bits.read_messages:
+                    channel_ids.append(channel_id)
+
+        log.info("subscribing to {} guild channels", len(channel_ids))
+        for channel_id in channel_ids:
+            await app.dispatcher.channel.sub_with_flags(
+                channel_id, session_id, ChannelFlags(typing=guild_subscriptions)
+            )
+
+        for dm_id in dm_ids:
+            await app.dispatcher.channel.sub(dm_id, session_id)
+
+        for gdm_id in gdm_ids:
+            await app.dispatcher.channel.sub(gdm_id, session_id)
+
+        # subscribe to all friends
+        # (their friends will also subscribe back
+        #  when they come online)
         if not self.state.bot:
-            # subscribe to all friends
-            # (their friends will also subscribe back
-            #  when they come online)
             friend_ids = await self.user_storage.get_friend_ids(user_id)
             log.info("subscribing to {} friends", len(friend_ids))
-            await self.app.dispatcher.sub_many("friend", user_id, friend_ids)
+            for friend_id in friend_ids:
+                await app.dispatcher.friend.sub(user_id, friend_id)
 
     async def update_status(self, incoming_status: dict):
         """Update the status of the current websocket connection."""
@@ -921,6 +947,7 @@ class GatewayWebsocket:
             ]
         }
         """
+        assert self.state is not None
         data = payload["d"]
 
         gids = await self.user_storage.get_user_guilds(self.state.user_id)
@@ -933,11 +960,9 @@ class GatewayWebsocket:
         log.debug("lazy request: members: {}", data.get("members", []))
 
         # make shard query
-        lazy_guilds = self.app.dispatcher.backends["lazy_guild"]
-
         for chan_id, ranges in data.get("channels", {}).items():
             chan_id = int(chan_id)
-            member_list = await lazy_guilds.get_gml(chan_id)
+            member_list = await app.lazy_guild.get_gml(chan_id)
 
             perms = await get_permissions(
                 self.state.user_id, chan_id, storage=self.storage

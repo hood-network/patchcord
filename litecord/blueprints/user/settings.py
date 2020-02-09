@@ -22,6 +22,7 @@ from quart import Blueprint, jsonify, request, current_app as app
 from litecord.auth import token_check
 from litecord.schemas import validate, USER_SETTINGS, GUILD_SETTINGS
 from litecord.blueprints.checks import guild_check
+from litecord.pubsub.user import dispatch_user
 
 bp = Blueprint("users_settings", __name__)
 
@@ -58,7 +59,7 @@ async def patch_current_settings():
         )
 
     settings = await app.user_storage.get_user_settings(user_id)
-    await app.dispatcher.dispatch_user(user_id, "USER_SETTINGS_UPDATE", settings)
+    await dispatch_user(user_id, ("USER_SETTINGS_UPDATE", settings))
     return jsonify(settings)
 
 
@@ -123,7 +124,7 @@ async def patch_guild_settings(guild_id: int):
 
     settings = await app.user_storage.get_guild_settings_one(user_id, guild_id)
 
-    await app.dispatcher.dispatch_user(user_id, "USER_GUILD_SETTINGS_UPDATE", settings)
+    await dispatch_user(user_id, ("USER_GUILD_SETTINGS_UPDATE", settings))
 
     return jsonify(settings)
 
@@ -157,8 +158,8 @@ async def put_note(target_id: int):
         note,
     )
 
-    await app.dispatcher.dispatch_user(
-        user_id, "USER_NOTE_UPDATE", {"id": str(target_id), "note": note}
+    await dispatch_user(
+        user_id, ("USER_NOTE_UPDATE", {"id": str(target_id), "note": note})
     )
 
     return "", 204

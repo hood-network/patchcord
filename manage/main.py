@@ -104,7 +104,7 @@ def main(config):
         # as the managers require it
         # and the migrate command also sets the db up
         if argv[1] != "migrate":
-            init_app_managers(app, voice=False)
+            init_app_managers(app, init_voice=False)
 
         args = parser.parse_args()
         loop.run_until_complete(_ctx_wrapper(app, args))

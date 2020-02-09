@@ -87,8 +87,8 @@ async def msg_update_embeds(payload, new_embeds):
     if "flags" in payload:
         update_payload["flags"] = payload["flags"]
 
-    await app.dispatcher.dispatch(
-        "channel", channel_id, "MESSAGE_UPDATE", update_payload
+    await app.dispatcher.channel.dispatch(
+        channel_id, ("MESSAGE_UPDATE", update_payload)
     )
 
 

@@ -156,11 +156,12 @@ async def webhook_token_check(webhook_id: int, webhook_token: str):
 
 
 async def _dispatch_webhook_update(guild_id: int, channel_id):
-    await app.dispatcher.dispatch(
-        "guild",
+    await app.dispatcher.guild.dispatch(
         guild_id,
-        "WEBHOOKS_UPDATE",
-        {"guild_id": str(guild_id), "channel_id": str(channel_id)},
+        (
+            "WEBHOOKS_UPDATE",
+            {"guild_id": str(guild_id), "channel_id": str(channel_id)},
+        ),
     )
 
 
@@ -503,7 +504,7 @@ async def execute_webhook(webhook_id: int, webhook_token):
 
     payload = await app.storage.get_message(message_id)
 
-    await app.dispatcher.dispatch("channel", channel_id, "MESSAGE_CREATE", payload)
+    await app.dispatcher.channel.dispatch(channel_id, ("MESSAGE_CREATE", payload))
 
     # spawn embedder in the background, even when we're on a webhook.
     app.sched.spawn(process_url_embed(payload))

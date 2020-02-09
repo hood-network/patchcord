@@ -93,7 +93,6 @@ class PresenceManager:
         self.storage = app.storage
         self.user_storage = app.user_storage
         self.state_manager = app.state_manager
-        self.dispatcher = app.dispatcher
 
     async def guild_presences(
         self, member_ids: List[int], guild_id: int
@@ -127,8 +126,7 @@ class PresenceManager:
 
         member = await self.storage.get_member_data_one(guild_id, user_id)
 
-        lazy_guild_store = self.dispatcher.backends["lazy_guild"]
-        lists = lazy_guild_store.get_gml_guild(guild_id)
+        lists = app.lazy_guild.get_gml_guild(guild_id)
 
         # shards that are in lazy guilds with 'everyone'
         # enabled
@@ -163,11 +161,12 @@ class PresenceManager:
         # given a session id, return if the session id actually connects to
         # a given user, and if the state has not been dispatched via lazy guild.
         def _session_check(session_id):
-            state = self.state_manager.fetch_raw(session_id)
-            uid = int(member["user"]["id"])
-
-            if not state:
+            try:
+                state = self.state_manager.fetch_raw(session_id)
+            except KeyError:
                 return False
+
+            uid = int(member["user"]["id"])
 
             # we don't want to send a presence update
             # to the same user
@@ -175,8 +174,8 @@ class PresenceManager:
 
         # everyone not in lazy guild mode
         # gets a PRESENCE_UPDATE
-        await self.dispatcher.dispatch_filter(
-            "guild", guild_id, _session_check, "PRESENCE_UPDATE", event_payload
+        await app.dispatcher.guild.dispatch_filter(
+            guild_id, _session_check, ("PRESENCE_UPDATE", event_payload)
         )
 
         return in_lazy
@@ -193,11 +192,8 @@ class PresenceManager:
 
         # dispatch to all friends that are subscribed to them
         user = await self.storage.get_user(user_id)
-        await self.dispatcher.dispatch(
-            "friend",
-            user_id,
-            "PRESENCE_UPDATE",
-            {**presence.partial_dict, **{"user": user}},
+        await app.dispatcher.friend.dispatch(
+            user_id, ("PRESENCE_UPDATE", {**presence.partial_dict, **{"user": user}}),
         )
 
     def fetch_friend_presence(self, friend_id: int) -> BasePresence:

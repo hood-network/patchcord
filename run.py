@@ -95,6 +95,7 @@ from litecord.images import IconManager
 from litecord.jobs import JobManager
 from litecord.voice.manager import VoiceManager
 from litecord.guild_memory_store import GuildMemoryStore
+from litecord.pubsub.lazy_guild import LazyGuildManager
 
 from litecord.gateway.gateway import websocket_handler
 
@@ -254,7 +255,7 @@ async def init_app_db(app_):
     app_.sched = JobManager()
 
 
-def init_app_managers(app_, *, voice=True):
+def init_app_managers(app_: Quart, *, init_voice=True):
     """Initialize singleton classes."""
     app_.loop = asyncio.get_event_loop()
     app_.ratelimiter = RatelimitManager(app_.config.get("_testing"))
@@ -265,7 +266,7 @@ def init_app_managers(app_, *, voice=True):
 
     app_.icons = IconManager(app_)
 
-    app_.dispatcher = EventDispatcher(app_)
+    app_.dispatcher = EventDispatcher()
     app_.presence = PresenceManager(app_)
 
     app_.storage.presence = app_.presence
@@ -274,10 +275,11 @@ def init_app_managers(app_, *, voice=True):
     # we do this because of a bug on ./manage.py where it
     # cancels the LVSPManager's spawn regions task. we don't
     # need to start it on manage time.
-    if voice:
+    if init_voice:
         app_.voice = VoiceManager(app_)
 
     app_.guild_store = GuildMemoryStore()
+    app_.lazy_guild = LazyGuildManager()
 
 
 async def api_index(app_):

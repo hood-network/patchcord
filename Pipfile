@@ -18,7 +18,7 @@ zstandard = "*"
 winter = {editable = true,git = "https://gitlab.com/elixire/winter.git"}
 
 [dev-packages]
-pytest = "==5.1.2"
+pytest = "==5.3.2"
 pytest-asyncio = "==0.10.0"
 mypy = "*"
 black = "*"

@@ -59,19 +59,9 @@ async def create_channel(guild_id):
     new_channel_id = get_snowflake()
     await create_guild_channel(guild_id, new_channel_id, channel_type, **j)
 
-    # TODO: do a better method
-    # subscribe the currently subscribed users to the new channel
-    # by getting all user ids and subscribing each one by one.
-
-    # since GuildDispatcher calls Storage.get_channel_ids,
-    # it will subscribe all users to the newly created channel.
-    guild_pubsub = app.dispatcher.backends["guild"]
-    user_ids = guild_pubsub.state[guild_id]
-    for uid in user_ids:
-        await app.dispatcher.sub("guild", guild_id, uid)
-
     chan = await app.storage.get_channel(new_channel_id)
-    await app.dispatcher.dispatch_guild(guild_id, "CHANNEL_CREATE", chan)
+    await app.dispatcher.guild.dispatch(guild_id, ("CHANNEL_CREATE", chan))
+
     return jsonify(chan)
 
 
@@ -79,7 +69,7 @@ async def _chan_update_dispatch(guild_id: int, channel_id: int):
     """Fetch new information about the channel and dispatch
     a single CHANNEL_UPDATE event to the guild."""
     chan = await app.storage.get_channel(channel_id)
-    await app.dispatcher.dispatch_guild(guild_id, "CHANNEL_UPDATE", chan)
+    await app.dispatcher.guild.dispatch(guild_id, ("CHANNEL_UPDATE", chan))
 
 
 async def _do_single_swap(guild_id: int, pair: tuple):
