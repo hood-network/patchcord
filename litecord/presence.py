@@ -185,7 +185,6 @@ class PresenceManager:
 
         Also dispatches the presence to all the users' friends
         """
-        # TODO: shard-aware (needs to only dispatch guilds of the shard)
         guild_ids = await self.user_storage.get_user_guilds(user_id)
         for guild_id in guild_ids:
             await self.dispatch_guild_pres(guild_id, user_id, presence)
