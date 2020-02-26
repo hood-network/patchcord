@@ -137,7 +137,7 @@ async def _dm_pre_dispatch(channel_id, peer_id):
 
     # dispatch CHANNEL_CREATE so the client knows which
     # channel the future event is about
-    await dispatch_user(peer_id, "CHANNEL_CREATE", dm_chan)
+    await dispatch_user(peer_id, ("CHANNEL_CREATE", dm_chan))
 
     # subscribe the peer to the channel
     await app.dispatcher.channel.sub(channel_id, peer_id)
