@@ -140,7 +140,10 @@ class DispatcherWithFlags(
 
     def remove_flags(self, key: K, identifier: V):
         """Set flags for the given identifier."""
-        self.flags[key].pop(identifier)
+        try:
+            self.flags[key].pop(identifier)
+        except KeyError:
+            pass
 
     def get_flags(self, key: K, identifier: V):
         """Get a single field from the flags store."""
