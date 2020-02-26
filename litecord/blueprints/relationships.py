@@ -158,8 +158,8 @@ async def make_friend(
 
         await _dispatch(
             peer_id,
-            "RELATIONSHIP_ADD",
             (
+                "RELATIONSHIP_ADD",
                 {
                     "type": _friend,
                     "id": str(user_id),
@@ -253,12 +253,14 @@ async def add_relationship(peer_id: int):
     # the respective RELATIONSHIP_ADD.
     await dispatch_user(
         user_id,
-        "RELATIONSHIP_ADD",
-        {
-            "id": str(peer_id),
-            "type": RelationshipType.BLOCK.value,
-            "user": await app.storage.get_user(peer_id),
-        },
+        (
+            "RELATIONSHIP_ADD",
+            {
+                "id": str(peer_id),
+                "type": RelationshipType.BLOCK.value,
+                "user": await app.storage.get_user(peer_id),
+            },
+        ),
     )
 
     await _unsub_friend(user_id, peer_id)
