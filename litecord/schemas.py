@@ -162,11 +162,11 @@ class LitecordValidator(Validator):
         return isinstance(value, str) and (len(value) < 32)
 
 
-def validate(
-    reqjson: Optional[Union[Dict, List]], schema: Dict, raise_err: bool = True
-) -> Dict:
+def validate(reqjson: Optional[Union[Dict, List]], schema: Dict,) -> Dict:
     """Validate the given user-given data against a schema, giving the
     "correct" version of the document, with all defaults applied.
+
+    Raises BadRequest error when the validation fails.
 
     Parameters
     ----------
@@ -174,9 +174,6 @@ def validate(
         The input data
     schema:
         The schema to validate reqjson against
-    raise_err:
-        If we should raise a BadRequest error when the validation
-        fails. Default is true.
     """
     validator = LitecordValidator(schema)
 
@@ -192,11 +189,7 @@ def validate(
     if not valid:
         errs = validator.errors
         log.warning("Error validating doc {!r}: {!r}", reqjson, errs)
-
-        if raise_err:
-            raise BadRequest("bad payload", errs)
-
-        return None
+        raise BadRequest("bad payload", errs)
 
     return validator.document
 
