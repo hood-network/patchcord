@@ -18,6 +18,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import re
+
+# from datetime import datetime
 from typing import Union, Dict, List, Optional
 
 from cerberus import Validator
@@ -41,7 +43,10 @@ from litecord.embed.schemas import EMBED_OBJECT, EmbedURL
 
 log = Logger(__name__)
 
+# TODO use any char instead of english lol
 USERNAME_REGEX = re.compile(r"^[a-zA-Z0-9_ ]{2,30}$", re.A)
+
+# TODO better email regex maybe
 EMAIL_REGEX = re.compile(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$", re.A)
 DATA_REGEX = re.compile(r"data\:image/(png|jpeg|gif);base64,(.+)", re.A)
 
@@ -430,6 +435,16 @@ GW_ACTIVITY = {
     },
     "instance": {"type": "boolean", "required": False},
     "flags": {"type": "number", "required": False},
+    "emoji": {
+        "type": "dict",
+        "required": False,
+        "nullable": True,
+        "schema": {
+            "animated": {"type": "boolean", "required": False, "default": False},
+            "id": {"coerce": int, "nullable": True, "default": None},
+            "name": {"type": "string", "required": True},
+        },
+    },
 }
 
 GW_STATUS_UPDATE = {
@@ -519,6 +534,19 @@ USER_SETTINGS = {
     "timezone_offset": {"type": "number", "required": False},
     "status": {"type": "status_external", "required": False},
     "theme": {"type": "theme", "required": False},
+    "custom_status": {
+        "type": "dict",
+        "required": False,
+        "nullable": True,
+        "schema": {
+            "emoji_id": {"coerce": int, "nullable": True},
+            "emoji_name": {"type": "string", "nullable": True},
+            # discord's timestamps dont seem to work well with
+            # datetime.fromisoformat, so for now, we trust the client
+            "expires_at": {"type": "string", "nullable": True},
+            "text": {"type": "string", "nullable": True},
+        },
+    },
 }
 
 RELATIONSHIP = {
