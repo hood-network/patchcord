@@ -21,7 +21,8 @@ import collections
 import asyncio
 import pprint
 import zlib
-from typing import List, Dict, Any, Iterable
+import time
+from typing import List, Dict, Any, Iterable, Optional
 from random import randint
 
 import websockets
@@ -30,12 +31,15 @@ from logbook import Logger
 from quart import current_app as app
 
 from litecord.auth import raw_token_check
-from litecord.enums import RelationshipType, ChannelType
+from litecord.enums import RelationshipType, ChannelType, ActivityType
 from litecord.schemas import validate, GW_STATUS_UPDATE
 from litecord.utils import (
     task_wrapper,
     yield_chunks,
     maybe_int,
+    custom_status_to_activity,
+    custom_status_is_expired,
+    custom_status_set_null,
     want_bytes,
     want_string,
 )
@@ -87,6 +91,7 @@ class GatewayWebsocket:
         log.debug("websocket properties: {!r}", self.wsp)
 
         self.state = None
+        self._hb_counter = 0
 
         self._set_encoders()
 
@@ -301,7 +306,7 @@ class GatewayWebsocket:
 
             await self.dispatch("GUILD_CREATE", guild)
 
-    async def _user_ready(self) -> dict:
+    async def _user_ready(self, *, settings=None) -> dict:
         """Fetch information about users in the READY packet.
 
         This part of the API is completly undocumented.
@@ -319,7 +324,7 @@ class GatewayWebsocket:
         ]
 
         friend_presences = await self.app.presence.friend_presences(friend_ids)
-        settings = await self.user_storage.get_user_settings(user_id)
+        settings = settings or await self.user_storage.get_user_settings(user_id)
 
         return {
             "user_settings": settings,
@@ -336,7 +341,7 @@ class GatewayWebsocket:
             "analytics_token": "transbian",
         }
 
-    async def dispatch_ready(self):
+    async def dispatch_ready(self, **kwargs):
         """Dispatch the READY packet for a connecting account."""
         guilds = await self._make_guild_list()
 
@@ -346,7 +351,7 @@ class GatewayWebsocket:
         user_ready = {}
         if not self.state.bot:
             # user, fetch info
-            user_ready = await self._user_ready()
+            user_ready = await self._user_ready(**kwargs)
 
         private_channels = await self.user_storage.get_dms(
             user_id
@@ -481,56 +486,111 @@ class GatewayWebsocket:
             for friend_id in friend_ids:
                 await app.dispatcher.friend.sub(user_id, friend_id)
 
-    async def update_status(self, incoming_status: dict):
-        """Update the status of the current websocket connection."""
+    async def update_presence(
+        self,
+        given_presence: dict,
+        *,
+        settings: Optional[dict] = None,
+        override_ratelimit=False,
+    ):
+        """Update the presence of the current websocket connection.
+
+        Invalid presences are silently dropped. As well as when the state is
+        invalid/incomplete.
+        When the session is beyond the Status Update's ratelimits, the update
+        is silently dropped.
+        """
         if not self.state:
             return
 
-        if self._check_ratelimit("presence", self.state.session_id):
-            # Presence Updates beyond the ratelimit
-            # are just silently dropped.
+        if not override_ratelimit and self._check_ratelimit(
+            "presence", self.state.session_id
+        ):
             return
 
-        status = {
-            "afk": False,
-            # TODO: fetch status from settings
-            "status": "online",
-            "game": None,
-            # TODO: this
-            "since": 0,
-        }
-        status.update(incoming_status or {})
+        settings = settings or await self.user_storage.get_user_settings(
+            self.state.user_id
+        )
+
+        presence = BasePresence(status=settings["status"] or "online", game=None)
+
+        custom_status = settings.get("custom_status") or None
+        if isinstance(custom_status, dict) and custom_status is not None:
+            presence.game = await custom_status_to_activity(custom_status)
+            if presence.game is None:
+                await custom_status_set_null(self.state.user_id)
+
+        log.debug("pres={}, given pres={}", presence, given_presence)
 
         try:
-            status = validate(status, GW_STATUS_UPDATE)
+            given_presence = validate(given_presence, GW_STATUS_UPDATE)
         except BadRequest as err:
             log.warning(f"Invalid status update: {err}")
             return
 
-        # try to extract game from activities
-        # when game not provided
-        if not status.get("game"):
-            try:
-                game = status["activities"][0]
-            except (KeyError, IndexError):
-                game = None
-        else:
-            game = status["game"]
+        presence.update_from_incoming_dict(given_presence)
 
-        pres_status = status.get("status") or "online"
-        pres_status = "offline" if pres_status == "invisible" else pres_status
-        self.state.presence = BasePresence(status=pres_status, game=game)
+        # always try to use activities.0 to replace game when possible
+        activities: Optional[List[dict]] = given_presence.get("activities")
+        try:
+            activity: Optional[dict] = (activities or [])[0]
+        except IndexError:
+            activity = None
+
+        game: Optional[dict] = activity or presence.game
+
+        # hacky, but works (id and created_at aren't documented)
+        if game is not None and game["type"] == ActivityType.CUSTOM.value:
+            game["id"] = "custom"
+            game["created_at"] = int(time.time() * 1000)
+
+            emoji = game.get("emoji") or {}
+            if emoji.get("id") is None and emoji.get("name") is not None:
+                # drop the other fields when we're using unicode emoji
+                game["emoji"] = {"name": emoji["name"]}
+
+        presence.game = game
+
+        if presence.status == "invisible":
+            presence.status = "offline"
+
+        self.state.presence = presence
 
         log.info(
-            f'Updating presence status={status["status"]} for '
-            f"uid={self.state.user_id}"
+            "updating presence status={} for uid={}",
+            presence.status,
+            self.state.user_id,
         )
+        log.debug("full presence = {}", presence)
         await self.app.presence.dispatch_pres(self.state.user_id, self.state.presence)
+
+    async def _custom_status_expire_check(self):
+        if not self.state:
+            return
+
+        settings = await self.user_storage.get_user_settings(self.state.user_id)
+        custom_status = settings["custom_status"]
+        if custom_status is None:
+            return
+
+        if not custom_status_is_expired(custom_status.get("expires_at")):
+            return
+
+        await custom_status_set_null(self.state.user_id)
+        await self.update_presence(
+            {"status": self.state.presence.status, "game": None},
+            override_ratelimit=True,
+        )
 
     async def handle_1(self, payload: Dict[str, Any]):
         """Handle OP 1 Heartbeat packets."""
         # give the client 3 more seconds before we
         # close the websocket
+
+        self._hb_counter += 1
+        if self._hb_counter % 2 == 0:
+            self.app.sched.spawn(self._custom_status_expire_check())
+
         self._hb_start((46 + 3) * 1000)
         cliseq = payload.get("d")
 
@@ -562,7 +622,7 @@ class GatewayWebsocket:
         large = data.get("large_threshold", 50)
 
         shard = data.get("shard", [0, 1])
-        presence = data.get("presence")
+        presence = data.get("presence") or {}
 
         try:
             user_id = await raw_token_check(token, self.app.db)
@@ -596,17 +656,16 @@ class GatewayWebsocket:
         # link the state to the user
         self.app.state_manager.insert(self.state)
 
-        await self.update_status(presence)
+        settings = await self.user_storage.get_user_settings(user_id)
+
+        await self.update_presence(presence, settings=settings)
         await self.subscribe_all(data.get("guild_subscriptions", True))
-        await self.dispatch_ready()
+        await self.dispatch_ready(settings=settings)
 
     async def handle_3(self, payload: Dict[str, Any]):
         """Handle OP 3 Status Update."""
-        presence = payload["d"]
-
-        # update_status will take care of validation and
-        # setting new presence to state
-        await self.update_status(presence)
+        presence = payload["d"] or {}
+        await self.update_presence(presence)
 
     async def _vsu_get_prop(self, state, data):
         """Get voice state properties from data, fallbacking to

@@ -223,7 +223,7 @@ def merge(member: dict, presence: Presence) -> dict:
                 "user": {"id": str(member["user"]["id"])},
                 "status": presence["status"],
                 "game": presence["game"],
-                "activities": presence["activities"],
+                "activities": (presence.get("activities") or []),
             }
         },
     }

@@ -20,6 +20,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import asyncio
 import json
 import secrets
+import datetime
+import re
 from typing import Any, Iterable, Optional, Sequence, List, Dict, Union
 
 from logbook import Logger
@@ -290,6 +292,75 @@ def query_tuple_from_args(args: dict, limit: int) -> tuple:
 def rand_hex(length: int = 8) -> str:
     """Generate random hex characters."""
     return secrets.token_hex(length)[:length]
+
+
+def parse_time(timestamp: Optional[str]) -> Optional[datetime.datetime]:
+    if timestamp:
+        splitted = re.split(r"[^\d]", timestamp.replace("+00:00", ""))
+
+        # ignore last component (which can be empty, because of the last Z
+        # letter in a timestamp)
+        splitted = splitted[:7]
+        components = list(map(int, splitted))
+        return datetime.datetime(*components)
+
+    return None
+
+
+def custom_status_is_expired(expired_at: Optional[str]) -> bool:
+    """Return if a custom status is expired."""
+    expires_at = parse_time(expired_at)
+    now = datetime.datetime.utcnow()
+    return bool(expires_at and now > expires_at)
+
+
+async def custom_status_set_null(user_id: int) -> None:
+    """Set a user's custom status in the database to NULL.
+
+    This function does not do any gateway side effects.
+    """
+    await app.db.execute(
+        """
+        UPDATE user_settings
+        SET custom_status = NULL
+        WHERE user_id = $1
+        """,
+        user_id,
+    )
+
+
+async def custom_status_to_activity(custom_status: dict) -> Optional[dict]:
+    """Convert a custom status coming from user settings to an activity.
+
+    Returns None if the given custom status is invalid and shouldn't be
+    used anymore.
+    """
+    text = custom_status.get("text")
+    emoji_id = custom_status.get("emoji_id")
+    emoji_name = custom_status.get("emoji_name")
+    emoji = None if emoji_id is None else await app.storage.get_emoji(emoji_id)
+
+    activity = {"type": 4, "name": "Custom Status"}
+
+    if emoji is not None:
+        activity["emoji"] = {
+            "animated": emoji["animated"],
+            "id": str(emoji["id"]),
+            "name": emoji["name"],
+        }
+    elif emoji_name is not None:
+        activity["emoji"] = {"name": emoji_name}
+
+    if text is not None:
+        activity["state"] = text
+
+    if "emoji" not in activity and "state" not in activity:
+        return None
+
+    if custom_status_is_expired(custom_status.get("expired_at")):
+        return None
+
+    return activity
 
 
 def want_bytes(data: Union[str, bytes]) -> bytes:
