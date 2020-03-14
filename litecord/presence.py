@@ -33,6 +33,10 @@ class BasePresence:
     game: Optional[dict] = None
 
     @property
+    def activities(self) -> list:
+        return [self.game] if self.game else []
+
+    @property
     def partial_dict(self) -> dict:
         return {
             "status": self.status,
@@ -40,8 +44,22 @@ class BasePresence:
             "since": 0,
             "client_status": {},
             "mobile": False,
-            "activities": [self.game] if self.game else [],
+            "activities": self.activities,
         }
+
+    def update_from_incoming_dict(self, given_presence: dict) -> None:
+        given_status, given_game = (
+            given_presence.get("status"),
+            given_presence.get("game"),
+        )
+
+        if given_status is not None:
+            assert isinstance(given_status, str)
+            self.status = given_status
+
+        if given_game is not None:
+            assert isinstance(given_game, dict)
+            self.game = given_game
 
 
 Presence = Dict[str, Any]
@@ -139,6 +157,7 @@ class PresenceManager:
                     "roles": member["roles"],
                     "status": presence.status,
                     "game": presence.game,
+                    "activities": presence.activities,
                 },
             )
 

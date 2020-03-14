@@ -56,7 +56,7 @@ class UserStorage:
             user_id,
         )
 
-        if not row:
+        if row is None:
             log.info("Generating user settings for {}", user_id)
 
             await self.db.execute(
