@@ -333,7 +333,7 @@ class IconManager:
             *args,
         )
 
-        if not icon_row:
+        if icon_row is None:
             return None
 
         icon = Icon(icon_row["key"], icon_row["hash"], icon_row["mime"])
@@ -370,9 +370,6 @@ class IconManager:
 
         # get an extension for the given data uri
         extension = get_ext(mime)
-
-        if "bsize" in kwargs and len(raw_data) > kwargs["bsize"]:
-            return _invalid(kwargs)
 
         # size management is different for gif files
         # as they're composed of multiple frames.
@@ -529,3 +526,4 @@ class IconManager:
             await self.delete(old_icon)
 
         return await self.put(scope, key, new_icon_data, **kwargs)
+
