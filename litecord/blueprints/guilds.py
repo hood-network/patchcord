@@ -303,6 +303,7 @@ async def _update_guild(guild_id):
         "explicit_content_filter",
         "afk_timeout",
         "description",
+        "preferred_locale"
     ]
 
     for field in [f for f in fields if f in j]:
