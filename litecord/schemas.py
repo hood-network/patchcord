@@ -292,6 +292,7 @@ GUILD_UPDATE = {
     "owner_id": {"type": "snowflake", "required": False},
     "system_channel_id": {"type": "snowflake", "required": False, "nullable": True},
     "features": {"type": "list", "required": False, "schema": {"type": "string"}},
+    "rules_channel_id": {"type": "snowflake", "required": False, "nullable": True},
 }
 
 
