@@ -346,7 +346,7 @@ async def _update_guild(guild_id):
         SET {field} = $1
         WHERE id = $2
         """,
-            j[field],
+            int(j[field]),
             guild_id,
         )
 
