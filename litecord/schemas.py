@@ -293,6 +293,7 @@ GUILD_UPDATE = {
     "system_channel_id": {"type": "snowflake", "required": False, "nullable": True},
     "features": {"type": "list", "required": False, "schema": {"type": "string"}},
     "rules_channel_id": {"type": "snowflake", "required": False, "nullable": True},
+    "public_updates_channel_id": {"type": "snowflake", "required": False, "nullable": True},
 }
 
 
