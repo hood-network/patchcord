@@ -297,13 +297,20 @@ async def _update_guild(guild_id):
 
         await _guild_update_icon("banner", guild_id, j["banner"])
 
+    if to_update(j, guild, "discovery_splash"):
+        if not await app.storage.has_feature(guild_id, "PUBLIC"):
+            raise BadRequest("guild does not have PUBLIC feature")
+
+        await _guild_update_icon("discovery_splash", guild_id, j["discovery_splash"])
+        
     fields = [
         "verification_level",
         "default_message_notifications",
         "explicit_content_filter",
         "afk_timeout",
         "description",
-        "preferred_locale"
+        "preferred_locale",
+        "discovery_splash"
     ]
 
     for field in [f for f in fields if f in j]:

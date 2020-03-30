@@ -295,6 +295,7 @@ GUILD_UPDATE = {
     "rules_channel_id": {"type": "snowflake", "required": False, "nullable": True},
     "public_updates_channel_id": {"type": "snowflake", "required": False, "nullable": True},
     "preferred_locale": {"type": "string", "required": False, "nullable": True},
+    "discovery_splash": {"type": "string", "required": False, "nullable": True},
 }
 
 
