@@ -201,7 +201,7 @@ class Storage:
                explicit_content_filter, mfa_level,
                embed_enabled, embed_channel_id::text,
                widget_enabled, widget_channel_id::text,
-               system_channel_id::text, features,
+               system_channel_id::text, rules_channel_id::text, features,
                banner, description
         FROM guilds
         WHERE guilds.id = $1
