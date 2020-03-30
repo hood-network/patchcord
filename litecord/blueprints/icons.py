@@ -31,7 +31,7 @@ async def send_icon(scope, key, icon_hash, **kwargs):
     """Send an icon."""
     icon = await app.icons.generic_get(scope, key, icon_hash, **kwargs)
 
-    if not icon:
+    if icon is None:
         return "", 404
 
     return await send_file(icon.as_path)
@@ -44,8 +44,6 @@ def splitext_(filepath):
 
 @bp.route("/emojis/<emoji_file>", methods=["GET"])
 async def _get_raw_emoji(emoji_file):
-    # emoji = app.icons.get_emoji(emoji_id, ext=ext)
-    # just a test file for now
     emoji_id, ext = splitext_(emoji_file)
     return await send_icon("emoji", emoji_id, None, ext=ext)
 
@@ -110,3 +108,4 @@ async def _get_guild_splash(guild_id: int, icon_file: str):
 async def _get_guild_banner(guild_id: int, icon_file: str):
     icon_hash, ext = splitext_(icon_file)
     return await send_icon("banner", guild_id, icon_hash, ext=ext)
+
