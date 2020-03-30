@@ -1310,5 +1310,6 @@ class Storage:
         """,
             guild_id,
         )
-
+        if features is None:
+            return False
         return feature.upper() in features
