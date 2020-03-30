@@ -65,7 +65,7 @@ async def _role_update_dispatch(role_id: int, guild_id: int):
     """Dispatch a GUILD_ROLE_UPDATE with updated information on a role."""
     role = await app.storage.get_role(role_id, guild_id)
 
-    await maybe_lazy_guild_dispatch(guild_id, "role_pos_upd", role)
+    await maybe_lazy_guild_dispatch(guild_id, "role_position_update", role)
 
     await app.dispatcher.guild.dispatch(
         guild_id, ("GUILD_ROLE_UPDATE", {"guild_id": str(guild_id), "role": role})
@@ -170,7 +170,8 @@ def gen_pairs(
     }
 
     for blacklisted_id in blacklist:
-        preferred_state.pop(blacklisted_id)
+        if blacklisted_id in preferred_state.keys():
+            preferred_state.pop(blacklisted_id)
 
     # for each change, we must find a matching change
     # in the same list, so we can make a swap pair
@@ -310,3 +311,4 @@ async def delete_guild_role(guild_id, role_id):
     )
 
     return "", 204
+
