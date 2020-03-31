@@ -105,7 +105,7 @@ async def _put_emoji(guild_id):
         size=(128, 128),
     )
 
-    if not icon:
+    if icon is None:
         return "", 400
 
     # TODO: better way to detect animated emoji rather than just gifs,
@@ -172,10 +172,11 @@ async def _del_emoji(guild_id, emoji_id):
     await app.db.execute(
         """
     DELETE FROM guild_emoji
-    WHERE id = $2
+    WHERE id = $1
     """,
         emoji_id,
     )
 
     await _dispatch_emojis(guild_id)
     return "", 204
+

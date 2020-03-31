@@ -181,6 +181,7 @@ def _gen_update_sql(scope: str) -> str:
         "user": "avatar",
         "guild": "icon",
         "splash": "splash",
+        "discovery_splash": "discovery_splash",
         "banner": "banner",
         "channel-icons": "icon",
     }[scope]
@@ -189,6 +190,7 @@ def _gen_update_sql(scope: str) -> str:
         "user": "users",
         "guild": "guilds",
         "splash": "guilds",
+        "discovery_splash": "guilds",
         "banner": "guilds",
         "channel-icons": "group_dm_channels",
     }[scope]
@@ -333,7 +335,7 @@ class IconManager:
             *args,
         )
 
-        if not icon_row:
+        if icon_row is None:
             return None
 
         icon = Icon(icon_row["key"], icon_row["hash"], icon_row["mime"])
@@ -370,9 +372,6 @@ class IconManager:
 
         # get an extension for the given data uri
         extension = get_ext(mime)
-
-        if "bsize" in kwargs and len(raw_data) > kwargs["bsize"]:
-            return _invalid(kwargs)
 
         # size management is different for gif files
         # as they're composed of multiple frames.
@@ -529,3 +528,4 @@ class IconManager:
             await self.delete(old_icon)
 
         return await self.put(scope, key, new_icon_data, **kwargs)
+

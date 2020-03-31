@@ -287,11 +287,15 @@ GUILD_UPDATE = {
     "verification_level": {"type": "verification_level", "required": False},
     "default_message_notifications": {"type": "msg_notifications", "required": False},
     "explicit_content_filter": {"type": "explicit", "required": False},
-    "afk_channel_id": {"type": "snowflake", "required": False, "nullable": True},
+    "afk_channel_id": {"type": "snowflake", "coerce": int, "required": False, "nullable": True},
     "afk_timeout": {"type": "number", "required": False},
-    "owner_id": {"type": "snowflake", "required": False},
-    "system_channel_id": {"type": "snowflake", "required": False, "nullable": True},
+    "owner_id": {"type": "snowflake", "coerce": int, "required": False},
+    "system_channel_id": {"type": "snowflake", "coerce": int, "required": False, "nullable": True},
     "features": {"type": "list", "required": False, "schema": {"type": "string"}},
+    "rules_channel_id": {"type": "snowflake", "coerce": int, "required": False, "nullable": True},
+    "public_updates_channel_id": {"type": "snowflake", "coerce": int, "required": False, "nullable": True},
+    "preferred_locale": {"type": "string", "required": False, "nullable": True},
+    "discovery_splash": {"type": "string", "required": False, "nullable": True},
 }
 
 

@@ -158,7 +158,7 @@ async def _subscribe_users_new_channel(guild_id: int, channel_id: int) -> None:
             continue
 
         perms = await get_permissions(state.user_id, channel_id)
-        if perms.read_messages:
+        if perms.bits.read_messages:
             users_to_sub.append(state.user_id)
 
     for session_id in app.dispatcher.guild.state[guild_id]:

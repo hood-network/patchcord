@@ -201,8 +201,8 @@ class Storage:
                explicit_content_filter, mfa_level,
                embed_enabled, embed_channel_id::text,
                widget_enabled, widget_channel_id::text,
-               system_channel_id::text, features,
-               banner, description
+               system_channel_id::text, rules_channel_id::text, public_updates_channel_id::text, features,
+               banner, description, preferred_locale, discovery_splash
         FROM guilds
         WHERE guilds.id = $1
         """,
@@ -1310,5 +1310,6 @@ class Storage:
         """,
             guild_id,
         )
-
+        if features is None:
+            return False
         return feature.upper() in features

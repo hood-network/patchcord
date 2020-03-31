@@ -242,6 +242,7 @@ class Feature(EasyEnum):
     vanity = "VANITY_URL"
     emoji = "MORE_EMOJI"
     verified = "VERIFIED"
+    public = "PUBLIC"
 
     # unknown
     commerce = "COMMERCE"

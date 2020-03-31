@@ -297,12 +297,19 @@ async def _update_guild(guild_id):
 
         await _guild_update_icon("banner", guild_id, j["banner"])
 
+    if to_update(j, guild, "discovery_splash"):
+        if not await app.storage.has_feature(guild_id, "PUBLIC"):
+            raise BadRequest("guild does not have PUBLIC feature")
+
+        await _guild_update_icon("discovery_splash", guild_id, j["discovery_splash"])
+        
     fields = [
         "verification_level",
         "default_message_notifications",
         "explicit_content_filter",
         "afk_timeout",
         "description",
+        "preferred_locale",
     ]
 
     for field in [f for f in fields if f in j]:
@@ -316,9 +323,9 @@ async def _update_guild(guild_id):
             guild_id,
         )
 
-    channel_fields = ["afk_channel_id", "system_channel_id"]
+    channel_fields = ["afk_channel_id", "system_channel_id", "rules_channel_id", "public_updates_channel_id"]
     for field in [f for f in channel_fields if f in j]:
-        # setting to null should remove the link between the afk/sys channel
+        # setting to null should remove the link between the afk/sys/rules/public updates channel
         # to the guild.
         if j[field] is None:
             await app.db.execute(
@@ -332,7 +339,7 @@ async def _update_guild(guild_id):
 
             continue
 
-        chan = await app.storage.get_channel(int(j[field]))
+        chan = await app.storage.get_channel(j[field])
 
         if chan is None:
             raise BadRequest("invalid channel id")
@@ -346,7 +353,7 @@ async def _update_guild(guild_id):
         SET {field} = $1
         WHERE id = $2
         """,
-            j[field],
+            int(j[field]),
             guild_id,
         )
 
