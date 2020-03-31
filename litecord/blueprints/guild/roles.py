@@ -311,4 +311,3 @@ async def delete_guild_role(guild_id, role_id):
     )
 
     return "", 204
-

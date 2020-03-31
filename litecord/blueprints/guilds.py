@@ -302,7 +302,7 @@ async def _update_guild(guild_id):
             raise BadRequest("guild does not have PUBLIC feature")
 
         await _guild_update_icon("discovery_splash", guild_id, j["discovery_splash"])
-        
+
     fields = [
         "verification_level",
         "default_message_notifications",
@@ -323,7 +323,12 @@ async def _update_guild(guild_id):
             guild_id,
         )
 
-    channel_fields = ["afk_channel_id", "system_channel_id", "rules_channel_id", "public_updates_channel_id"]
+    channel_fields = [
+        "afk_channel_id",
+        "system_channel_id",
+        "rules_channel_id",
+        "public_updates_channel_id",
+    ]
     for field in [f for f in channel_fields if f in j]:
         # setting to null should remove the link between the afk/sys/rules/public updates channel
         # to the guild.

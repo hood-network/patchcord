@@ -179,4 +179,3 @@ async def _del_emoji(guild_id, emoji_id):
 
     await _dispatch_emojis(guild_id)
     return "", 204
-

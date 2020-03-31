@@ -528,4 +528,3 @@ class IconManager:
             await self.delete(old_icon)
 
         return await self.put(scope, key, new_icon_data, **kwargs)
-
