@@ -112,4 +112,4 @@ async def _get_guild_banner(guild_id: int, icon_file: str):
 @bp.route("/discovery-splashes/<int:guild_id>/<icon_file>", methods=["GET"])
 async def _get_discovery_splash(guild_id: int, icon_file: str):
     icon_hash, ext = splitext_(icon_file)
-    return await send_icon("discovery-splash", guild_id, icon_hash, ext=ext)
+    return await send_icon("discovery_splash", guild_id, icon_hash, ext=ext)
