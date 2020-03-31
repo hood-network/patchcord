@@ -181,6 +181,7 @@ def _gen_update_sql(scope: str) -> str:
         "user": "avatar",
         "guild": "icon",
         "splash": "splash",
+        "discovery_splash": "discovery_splash",
         "banner": "banner",
         "channel-icons": "icon",
     }[scope]
@@ -189,6 +190,7 @@ def _gen_update_sql(scope: str) -> str:
         "user": "users",
         "guild": "guilds",
         "splash": "guilds",
+        "discovery_splash": "guilds",
         "banner": "guilds",
         "channel-icons": "group_dm_channels",
     }[scope]
