@@ -339,7 +339,7 @@ async def _update_guild(guild_id):
 
             continue
 
-        chan = await app.storage.get_channel(int(j[field]))
+        chan = await app.storage.get_channel(j[field])
 
         if chan is None:
             raise BadRequest("invalid channel id")
