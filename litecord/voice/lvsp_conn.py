@@ -185,11 +185,11 @@ class LVSPConnection:
         """Start the websocket."""
         await self.start()
 
-        try:
-            if self.conn is None:
-                log.error("failed to start lvsp connection, stopping")
-                return
+        if self.conn is None:
+            log.error("failed to start lvsp connection, stopping")
+            return
 
+        try:
             await self._loop()
         except websockets.exceptions.ConnectionClosed as err:
             log.warning("conn close, {}, err={}", self._log_id, err)
