@@ -136,7 +136,10 @@ class LVSPManager:
         )
 
     def get_health(self, hostname: str) -> float:
-        """Get voice server health, given hostname."""
+        """Get voice server health, given hostname.
+
+        Returns -1 if the given hostname is not connected.
+        """
         try:
             conn = self.conns[hostname]
         except KeyError:
@@ -152,6 +155,8 @@ class LVSPManager:
             hostname = self.assign[guild_id]
         except KeyError:
             region = await self.guild_region(guild_id)
+            if region is None:
+                return None
 
             # sort connected servers by health
             sorted_servers = sorted(self.servers[region], key=self.get_health)
