@@ -96,6 +96,8 @@ class StateManager:
         #: raw mapping from session ids to GatewayState
         self.states_raw = StateDictWrapper(self, {})
 
+        self.tasks = {}
+
     def insert(self, state: GatewayState):
         """Insert a new state object."""
         user_states = self.states[state.user_id]
@@ -239,3 +241,18 @@ class StateManager:
 
         # DMs and GDMs use all user states
         return self.user_states(user_id)
+
+    async def _future_cleanup(self, state: GatewayState):
+        await asyncio.sleep(30)
+        self.remove(state)
+
+    async def schedule_deletion(self, state: GatewayState):
+        task = app.loop.create_task(self._future_cleanup(state))
+        self.tasks[state.session_id] = task
+
+    async def unschedule_deletion(self, state: GatewayState):
+        try:
+            task = self.tasks.pop(state.session_id)
+            task.cancel()
+        except KeyError:
+            pass
