@@ -176,3 +176,79 @@ async def test_etf(test_cli):
         assert hello["op"] == OP.HELLO
     finally:
         await _close(conn)
+
+
+@pytest.mark.asyncio
+async def test_resume(test_cli_user):
+    conn = await gw_start(test_cli_user.cli)
+
+    # get the hello frame but ignore it
+    await _json(conn)
+
+    await _json_send(
+        conn, {"op": OP.IDENTIFY, "d": {"token": test_cli_user.user["token"]}}
+    )
+
+    try:
+        ready = await _json(conn)
+        assert isinstance(ready, dict)
+        assert ready["op"] == OP.DISPATCH
+        assert ready["t"] == "READY"
+
+        data = ready["d"]
+        assert isinstance(data, dict)
+
+        assert isinstance(data["session_id"], str)
+        sess_id: str = data["session_id"]
+    finally:
+        await _close(conn)
+
+    # try to resume
+    conn = await gw_start(test_cli_user.cli)
+    _ = await _json(conn)
+
+    await _json_send(
+        conn,
+        {
+            "op": OP.RESUME,
+            "d": {
+                "token": test_cli_user.user["token"],
+                "session_id": sess_id,
+                "seq": 0,
+            },
+        },
+    )
+
+    msg = await _json(conn)
+    assert isinstance(msg, dict)
+    assert isinstance(msg["op"], int)
+    assert msg["op"] == OP.DISPATCH
+    assert isinstance(msg["t"], str)
+    assert msg["t"] in ("RESUMED", "PRESENCE_REPLACE")
+
+    # close again, and retry again, but this time by removing the state
+    # and asserting the session won't be resumed.
+    await _close(conn)
+
+    conn = await gw_start(test_cli_user.cli)
+    _ = await _json(conn)
+
+    async with test_cli_user.app.app_context():
+        test_cli_user.app.state_manager.remove(sess_id)
+
+    await _json_send(
+        conn,
+        {
+            "op": OP.RESUME,
+            "d": {
+                "token": test_cli_user.user["token"],
+                "session_id": sess_id,
+                "seq": 0,
+            },
+        },
+    )
+
+    msg = await _json(conn)
+    assert isinstance(msg, dict)
+    assert isinstance(msg["op"], int)
+    assert msg["op"] == OP.INVALID_SESSION

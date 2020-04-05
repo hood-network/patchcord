@@ -19,7 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import asyncio
 
-from typing import List
+from typing import List, Optional
 from collections import defaultdict
 
 from quart import current_app as app
@@ -96,6 +96,8 @@ class StateManager:
         #: raw mapping from session ids to GatewayState
         self.states_raw = StateDictWrapper(self, {})
 
+        self.tasks = {}
+
     def insert(self, state: GatewayState):
         """Insert a new state object."""
         user_states = self.states[state.user_id]
@@ -119,21 +121,20 @@ class StateManager:
         """Fetch a single state given the Session ID."""
         return self.states_raw[session_id]
 
-    def remove(self, state):
+    def remove(self, session_id: str, *, user_id: Optional[int] = None):
         """Remove a state from the registry"""
-        if not state:
-            return
-
         try:
-            self.states_raw.pop(state.session_id)
+            state = self.states_raw.pop(session_id)
+            user_id = state.user_id
         except KeyError:
             pass
 
-        try:
-            log.debug("removing state: {!r}", state)
-            self.states[state.user_id].pop(state.session_id)
-        except KeyError:
-            pass
+        if user_id is not None:
+            try:
+                log.debug("removing state: {!r}", state)
+                self.states[state.user_id].pop(session_id)
+            except KeyError:
+                pass
 
     def fetch_states(self, user_id: int, guild_id: int) -> List[GatewayState]:
         """Fetch all states that are tied to a guild."""
@@ -188,14 +189,14 @@ class StateManager:
         """Send OP Reconnect to a single connection."""
         websocket = state.ws
 
-        await websocket.send({"op": OP.RECONNECT})
-
-        # wait 200ms
-        # so that the client has time to process
-        # our payload then close the connection
-        await asyncio.sleep(0.2)
-
         try:
+            await websocket.send({"op": OP.RECONNECT})
+
+            # wait 200ms
+            # so that the client has time to process
+            # our payload then close the connection
+            await asyncio.sleep(0.2)
+
             # try to close the connection ourselves
             await websocket.ws.close(code=4000, reason="litecord shutting down")
         except ConnectionClosed:
@@ -239,3 +240,21 @@ class StateManager:
 
         # DMs and GDMs use all user states
         return self.user_states(user_id)
+
+    async def _future_cleanup(self, state: GatewayState):
+        await asyncio.sleep(30)
+        self.remove(state)
+        state.ws.state = None
+        state.ws = None
+
+    async def schedule_deletion(self, state: GatewayState):
+        task = app.loop.create_task(self._future_cleanup(state))
+        self.tasks[state.session_id] = task
+
+    async def unschedule_deletion(self, state: GatewayState):
+        try:
+            task = self.tasks.pop(state.session_id)
+        except KeyError:
+            return
+
+        task.cancel()

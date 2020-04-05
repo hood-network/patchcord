@@ -267,9 +267,15 @@ class GatewayWebsocket:
 
         log.debug("sending payload {!r} sid {}", event.upper(), self.state.session_id)
 
-        await self.send(payload)
+        try:
+            await self.send(payload)
+        except websockets.exceptions.ConnectionClosed:
+            log.warning(
+                "Failed to dispatch {!r} to {}", event.upper, self.state.session_id
+            )
 
     async def _make_guild_list(self) -> List[Dict[str, Any]]:
+        assert self.state is not None
         user_id = self.state.user_id
 
         guild_ids = await self._guild_ids()
@@ -764,10 +770,11 @@ class GatewayWebsocket:
             # since the state will be removed from
             # the manager, it will become unreachable
             # when trying to resume.
-            self.app.state_manager.remove(self.state)
+            self.app.state_manager.remove(self.state.user_id)
 
     async def _resume(self, replay_seqs: Iterable):
-        presences = []
+        assert self.state is not None
+        presences: List[dict] = []
 
         try:
             for seq in replay_seqs:
@@ -824,6 +831,7 @@ class GatewayWebsocket:
             return await self.invalidate_session(False)
 
         # relink this connection
+        await self.app.state_manager.unschedule_deletion(state)
         self.state = state
         state.ws = self
 
@@ -1085,8 +1093,8 @@ class GatewayWebsocket:
             task.cancel()
 
         if self.state:
-            self.app.state_manager.remove(self.state)
             self.state.ws = None
+            self.app.state_manager.schedule_deletion(self.state)
             self.state = None
 
     async def _check_conns(self, user_id):

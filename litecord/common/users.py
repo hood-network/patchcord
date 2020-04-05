@@ -268,7 +268,7 @@ async def user_disconnect(user_id: int):
 
     for state in user_states:
         # make it unable to resume
-        app.state_manager.remove(state)
+        app.state_manager.remove(state.session_id, user_id=user_id)
 
         if not state.ws:
             continue
