@@ -245,6 +245,8 @@ class StateManager:
     async def _future_cleanup(self, state: GatewayState):
         await asyncio.sleep(30)
         self.remove(state)
+        state.ws.state = None
+        state.ws = None
 
     async def schedule_deletion(self, state: GatewayState):
         task = app.loop.create_task(self._future_cleanup(state))
@@ -253,6 +255,7 @@ class StateManager:
     async def unschedule_deletion(self, state: GatewayState):
         try:
             task = self.tasks.pop(state.session_id)
-            task.cancel()
         except KeyError:
-            pass
+            return
+
+        task.cancel()

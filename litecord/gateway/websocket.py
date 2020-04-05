@@ -824,6 +824,7 @@ class GatewayWebsocket:
             return await self.invalidate_session(False)
 
         # relink this connection
+        await self.app.state_manager.unschedule_deletion(state)
         self.state = state
         state.ws = self
 
@@ -1085,9 +1086,10 @@ class GatewayWebsocket:
             task.cancel()
 
         if self.state:
-            self.app.state_manager.remove(self.state)
-            self.state.ws = None
-            self.state = None
+            self.app.state_manager.schedule_deletion(self.state)
+            # self.app.state_manager.remove(self.state)
+            # self.state.ws = None
+            # self.state = None
 
     async def _check_conns(self, user_id):
         """Check if there are any existing connections.
