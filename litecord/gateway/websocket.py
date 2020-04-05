@@ -770,10 +770,11 @@ class GatewayWebsocket:
             # since the state will be removed from
             # the manager, it will become unreachable
             # when trying to resume.
-            self.app.state_manager.remove(self.state)
+            self.app.state_manager.remove(self.state.user_id)
 
     async def _resume(self, replay_seqs: Iterable):
-        presences = []
+        assert self.state is not None
+        presences: List[dict] = []
 
         try:
             for seq in replay_seqs:

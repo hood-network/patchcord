@@ -19,7 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import asyncio
 
-from typing import List
+from typing import List, Optional
 from collections import defaultdict
 
 from quart import current_app as app
@@ -121,21 +121,20 @@ class StateManager:
         """Fetch a single state given the Session ID."""
         return self.states_raw[session_id]
 
-    def remove(self, state):
+    def remove(self, session_id: str, *, user_id: Optional[int] = None):
         """Remove a state from the registry"""
-        if not state:
-            return
-
         try:
-            self.states_raw.pop(state.session_id)
+            state = self.states_raw.pop(session_id)
+            user_id = state.user_id
         except KeyError:
             pass
 
-        try:
-            log.debug("removing state: {!r}", state)
-            self.states[state.user_id].pop(state.session_id)
-        except KeyError:
-            pass
+        if user_id is not None:
+            try:
+                log.debug("removing state: {!r}", state)
+                self.states[state.user_id].pop(session_id)
+            except KeyError:
+                pass
 
     def fetch_states(self, user_id: int, guild_id: int) -> List[GatewayState]:
         """Fetch all states that are tied to a guild."""
