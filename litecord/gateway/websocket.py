@@ -267,9 +267,15 @@ class GatewayWebsocket:
 
         log.debug("sending payload {!r} sid {}", event.upper(), self.state.session_id)
 
-        await self.send(payload)
+        try:
+            await self.send(payload)
+        except websockets.exceptions.ConnectionClosed:
+            log.warning(
+                "Failed to dispatch {!r} to {}", event.upper, self.state.session_id
+            )
 
     async def _make_guild_list(self) -> List[Dict[str, Any]]:
+        assert self.state is not None
         user_id = self.state.user_id
 
         guild_ids = await self._guild_ids()
