@@ -190,14 +190,14 @@ class StateManager:
         """Send OP Reconnect to a single connection."""
         websocket = state.ws
 
-        await websocket.send({"op": OP.RECONNECT})
-
-        # wait 200ms
-        # so that the client has time to process
-        # our payload then close the connection
-        await asyncio.sleep(0.2)
-
         try:
+            await websocket.send({"op": OP.RECONNECT})
+
+            # wait 200ms
+            # so that the client has time to process
+            # our payload then close the connection
+            await asyncio.sleep(0.2)
+
             # try to close the connection ourselves
             await websocket.ws.close(code=4000, reason="litecord shutting down")
         except ConnectionClosed:
