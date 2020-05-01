@@ -106,6 +106,8 @@ async def get_role_perms(guild_id, role_id, storage=None) -> Permissions:
         role_id,
     )
 
+    assert perms is not None
+
     return Permissions(perms)
 
 
