@@ -315,7 +315,7 @@ async def _mass_chan_update(guild_id, channel_ids: List[Optional[int]]):
             continue
 
         chan = await app.storage.get_channel(channel_id)
-        await app.dispatcher.guild.dispatch(guild_id, "CHANNEL_UPDATE", chan)
+        await app.dispatcher.guild.dispatch(guild_id, ("CHANNEL_UPDATE", chan))
 
 
 @dataclass
