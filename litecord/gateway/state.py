@@ -94,5 +94,9 @@ class GatewayState:
 
         self.large: int = kwargs.get("large") or 50
 
+    def __bool__(self):
+        """Return if the given state is a valid state to be used."""
+        return self.ws is not None
+
     def __repr__(self):
         return f"GatewayState<seq={self.seq} shard={self.current_shard},{self.shard_count} uid={self.user_id}>"

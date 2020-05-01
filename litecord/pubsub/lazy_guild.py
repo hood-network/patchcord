@@ -593,10 +593,7 @@ class GuildMemberList:
         dispatched = []
 
         for state in states:
-            if state is None:
-                continue
-
-            if state.ws is None:
+            if not state:
                 continue
 
             await state.ws.dispatch("GUILD_MEMBER_LIST_UPDATE", payload)
