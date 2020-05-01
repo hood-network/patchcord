@@ -596,6 +596,9 @@ class GuildMemberList:
             if state is None:
                 continue
 
+            if state.ws is None:
+                continue
+
             await state.ws.dispatch("GUILD_MEMBER_LIST_UPDATE", payload)
 
             dispatched.append(state.session_id)
