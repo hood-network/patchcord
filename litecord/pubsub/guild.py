@@ -64,6 +64,10 @@ class GuildDispatcher(
                 await self.unsub(guild_id, session_id)
                 continue
 
+            if not state:
+                await self.unsub(guild_id, session_id)
+                continue
+
             try:
                 flags = self.get_flags(guild_id, session_id)
             except KeyError:
