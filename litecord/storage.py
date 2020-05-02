@@ -405,10 +405,14 @@ class Storage:
         return str_(last_msg)
 
     async def _channels_extra(self, row) -> Dict:
-        """Fill in more information about a channel."""
-        channel_type = row["type"]
+        """Fill in more information about a channel.
 
+        Only works with guild channels, as they have
+        base data and extra data.
+        """
+        channel_type = row["type"]
         chan_type = ChannelType(channel_type)
+        assert chan_type in (ChannelType.GUILD_TEXT, ChannelType.GUILD_VOICE)
 
         if chan_type == ChannelType.GUILD_TEXT:
             ext_row = await self.db.fetchrow(
@@ -423,7 +427,6 @@ class Storage:
             drow = dict(ext_row)
 
             last_msg = await self.chan_last_message_str(row["id"])
-
             drow["last_message_id"] = last_msg
 
             return {**row, **drow}
@@ -439,9 +442,6 @@ class Storage:
             )
 
             return {**row, **dict(vrow)}
-
-        log.warning("unknown channel type: {}", chan_type)
-        return row
 
     async def get_chan_type(self, channel_id: int) -> int:
         """Get the channel type integer, given channel ID."""
