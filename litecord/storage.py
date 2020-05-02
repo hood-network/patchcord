@@ -443,6 +443,9 @@ class Storage:
 
             return {**row, **dict(vrow)}
 
+        # this only exists to trick mypy. this codepath is unreachable
+        raise RuntimeError("Unreachable code path.")
+
     async def get_chan_type(self, channel_id: int) -> int:
         """Get the channel type integer, given channel ID."""
         return await self.db.fetchval(
