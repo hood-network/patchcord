@@ -84,6 +84,7 @@ EMBED_FIELD = {
 }
 
 EMBED_OBJECT = {
+    "type": {"type": "string", "minlength": 1, "maxlength": 256, "required": False},
     "title": {"type": "string", "minlength": 1, "maxlength": 256, "required": False},
     # NOTE: type set by us
     "description": {
