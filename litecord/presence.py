@@ -199,6 +199,30 @@ class PresenceManager:
 
         return in_lazy
 
+    async def dispatch_friends_pres(self, user_id: int, presence: BasePresence) -> None:
+        """
+        Dispatch a new presence to all the user' friend
+        """
+
+        user = await self.storage.get_user(user_id)
+        await app.dispatcher.friend.dispatch(
+            user_id, ("PRESENCE_UPDATE", {**presence.partial_dict, **{"user": user}}),
+        )
+
+    async def dispatch_friends_pres_filter(
+        self, user: dict, filter_function, presence: BasePresence
+    ) -> None:
+        """
+        Same as dispatch_friends_pres but passes a filter function
+        Takes in a whole public user object instead of a user id
+        """
+
+        return await app.dispatcher.friend.dispatch_filter(
+            int(user["id"]),
+            filter_function,
+            ("PRESENCE_UPDATE", {**presence.partial_dict, **{"user": user}}),
+        )
+
     async def dispatch_pres(self, user_id: int, presence: BasePresence) -> None:
         """Dispatch a new presence to all guilds the user is in.
 
@@ -208,11 +232,14 @@ class PresenceManager:
         for guild_id in guild_ids:
             await self.dispatch_guild_pres(guild_id, user_id, presence)
 
-        # dispatch to all friends that are subscribed to them
-        user = await self.storage.get_user(user_id)
-        await app.dispatcher.friend.dispatch(
-            user_id, ("PRESENCE_UPDATE", {**presence.partial_dict, **{"user": user}}),
-        )
+        await self.dispatch_friends_pres(user_id, presence)
+
+    def fetch_self_presence(self, user_id: int) -> BasePresence:
+        """Fetch a presence for a specifc user.
+
+        This is basically the same as the friend function, so let's just call that
+        """
+        return self.fetch_friend_presence(user_id)
 
     def fetch_friend_presence(self, friend_id: int) -> BasePresence:
         """Fetch a presence for a friend.

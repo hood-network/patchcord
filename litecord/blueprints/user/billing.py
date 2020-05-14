@@ -391,6 +391,7 @@ async def _get_billing_payments():
 @bp.route("/@me/billing/payment-sources", methods=["POST"])
 async def _create_payment_source():
     user_id = await token_check()
+
     j = validate(await request.get_json(), PAYMENT_SOURCE)
 
     new_source_id = get_snowflake()
