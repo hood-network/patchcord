@@ -33,11 +33,9 @@ async def _handle_pin_msg(channel_id, _pinned_id, author_id):
     await app.db.execute(
         """
         INSERT INTO messages
-            (id, channel_id, guild_id, author_id,
-             webhook_id, content, message_type)
+            (id, channel_id, guild_id, author_id, content, message_type)
         VALUES
-            ($1, $2, NULL, $3, NULL, '',
-             $4)
+            ($1, $2, NULL, $3, '', $4)
         """,
         new_id,
         channel_id,
@@ -55,10 +53,9 @@ async def _handle_recp_add(channel_id, author_id, peer_id):
     await app.db.execute(
         """
         INSERT INTO messages
-            (id, channel_id, author_id, webhook_id,
-             content, message_type)
+            (id, channel_id, author_id, content, message_type)
         VALUES
-            ($1, $2, $3, NULL, $4, $5)
+            ($1, $2, $3, $4, $5)
         """,
         new_id,
         channel_id,
@@ -76,10 +73,9 @@ async def _handle_recp_rmv(channel_id, author_id, peer_id):
     await app.db.execute(
         """
         INSERT INTO messages
-            (id, channel_id, author_id, webhook_id,
-             content, message_type)
+            (id, channel_id, author_id, content, message_type)
         VALUES
-            ($1, $2, $3, NULL, $4, $5)
+            ($1, $2, $3, $4, $5)
         """,
         new_id,
         channel_id,
@@ -109,10 +105,9 @@ async def _handle_gdm_name_edit(channel_id, author_id):
     await app.db.execute(
         """
         INSERT INTO messages
-            (id, channel_id, author_id, webhook_id,
-             content, message_type)
+            (id, channel_id, author_id, content, message_type)
         VALUES
-            ($1, $2, $3, NULL, $4, $5)
+            ($1, $2, $3, $4, $5)
         """,
         new_id,
         channel_id,
@@ -130,10 +125,9 @@ async def _handle_gdm_icon_edit(channel_id, author_id):
     await app.db.execute(
         """
         INSERT INTO messages
-            (id, channel_id, author_id, webhook_id,
-             content, message_type)
+            (id, channel_id, author_id, content, message_type)
         VALUES
-            ($1, $2, $3, NULL, $4, $5)
+            ($1, $2, $3, $4, $5)
         """,
         new_id,
         channel_id,
