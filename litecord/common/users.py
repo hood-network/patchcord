@@ -35,10 +35,14 @@ log = Logger(__name__)
 
 
 async def mass_user_update(user_id: int) -> Tuple[dict, dict]:
-    """Dispatch a USER_UPDATE to everyone that is subscribed to the user.
+    """Dispatch a USER_UPDATE to the user itself
+    Dispatches GUILD_MEMBER_UPDATE for others sharing guilds with the user
+    Dispatches PRESENCE_UPDATE for friends outside of guilds
 
-    This function guarantees all states will get one USER_UPDATE for simple
-    cases. Lazy guild users might get updates N times depending of how many
+    This function guarantees all states will get one of these events for simple
+    cases.
+
+    Lazy guild users might get updates N times depending of how many
     lists are they subscribed to.
     """
     session_ids: List[str] = []
@@ -46,28 +50,31 @@ async def mass_user_update(user_id: int) -> Tuple[dict, dict]:
     public_user = await app.storage.get_user(user_id)
     private_user = await app.storage.get_user(user_id, secure=True)
 
-    session_ids.extend(await dispatch_user(user_id, ("USER_UPDATE", private_user)))
+    # The user who initiated the profile change should also get possible guild events
+    await dispatch_user(user_id, ("USER_UPDATE", private_user))
 
     guild_ids: List[int] = await app.user_storage.get_user_guilds(user_id)
-    friend_ids: List[int] = await app.user_storage.get_friend_ids(user_id)
 
     for guild_id in guild_ids:
+        member = await app.storage.get_member_data_one(guild_id, user_id)
+        member.pop("joined_at")
         session_ids.extend(
             await app.dispatcher.guild.dispatch_filter(
                 guild_id,
                 lambda sess_id: sess_id not in session_ids,
-                ("USER_UPDATE", public_user),
+                ("GUILD_MEMBER_UPDATE", {**{"guild_id": str(guild_id)}, **member}),
             )
         )
 
-    for friend_id in friend_ids:
-        session_ids.extend(
-            await app.dispatcher.friend.dispatch_filter(
-                friend_id,
-                lambda sess_id: sess_id not in session_ids,
-                ("USER_UPDATE", public_user),
-            )
+    # fetch current user presence
+    presence = app.presence.fetch_self_presence(user_id)
+
+    # usually this presence should be partial, but there should be no major issue with a full one
+    session_ids.extend(
+        await app.presence.dispatch_friends_pres_filter(
+            public_user, lambda sess_id: sess_id not in session_ids, presence
         )
+    )
 
     for guild_id in guild_ids:
         await app.lazy_guild.update_user(guild_id, user_id)
