@@ -71,6 +71,7 @@ async def api_gateway_bot():
                 "total": bucket.requests,
                 "remaining": bucket._tokens,
                 "reset_after": int(reset_after_ts * 1000),
+                "max_concurrency": 1,
             },
         }
     )
