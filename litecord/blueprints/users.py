@@ -320,6 +320,12 @@ async def get_harvest():
     return "", 204
 
 
+@bp.route("/@me/devices", methods=["POST"])
+async def post_devices():
+    """Dummy route"""
+    return "", 204
+
+
 @bp.route("/@me/activities/statistics/applications", methods=["GET"])
 async def get_stats_applications():
     """Dummy route for info on gameplay time and such"""
