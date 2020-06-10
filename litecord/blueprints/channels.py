@@ -701,7 +701,7 @@ async def _search_channel(channel_id):
     # main search query
     # the context (before/after) columns are copied from the guilds blueprint.
     rows = await app.db.fetch(
-        f"""
+        """
     SELECT orig.id AS current_id,
         COUNT(*) OVER() AS total_results,
         array((SELECT messages.id AS before_id

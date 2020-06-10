@@ -411,7 +411,7 @@ async def search_messages(guild_id):
     can_read = await fetch_readable_channels(guild_id, user_id)
 
     rows = await app.db.fetch(
-        f"""
+        """
     SELECT orig.id AS current_id,
         COUNT(*) OVER() as total_results,
         array((SELECT messages.id AS before_id
