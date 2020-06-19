@@ -337,14 +337,19 @@ class GatewayWebsocket:
             "notes": await self.user_storage.fetch_notes(user_id),
             "relationships": relationships,
             "presences": friend_presences,
-            "read_state": await self.user_storage.get_read_state(user_id),
-            "user_guild_settings": await self.user_storage.get_guild_settings(user_id),
+            "read_state": {"entries": await self.user_storage.get_read_state(user_id)},
+            "user_guild_settings": {
+                "entries": await self.user_storage.get_guild_settings(user_id)
+            },
             "friend_suggestion_count": 0,
             # those are unused default values.
             "connected_accounts": [],
             "experiments": [],
             "guild_experiments": [],
             "analytics_token": "transbian",
+            "users": [],
+            "merged_members": [[], [], [], []],
+            "merged_presences": {"friends": [], "guilds": []},
         }
 
     async def dispatch_ready(self, **kwargs):
