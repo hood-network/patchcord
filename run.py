@@ -295,7 +295,7 @@ async def api_index(app_):
             method = method.strip()
             to_find[(path, method)] = name
 
-    for rule in app_.url_map.rules:
+    for rule in app_.url_map._rules:
         path = rule.rule
 
         # convert the path to the discord_endpoints file's style
