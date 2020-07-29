@@ -46,6 +46,7 @@ from litecord.embed.messages import process_url_embed, msg_update_embeds
 from litecord.common.channels import channel_ack
 from litecord.pubsub.user import dispatch_user
 from litecord.permissions import get_permissions, Permissions
+from litecord.errors import GuildNotFound
 
 log = Logger(__name__)
 bp = Blueprint("channels", __name__)
@@ -678,7 +679,12 @@ async def ack_channel(channel_id, message_id):
 async def delete_read_state(channel_id):
     """Delete the read state of a channel."""
     user_id = await token_check()
-    await channel_check(user_id, channel_id)
+    try:
+        await channel_check(user_id, channel_id)
+    except GuildNotFound:
+        # ignore when guild isn't found because we're deleting the
+        # read state regardless.
+        pass
 
     await app.db.execute(
         """
