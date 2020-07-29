@@ -20,10 +20,17 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import asyncio
 from typing import Any
 
-from quart.ctx import copy_current_app_context
 from logbook import Logger
 
 log = Logger(__name__)
+
+
+class EmptyContext:
+    async def __aenter__(self):
+        pass
+
+    async def __aexit__(self, _typ, _value, _traceback):
+        pass
 
 
 class JobManager:
@@ -34,8 +41,9 @@ class JobManager:
     its own internal list of jobs.
     """
 
-    def __init__(self, loop=None):
+    def __init__(self, *, loop=None, context_func=None):
         self.loop = loop or asyncio.get_event_loop()
+        self.context_function = context_func or EmptyContext
         self.jobs = []
 
     async def _wrapper(self, coro):
@@ -50,9 +58,9 @@ class JobManager:
     def spawn(self, coro):
         """Spawn a given future or coroutine in the background."""
 
-        @copy_current_app_context
         async def _ctx_wrapper_bg() -> Any:
-            return await coro
+            async with self.context_function():
+                return await coro
 
         task = self.loop.create_task(self._wrapper(_ctx_wrapper_bg()))
         self.jobs.append(task)

@@ -252,7 +252,7 @@ async def init_app_db(app_):
     log.info("db connect")
     app_.db = await asyncpg.create_pool(**app.config["POSTGRES"])
 
-    app_.sched = JobManager()
+    app_.sched = JobManager(context_func=app.app_context)
 
 
 def init_app_managers(app_: Quart, *, init_voice=True):
