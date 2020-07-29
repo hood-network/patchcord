@@ -87,7 +87,7 @@ class Permissions(ctypes.Union):
         return self.binary
 
 
-ALL_PERMISSIONS = Permissions(0b01111111111101111111110111111111)
+ALL_PERMISSIONS = Permissions(0b01111111111111111111111111111111)
 EMPTY_PERMISSIONS = Permissions(0)
 
 

@@ -469,6 +469,10 @@ class Storage:
 
         def _overwrite_convert(row):
             drow = dict(row)
+            drow["allow_new"] = str(drow["allow"])
+            drow["deny_new"] = str(drow["deny"])
+            drow["allow"] = drow["allow"] & ((2 << 31) - 1)
+            drow["deny"] = drow["deny"] & ((2 << 31) - 1)
 
             target_type = drow["target_type"]
             drow["type"] = "member" if target_type == 0 else "role"
@@ -673,7 +677,12 @@ class Storage:
         if not row:
             return None
 
-        return dict(row)
+        drow = dict(row)
+
+        drow["permissions_new"] = str(drow["permissions"])
+        drow["permissions"] = drow["permissions"] & ((2 << 31) - 1)
+
+        return drow
 
     async def get_role_data(self, guild_id: int) -> List[Dict[str, Any]]:
         """Get role list information on a guild."""
