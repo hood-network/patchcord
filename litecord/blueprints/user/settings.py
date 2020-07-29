@@ -23,6 +23,7 @@ from litecord.auth import token_check
 from litecord.schemas import validate, USER_SETTINGS, GUILD_SETTINGS
 from litecord.blueprints.checks import guild_check
 from litecord.pubsub.user import dispatch_user
+from litecord.errors import UserNotFound
 
 bp = Blueprint("users_settings", __name__)
 
@@ -127,6 +128,26 @@ async def patch_guild_settings(guild_id: int):
     await dispatch_user(user_id, ("USER_GUILD_SETTINGS_UPDATE", settings))
 
     return jsonify(settings)
+
+
+@bp.route("/@me/notes/<int:target_id>", methods=["GET"])
+async def get_note(target_id: int):
+    """Get a single note from a user."""
+    user_id = await token_check()
+    note = await app.db.fetchval(
+        """
+        SELECT note
+        FROM notes
+        WHERE user_id = $1 AND target_id = $2
+        """,
+        user_id,
+        target_id,
+    )
+
+    if note is None:
+        raise UserNotFound()
+
+    return jsonify({"user_id": user_id, "note_user_id": target_id, "note": note})
 
 
 @bp.route("/@me/notes/<int:target_id>", methods=["PUT"])

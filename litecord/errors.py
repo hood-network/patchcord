@@ -142,6 +142,10 @@ class WebhookNotFound(NotFound):
     error_code = 10015
 
 
+class UserNotFound(NotFound):
+    error_code = 10013
+
+
 class Ratelimited(LitecordError):
     status_code = 429
 
