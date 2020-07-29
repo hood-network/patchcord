@@ -104,9 +104,7 @@ async def majority_region(user_id: int) -> Optional[str]:
     return _majority_region_count(regions)
 
 
-@bp.route("/regions", methods=["GET"])
-async def voice_regions():
-    """Return voice regions."""
+async def _all_regions():
     user_id = await token_check()
 
     best_region = await majority_region(user_id)
@@ -116,3 +114,16 @@ async def voice_regions():
         region["optimal"] = region["id"] == best_region
 
     return jsonify(regions)
+
+
+@bp.route("/regions", methods=["GET"])
+async def voice_regions():
+    """Return voice regions."""
+    return await _all_regions()
+
+
+@bp.route("/guilds/<int:guild_id>/regions", methods=["GET"])
+async def guild_voice_regions():
+    """Return voice regions."""
+    # we return the same list as the normal /regions route on purpose.
+    return await _all_regions()
