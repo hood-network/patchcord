@@ -46,6 +46,7 @@ from litecord.embed.messages import process_url_embed, msg_update_embeds
 from litecord.common.channels import channel_ack
 from litecord.pubsub.user import dispatch_user
 from litecord.permissions import get_permissions, Permissions
+from litecord.errors import GuildNotFound
 
 log = Logger(__name__)
 bp = Blueprint("channels", __name__)
@@ -397,13 +398,16 @@ async def _process_overwrites(guild_id: int, channel_id: int, overwrites: list) 
 
         if target.is_user:
             perms = Permissions(overwrite["allow"] & ~overwrite["deny"])
+            assert target.user_id is not None
             await _dispatch_action(guild_id, channel_id, target.user_id, perms)
 
         elif target.is_role:
+            assert target.role_id is not None
             user_ids.extend(await app.storage.get_role_members(target.role_id))
 
     for user_id in user_ids:
         perms = await get_permissions(user_id, channel_id)
+        assert target.user_id is not None
         await _dispatch_action(guild_id, channel_id, target.user_id, perms)
 
 
@@ -675,7 +679,12 @@ async def ack_channel(channel_id, message_id):
 async def delete_read_state(channel_id):
     """Delete the read state of a channel."""
     user_id = await token_check()
-    await channel_check(user_id, channel_id)
+    try:
+        await channel_check(user_id, channel_id)
+    except GuildNotFound:
+        # ignore when guild isn't found because we're deleting the
+        # read state regardless.
+        pass
 
     await app.db.execute(
         """

@@ -18,7 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import ctypes
-from typing import Optional
+from typing import Optional, Union
 
 from quart import current_app as app
 
@@ -77,8 +77,10 @@ class Permissions(ctypes.Union):
 
     _fields_ = [("bits", _RawPermsBits), ("binary", ctypes.c_uint64)]
 
-    def __init__(self, val: int):
-        self.binary = val
+    def __init__(self, val: Union[str, int]):
+        # always coerce to int, even when the user gives us a str, because
+        # python ints are infinity-sized (yes, yes, the memory concerns, yes)
+        self.binary = int(val)
 
     def __repr__(self):
         return f"<Permissions binary={self.binary}>"
@@ -87,7 +89,7 @@ class Permissions(ctypes.Union):
         return self.binary
 
 
-ALL_PERMISSIONS = Permissions(0b01111111111101111111110111111111)
+ALL_PERMISSIONS = Permissions(0b01111111111111111111111111111111)
 EMPTY_PERMISSIONS = Permissions(0)
 
 
