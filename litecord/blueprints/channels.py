@@ -397,13 +397,16 @@ async def _process_overwrites(guild_id: int, channel_id: int, overwrites: list) 
 
         if target.is_user:
             perms = Permissions(overwrite["allow"] & ~overwrite["deny"])
+            assert target.user_id is not None
             await _dispatch_action(guild_id, channel_id, target.user_id, perms)
 
         elif target.is_role:
+            assert target.role_id is not None
             user_ids.extend(await app.storage.get_role_members(target.role_id))
 
     for user_id in user_ids:
         perms = await get_permissions(user_id, channel_id)
+        assert target.user_id is not None
         await _dispatch_action(guild_id, channel_id, target.user_id, perms)
 
 
