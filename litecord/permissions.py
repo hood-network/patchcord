@@ -50,7 +50,7 @@ class _RawPermsBits(ctypes.LittleEndianStructure):
         ("read_history", _i, 1),
         ("mention_everyone", _i, 1),
         ("external_emojis", _i, 1),
-        ("_unused2", _i, 1),
+        ("view_guild_insights", _i, 1),
         ("connect", _i, 1),
         ("speak", _i, 1),
         ("mute_members", _i, 1),
