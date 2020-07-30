@@ -697,7 +697,14 @@ class Storage:
             guild_id,
         )
 
-        return list(map(dict, roledata))
+        def _to_dict(row):
+            # TODO: remove repetition here
+            drow = dict(row)
+            drow["permissions_new"] = str(drow["permissions"])
+            drow["permissions"] = drow["permissions"] & ((2 << 31) - 1)
+            return drow
+
+        return list(map(_to_dict, roledata))
 
     async def guild_voice_states(
         self, guild_id: int, user_id=None
