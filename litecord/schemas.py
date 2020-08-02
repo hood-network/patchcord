@@ -328,7 +328,7 @@ CHAN_OVERWRITE = {
 
 
 CHAN_CREATE = {
-    "name": {"type": "string", "minlength": 2, "maxlength": 100, "required": True},
+    "name": {"type": "string", "minlength": 1, "maxlength": 100, "required": True},
     "type": {"type": "channel_type", "default": ChannelType.GUILD_TEXT.value},
     "position": {"coerce": int, "required": False},
     "topic": {"type": "string", "minlength": 0, "maxlength": 1024, "required": False},
@@ -359,7 +359,7 @@ CHAN_CREATE = {
 
 CHAN_UPDATE = {
     **CHAN_CREATE,
-    **{"name": {"type": "string", "minlength": 2, "maxlength": 100, "required": False}},
+    **{"name": {"type": "string", "minlength": 1, "maxlength": 100, "required": False}},
 }
 
 
