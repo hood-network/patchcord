@@ -836,7 +836,7 @@ class GatewayWebsocket:
             return await self.invalidate_session(False)
 
         # relink this connection
-        await self.app.state_manager.unschedule_deletion(state)
+        self.app.state_manager.unschedule_deletion(state)
         self.state = state
         state.ws = self
 

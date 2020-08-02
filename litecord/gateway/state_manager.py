@@ -247,11 +247,11 @@ class StateManager:
         state.ws.state = None
         state.ws = None
 
-    async def schedule_deletion(self, state: GatewayState):
+    def schedule_deletion(self, state: GatewayState):
         task = app.loop.create_task(self._future_cleanup(state))
         self.tasks[state.session_id] = task
 
-    async def unschedule_deletion(self, state: GatewayState):
+    def unschedule_deletion(self, state: GatewayState):
         try:
             task = self.tasks.pop(state.session_id)
         except KeyError:
