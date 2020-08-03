@@ -227,6 +227,9 @@ async def post_relationship():
 
     if not uid:
         raise RelationshipFailed("No users with DiscordTag exist")
+        
+    if uid == user_id:
+        raise RelationshipFailed("Tried to add themselves as friend")
 
     res = await make_friend(user_id, uid)
 
