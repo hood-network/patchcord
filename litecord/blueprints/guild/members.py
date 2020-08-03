@@ -184,7 +184,6 @@ async def modify_guild_member(guild_id, member_id):
         await _update_member_roles(guild_id, member_id, j["roles"])
 
     member = await app.storage.get_member_data_one(guild_id, member_id)
-    member.pop("joined_at")
 
     # call pres_update for role and nick changes.
     partial = {"roles": member["roles"]}
@@ -222,7 +221,6 @@ async def update_nickname(guild_id):
     )
 
     member = await app.storage.get_member_data_one(guild_id, user_id)
-    member.pop("joined_at")
 
     # call pres_update for nick changes, etc.
     await app.lazy_guild.pres_update(guild_id, user_id, {"nick": j["nick"]})

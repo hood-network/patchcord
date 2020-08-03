@@ -57,7 +57,6 @@ async def mass_user_update(user_id: int) -> Tuple[dict, dict]:
 
     for guild_id in guild_ids:
         member = await app.storage.get_member_data_one(guild_id, user_id)
-        member.pop("joined_at")
         session_ids.extend(
             await app.dispatcher.guild.dispatch_filter(
                 guild_id,
