@@ -27,7 +27,7 @@ from litecord.types import KILOBYTES
 from litecord.images import parse_data_uri
 from litecord.errors import BadRequest
 
-bp = Blueprint("guild.emoji", __name__)
+bp = Blueprint("guild_emoji", __name__)
 
 
 async def _dispatch_emojis(guild_id):

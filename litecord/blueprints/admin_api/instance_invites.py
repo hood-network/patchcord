@@ -57,7 +57,7 @@ async def gen_inv(ctx) -> Optional[str]:
     return None
 
 
-@bp.route("", methods=["GET"])
+@bp.route("", methods=["GET"], strict_slashes=False)
 async def _all_instance_invites():
     await admin_check()
 
@@ -76,7 +76,7 @@ async def _all_instance_invites():
     return jsonify(rows)
 
 
-@bp.route("", methods=["PUT"])
+@bp.route("", methods=["PUT"], strict_slashes=False)
 async def _create_invite():
     await admin_check()
 

@@ -35,7 +35,7 @@ from litecord.common.users import (
 bp = Blueprint("users_admin", __name__)
 
 
-@bp.route("", methods=["POST", "PUT"])
+@bp.route("", methods=["POST", "PUT"], strict_slashes=False)
 async def _create_user():
     await admin_check()
     j = validate(await request.get_json(), USER_CREATE)
@@ -52,7 +52,7 @@ def args_try(args: dict, typ, field: str, default):
         raise BadRequest(f"invalid {field} value")
 
 
-@bp.route("", methods=["GET"])
+@bp.route("", methods=["GET"], strict_slashes=False)
 async def _search_users():
     await admin_check()
 

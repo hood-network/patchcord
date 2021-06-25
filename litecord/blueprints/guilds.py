@@ -112,7 +112,7 @@ async def put_guild_icon(guild_id: int, icon: Optional[str]):
     return await _general_guild_icon("guild", guild_id, icon, size=(128, 128))
 
 
-@bp.route("", methods=["POST"])
+@bp.route("", methods=["POST"], strict_slashes=False)
 async def create_guild():
     """Create a new guild, assigning
     the user creating it as the owner and
