@@ -28,6 +28,7 @@ from quart import Quart, jsonify, request
 from logbook import StreamHandler, Logger
 from logbook.compat import redirect_logging
 from aiohttp import ClientSession
+from winter import SnowflakeFactory
 
 # import the config set by instance owner
 import config
@@ -257,6 +258,7 @@ async def init_app_db(app_):
 
 def init_app_managers(app_: Quart, *, init_voice=True):
     """Initialize singleton classes."""
+    app_.winter_factory = SnowflakeFactory()
     app_.loop = asyncio.get_event_loop()
     app_.ratelimiter = RatelimitManager(app_.config.get("_testing"))
     app_.state_manager = StateManager()

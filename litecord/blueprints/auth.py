@@ -24,7 +24,7 @@ import itsdangerous
 import bcrypt
 from quart import Blueprint, jsonify, request, current_app as app
 from logbook import Logger
-from winter import get_snowflake
+
 
 from litecord.auth import token_check
 from litecord.common.users import create_user
@@ -187,7 +187,7 @@ async def _logout():
 @bp.route("/fingerprint", methods=["POST"])
 async def _fingerprint():
     """No idea what this route is about."""
-    fingerprint_id = get_snowflake()
+    fingerprint_id = app.winter_factory.snowflake()
     fingerprint = f"{fingerprint_id}.{secrets.token_urlsafe(32)}"
 
     return jsonify({"fingerprint": fingerprint})

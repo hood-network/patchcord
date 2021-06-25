@@ -24,7 +24,6 @@ from dataclasses import dataclass
 
 from quart import Blueprint, request, current_app as app, jsonify
 from logbook import Logger
-from winter import snowflake_datetime
 
 from litecord.auth import token_check
 from litecord.enums import ChannelType, GUILD_CHANS, MessageType, MessageFlags
@@ -851,7 +850,7 @@ async def bulk_delete(channel_id: int):
     # we must error. a cuter behavior would be returning the message ids
     # that were deleted, ignoring the 2 week+ old ones.
     for message_id in message_ids:
-        message_dt = snowflake_datetime(message_id)
+        message_dt = app.winter_factory.to_datetime(message_id)
         delta = datetime.datetime.utcnow() - message_dt
 
         if delta.days > 14:

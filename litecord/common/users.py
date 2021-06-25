@@ -25,7 +25,6 @@ from asyncpg import UniqueViolationError
 from logbook import Logger
 
 from ..presence import BasePresence
-from ..snowflake import get_snowflake
 from ..errors import BadRequest
 from ..auth import hash_data
 from ..utils import rand_hex
@@ -149,7 +148,7 @@ async def create_user(username: str, email: str, password: str) -> Tuple[int, st
     Generates a distriminator and other information. You can fetch the user
     data back with :meth:`Storage.get_user`.
     """
-    new_id = get_snowflake()
+    new_id = app.winter_factory.snowflake()
     new_discrim = await roll_discrim(username)
 
     if new_discrim is None:

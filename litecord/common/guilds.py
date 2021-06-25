@@ -21,7 +21,6 @@ from typing import List
 from logbook import Logger
 from quart import current_app as app
 
-from ..snowflake import get_snowflake
 from ..permissions import get_role_perms, get_permissions
 from ..utils import dict_get, maybe_lazy_guild_dispatch
 from ..enums import ChannelType
@@ -70,7 +69,7 @@ async def remove_member_multi(guild_id: int, members: list):
 
 async def create_role(guild_id, name: str, **kwargs):
     """Create a role in a guild."""
-    new_role_id = get_snowflake()
+    new_role_id = app.winter_factory.snowflake()
 
     everyone_perms = await get_role_perms(guild_id, guild_id)
     default_perms = dict_get(kwargs, "default_perms", everyone_perms.binary)

@@ -20,7 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 from logbook import Logger
 from quart import current_app as app
 
-from winter import get_snowflake
+
 from litecord.enums import MessageType
 
 log = Logger(__name__)
@@ -28,7 +28,7 @@ log = Logger(__name__)
 
 async def _handle_pin_msg(channel_id, _pinned_id, author_id):
     """Handle a message pin."""
-    new_id = get_snowflake()
+    new_id = app.winter_factory.snowflake()
 
     await app.db.execute(
         """
@@ -48,7 +48,7 @@ async def _handle_pin_msg(channel_id, _pinned_id, author_id):
 
 # TODO: decrease repetition between add and remove handlers
 async def _handle_recp_add(channel_id, author_id, peer_id):
-    new_id = get_snowflake()
+    new_id = app.winter_factory.snowflake()
 
     await app.db.execute(
         """
@@ -68,7 +68,7 @@ async def _handle_recp_add(channel_id, author_id, peer_id):
 
 
 async def _handle_recp_rmv(channel_id, author_id, peer_id):
-    new_id = get_snowflake()
+    new_id = app.winter_factory.snowflake()
 
     await app.db.execute(
         """
@@ -88,7 +88,7 @@ async def _handle_recp_rmv(channel_id, author_id, peer_id):
 
 
 async def _handle_gdm_name_edit(channel_id, author_id):
-    new_id = get_snowflake()
+    new_id = app.winter_factory.snowflake()
 
     gdm_name = await app.db.fetchval(
         """
@@ -120,7 +120,7 @@ async def _handle_gdm_name_edit(channel_id, author_id):
 
 
 async def _handle_gdm_icon_edit(channel_id, author_id):
-    new_id = get_snowflake()
+    new_id = app.winter_factory.snowflake()
 
     await app.db.execute(
         """

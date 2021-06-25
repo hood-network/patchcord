@@ -5,7 +5,6 @@ from PIL import Image
 from quart import request, current_app as app
 
 from litecord.errors import BadRequest
-from ..snowflake import get_snowflake
 
 log = logging.getLogger(__name__)
 
@@ -69,7 +68,7 @@ async def msg_add_attachment(message_id: int, channel_id: int, attachment_file) 
         quart FileStorage instance of the file.
     """
 
-    attachment_id = get_snowflake()
+    attachment_id = app.winter_factory.snowflake()
     filename = attachment_file.filename
 
     # understand file info

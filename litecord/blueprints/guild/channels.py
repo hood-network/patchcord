@@ -20,7 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 from quart import Blueprint, request, current_app as app, jsonify
 
 from litecord.blueprints.auth import token_check
-from winter import get_snowflake
+
 from litecord.errors import BadRequest
 from litecord.enums import ChannelType
 from litecord.blueprints.guild.roles import gen_pairs
@@ -56,7 +56,7 @@ async def create_channel(guild_id):
     if channel_type not in (ChannelType.GUILD_TEXT, ChannelType.GUILD_VOICE):
         raise BadRequest("Invalid channel type")
 
-    new_channel_id = get_snowflake()
+    new_channel_id = app.winter_factory.snowflake()
     await create_guild_channel(guild_id, new_channel_id, channel_type, **j)
 
     chan = await app.storage.get_channel(new_channel_id)

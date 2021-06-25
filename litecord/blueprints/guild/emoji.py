@@ -22,7 +22,7 @@ from quart import Blueprint, jsonify, current_app as app, request
 from litecord.auth import token_check
 from litecord.blueprints.checks import guild_check, guild_perm_check
 from litecord.schemas import validate, NEW_EMOJI, PATCH_EMOJI
-from winter import get_snowflake
+
 from litecord.types import KILOBYTES
 from litecord.images import parse_data_uri
 from litecord.errors import BadRequest
@@ -94,7 +94,7 @@ async def _put_emoji(guild_id):
     mime, _ = parse_data_uri(j["image"])
     await _guild_emoji_size_check(guild_id, mime)
 
-    emoji_id = get_snowflake()
+    emoji_id = app.winter_factory.snowflake()
 
     icon = await app.icons.put(
         "emoji",

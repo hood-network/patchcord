@@ -34,7 +34,6 @@ from litecord.blueprints.user.billing import (
     process_subscription,
 )
 
-from winter import snowflake_datetime
 from litecord.types import MINUTES
 
 log = Logger(__name__)
@@ -71,7 +70,7 @@ async def _process_user_payments(user_id: int):
     # calculate the difference between this payment
     # and now.
     now = datetime.datetime.now()
-    payment_tstamp = snowflake_datetime(int(payment_data["id"]))
+    payment_tstamp = app.winter_factory.to_datetime(int(payment_data["id"]))
 
     delta = now - payment_tstamp
 

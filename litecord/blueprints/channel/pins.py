@@ -21,7 +21,6 @@ from quart import Blueprint, current_app as app, jsonify
 
 from litecord.auth import token_check
 from litecord.blueprints.checks import channel_check, channel_perm_check
-from winter import snowflake_datetime
 from litecord.types import timestamp_
 
 from litecord.system_messages import send_sys_message
@@ -95,16 +94,16 @@ async def add_pin(channel_id, message_id):
 
     row = await app.db.fetchrow(
         """
-    SELECT message_id
-    FROM channel_pins
-    WHERE channel_id = $1
-    ORDER BY message_id ASC
-    LIMIT 1
-    """,
+        SELECT message_id
+        FROM channel_pins
+        WHERE channel_id = $1
+        ORDER BY message_id ASC
+        LIMIT 1
+        """,
         channel_id,
     )
 
-    timestamp = snowflake_datetime(row["message_id"])
+    timestamp = app.winter_factory.to_datetime(row["message_id"])
 
     await app.dispatcher.channel.dispatch(
         channel_id,
@@ -151,7 +150,7 @@ async def delete_pin(channel_id, message_id):
         channel_id,
     )
 
-    timestamp = snowflake_datetime(row["message_id"])
+    timestamp = app.winter_factory.to_datetime(row["message_id"])
 
     await app.dispatcher.channel.dispatch(
         channel_id,
