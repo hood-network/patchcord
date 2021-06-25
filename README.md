@@ -17,7 +17,7 @@ could help writing it, defining a clear protocol between components
 (litebridge). Sadly, it didn't take off, so I (Luna), that wrote the other two,
 took a shot at writing it again. It works.
 
-**This is "Litecord" / "litecord".** There are *no* rewrites planned.
+**This is "Litecord" / "litecord".** There are _no_ rewrites planned.
 
 ## Project Goals
 
@@ -32,10 +32,10 @@ took a shot at writing it again. It works.
 
 - Unit testing is incomplete.
 - Currently, there are no plans to support video in voice chats, or the
-    Discord Store.
+  Discord Store.
 - An unofficial Discord Client is recommended to connect (more on
-    `docs/clients.md`). Litecord will not distribute official client code from
-    Discord nor provide ways to modify the official client.
+  `docs/clients.md`). Litecord will not distribute official client code from
+  Discord nor provide ways to modify the official client.
 
 ## Implementation status, AKA "Does it work?"
 
@@ -66,12 +66,13 @@ or third party libraries (such as [Eris](https://github.com/abalabahaha/eris)).
 
 Requirements:
 
-- **Python 3.8+**
+- **Python 3.9+**
 - PostgreSQL (tested using 9.6+), SQL knowledge is recommended.
 - gifsicle for GIF emoji and avatar handling
 - [pipenv]
 
 Optional requirement:
+
 - [mediaproxy]
 
 [pipenv]: https://github.com/pypa/pipenv
