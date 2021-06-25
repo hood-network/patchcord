@@ -131,7 +131,11 @@ async def _register_with_invite():
 @bp.route("/login", methods=["POST"])
 async def login():
     j = await request.get_json()
-    email, password = j["email"], j["password"]
+    try:
+        email, password = j["email"], j["password"]
+    except KeyError:
+        # hack for api v9
+        email, password = j["login"], j["password"]
 
     row = await app.db.fetchrow(
         """

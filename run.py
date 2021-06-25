@@ -129,6 +129,9 @@ def make_app():
     return app
 
 
+PREFIXES = ("/api/v6", "/api/v7", "/api/v8", "/api/v9")
+
+
 def set_blueprints(app_):
     """Set the blueprints for a given app instance"""
     bps = {
@@ -167,12 +170,13 @@ def set_blueprints(app_):
     }
 
     for bp, suffix in bps.items():
-        url_prefix = f'/api/v6{suffix or ""}'
+        for prefix in PREFIXES:
+            url_prefix = f'{prefix}{suffix or ""}'
 
-        if suffix == -1:
-            url_prefix = ""
+            if suffix == -1:
+                url_prefix = ""
 
-        app_.register_blueprint(bp, url_prefix=url_prefix)
+            app_.register_blueprint(bp, url_prefix=url_prefix)
 
 
 app = make_app()
