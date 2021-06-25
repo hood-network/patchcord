@@ -1,8 +1,8 @@
-image: python:3.8-alpine
+image: python:3.9-alpine
 
 variables:
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
-  POSTGRES_HOST_AUTH_METHOD: 'trust'
+  POSTGRES_HOST_AUTH_METHOD: "trust"
 
 services:
   - postgres:alpine
