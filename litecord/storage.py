@@ -63,12 +63,6 @@ def bool_(val):
     return maybe(int, val)
 
 
-def _filter_recipients(recipients: List[Dict[str, Any]], user_id: str):
-    """Filter recipients in a list of recipients, removing
-    the one that is reundant (ourselves)."""
-    return list(filter(lambda recipient: recipient["id"] != user_id, recipients))
-
-
 class EmojiStats(TypedDict):
     count: int
     me: bool
@@ -1212,12 +1206,6 @@ class Storage:
     async def get_dm(self, dm_id: int, user_id: Optional[int] = None) -> Optional[Dict]:
         """Get a DM channel."""
         dm_chan = await self.get_channel(dm_id)
-
-        if user_id and dm_chan:
-            dm_chan["recipients"] = _filter_recipients(
-                dm_chan["recipients"], str(user_id)
-            )
-
         return dm_chan
 
     async def guild_from_channel(self, channel_id: int) -> int:
