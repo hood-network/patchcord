@@ -382,8 +382,7 @@ class GatewayWebsocket:
         app.sched.spawn(self._guild_dispatch(guilds))
 
     async def _check_shards(self, shard, user_id):
-        """Check if the given `shard` value in IDENTIFY has good enough values.
-        """
+        """Check if the given `shard` value in IDENTIFY has good enough values."""
         current_shard, shard_count = shard
 
         guilds = await self.app.db.fetchval(

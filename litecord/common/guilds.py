@@ -54,7 +54,11 @@ async def remove_member(guild_id: int, member_id: int):
     await app.dispatcher.guild.unsub(guild_id, member_id)
     await app.lazy_guild.remove_member(guild_id, user["id"])
     await app.dispatcher.guild.dispatch(
-        guild_id, ("GUILD_MEMBER_REMOVE", {"guild_id": str(guild_id), "user": user},),
+        guild_id,
+        (
+            "GUILD_MEMBER_REMOVE",
+            {"guild_id": str(guild_id), "user": user},
+        ),
     )
 
 

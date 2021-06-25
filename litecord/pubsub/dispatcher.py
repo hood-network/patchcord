@@ -126,7 +126,8 @@ class DispatcherWithState(Dispatcher[K, V, EventType, DispatchType]):
 
 
 class DispatcherWithFlags(
-    DispatcherWithState, Generic[K, V, EventType, DispatchType, F],
+    DispatcherWithState,
+    Generic[K, V, EventType, DispatchType, F],
 ):
     """Pub/Sub backend with both a state and a flags store."""
 

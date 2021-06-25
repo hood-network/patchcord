@@ -206,7 +206,8 @@ class PresenceManager:
 
         user = await self.storage.get_user(user_id)
         await app.dispatcher.friend.dispatch(
-            user_id, ("PRESENCE_UPDATE", {**presence.partial_dict, **{"user": user}}),
+            user_id,
+            ("PRESENCE_UPDATE", {**presence.partial_dict, **{"user": user}}),
         )
 
     async def dispatch_friends_pres_filter(

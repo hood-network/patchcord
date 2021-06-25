@@ -307,7 +307,10 @@ async def delete_guild_role(guild_id, role_id):
 
     await app.dispatcher.guild.dispatch(
         guild_id,
-        ("GUILD_ROLE_DELETE", {"guild_id": str(guild_id), "role_id": str(role_id)},),
+        (
+            "GUILD_ROLE_DELETE",
+            {"guild_id": str(guild_id), "role_id": str(role_id)},
+        ),
     )
 
     return "", 204

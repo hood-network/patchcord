@@ -167,7 +167,10 @@ class LitecordValidator(Validator):
         return isinstance(value, str) and (len(value) < 32)
 
 
-def validate(reqjson: Optional[Union[Dict, List]], schema: Dict,) -> Dict:
+def validate(
+    reqjson: Optional[Union[Dict, List]],
+    schema: Dict,
+) -> Dict:
     """Validate the given user-given data against a schema, giving the
     "correct" version of the document, with all defaults applied.
 

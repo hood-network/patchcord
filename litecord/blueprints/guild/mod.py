@@ -131,8 +131,8 @@ async def remove_ban(guild_id, banned_id):
 async def get_prune(guild_id: int, days: int) -> list:
     """Get all members in a guild that:
 
-     - did not login in ``days`` days.
-     - don't have any roles.
+    - did not login in ``days`` days.
+    - don't have any roles.
     """
     # a good solution would be in pure sql.
     member_ids = await app.db.fetch(
