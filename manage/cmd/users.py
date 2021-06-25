@@ -20,6 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 from litecord.common.users import create_user, delete_user
 from litecord.blueprints.auth import make_token
 from litecord.enums import UserFlags
+from litecord.auth import hash_data
 
 
 async def find_user(username, discrim, ctx) -> int:
@@ -132,6 +133,26 @@ async def del_user(ctx, args):
     print("ok")
 
 
+async def set_password_user(ctx, args):
+    """set a user's password."""
+    uid = await find_user(args.username, args.discrim, ctx)
+    if uid is None:
+        print("user not found")
+        return
+
+    new_hash = await hash_data(args.password, loop=ctx.loop)
+    await ctx.db.execute(
+        """
+        UPDATE users
+        SET password_hash = $1
+        WHERE id = $2
+        """,
+        new_hash,
+        uid,
+    )
+    print("ok")
+
+
 def setup(subparser):
     setup_test_parser = subparser.add_parser("adduser", help="create a user")
 
@@ -166,3 +187,13 @@ def setup(subparser):
     token_parser.add_argument("user_id")
 
     token_parser.set_defaults(func=generate_bot_token)
+
+    set_password_user_parser = subparser.add_parser(
+        "setpass", help="set password for a user"
+    )
+
+    set_password_user_parser.add_argument("username")
+    set_password_user_parser.add_argument("discrim")
+    set_password_user_parser.add_argument("password")
+
+    set_password_user_parser.set_defaults(func=set_password_user)
