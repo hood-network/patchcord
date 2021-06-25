@@ -38,11 +38,11 @@ async def websocket_handler(app, ws, url):
     except (KeyError, IndexError):
         gw_encoding = "json"
 
-    if gw_version not in ("6", "7"):
-        return await ws.close(1000, "Invalid gateway version")
+    if gw_version not in ("6", "7", "8", "9"):
+        return await ws.close(4000, f"Invalid gateway version (got {gw_version})")
 
     if gw_encoding not in ("json", "etf"):
-        return await ws.close(1000, "Invalid gateway encoding")
+        return await ws.close(4000, f"Invalid gateway encoding (got {gw_encoding})")
 
     try:
         gw_compress: Optional[str] = args["compress"][0]
