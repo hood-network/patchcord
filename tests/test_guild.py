@@ -24,9 +24,9 @@ import pytest
 @pytest.mark.asyncio
 async def test_guild_create(test_cli_user):
     """Test the creation of a guild, in three stages:
-        - creating it
-        - checking the list
-        - deleting it
+    - creating it
+    - checking the list
+    - deleting it
     """
     g_name = secrets.token_hex(5)
 
