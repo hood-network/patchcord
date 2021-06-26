@@ -73,22 +73,21 @@ def _complete_users_list(base_ready, user_ready) -> dict:
     """Use the data we were already preparing to send in READY to construct
     the users array, saving on I/O cost."""
 
-    # TODO deduplication
-    users_list = []
+    users_to_send = {}
 
     for guild in base_ready["guilds"]:
         if guild["unavailable"]:
             continue
 
         for member in guild["members"]:
-            users_list.append(member["user"])
+            users_to_send[member["user"]["id"]] = member["user"]
 
     for private_channel in base_ready["private_channels"]:
         for recipient in private_channel["recipients"]:
-            users_list.append(recipient)
+            users_to_send[recipient["id"]] = recipient
 
     ready = {**base_ready, **user_ready}
-    ready["users"] = users_list
+    ready["users"] = [value for value in users_to_send.values()]
     return ready
 
 
