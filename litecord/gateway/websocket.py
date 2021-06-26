@@ -69,7 +69,7 @@ WebsocketProperties = collections.namedtuple(
 )
 
 
-def _complete_users_list(base_ready, user_ready) -> dict:
+def _complete_users_list(user_id: str, base_ready, user_ready) -> dict:
     """Use the data we were already preparing to send in READY to construct
     the users array, saving on I/O cost."""
 
@@ -85,6 +85,8 @@ def _complete_users_list(base_ready, user_ready) -> dict:
     for private_channel in base_ready["private_channels"]:
         for recipient in private_channel["recipients"]:
             users_to_send[recipient["id"]] = recipient
+
+    users_to_send.pop(user_id)
 
     ready = {**base_ready, **user_ready}
     ready["users"] = [value for value in users_to_send.values()]
@@ -400,7 +402,7 @@ class GatewayWebsocket:
             "shard": [self.state.current_shard, self.state.shard_count],
         }
 
-        full_ready_data = _complete_users_list(base_ready, user_ready)
+        full_ready_data = _complete_users_list(user["id"], base_ready, user_ready)
         await self.dispatch("READY", full_ready_data)
         app.sched.spawn(self._guild_dispatch(guilds))
 
