@@ -86,7 +86,8 @@ def _complete_users_list(user_id: str, base_ready, user_ready) -> dict:
         for recipient in private_channel["recipients"]:
             users_to_send[recipient["id"]] = recipient
 
-    users_to_send.pop(user_id)
+    if user_id in users_to_send:
+        users_to_send.pop(user_id)
 
     ready = {**base_ready, **user_ready}
     ready["users"] = [value for value in users_to_send.values()]
