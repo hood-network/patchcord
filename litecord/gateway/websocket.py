@@ -403,6 +403,11 @@ class GatewayWebsocket:
         }
 
         full_ready_data = _complete_users_list(user["id"], base_ready, user_ready)
+
+        if not self.state.bot:
+            for guild in full_ready_data["guilds"]:
+                guild["members"] = []
+
         await self.dispatch("READY", full_ready_data)
         app.sched.spawn(self._guild_dispatch(guilds))
 
