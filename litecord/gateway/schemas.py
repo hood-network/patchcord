@@ -69,6 +69,36 @@ IDENTIFY_SCHEMA = {
     },
 }
 
+RESUME_SCHEMA = {
+    **BASE,
+    **{
+        "d": {
+            "type": "dict",
+            "schema": {
+                "token": {"type": "string", "required": True},
+                "session_id": {"type": "string", "required": True},
+                "seq": {"type": "number", "required": True},
+            },
+        }
+    },
+}
+
+REQ_GUILD_SCHEMA = {
+    **BASE,
+    **{
+        "d": {
+            "type": "dict",
+            "schema": {
+                "guild_id": {"type": "string", "required": True},
+                "user_ids": {"type": "list", "required": False},
+                "query": {"type": "string", "required": False},
+                "limit": {"type": "number", "required": False},
+                "presences": {"type": "bool", "required": False},
+            },
+        }
+    },
+}
+
 
 GW_ACTIVITY = {
     "name": {"type": "string", "required": True},
