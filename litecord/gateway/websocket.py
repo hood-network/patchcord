@@ -32,7 +32,6 @@ from quart import current_app as app
 
 from litecord.auth import raw_token_check
 from litecord.enums import RelationshipType, ChannelType, ActivityType
-from litecord.schemas import validate, GW_STATUS_UPDATE
 from litecord.utils import (
     task_wrapper,
     yield_chunks,
@@ -59,6 +58,7 @@ from litecord.gateway.encoding import encode_json, decode_json, encode_etf, deco
 from litecord.gateway.utils import WebsocketFileHandler
 from litecord.pubsub.guild import GuildFlags
 from litecord.pubsub.channel import ChannelFlags
+from litecord.gateway.schemas import validate, IDENTIFY_SCHEMA, GW_STATUS_UPDATE
 
 from litecord.storage import int_
 
@@ -651,13 +651,9 @@ class GatewayWebsocket:
 
     async def handle_2(self, payload: Dict[str, Any]):
         """Handle the OP 2 Identify packet."""
-        try:
-            data = payload["d"]
-            token = data["token"]
-        except KeyError:
-            raise DecodeError("Invalid identify parameters")
-
-        # TODO proper validation of this payload
+        payload = validate(payload, IDENTIFY_SCHEMA)
+        data = payload["d"]
+        token = data["token"]
 
         compress = data.get("compress", False)
         large = data.get("large_threshold", 50)
