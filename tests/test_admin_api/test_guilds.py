@@ -28,9 +28,10 @@ from litecord.errors import GuildNotFound
 async def _create_guild(test_cli_staff, *, region=None) -> dict:
     genned_name = secrets.token_hex(6)
 
-    resp = await test_cli_staff.post(
-        "/api/v6/guilds", json={"name": genned_name, "region": region}
-    )
+    async with test_cli_staff.app.app_context():
+        resp = await test_cli_staff.post(
+            "/api/v6/guilds", json={"name": genned_name, "region": region}
+        )
 
     assert resp.status_code == 200
     rjson = await resp.json
