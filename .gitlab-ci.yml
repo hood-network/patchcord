@@ -20,6 +20,7 @@ tests:
   script:
     - ls
     - cp config.ci.py config.py
+    - pipenv --venv
     - pipenv run ./manage.py migrate
     - pipenv run black --check litecord run.py tests manage
     - pipenv run pyflakes run.py litecord/
