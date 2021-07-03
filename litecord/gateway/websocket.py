@@ -64,6 +64,7 @@ from litecord.gateway.schemas import (
     GW_STATUS_UPDATE,
     RESUME_SCHEMA,
     REQ_GUILD_SCHEMA,
+    GUILD_SYNC_SCHEMA,
 )
 
 from litecord.storage import int_
@@ -952,6 +953,7 @@ class GatewayWebsocket:
 
     async def handle_12(self, payload: Dict[str, Any]):
         """Handle OP 12 Guild Sync."""
+        payload = validate(payload, GUILD_SYNC_SCHEMA)
         data = payload["d"]
         gids = await self.user_storage.get_user_guilds(self.state.user_id)
 

@@ -99,6 +99,16 @@ REQ_GUILD_SCHEMA = {
     },
 }
 
+GUILD_SYNC_SCHEMA = {
+    **BASE,
+    **{
+        "d": {
+            "type": "list",
+            "schema": {"type": "snowflake"},
+        }
+    },
+}
+
 
 GW_ACTIVITY = {
     "name": {"type": "string", "required": True},
