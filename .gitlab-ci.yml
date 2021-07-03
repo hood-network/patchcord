@@ -23,5 +23,5 @@ tests:
     - pipenv --venv
     - pipenv run ./manage.py migrate
     - pipenv run black --check litecord run.py tests manage
-    - pipenv run pyflakes run.py litecord/
+    - pipenv run flake8 litecord run.py tests manage
     - pipenv run pytest tests
