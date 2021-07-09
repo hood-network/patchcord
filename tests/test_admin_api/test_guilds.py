@@ -63,13 +63,13 @@ async def _delete_guild(test_cli, guild_id: int):
 @pytest.mark.asyncio
 async def test_guild_fetch(test_cli_staff):
     """Test the creation and fetching of a guild via the Admin API."""
-    rjson = await _create_guild(test_cli_staff)
-    guild_id = rjson["id"]
-
-    try:
-        await _fetch_guild(test_cli_staff, guild_id)
-    finally:
-        await _delete_guild(test_cli_staff, int(guild_id))
+    async with test_cli_staff.app.app_context():
+        rjson = await _create_guild(test_cli_staff)
+        guild_id = rjson["id"]
+        try:
+            await _fetch_guild(test_cli_staff, guild_id)
+        finally:
+            await _delete_guild(test_cli_staff, int(guild_id))
 
 
 @pytest.mark.asyncio
