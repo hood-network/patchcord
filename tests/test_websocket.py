@@ -104,6 +104,25 @@ async def test_ready(test_cli_user):
 
 
 @pytest.mark.asyncio
+async def test_broken_identify(test_cli_user):
+    conn = await gw_start(test_cli_user.cli)
+
+    # get the hello frame but ignore it
+    await _json(conn)
+
+    await _json_send(conn, {"op": OP.IDENTIFY, "d": {"token": True}})
+
+    # try to get a ready
+    try:
+        await _json(conn)
+        raise AssertionError("Received a JSON message but expected close")
+    except websockets.ConnectionClosed as exc:
+        assert exc.code == 4002
+    finally:
+        await _close(conn)
+
+
+@pytest.mark.asyncio
 async def test_ready_fields(test_cli_user):
     conn = await gw_start(test_cli_user.cli)
 

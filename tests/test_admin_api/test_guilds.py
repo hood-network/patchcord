@@ -28,9 +28,10 @@ from litecord.errors import GuildNotFound
 async def _create_guild(test_cli_staff, *, region=None) -> dict:
     genned_name = secrets.token_hex(6)
 
-    resp = await test_cli_staff.post(
-        "/api/v6/guilds", json={"name": genned_name, "region": region}
-    )
+    async with test_cli_staff.app.app_context():
+        resp = await test_cli_staff.post(
+            "/api/v6/guilds", json={"name": genned_name, "region": region}
+        )
 
     assert resp.status_code == 200
     rjson = await resp.json
@@ -62,13 +63,13 @@ async def _delete_guild(test_cli, guild_id: int):
 @pytest.mark.asyncio
 async def test_guild_fetch(test_cli_staff):
     """Test the creation and fetching of a guild via the Admin API."""
-    rjson = await _create_guild(test_cli_staff)
-    guild_id = rjson["id"]
-
-    try:
-        await _fetch_guild(test_cli_staff, guild_id)
-    finally:
-        await _delete_guild(test_cli_staff, int(guild_id))
+    async with test_cli_staff.app.app_context():
+        rjson = await _create_guild(test_cli_staff)
+        guild_id = rjson["id"]
+        try:
+            await _fetch_guild(test_cli_staff, guild_id)
+        finally:
+            await _delete_guild(test_cli_staff, int(guild_id))
 
 
 @pytest.mark.asyncio

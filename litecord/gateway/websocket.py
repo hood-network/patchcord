@@ -32,7 +32,6 @@ from quart import current_app as app
 
 from litecord.auth import raw_token_check
 from litecord.enums import RelationshipType, ChannelType, ActivityType
-from litecord.schemas import validate, GW_STATUS_UPDATE
 from litecord.utils import (
     task_wrapper,
     yield_chunks,
@@ -59,6 +58,14 @@ from litecord.gateway.encoding import encode_json, decode_json, encode_etf, deco
 from litecord.gateway.utils import WebsocketFileHandler
 from litecord.pubsub.guild import GuildFlags
 from litecord.pubsub.channel import ChannelFlags
+from litecord.gateway.schemas import (
+    validate,
+    IDENTIFY_SCHEMA,
+    GW_STATUS_UPDATE,
+    RESUME_SCHEMA,
+    REQ_GUILD_SCHEMA,
+    GUILD_SYNC_SCHEMA,
+)
 
 from litecord.storage import int_
 
@@ -651,13 +658,9 @@ class GatewayWebsocket:
 
     async def handle_2(self, payload: Dict[str, Any]):
         """Handle the OP 2 Identify packet."""
-        try:
-            data = payload["d"]
-            token = data["token"]
-        except KeyError:
-            raise DecodeError("Invalid identify parameters")
-
-        # TODO proper validation of this payload
+        payload = validate(payload, IDENTIFY_SCHEMA)
+        data = payload["d"]
+        token = data["token"]
 
         compress = data.get("compress", False)
         large = data.get("large_threshold", 50)
@@ -840,12 +843,9 @@ class GatewayWebsocket:
 
     async def handle_6(self, payload: Dict[str, Any]):
         """Handle OP 6 Resume."""
+        payload = validate(payload, RESUME_SCHEMA)
         data = payload["d"]
-
-        try:
-            token, sess_id, seq = data["token"], data["session_id"], data["seq"]
-        except KeyError:
-            raise DecodeError("Invalid resume payload")
+        token, sess_id, seq = data["token"], data["session_id"], data["seq"]
 
         try:
             user_id = await raw_token_check(token, self.app.db)
@@ -915,6 +915,7 @@ class GatewayWebsocket:
 
     async def handle_8(self, payload: Dict):
         """Handle OP 8 Request Guild Members."""
+        payload = validate(payload, REQ_GUILD_SCHEMA)
         data = payload["d"]
         gids = data["guild_id"]
 
@@ -952,8 +953,8 @@ class GatewayWebsocket:
 
     async def handle_12(self, payload: Dict[str, Any]):
         """Handle OP 12 Guild Sync."""
+        payload = validate(payload, GUILD_SYNC_SCHEMA)
         data = payload["d"]
-
         gids = await self.user_storage.get_user_guilds(self.state.user_id)
 
         for guild_id in data:
