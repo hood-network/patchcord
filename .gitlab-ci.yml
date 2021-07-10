@@ -14,14 +14,10 @@ cache:
 tests:
   before_script:
     - python -V
-    - apk --update add --no-cache build-base gcc libgcc libffi-dev openssl-dev git postgresql-client jpeg-dev openjpeg-dev zlib-dev freetype-dev lcms2-dev freetype-dev gifsicle
-    - pip3 install pipenv wheel tox
-    - pipenv install --dev
+    - time apk --update add --no-cache build-base gcc libgcc libffi-dev openssl-dev git postgresql-client jpeg-dev openjpeg-dev zlib-dev freetype-dev lcms2-dev freetype-dev gifsicle rust cargo
+    - time pip3 install --upgrade pip
+    - time pip3 install wheel tox
   script:
     - ls
     - cp config.ci.py config.py
-    - pipenv --venv
-    - pipenv run ./manage.py migrate
-    - pipenv run black --check litecord run.py tests manage
-    - pipenv run flake8 litecord run.py tests manage
-    - pipenv run pytest tests
+    - time tox

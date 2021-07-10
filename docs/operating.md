@@ -8,7 +8,7 @@ may be moved to the Admin API without proper notice. There is no frontend yet
 for the Admin API.
 
 The possible actions on `./manage.py` can be accessed via `./manage.py -h`, or
-`pipenv run ./manage.py -h` if you're on pipenv.
+`poetry run ./manage.py -h` if you're on poetry (recommended).
 
 ## `./manage.py generate_token`?
 
@@ -31,4 +31,4 @@ user flags, also gives complete access over the Admin API. Only make staff the
 people you (the instance OP) can trust.
 
 Use the `./manage.py make_staff` management task to make someone staff. There is
-no way to remove someone's staff with a `./manage.py` command *yet.*
+no way to remove someone's staff with a `./manage.py` command _yet._

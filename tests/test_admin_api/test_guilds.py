@@ -75,51 +75,53 @@ async def test_guild_fetch(test_cli_staff):
 @pytest.mark.asyncio
 async def test_guild_update(test_cli_staff):
     """Test the update of a guild via the Admin API."""
-    rjson = await _create_guild(test_cli_staff)
-    guild_id = rjson["id"]
-    assert not rjson["unavailable"]
+    async with test_cli_staff.app.app_context():
+        rjson = await _create_guild(test_cli_staff)
+        guild_id = rjson["id"]
+        assert not rjson["unavailable"]
 
-    try:
-        # I believe setting up an entire gateway client registered to the guild
-        # would be overkill to test the side-effects, so... I'm not
-        # testing them. Yes, I know its a bad idea, but if someone has an easier
-        # way to write that, do send an MR.
-        resp = await test_cli_staff.patch(
-            f"/api/v6/admin/guilds/{guild_id}", json={"unavailable": True}
-        )
+        try:
+            # I believe setting up an entire gateway client registered to the guild
+            # would be overkill to test the side-effects, so... I'm not
+            # testing them. Yes, I know its a bad idea, but if someone has an easier
+            # way to write that, do send an MR.
+            resp = await test_cli_staff.patch(
+                f"/api/v6/admin/guilds/{guild_id}", json={"unavailable": True}
+            )
 
-        assert resp.status_code == 200
-        rjson = await resp.json
-        assert isinstance(rjson, dict)
-        assert rjson["id"] == guild_id
-        assert rjson["unavailable"]
+            assert resp.status_code == 200
+            rjson = await resp.json
+            assert isinstance(rjson, dict)
+            assert rjson["id"] == guild_id
+            assert rjson["unavailable"]
 
-        rjson = await _fetch_guild(test_cli_staff, guild_id)
-        assert rjson["unavailable"]
-    finally:
-        await _delete_guild(test_cli_staff, int(guild_id))
+            rjson = await _fetch_guild(test_cli_staff, guild_id)
+            assert rjson["unavailable"]
+        finally:
+            await _delete_guild(test_cli_staff, int(guild_id))
 
 
 @pytest.mark.asyncio
 async def test_guild_delete(test_cli_staff):
     """Test the update of a guild via the Admin API."""
-    rjson = await _create_guild(test_cli_staff)
-    guild_id = rjson["id"]
+    async with test_cli_staff.app.app_context():
+        rjson = await _create_guild(test_cli_staff)
+        guild_id = rjson["id"]
 
-    try:
-        resp = await test_cli_staff.delete(f"/api/v6/admin/guilds/{guild_id}")
+        try:
+            resp = await test_cli_staff.delete(f"/api/v6/admin/guilds/{guild_id}")
 
-        assert resp.status_code == 204
+            assert resp.status_code == 204
 
-        resp = await _fetch_guild(test_cli_staff, guild_id, ret_early=True)
+            resp = await _fetch_guild(test_cli_staff, guild_id, ret_early=True)
 
-        assert resp.status_code == 404
-        rjson = await resp.json
-        assert isinstance(rjson, dict)
-        assert rjson["error"]
-        assert rjson["code"] == GuildNotFound.error_code
-    finally:
-        await _delete_guild(test_cli_staff, int(guild_id))
+            assert resp.status_code == 404
+            rjson = await resp.json
+            assert isinstance(rjson, dict)
+            assert rjson["error"]
+            assert rjson["code"] == GuildNotFound.error_code
+        finally:
+            await _delete_guild(test_cli_staff, int(guild_id))
 
 
 @pytest.mark.asyncio

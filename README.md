@@ -69,13 +69,13 @@ Requirements:
 - **Python 3.9+**
 - PostgreSQL (tested using 9.6+), SQL knowledge is recommended.
 - gifsicle for GIF emoji and avatar handling
-- [pipenv]
+- [poetry]
 
 Optional requirement:
 
 - [mediaproxy]
 
-[pipenv]: https://github.com/pypa/pipenv
+[poetry]: https://python-poetry.org/
 [mediaproxy]: https://gitlab.com/litecord/mediaproxy
 
 ### Download the code
@@ -87,7 +87,7 @@ $ git clone https://gitlab.com/litecord/litecord.git && cd litecord
 ### Install packages
 
 ```sh
-$ pipenv install --dev
+$ poetry install
 ```
 
 ### Setting up the database
@@ -110,7 +110,7 @@ $ $EDITOR config.py
 Then, you should run database migrations:
 
 ```sh
-$ pipenv run ./manage.py migrate
+$ poetry run ./manage.py migrate
 ```
 
 ## Running
@@ -120,7 +120,7 @@ This will expose your Litecord instance to the world. You can use the `-b`
 option to change it (e.g. `-b 0.0.0.0:45000`).
 
 ```sh
-$ pipenv run hypercorn run:app
+$ poetry run hypercorn run:app
 ```
 
 You can use `--access-log -` to output access logs to stdout.
@@ -145,7 +145,7 @@ Update the code and run any new database migrations:
 
 ```sh
 $ git pull
-$ pipenv run ./manage.py migrate
+$ poetry run ./manage.py migrate
 ```
 
 ## Running tests
