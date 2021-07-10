@@ -15,8 +15,7 @@ tests:
   before_script:
     - python -V
     - time apk --update add --no-cache build-base gcc libgcc libffi-dev openssl-dev git postgresql-client jpeg-dev openjpeg-dev zlib-dev freetype-dev lcms2-dev freetype-dev gifsicle
-    - time pip3 install poetry wheel tox
-    - time poetry install
+    - time pip3 install wheel tox
   script:
     - ls
     - cp config.ci.py config.py
