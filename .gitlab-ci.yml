@@ -20,5 +20,6 @@ tests:
   script:
     - ls
     - cp config.ci.py config.py
+    - poetry install
     - poetry run ./manage.py migrate
     - time tox
