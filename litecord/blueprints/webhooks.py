@@ -78,6 +78,8 @@ async def get_webhook(
 
     drow = dict(row)
 
+    drow["type"] = 1
+
     drow["user"] = await app.storage.get_user(row["creator_id"])
     drow.pop("creator_id")
 
