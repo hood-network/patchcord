@@ -14,7 +14,7 @@ cache:
 tests:
   before_script:
     - python -V
-    - time apk --update add --no-cache build-base gcc libgcc libffi-dev openssl-dev git postgresql-client jpeg-dev openjpeg-dev zlib-dev freetype-dev lcms2-dev freetype-dev gifsicle rust
+    - time apk --update add --no-cache build-base gcc libgcc libffi-dev openssl-dev git postgresql-client jpeg-dev openjpeg-dev zlib-dev freetype-dev lcms2-dev freetype-dev gifsicle rust cargo
     - time pip3 install --upgrade pip
     - time pip3 install wheel tox poetry
   script:
