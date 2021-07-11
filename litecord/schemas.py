@@ -619,3 +619,16 @@ BULK_DELETE = {
         "schema": {"coerce": int},
     }
 }
+
+BULK_ACK = {
+    "read_states": {
+        "type": "list",
+        "required": True,
+        "minlength": 0,
+        "maxlength": 100,
+        "schema": {
+            "channel_id": {"coerce": int},
+            "message_id": {"coerce": int},
+        },
+    }
+}
