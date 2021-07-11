@@ -22,6 +22,7 @@ import os
 
 from typing import Optional
 from litecord.presence import BasePresence
+from litecord.enums import Intents
 
 
 def gen_session_id() -> str:
@@ -93,6 +94,7 @@ class GatewayState:
         self.compress: bool = kwargs.get("compress") or False
 
         self.large: int = kwargs.get("large") or 50
+        self.intents: Intents = kwargs["intents"]
 
     def __bool__(self):
         """Return if the given state is a valid state to be used."""

@@ -28,6 +28,7 @@ from logbook import Logger
 
 from litecord.gateway.state import GatewayState
 from litecord.gateway.opcodes import OP
+from litecord.enums import Intents
 
 
 log = Logger(__name__)
@@ -174,6 +175,7 @@ class StateManager:
                         "game": None,
                         "since": 0,
                     },
+                    intents=Intents.default(),
                 )
 
                 states.append(dummy_state)
