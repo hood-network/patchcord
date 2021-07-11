@@ -19,7 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import inspect
 from typing import List, Any
-from enum import Enum, IntEnum
+from enum import Enum, IntEnum, IntFlag
 
 
 class EasyEnum(Enum):
@@ -66,7 +66,7 @@ class Flags:
         for attr, val in cls._attrs:
             has_attr = (value & val) == val
             # set attributes dynamically
-            setattr(res, f"is_{attr}", has_attr)
+            setattr(res, f"is_{attr.lower()}", has_attr)
 
         return res
 
@@ -249,7 +249,7 @@ class Feature(EasyEnum):
     news = "NEWS"
 
 
-class Intents(Flags):
+class Intents(IntFlag):
     GUILDS = 1 << 0
     GUILD_MEMBERS = 1 << 1
     GUILD_BANS = 1 << 2
@@ -265,3 +265,7 @@ class Intents(Flags):
     DIRECT_MESSAGES = 1 << 12
     DIRECT_MESSAGE_REACTIONS = 1 << 13
     DIRECT_MESSAGE_TYPING = 1 << 14
+
+    @classmethod
+    def default(cls):
+        return cls(-1)
