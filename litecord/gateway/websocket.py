@@ -56,8 +56,6 @@ from litecord.gateway.errors import (
 )
 from litecord.gateway.encoding import encode_json, decode_json, encode_etf, decode_etf
 from litecord.gateway.utils import WebsocketFileHandler
-from litecord.pubsub.guild import GuildFlags
-from litecord.pubsub.channel import ChannelFlags
 from litecord.gateway.schemas import (
     validate,
     IDENTIFY_SCHEMA,
@@ -508,11 +506,7 @@ class GatewayWebsocket:
         channel_ids: List[int] = []
 
         for guild_id in guild_ids:
-            await app.dispatcher.guild.sub_with_flags(
-                guild_id,
-                session_id,
-                GuildFlags(presence=True, typing=True),
-            )
+            await app.dispatcher.guild.sub(guild_id, session_id)
 
             # instead of calculating which channels to subscribe to
             # inside guild dispatcher, we calculate them in here, so that
@@ -529,9 +523,7 @@ class GatewayWebsocket:
 
         log.info("subscribing to {} guild channels", len(channel_ids))
         for channel_id in channel_ids:
-            await app.dispatcher.channel.sub_with_flags(
-                channel_id, session_id, ChannelFlags(typing=True)
-            )
+            await app.dispatcher.channel.sub(channel_id, session_id)
 
         for dm_id in dm_ids:
             await app.dispatcher.channel.sub(dm_id, session_id)
