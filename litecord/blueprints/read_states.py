@@ -36,7 +36,7 @@ async def ack_channel(channel_id, message_id):
     user_id = await token_check()
     ctype, guild_id = await channel_check(user_id, channel_id)
 
-    if ctype == ChannelType.DM:
+    if ctype not in GUILD_CHANS:
         guild_id = None
 
     await channel_ack(user_id, channel_id, guild_id, message_id)
