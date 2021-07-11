@@ -24,7 +24,7 @@ from litecord.common.channels import channel_ack
 from litecord.errors import GuildNotFound
 from litecord.blueprints.checks import channel_check, guild_check
 from litecord.schemas import validate, BULK_ACK
-from litecord.enums import ChannelType, GUILD_CHANS
+from litecord.enums import GUILD_CHANS
 
 
 bp = Blueprint("read_states", __name__)
