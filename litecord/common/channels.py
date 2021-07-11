@@ -27,7 +27,10 @@ from litecord.pubsub.user import dispatch_user
 
 
 async def channel_ack(
-    user_id: int, guild_id: int, channel_id: int, message_id: Optional[int] = None
+    user_id: int,
+    channel_id: int,
+    guild_id: Optional[int] = None,
+    message_id: Optional[int] = None,
 ):
     """ACK a channel."""
 

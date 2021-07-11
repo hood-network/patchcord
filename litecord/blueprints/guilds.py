@@ -39,7 +39,6 @@ from ..schemas import (
     VANITY_URL_PATCH,
 )
 from .checks import guild_check, guild_owner_check, guild_perm_check
-from ..common.channels import channel_ack
 from litecord.utils import to_update, search_result_from_list
 from litecord.errors import BadRequest
 from litecord.permissions import get_permissions
@@ -436,20 +435,6 @@ async def search_messages(guild_id):
     )
 
     return jsonify(await search_result_from_list(rows))
-
-
-@bp.route("/<int:guild_id>/ack", methods=["POST"])
-async def ack_guild(guild_id):
-    """ACKnowledge all messages in the guild."""
-    user_id = await token_check()
-    await guild_check(user_id, guild_id)
-
-    chan_ids = await app.storage.get_channel_ids(guild_id)
-
-    for chan_id in chan_ids:
-        await channel_ack(user_id, guild_id, chan_id)
-
-    return "", 204
 
 
 @bp.route("/<int:guild_id>/vanity-url", methods=["GET"])
