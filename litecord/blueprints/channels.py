@@ -42,10 +42,8 @@ from litecord.system_messages import send_sys_message
 from litecord.blueprints.dm_channels import gdm_remove_recipient, gdm_destroy
 from litecord.utils import search_result_from_list
 from litecord.embed.messages import process_url_embed, msg_update_embeds
-from litecord.common.channels import channel_ack
 from litecord.pubsub.user import dispatch_user
 from litecord.permissions import get_permissions, Permissions
-from litecord.errors import GuildNotFound
 
 log = Logger(__name__)
 bp = Blueprint("channels", __name__)
@@ -648,50 +646,6 @@ async def trigger_typing(channel_id):
                 "guild_id": str(guild_id) if ctype == ChannelType.GUILD_TEXT else None,
             },
         ),
-    )
-
-    return "", 204
-
-
-@bp.route("/<int:channel_id>/messages/<int:message_id>/ack", methods=["POST"])
-async def ack_channel(channel_id, message_id):
-    """Acknowledge a channel."""
-    user_id = await token_check()
-    ctype, guild_id = await channel_check(user_id, channel_id)
-
-    if ctype == ChannelType.DM:
-        guild_id = None
-
-    await channel_ack(user_id, guild_id, channel_id, message_id)
-
-    return jsonify(
-        {
-            # token seems to be used for
-            # data collection activities,
-            # so we never use it.
-            "token": None
-        }
-    )
-
-
-@bp.route("/<int:channel_id>/messages/ack", methods=["DELETE"])
-async def delete_read_state(channel_id):
-    """Delete the read state of a channel."""
-    user_id = await token_check()
-    try:
-        await channel_check(user_id, channel_id)
-    except GuildNotFound:
-        # ignore when guild isn't found because we're deleting the
-        # read state regardless.
-        pass
-
-    await app.db.execute(
-        """
-    DELETE FROM user_read_state
-    WHERE user_id = $1 AND channel_id = $2
-    """,
-        user_id,
-        channel_id,
     )
 
     return "", 204

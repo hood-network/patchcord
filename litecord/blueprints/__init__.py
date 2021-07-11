@@ -33,6 +33,7 @@ from .nodeinfo import bp as nodeinfo
 from .static import bp as static
 from .attachments import bp as attachments
 from .dm_channels import bp as dm_channels
+from .read_states import bp as read_states
 
 __all__ = [
     "gateway",
@@ -51,4 +52,5 @@ __all__ = [
     "static",
     "attachments",
     "dm_channels",
+    "read_states",
 ]
