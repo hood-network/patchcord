@@ -36,6 +36,22 @@ class GuildFlags(ChannelFlags):
     presence: bool
 
 
+def can_dispatch(event_type, event_data, state) -> bool:
+    # If we're sending to the same user for this kind of event,
+    # bypass event logic (always send)
+    if event_type == "GUILD_MEMBER_UPDATE":
+        user_id = int(event_data["user"])
+        return user_id == state.user_id
+
+    # TODO Guild Create and Req Guild Members have specific
+    # logic regarding the presence intent.
+
+    wanted_intent = EVENTS_TO_INTENTS.get(event_type)
+    if wanted_intent is not None:
+        state_has_intent = (state.intents & wanted_intent) == wanted_intent
+        return state_has_intent
+
+
 class GuildDispatcher(
     DispatcherWithFlags[int, str, GatewayEvent, List[str], GuildFlags]
 ):
@@ -53,7 +69,7 @@ class GuildDispatcher(
     ):
         session_ids = self.state[guild_id]
         sessions: List[str] = []
-        event_type, _ = event
+        event_type, event_data = event
 
         for session_id in set(session_ids):
             if not filter_function(session_id):
@@ -69,11 +85,8 @@ class GuildDispatcher(
                 await self.unsub(guild_id, session_id)
                 continue
 
-            wanted_intent = EVENTS_TO_INTENTS.get(event_type)
-            if wanted_intent is not None:
-                state_has_intent = (state.intents & wanted_intent) == wanted_intent
-                if not state_has_intent:
-                    continue
+            if not can_dispatch(event_type, event_data, state):
+                continue
 
             try:
                 await state.ws.dispatch(*event)
