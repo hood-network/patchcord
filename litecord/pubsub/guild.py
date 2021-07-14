@@ -18,22 +18,15 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from typing import List
-from dataclasses import dataclass
 
 from quart import current_app as app
 from logbook import Logger
 
-from .dispatcher import DispatcherWithFlags, GatewayEvent
-from .channel import ChannelFlags
+from .dispatcher import DispatcherWithState, GatewayEvent
 from litecord.gateway.state import GatewayState
 from litecord.enums import EVENTS_TO_INTENTS
 
 log = Logger(__name__)
-
-
-@dataclass
-class GuildFlags(ChannelFlags):
-    presence: bool
 
 
 def can_dispatch(event_type, event_data, state) -> bool:
@@ -52,9 +45,7 @@ def can_dispatch(event_type, event_data, state) -> bool:
         return state_has_intent
 
 
-class GuildDispatcher(
-    DispatcherWithFlags[int, str, GatewayEvent, List[str], GuildFlags]
-):
+class GuildDispatcher(DispatcherWithState[int, str, GatewayEvent, List[str]]):
     """Guild backend for Pub/Sub."""
 
     async def sub_user(self, guild_id: int, user_id: int) -> List[GatewayState]:

@@ -18,14 +18,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from typing import List
-from dataclasses import dataclass
 
 from quart import current_app as app
 from logbook import Logger
 
 from litecord.enums import ChannelType, EVENTS_TO_INTENTS
 from litecord.utils import index_by_func
-from .dispatcher import DispatcherWithFlags, GatewayEvent
+from .dispatcher import DispatcherWithState, GatewayEvent
 
 log = Logger(__name__)
 
@@ -44,14 +43,7 @@ def gdm_recipient_view(orig: dict, user_id: int) -> dict:
     return data
 
 
-@dataclass
-class ChannelFlags:
-    typing: bool
-
-
-class ChannelDispatcher(
-    DispatcherWithFlags[int, str, GatewayEvent, List[str], ChannelFlags]
-):
+class ChannelDispatcher(DispatcherWithState[int, str, GatewayEvent, List[str]]):
     """Main channel Pub/Sub logic. Handles both Guild, DM, and Group DM channels."""
 
     async def dispatch(self, channel_id: int, event: GatewayEvent) -> List[str]:
