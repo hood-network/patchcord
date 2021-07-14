@@ -18,26 +18,34 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from typing import List
-from dataclasses import dataclass
 
 from quart import current_app as app
 from logbook import Logger
 
-from .dispatcher import DispatcherWithFlags, GatewayEvent
-from .channel import ChannelFlags
+from .dispatcher import DispatcherWithState, GatewayEvent
 from litecord.gateway.state import GatewayState
+from litecord.enums import EVENTS_TO_INTENTS
 
 log = Logger(__name__)
 
 
-@dataclass
-class GuildFlags(ChannelFlags):
-    presence: bool
+def can_dispatch(event_type, event_data, state) -> bool:
+    # If we're sending to the same user for this kind of event,
+    # bypass event logic (always send)
+    if event_type == "GUILD_MEMBER_UPDATE":
+        user_id = int(event_data["user"])
+        return user_id == state.user_id
+
+    # TODO Guild Create and Req Guild Members have specific
+    # logic regarding the presence intent.
+
+    wanted_intent = EVENTS_TO_INTENTS.get(event_type)
+    if wanted_intent is not None:
+        state_has_intent = (state.intents & wanted_intent) == wanted_intent
+        return state_has_intent
 
 
-class GuildDispatcher(
-    DispatcherWithFlags[int, str, GatewayEvent, List[str], GuildFlags]
-):
+class GuildDispatcher(DispatcherWithState[int, str, GatewayEvent, List[str]]):
     """Guild backend for Pub/Sub."""
 
     async def sub_user(self, guild_id: int, user_id: int) -> List[GatewayState]:
@@ -52,7 +60,7 @@ class GuildDispatcher(
     ):
         session_ids = self.state[guild_id]
         sessions: List[str] = []
-        event_type, _ = event
+        event_type, event_data = event
 
         for session_id in set(session_ids):
             if not filter_function(session_id):
@@ -68,13 +76,7 @@ class GuildDispatcher(
                 await self.unsub(guild_id, session_id)
                 continue
 
-            try:
-                flags = self.get_flags(guild_id, session_id)
-            except KeyError:
-                log.warning("no flags for {!r}, ignoring", session_id)
-                flags = GuildFlags(presence=True, typing=True)
-
-            if event_type.lower().startswith("presence_") and not flags.presence:
+            if not can_dispatch(event_type, event_data, state):
                 continue
 
             try:

@@ -19,7 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import inspect
 from typing import List, Any
-from enum import Enum, IntEnum
+from enum import Enum, IntEnum, IntFlag
 
 
 class EasyEnum(Enum):
@@ -66,7 +66,7 @@ class Flags:
         for attr, val in cls._attrs:
             has_attr = (value & val) == val
             # set attributes dynamically
-            setattr(res, f"is_{attr}", has_attr)
+            setattr(res, f"is_{attr.lower()}", has_attr)
 
         return res
 
@@ -247,3 +247,76 @@ class Feature(EasyEnum):
     # unknown
     commerce = "COMMERCE"
     news = "NEWS"
+
+
+class Intents(IntFlag):
+    GUILDS = 1 << 0
+    GUILD_MEMBERS = 1 << 1
+    GUILD_BANS = 1 << 2
+    GUILD_EMOJIS = 1 << 3
+    GUILD_INTEGRATIONS = 1 << 4
+    GUILD_WEBHOOKS = 1 << 5
+    GUILD_INVITES = 1 << 6
+    GUILD_VOICE_STATES = 1 << 7
+    GUILD_PRESENCES = 1 << 8
+    GUILD_MESSAGES = 1 << 9
+    GUILD_MESSAGE_REACTIONS = 1 << 10
+    GUILD_MESSAGE_TYPING = 1 << 11
+    DIRECT_MESSAGES = 1 << 12
+    DIRECT_MESSAGE_REACTIONS = 1 << 13
+    DIRECT_MESSAGE_TYPING = 1 << 14
+
+    @classmethod
+    def default(cls):
+        return cls(-1)
+
+
+EVENTS_TO_INTENTS = {
+    "GUILD_CREATE": Intents.GUILDS,
+    "GUILD_UPDATE": Intents.GUILDS,
+    "GUILD_DELETE": Intents.GUILDS,
+    "GUILD_ROLE_CREATE": Intents.GUILDS,
+    "GUILD_ROLE_UPDATE": Intents.GUILDS,
+    "GUILD_ROLE_DELETE": Intents.GUILDS,
+    "CHANNEL_CREATE": Intents.GUILDS,
+    "CHANNEL_UPDATE": Intents.GUILDS,
+    "CHANNEL_DELETE": Intents.GUILDS,
+    "CHANNEL_PINS_UPDATE": Intents.GUILDS,
+    # --- threads not supported --
+    "THREAD_CREATE": Intents.GUILDS,
+    "THREAD_UPDATE": Intents.GUILDS,
+    "THREAD_DELETE": Intents.GUILDS,
+    "THREAD_LIST_SYNC": Intents.GUILDS,
+    "THREAD_MEMBER_UPDATE": Intents.GUILDS,
+    "THREAD_MEMBERS_UPDATE": Intents.GUILDS,
+    # --- stages not supported --
+    "STAGE_INSTANCE_CREATE": Intents.GUILDS,
+    "STAGE_INSTANCE_UPDATE": Intents.GUILDS,
+    "STAGE_INSTANCE_DELETE": Intents.GUILDS,
+    "GUILD_MEMBER_ADD": Intents.GUILD_MEMBERS,
+    "GUILD_MEMBER_UPDATE": Intents.GUILD_MEMBERS,
+    "GUILD_MEMBER_REMOVE": Intents.GUILD_MEMBERS,
+    # --- threads not supported --
+    "THREAD_MEMBERS_UPDATE ": Intents.GUILD_MEMBERS,
+    "GUILD_BAN_ADD": Intents.GUILD_BANS,
+    "GUILD_BAN_REMOVE": Intents.GUILD_BANS,
+    "GUILD_EMOJIS_UPDATE": Intents.GUILD_EMOJIS,
+    "GUILD_INTEGRATIONS_UPDATE": Intents.GUILD_INTEGRATIONS,
+    "INTEGRATION_CREATE": Intents.GUILD_INTEGRATIONS,
+    "INTEGRATION_UPDATE": Intents.GUILD_INTEGRATIONS,
+    "INTEGRATION_DELETE": Intents.GUILD_INTEGRATIONS,
+    "WEBHOOKS_UPDATE": Intents.GUILD_WEBHOOKS,
+    "INVITE_CREATE": Intents.GUILD_INVITES,
+    "INVITE_DELETE": Intents.GUILD_INVITES,
+    "VOICE_STATE_UPDATE": Intents.GUILD_VOICE_STATES,
+    "PRESENCE_UPDATE": Intents.GUILD_PRESENCES,
+    "MESSAGE_CREATE": Intents.GUILD_MESSAGES,
+    "MESSAGE_UPDATE": Intents.GUILD_MESSAGES,
+    "MESSAGE_DELETE": Intents.GUILD_MESSAGES,
+    "MESSAGE_DELETE_BULK": Intents.GUILD_MESSAGES,
+    "MESSAGE_REACTION_ADD": Intents.GUILD_MESSAGE_REACTIONS,
+    "MESSAGE_REACTION_REMOVE": Intents.GUILD_MESSAGE_REACTIONS,
+    "MESSAGE_REACTION_REMOVE_ALL": Intents.GUILD_MESSAGE_REACTIONS,
+    "MESSAGE_REACTION_REMOVE_EMOJI": Intents.GUILD_MESSAGE_REACTIONS,
+    "TYPING_START": Intents.GUILD_MESSAGE_TYPING,
+}
