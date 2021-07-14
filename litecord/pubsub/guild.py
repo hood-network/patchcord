@@ -69,10 +69,11 @@ class GuildDispatcher(
                 await self.unsub(guild_id, session_id)
                 continue
 
-            wanted_intent = EVENTS_TO_INTENTS[event_type]
-            state_has_intent = (state.intents & wanted_intent) == wanted_intent
-            if not state_has_intent:
-                continue
+            wanted_intent = EVENTS_TO_INTENTS.get(event_type)
+            if wanted_intent is not None:
+                state_has_intent = (state.intents & wanted_intent) == wanted_intent
+                if not state_has_intent:
+                    continue
 
             try:
                 await state.ws.dispatch(*event)

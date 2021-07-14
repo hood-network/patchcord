@@ -69,10 +69,11 @@ class ChannelDispatcher(
                 await self.unsub(channel_id, session_id)
                 continue
 
-            wanted_intent = EVENTS_TO_INTENTS[event_type]
-            state_has_intent = (state.intents & wanted_intent) == wanted_intent
-            if not state_has_intent:
-                continue
+            wanted_intent = EVENTS_TO_INTENTS.get(event_type)
+            if wanted_intent is not None:
+                state_has_intent = (state.intents & wanted_intent) == wanted_intent
+                if not state_has_intent:
+                    continue
 
             correct_event = event
             # for cases where we are talking about group dms, we create an edited
