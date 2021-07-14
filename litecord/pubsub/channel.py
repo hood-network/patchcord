@@ -23,7 +23,7 @@ from dataclasses import dataclass
 from quart import current_app as app
 from logbook import Logger
 
-from litecord.enums import ChannelType
+from litecord.enums import ChannelType, EVENTS_TO_INTENTS
 from litecord.utils import index_by_func
 from .dispatcher import DispatcherWithFlags, GatewayEvent
 
@@ -69,13 +69,9 @@ class ChannelDispatcher(
                 await self.unsub(channel_id, session_id)
                 continue
 
-            try:
-                flags = self.get_flags(channel_id, session_id)
-            except KeyError:
-                log.warning("no flags for {!r}, ignoring", session_id)
-                flags = ChannelFlags(typing=True)
-
-            if event_type.lower().startswith("typing_") and not flags.typing:
+            wanted_intent = EVENTS_TO_INTENTS[event_type]
+            state_has_intent = (state.intents & wanted_intent) == wanted_intent
+            if not state_has_intent:
                 continue
 
             correct_event = event
