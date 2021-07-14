@@ -45,7 +45,7 @@ F_Map = Mapping[V, F]
 
 GatewayEvent = Tuple[str, Any]
 
-__all__ = ["Dispatcher", "DispatcherWithState", "DispatcherWithFlags", "GatewayEvent"]
+__all__ = ["Dispatcher", "DispatcherWithState", "GatewayEvent"]
 
 
 class Dispatcher(Generic[K, V, EventType, DispatchType]):
@@ -123,39 +123,3 @@ class DispatcherWithState(Dispatcher[K, V, EventType, DispatchType]):
             self.state.pop(key)
         except KeyError:
             pass
-
-
-class DispatcherWithFlags(
-    DispatcherWithState,
-    Generic[K, V, EventType, DispatchType, F],
-):
-    """Pub/Sub backend with both a state and a flags store."""
-
-    def __init__(self):
-        super().__init__()
-        self.flags: Mapping[K, Dict[V, F]] = defaultdict(dict)
-
-    def set_flags(self, key: K, identifier: V, flags: F):
-        """Set flags for the given identifier."""
-        self.flags[key][identifier] = flags
-
-    def remove_flags(self, key: K, identifier: V):
-        """Set flags for the given identifier."""
-        try:
-            self.flags[key].pop(identifier)
-        except KeyError:
-            pass
-
-    def get_flags(self, key: K, identifier: V):
-        """Get a single field from the flags store."""
-        return self.flags[key][identifier]
-
-    async def sub_with_flags(self, key: K, identifier: V, flags: F):
-        """Subscribe a user to the guild."""
-        await super().sub(key, identifier)
-        self.set_flags(key, identifier, flags)
-
-    async def unsub(self, key: K, identifier: V):
-        """Unsubscribe a user from the guild."""
-        await super().unsub(key, identifier)
-        self.remove_flags(key, identifier)
