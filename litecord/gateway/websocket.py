@@ -664,7 +664,9 @@ class GatewayWebsocket:
 
     async def handle_2(self, payload: Dict[str, Any]):
         """Handle the OP 2 Identify packet."""
-        payload = validate(payload, IDENTIFY_SCHEMA)
+        payload_copy = dict(payload)
+        payload_copy["d"].get("client_state", {}).pop("guild_hashes")
+        validate(payload_copy, IDENTIFY_SCHEMA)
         data = payload["d"]
         token = data["token"]
 
@@ -924,7 +926,13 @@ class GatewayWebsocket:
 
     async def handle_8(self, payload: Dict):
         """Handle OP 8 Request Guild Members."""
-        payload = validate(payload, REQ_GUILD_SCHEMA)
+
+        # we do not validate guild ids because it can either be a string
+        # or a list of strings and cerberus does not validate that.
+        payload_copy = dict(payload)
+        payload_copy["d"].pop("guild_id")
+        validate(payload_copy, REQ_GUILD_SCHEMA)
+
         data = payload["d"]
         gids = data["guild_id"]
 
