@@ -934,7 +934,10 @@ class GatewayWebsocket:
         validate(payload_copy, REQ_GUILD_SCHEMA)
 
         data = payload["d"]
-        gids = data["guild_id"]
+        gids = data.get("guild_id")
+        # Discord actually sent this??
+        if gids is None:
+            return
 
         uids, query, limit, presences = (
             data.get("user_ids", []),
