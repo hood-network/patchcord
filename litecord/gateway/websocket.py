@@ -506,20 +506,8 @@ class GatewayWebsocket:
         channel_ids: List[int] = []
 
         for guild_id in guild_ids:
-            await app.dispatcher.guild.sub(guild_id, session_id)
-
-            # instead of calculating which channels to subscribe to
-            # inside guild dispatcher, we calculate them in here, so that
-            # we remove complexity of the dispatcher.
-
-            guild_chan_ids = await app.storage.get_channel_ids(guild_id)
-            for channel_id in guild_chan_ids:
-                perms = await get_permissions(
-                    self.state.user_id, channel_id, storage=self.storage
-                )
-
-                if perms.bits.read_messages:
-                    channel_ids.append(channel_id)
+            _, channels = await app.dispatcher.guild.sub_user(guild_id, session_id)
+            channel_ids.extend(channels)
 
         log.info("subscribing to {} guild channels", len(channel_ids))
         for channel_id in channel_ids:

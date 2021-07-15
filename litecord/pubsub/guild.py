@@ -25,6 +25,8 @@ from logbook import Logger
 from .dispatcher import DispatcherWithState, GatewayEvent
 from litecord.gateway.state import GatewayState
 from litecord.enums import EVENTS_TO_INTENTS
+from litecord.permissions import get_permissions
+
 
 log = Logger(__name__)
 
@@ -48,12 +50,28 @@ def can_dispatch(event_type, event_data, state) -> bool:
 class GuildDispatcher(DispatcherWithState[int, str, GatewayEvent, List[str]]):
     """Guild backend for Pub/Sub."""
 
-    async def sub_user(self, guild_id: int, user_id: int) -> List[GatewayState]:
+    async def sub_user(
+        self, guild_id: int, user_id: int
+    ) -> Tuple[List[GatewayState], List[int]]:
         states = app.state_manager.fetch_states(user_id, guild_id)
         for state in states:
             await self.sub(guild_id, state.session_id)
 
-        return states
+        # instead of calculating which channels to subscribe to
+        # inside guild dispatcher, we calculate them in here, so that
+        # we remove complexity of the dispatcher.
+
+        guild_chan_ids = await app.storage.get_channel_ids(guild_id)
+        channel_ids = []
+        for channel_id in guild_chan_ids:
+            perms = await get_permissions(
+                self.state.user_id, channel_id, storage=self.storage
+            )
+
+            if perms.bits.read_messages:
+                channel_ids.append(channel_id)
+
+        return states, channel_ids
 
     async def dispatch_filter(
         self, guild_id: int, filter_function, event: GatewayEvent
