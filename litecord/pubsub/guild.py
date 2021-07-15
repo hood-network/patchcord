@@ -17,7 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from typing import List
+from typing import List, Tuple
 
 from quart import current_app as app
 from logbook import Logger
@@ -64,9 +64,7 @@ class GuildDispatcher(DispatcherWithState[int, str, GatewayEvent, List[str]]):
         guild_chan_ids = await app.storage.get_channel_ids(guild_id)
         channel_ids = []
         for channel_id in guild_chan_ids:
-            perms = await get_permissions(
-                self.state.user_id, channel_id, storage=self.storage
-            )
+            perms = await get_permissions(user_id, channel_id)
 
             if perms.bits.read_messages:
                 channel_ids.append(channel_id)

@@ -506,7 +506,7 @@ class GatewayWebsocket:
         channel_ids: List[int] = []
 
         for guild_id in guild_ids:
-            _, channels = await app.dispatcher.guild.sub_user(guild_id, session_id)
+            _, channels = await app.dispatcher.guild.sub_user(guild_id, user_id)
             channel_ids.extend(channels)
 
         log.info("subscribing to {} guild channels", len(channel_ids))
