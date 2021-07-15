@@ -870,6 +870,22 @@ class GuildMemberList:
             session_ids_new, new_user_index
         )
 
+    async def _pres_update_remove(
+        self, user_id: int, old_group: GroupID, old_index: int
+    ):
+        log.debug(
+            "removal update: uid={} old={} rel_idx={} new={}",
+            user_id,
+            old_group,
+            old_index,
+        )
+
+        old_user_index = self._get_item_index(user_id)
+        assert old_user_index is not None
+        self.list.data[old_group].remove(user_id)
+        session_ids_old = list(self._get_subs(old_user_index))
+        return await self._resync(session_ids_old, old_user_index)
+
     async def new_member(self, user_id: int):
         """Insert a new member."""
         if not self.list:
@@ -1051,7 +1067,6 @@ class GuildMemberList:
         status = partial_presence.get("status", old_presence["status"])
 
         # calculate a possible new group
-        # TODO: handle when new_group is None (member loses perms)
         new_group = await self._get_group_for_member(user_id, roles, status)
 
         log.debug(
@@ -1071,8 +1086,16 @@ class GuildMemberList:
         # nickname changes, treat this as a simple update
         if old_group == new_group and not has_nick:
             return await self._pres_update_simple(user_id)
-
-        return await self._pres_update_complex(user_id, old_group, old_index, new_group)
+        elif new_group is None:
+            # The user is being removed from the overall list.
+            #
+            # This happens because they lost permissions to the relevant
+            # channel.
+            return await self._pres_update_remove(user_id, old_group, old_index)
+        else:
+            return await self._pres_update_complex(
+                user_id, old_group, old_index, new_group
+            )
 
     async def new_role(self, role: dict):
         """Add a new role to the list.
