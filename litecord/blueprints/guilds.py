@@ -127,6 +127,8 @@ async def create_guild():
     else:
         image = None
 
+    region = j["region"] if "region" in j else next(iter(app.voice.lvsp.regions))
+
     await app.db.execute(
         """
         INSERT INTO guilds (id, name, region, icon, owner_id,
@@ -136,7 +138,7 @@ async def create_guild():
         """,
         guild_id,
         j["name"],
-        j["region"],
+        region,
         image,
         user_id,
         j.get("verification_level", 0),
