@@ -1035,14 +1035,6 @@ class GuildMemberList:
         old_presence = self.list.presences[user_id]
         has_nick = "nick" in partial_presence
 
-        # partial presences don't have 'nick'. we only use it
-        # as a flag that we're doing a mixed update (complex
-        # but without any inter-group changes)
-        try:
-            partial_presence.pop("nick")
-        except KeyError:
-            pass
-
         for group, member_ids in self.list:
             try:
                 old_index = member_ids.index(user_id)
