@@ -17,7 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from typing import List
+from typing import List, Tuple
 
 from quart import current_app as app
 from logbook import Logger
@@ -25,6 +25,8 @@ from logbook import Logger
 from .dispatcher import DispatcherWithState, GatewayEvent
 from litecord.gateway.state import GatewayState
 from litecord.enums import EVENTS_TO_INTENTS
+from litecord.permissions import get_permissions
+
 
 log = Logger(__name__)
 
@@ -33,7 +35,7 @@ def can_dispatch(event_type, event_data, state) -> bool:
     # If we're sending to the same user for this kind of event,
     # bypass event logic (always send)
     if event_type == "GUILD_MEMBER_UPDATE":
-        user_id = int(event_data["user"])
+        user_id = int(event_data["user"]["id"])
         return user_id == state.user_id
 
     # TODO Guild Create and Req Guild Members have specific
@@ -48,12 +50,26 @@ def can_dispatch(event_type, event_data, state) -> bool:
 class GuildDispatcher(DispatcherWithState[int, str, GatewayEvent, List[str]]):
     """Guild backend for Pub/Sub."""
 
-    async def sub_user(self, guild_id: int, user_id: int) -> List[GatewayState]:
+    async def sub_user(
+        self, guild_id: int, user_id: int
+    ) -> Tuple[List[GatewayState], List[int]]:
         states = app.state_manager.fetch_states(user_id, guild_id)
         for state in states:
             await self.sub(guild_id, state.session_id)
 
-        return states
+        # instead of calculating which channels to subscribe to
+        # inside guild dispatcher, we calculate them in here, so that
+        # we remove complexity of the dispatcher.
+
+        guild_chan_ids = await app.storage.get_channel_ids(guild_id)
+        channel_ids = []
+        for channel_id in guild_chan_ids:
+            perms = await get_permissions(user_id, channel_id)
+
+            if perms.bits.read_messages:
+                channel_ids.append(channel_id)
+
+        return states, channel_ids
 
     async def dispatch_filter(
         self, guild_id: int, filter_function, event: GatewayEvent

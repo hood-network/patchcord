@@ -329,7 +329,12 @@ async def add_member(guild_id: int, user_id: int, *, basic=False):
 
     # pubsub changes for new member
     await app.lazy_guild.new_member(guild_id, user_id)
-    states = await app.dispatcher.guild.sub_user(guild_id, user_id)
+
+    # TODO how to remove repetition between this and websocket's subscribe_all?
+    states, channels = await app.dispatcher.guild.sub_user(guild_id, user_id)
+    for channel_id in channels:
+        for state in states:
+            await app.dispatcher.channel.sub(channel_id, state.session_id)
 
     guild = await app.storage.get_guild_full(guild_id, user_id, 250)
     for state in states:

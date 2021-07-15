@@ -65,6 +65,47 @@ IDENTIFY_SCHEMA = {
                 "shard": {"type": "list", "required": False},
                 "presence": {"type": "dict", "required": False},
                 "intents": {"coerce": Intents, "required": False},
+                # TODO schema
+                "properties": {
+                    "type": "dict",
+                    "required": False,
+                    "schema": {
+                        "browser": {"type": "string", "required": False},
+                        "client_build_number": {"type": "number", "required": False},
+                        "client_event_source": {
+                            "type": "string",
+                            "required": False,
+                            "nullable": True,
+                        },
+                        "client_version": {"type": "string", "required": False},
+                        "distro": {"type": "string", "required": False},
+                        "os": {"type": "string", "required": False},
+                        "os_arch": {"type": "string", "required": False},
+                        "os_version": {"type": "string", "required": False},
+                        "release_channel": {"type": "string", "required": False},
+                        "system_locale": {"type": "string", "required": False},
+                        "window_manager": {"type": "string", "required": False},
+                    },
+                },
+                "capabilities": {"type": "number", "required": False},
+                "client_state": {
+                    "type": "dict",
+                    "required": False,
+                    "schema": {
+                        # guild_hashes is a Dict with keys being guild ids and
+                        # values being a list of 3 strings. this can not be
+                        # validated by cerberus
+                        "highest_last_message_id": {
+                            "type": "string",
+                            "required": False,
+                        },
+                        "read_state_version": {"type": "number", "required": False},
+                        "user_guild_settings_version": {
+                            "type": "number",
+                            "required": False,
+                        },
+                    },
+                },
             },
         }
     },
@@ -90,11 +131,14 @@ REQ_GUILD_SCHEMA = {
         "d": {
             "type": "dict",
             "schema": {
-                "guild_id": {"type": "string", "required": True},
-                "user_ids": {"type": "list", "required": False},
+                "user_ids": {
+                    "type": "list",
+                    "required": False,
+                    "schema": {"type": "string"},
+                },
                 "query": {"type": "string", "required": False},
                 "limit": {"type": "number", "required": False},
-                "presences": {"type": "bool", "required": False},
+                "presences": {"type": "boolean", "required": False},
             },
         }
     },

@@ -506,20 +506,8 @@ class GatewayWebsocket:
         channel_ids: List[int] = []
 
         for guild_id in guild_ids:
-            await app.dispatcher.guild.sub(guild_id, session_id)
-
-            # instead of calculating which channels to subscribe to
-            # inside guild dispatcher, we calculate them in here, so that
-            # we remove complexity of the dispatcher.
-
-            guild_chan_ids = await app.storage.get_channel_ids(guild_id)
-            for channel_id in guild_chan_ids:
-                perms = await get_permissions(
-                    self.state.user_id, channel_id, storage=self.storage
-                )
-
-                if perms.bits.read_messages:
-                    channel_ids.append(channel_id)
+            _, channels = await app.dispatcher.guild.sub_user(guild_id, user_id)
+            channel_ids.extend(channels)
 
         log.info("subscribing to {} guild channels", len(channel_ids))
         for channel_id in channel_ids:
@@ -664,7 +652,12 @@ class GatewayWebsocket:
 
     async def handle_2(self, payload: Dict[str, Any]):
         """Handle the OP 2 Identify packet."""
-        payload = validate(payload, IDENTIFY_SCHEMA)
+        # do not validate given guild_hashes
+        payload_copy = dict(payload)
+        payload_copy["d"].get("client_state", {"guild_hashes": None}).pop(
+            "guild_hashes"
+        )
+        validate(payload_copy, IDENTIFY_SCHEMA)
         data = payload["d"]
         token = data["token"]
 
@@ -924,9 +917,18 @@ class GatewayWebsocket:
 
     async def handle_8(self, payload: Dict):
         """Handle OP 8 Request Guild Members."""
-        payload = validate(payload, REQ_GUILD_SCHEMA)
+
+        # we do not validate guild ids because it can either be a string
+        # or a list of strings and cerberus does not validate that.
+        payload_copy = dict(payload)
+        payload_copy["d"].pop("guild_id")
+        validate(payload_copy, REQ_GUILD_SCHEMA)
+
         data = payload["d"]
-        gids = data["guild_id"]
+        gids = data.get("guild_id")
+        # Discord actually sent this??
+        if gids is None:
+            return
 
         uids, query, limit, presences = (
             data.get("user_ids", []),

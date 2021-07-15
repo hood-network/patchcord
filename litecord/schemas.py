@@ -270,6 +270,12 @@ GUILD_CREATE = {
     "explicit_content_filter": {"type": "explicit", "default": 0},
     "roles": {"type": "list", "required": False, "schema": PARTIAL_ROLE_GUILD_CREATE},
     "channels": {"type": "list", "default": [], "schema": PARTIAL_CHANNEL_GUILD_CREATE},
+    # not supported
+    "system_channel_id": {"coerce": int, "required": False, "nullable": True},
+    "guild_template_code": {
+        "type": "string",
+        "required": False,
+    },
 }
 
 
@@ -424,7 +430,7 @@ INVITE = {
     "max_age": {
         "type": "number",
         "min": 0,
-        "max": 86400,
+        "max": 666666,  # TODO find correct max value
         # a day
         "default": 86400,
     },
@@ -445,6 +451,7 @@ INVITE = {
         "nullable": True,
     },  # discord client sends invite code there
     # sent by official client, unknown purpose
+    "target_type": {"type": "string", "required": False, "nullable": True},
     "target_user_id": {"type": "snowflake", "required": False, "nullable": True},
     "target_user_type": {"type": "number", "required": False, "nullable": True},
 }
