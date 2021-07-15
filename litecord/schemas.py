@@ -430,7 +430,7 @@ INVITE = {
     "max_age": {
         "type": "number",
         "min": 0,
-        "max": 86400,
+        "max": 666666,  # TODO find correct max value
         # a day
         "default": 86400,
     },
@@ -451,6 +451,7 @@ INVITE = {
         "nullable": True,
     },  # discord client sends invite code there
     # sent by official client, unknown purpose
+    "target_type": {"type": "string", "required": False, "nullable": True},
     "target_user_id": {"type": "snowflake", "required": False, "nullable": True},
     "target_user_type": {"type": "number", "required": False, "nullable": True},
 }
