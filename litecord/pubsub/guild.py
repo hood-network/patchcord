@@ -33,7 +33,7 @@ def can_dispatch(event_type, event_data, state) -> bool:
     # If we're sending to the same user for this kind of event,
     # bypass event logic (always send)
     if event_type == "GUILD_MEMBER_UPDATE":
-        user_id = int(event_data["user"])
+        user_id = int(event_data["user"]["id"])
         return user_id == state.user_id
 
     # TODO Guild Create and Req Guild Members have specific
