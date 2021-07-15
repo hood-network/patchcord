@@ -138,7 +138,7 @@ REQ_GUILD_SCHEMA = {
                 },
                 "query": {"type": "string", "required": False},
                 "limit": {"type": "number", "required": False},
-                "presences": {"type": "bool", "required": False},
+                "presences": {"type": "boolean", "required": False},
             },
         }
     },
