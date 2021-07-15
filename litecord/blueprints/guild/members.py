@@ -199,6 +199,7 @@ async def modify_guild_member(guild_id, member_id):
     return "", 204
 
 
+@bp.route("/<int:guild_id>/members/@me", methods=["PATCH"])
 @bp.route("/<int:guild_id>/members/@me/nick", methods=["PATCH"])
 async def update_nickname(guild_id):
     """Update a member's nickname in a guild."""
