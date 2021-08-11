@@ -64,9 +64,30 @@ IDENTIFY_SCHEMA = {
                 "shard": {"type": "list", "required": False},
                 "presence": {"type": "dict", "required": False},
                 "intents": {"type": int, "required": False},
+                # TODO schema
                 "properties": {
                     "type": "dict",
                     "required": False,
+                    "schema": {
+                        "browser": {"type": "string", "required": False},
+                        "client_build_number": {"type": "number", "required": False},
+                        "client_event_source": {
+                            "type": "string",
+                            "required": False,
+                            "nullable": True,
+                        },
+                        "client_version": {"type": "string", "required": False},
+                        "distro": {"type": "string", "required": False},
+                        "os": {"type": "string", "required": False},
+                        "os_arch": {"type": "string", "required": False},
+                        "os_version": {"type": "string", "required": False},
+                        "release_channel": {"type": "string", "required": False},
+                        "system_locale": {"type": "string", "required": False},
+                        "window_manager": {"type": "string", "required": False},
+                        "$browser": {"type": "string", "required": False},
+                        "$os": {"type": "string", "required": False},
+                        "$device": {"type": "string", "required": False},
+                    },
                 },
                 "capabilities": {"type": "number", "required": False},
                 "client_state": {
