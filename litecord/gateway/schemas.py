@@ -63,7 +63,7 @@ IDENTIFY_SCHEMA = {
                 "large_threshold": {"type": "number", "required": False},
                 "shard": {"type": "list", "required": False},
                 "presence": {"type": "dict", "required": False},
-                "intents": {"type": int, "required": False},
+                "intents": {"type": "int", "required": False},
                 # TODO schema
                 "properties": {
                     "type": "dict",
