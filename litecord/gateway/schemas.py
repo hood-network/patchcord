@@ -23,7 +23,6 @@ from logbook import Logger
 
 from litecord.gateway.errors import DecodeError
 from litecord.schemas import LitecordValidator
-from litecord.enums import Intents
 
 log = Logger(__name__)
 
@@ -64,7 +63,7 @@ IDENTIFY_SCHEMA = {
                 "large_threshold": {"type": "number", "required": False},
                 "shard": {"type": "list", "required": False},
                 "presence": {"type": "dict", "required": False},
-                "intents": {"coerce": Intents, "required": False},
+                "intents": {"type": int, "required": False},
                 # TODO schema
                 "properties": {
                     "type": "dict",

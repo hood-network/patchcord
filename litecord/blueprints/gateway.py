@@ -61,6 +61,9 @@ async def api_gateway_bot():
     reset_ts = bucket._window + bucket.second
 
     # how many seconds until bucket reset
+    # TODO: this logic should be changed to follow update_rate_limit's
+    # except we can't just call it since we don't use it here, but
+    # on the gateway side.
     reset_after_ts = reset_ts - time.time()
 
     # reset_after_ts must not be negative
