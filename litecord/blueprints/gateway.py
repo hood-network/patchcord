@@ -63,6 +63,10 @@ async def api_gateway_bot():
     # how many seconds until bucket reset
     reset_after_ts = reset_ts - time.time()
 
+    # reset_after_ts must not be negative
+    if reset_after_ts < 0:
+        reset_after_ts = 0
+
     return jsonify(
         {
             "url": get_gw(),
