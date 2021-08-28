@@ -129,9 +129,9 @@ async def _compute_supplemental(app, base_ready, user_ready, users_to_send: dict
             continue
 
         friend_user = users_to_send[relationship["user"]["id"]]
-        friend_presence = await app.presence.friend_presences([int(friend_user["id"])])[
-            0
-        ]
+        friend_presence = (
+            await app.presence.friend_presences([int(friend_user["id"])])
+        )[0]
 
         supplemental["merged_presences"]["friends"].append(
             {
