@@ -39,17 +39,23 @@ took a shot at writing it again. It works.
 
 ## Implementation status, AKA "Does it work?"
 
-Approximately 80% of the REST API is reimplemented in Litecord. A wild guess
-for the Gateway / Websockets API is 95%. Reminder that those do not count voice
-specific components, but do count things the official client uses, such as
-[lazy guilds](https://luna.gitlab.io/discord-unofficial-docs/lazy_guilds.html).
+The following "core features" are implemented to an useful degree in Litecord:
 
-Tracking routes such as `/api/science` have dummy implementations so they don't
-crash the client. They do not store any information given by the client.
+- Guilds, Text Channels, Messages
+- Roles, Channel Overwrites, Emojis
+- Member Lists (from [lazy guilds](https://luna.gitlab.io/discord-unofficial-docs/lazy_guilds.html))
 
-Also consider that reimplementing the Discord API is kind-of a moving target, as
-Discord can implement parts of the API that aren't documented at any point in
-time.
+Tracking routes such as `/api/science` have dummy implementations.
+
+Also consider that reimplementing the Discord API is a moving target, as
+Discord can implement new features at any time, for any reason. The following
+are not implemented, for example:
+
+- Threads
+- Channel Categories
+- API v9 (Right now, Litecord, in generla, assumes v9 is
+  just v6 to make clients work, new payload structure support is
+  scattered throughout the codebase)
 
 ## Liability
 
