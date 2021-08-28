@@ -187,7 +187,7 @@ async def _compute_supplemental(app, base_ready, user_ready, users_to_send: dict
                     "mute": member["mute"],
                     "deaf": member["deaf"],
                     "joined_at": member["joined_at"],
-                    "hoisted_role": hoisted_role[1],
+                    "hoisted_role": hoisted_role[1] if hoisted_role else None,
                 }
             )
 
