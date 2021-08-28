@@ -758,6 +758,9 @@ class Storage:
         channels = await self.get_channel_data(guild_id)
         roles = await self.get_role_data(guild_id)
 
+        # prevent data inconsistencies
+        assert len(members) == member_count
+
         mids = [int(m["user"]["id"]) for m in members]
 
         assert self.presence is not None
