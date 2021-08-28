@@ -113,15 +113,35 @@ def _complete_users_list(user_id: str, base_ready, user_ready, wsp) -> dict:
                     "id": relationship["id"],
                 }
             )
-    return ready
+
+    return ready, users_to_send
 
 
-def _compute_supplemental(base_ready, user_ready, wsp):
+async def _compute_supplemental(app, base_ready, user_ready, users_to_send: dict):
     supplemental = {
         "merged_presences": {"guilds": [], "friends": []},
         "merged_members": [],
         "guilds": [],
     }
+
+    for relationship in user_ready["relationships"]:
+        if relationship["type"] != RelationshipType.FRIEND.value:
+            continue
+
+        friend_user = users_to_send[relationship["user"]["id"]]
+        friend_presence = await app.presence.friend_presences([int(friend_user["id"])])[
+            0
+        ]
+
+        supplemental["merged_presences"]["friends"].append(
+            {
+                "user_id": relationship["user"]["id"],
+                "status": friend_presence["status"],
+                "last_modified": 0,
+                "client_status": friend_presence["client_status"],
+                "activities": friend_presence["activities"],
+            }
+        )
 
     for guild in base_ready["guilds"]:
         if guild["unavailable"]:
@@ -503,10 +523,14 @@ class GatewayWebsocket:
         # base_ready and user_ready are normalized as v6. from here onwards
         # full_ready_data and ready_supplemental are version specific.
 
-        full_ready_data = _complete_users_list(
+        # pass users_to_send to ready_supplemental so that its easier to
+        # cross-reference things
+        full_ready_data, users_to_send = _complete_users_list(
             user["id"], base_ready, user_ready, self.wsp
         )
-        ready_supplemental = _compute_supplemental(base_ready, user_ready, self.wsp)
+        ready_supplemental = await _compute_supplemental(
+            self.app, base_ready, user_ready, users_to_send
+        )
 
         if not self.state.bot:
             for guild in full_ready_data["guilds"]:
