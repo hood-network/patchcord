@@ -413,7 +413,7 @@ class GatewayWebsocket:
         ) + await self.user_storage.get_gdms(user_id)
 
         base_ready = {
-            "v": 6,
+            "v": self.wsp.v,
             "user": user,
             "private_channels": private_channels,
             "guilds": guilds,
