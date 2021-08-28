@@ -91,6 +91,10 @@ def _complete_users_list(user_id: str, base_ready, user_ready) -> dict:
         for recipient in private_channel["recipients"]:
             users_to_send[recipient["id"]] = recipient
 
+    for relationship in user_ready["relationships"]:
+        relationship_user = relationship["user"]
+        users_to_send[relationship_user["id"]] = relationship_user
+
     if user_id in users_to_send:
         users_to_send.pop(user_id)
 
