@@ -130,6 +130,7 @@ class Storage:
         duser = dict(user_row)
 
         duser["premium"] = duser["premium_since"] is not None
+        duser["public_flags"] = duser["flags"]
         duser.pop("premium_since")
 
         if secure:
