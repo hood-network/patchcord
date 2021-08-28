@@ -180,6 +180,11 @@ async def test_ready_v9(test_cli_user):
         assert data["v"] == 9
         assert isinstance(data["user"], dict)
         assert isinstance(data["relationships"], list)
+
+        ready = await _json(conn)
+        assert isinstance(ready, dict)
+        assert ready["op"] == OP.DISPATCH
+        assert ready["t"] == "READY_SUPPLEMENTAL"
     finally:
         await _close(conn)
 

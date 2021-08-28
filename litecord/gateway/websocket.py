@@ -116,6 +116,67 @@ def _complete_users_list(user_id: str, base_ready, user_ready, wsp) -> dict:
     return ready
 
 
+def _compute_supplemental(base_ready, user_ready, wsp):
+    supplemental = {
+        "merged_presences": {"guilds": [], "friends": []},
+        "merged_members": [],
+        "guilds": [],
+    }
+
+    for guild in base_ready["guilds"]:
+        if guild["unavailable"]:
+            continue
+
+        supplemental["guilds"].append(
+            {
+                "voice_states": [],
+                "id": guild["id"],
+            }
+        )
+
+        merged_presences = []
+        merged_members = []
+
+        for presence in guild["presences"]:
+            merged_presences.append(
+                {
+                    "user_id": presence["user"]["id"],
+                    "status": presence["status"],
+                    "client_status": presence["client_status"],
+                    "activities": presence["activities"],
+                }
+            )
+
+        for member in guild["members"]:
+            hoisted_role = None
+            for role in guild["roles"]:
+                if not role["hoist"]:
+                    continue
+                if role["id"] not in member["roles"]:
+                    continue
+
+                if hoisted_role is None:
+                    hoisted_role = (role["position"], role["id"])
+                elif hoisted_role[0] < role["position"]:
+                    hoisted_role = (role["position"], role["id"])
+
+            merged_members.append(
+                {
+                    "user_id": member["user"]["id"],
+                    "roles": member["roles"],
+                    "mute": member["mute"],
+                    "deaf": member["deaf"],
+                    "joined_at": member["joined_at"],
+                    "hoisted_role": hoisted_role[1],
+                }
+            )
+
+        supplemental["merged_presences"]["guilds"].append(merged_presences)
+        supplemental["merged_members"].append(merged_members)
+
+    return supplemental
+
+
 def calculate_intents(data) -> Intents:
     intents_int = data.get("intents")
     guild_subscriptions = data.get("guild_subscriptions")
@@ -439,15 +500,21 @@ class GatewayWebsocket:
             "shard": [self.state.current_shard, self.state.shard_count],
         }
 
+        # base_ready and user_ready are normalized as v6. from here onwards
+        # full_ready_data and ready_supplemental are version specific.
+
         full_ready_data = _complete_users_list(
             user["id"], base_ready, user_ready, self.wsp
         )
+        ready_supplemental = _compute_supplemental(base_ready, user_ready, self.wsp)
 
         if not self.state.bot:
             for guild in full_ready_data["guilds"]:
                 guild["members"] = []
 
         await self.dispatch("READY", full_ready_data)
+        if self.wsp.v > 6:
+            await self.dispatch("READY_SUPPLEMENTAL", ready_supplemental)
         app.sched.spawn(self._guild_dispatch(guilds))
 
     async def _check_shards(self, shard, user_id):
