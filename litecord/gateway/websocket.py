@@ -74,7 +74,7 @@ WebsocketProperties = collections.namedtuple(
 )
 
 
-def _complete_users_list(user_id: str, base_ready, user_ready) -> dict:
+def _complete_users_list(user_id: str, base_ready, user_ready, wsp) -> dict:
     """Use the data we were already preparing to send in READY to construct
     the users array, saving on I/O cost."""
 
@@ -100,6 +100,19 @@ def _complete_users_list(user_id: str, base_ready, user_ready) -> dict:
 
     ready = {**base_ready, **user_ready}
     ready["users"] = [value for value in users_to_send.values()]
+
+    # relationship object structure changed in v9
+    if wsp.v == 9:
+        ready["relationships"] = []
+        for relationship in user_ready["relationships"]:
+            ready["relationships"].append(
+                {
+                    "user_id": relationship["user"]["id"],
+                    "type": relationship["type"],
+                    "nickname": None,  # TODO implement friend nicknames
+                    "id": relationship["id"],
+                }
+            )
     return ready
 
 
@@ -426,7 +439,9 @@ class GatewayWebsocket:
             "shard": [self.state.current_shard, self.state.shard_count],
         }
 
-        full_ready_data = _complete_users_list(user["id"], base_ready, user_ready)
+        full_ready_data = _complete_users_list(
+            user["id"], base_ready, user_ready, self.wsp
+        )
 
         if not self.state.bot:
             for guild in full_ready_data["guilds"]:

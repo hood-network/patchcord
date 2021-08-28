@@ -49,19 +49,21 @@ async def _close(conn):
     await conn.close(1000, "test end")
 
 
-async def get_gw(test_cli) -> str:
+async def get_gw(test_cli, version: int) -> str:
     """Get the Gateway URL."""
-    gw_resp = await test_cli.get("/api/v6/gateway")
+    gw_resp = await test_cli.get(f"/api/v{version}/gateway")
     gw_json = await gw_resp.json
     return gw_json["url"]
 
 
-async def gw_start(test_cli, *, etf=False):
+async def gw_start(test_cli, *, version: int = 6, etf=False):
     """Start a websocket connection"""
-    gw_url = await get_gw(test_cli)
+    gw_url = await get_gw(test_cli, version)
 
     if etf:
-        gw_url = f"{gw_url}?encoding=etf"
+        gw_url = f"{gw_url}?v={version}&encoding=etf"
+    else:
+        gw_url = f"{gw_url}?v={version}&encoding=json"
 
     return await websockets.connect(gw_url)
 
@@ -155,6 +157,29 @@ async def test_ready_fields(test_cli_user):
 
         if "shard" in data:
             assert isinstance(data["shard"], list)
+    finally:
+        await _close(conn)
+
+
+@pytest.mark.asyncio
+async def test_ready_v9(test_cli_user):
+    conn = await gw_start(test_cli_user.cli, version=9)
+    await _json(conn)
+    await _json_send(
+        conn, {"op": OP.IDENTIFY, "d": {"token": test_cli_user.user["token"]}}
+    )
+
+    try:
+        ready = await _json(conn)
+        assert isinstance(ready, dict)
+        assert ready["op"] == OP.DISPATCH
+        assert ready["t"] == "READY"
+
+        data = ready["d"]
+        assert isinstance(data, dict)
+        assert data["v"] == 9
+        assert isinstance(data["user"], dict)
+        assert isinstance(data["relationships"], list)
     finally:
         await _close(conn)
 
