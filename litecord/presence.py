@@ -42,7 +42,8 @@ class BasePresence:
             "status": self.status,
             "game": self.game,
             "since": 0,
-            "client_status": {},
+            # hardcode all presences as coming from web
+            "client_status": {"web": self.status},
             "mobile": False,
             "activities": self.activities,
         }
