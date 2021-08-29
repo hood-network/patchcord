@@ -303,9 +303,10 @@ class Storage:
     async def _member_dict(self, row, guild_id, member_id) -> Dict[str, Any]:
         roles = await self.get_member_role_ids(guild_id, member_id)
 
+        # TODO refactor member fetching's code paths
         return {
             "user": await self.get_user(member_id),
-            "nick": row["nickname"],
+            "nick": row["nick"],
             # we don't send the @everyone role's id to
             # the user since it is known that everyone has
             # that role.
