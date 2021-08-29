@@ -17,6 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
+from typing import List
 
 from asyncpg import UniqueViolationError
 from quart import Blueprint, jsonify, request, current_app as app
@@ -360,6 +361,26 @@ async def get_library():
     return jsonify([])
 
 
+async def map_guild_ids_to_mutual_list(mutual_guild_ids: List[int]) -> List[dict]:
+    mutual_result = []
+
+    # ascending sorting
+    for guild_id in sorted(mutual_guild_ids):
+        nick = await app.db.fetchval(
+            """
+            SELECT nickname
+            FROM members
+            WHERE guild_id = $1 AND user_id = $2
+            """,
+            guild_id,
+            peer_id,
+        )
+
+        mutual_result.append({"id": str(guild_id), "nick": nick})
+
+    return mutual_result
+
+
 @bp.route("/<int:peer_id>/profile", methods=["GET"])
 async def get_profile(peer_id: int):
     """Get a user's profile."""
@@ -369,50 +390,34 @@ async def get_profile(peer_id: int):
     if not peer:
         return "", 404
 
-    mutuals = await app.user_storage.get_mutual_guilds(user_id, peer_id)
+    mutual_guilds = await app.user_storage.get_mutual_guilds(user_id, peer_id)
     friends = await app.user_storage.are_friends_with(user_id, peer_id)
 
     # don't return a proper card if no guilds are being shared.
-    if not mutuals and not friends:
+    if not mutual_guilds and not friends:
         return "", 404
 
     # actual premium status is determined by that
     # column being NULL or not
     peer_premium = await app.db.fetchval(
         """
-    SELECT premium_since
-    FROM users
-    WHERE id = $1
-    """,
+        SELECT premium_since
+        FROM users
+        WHERE id = $1
+        """,
         peer_id,
     )
 
-    mutual_guilds = await app.user_storage.get_mutual_guilds(user_id, peer_id)
-    mutual_res = []
+    result = {
+        "user": peer,
+        "connected_accounts": [],
+        "premium_since": peer_premium,
+    }
 
-    # ascending sorting
-    for guild_id in sorted(mutual_guilds):
+    if request.args.get("with_mutual_guilds") in (None, True):
+        result["mutual_guilds"] = await map_guild_ids_to_mutual_list(mutual_guilds)
 
-        nick = await app.db.fetchval(
-            """
-        SELECT nickname
-        FROM members
-        WHERE guild_id = $1 AND user_id = $2
-        """,
-            guild_id,
-            peer_id,
-        )
-
-        mutual_res.append({"id": str(guild_id), "nick": nick})
-
-    return jsonify(
-        {
-            "user": peer,
-            "connected_accounts": [],
-            "premium_since": peer_premium,
-            "mutual_guilds": mutual_res,
-        }
-    )
+    return jsonify(result)
 
 
 @bp.route("/@me/mentions", methods=["GET"])
