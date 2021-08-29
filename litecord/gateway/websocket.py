@@ -1212,6 +1212,22 @@ class GatewayWebsocket:
         # TODO reverse-engineer opcode 23, sent by client
         pass
 
+    async def handle_24(self, payload):
+        """OP 24 Guild Application Commands Request"""
+        data = payload["d"]
+
+        # stubbed
+        await self.dispatch(
+            "GUILD_APPLICATION_COMMANDS_UPDATE",
+            {
+                "updated_at": 1630271377245,
+                "nonce": data["nonce"],
+                "guild_id": data["guild_id"],
+                "applications": [],
+                "application_commands": [],
+            },
+        )
+
     async def _process_message(self, payload):
         """Process a single message coming in from the client."""
         try:
