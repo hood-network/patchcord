@@ -995,12 +995,14 @@ class GatewayWebsocket:
         try:
             guild_id = int(guild_id)
         except (TypeError, ValueError):
+            log.warning("req guild members: {!r} is not an int", guild_id)
             return
 
         limit = limit or 1000
         exists = await self.storage.get_guild(guild_id)
 
         if not exists:
+            log.warning("req guild members: {!r} is not a guild", guild_id)
             return
 
         # limit user_ids to 1000 possible members, and try your best
@@ -1010,6 +1012,9 @@ class GatewayWebsocket:
 
         # ASSUMPTION: requesting user_ids means we don't do query.
         if user_ids:
+            log.debug(
+                "req guild members: getting {} users in gid {}", len(user_ids), guild_id
+            )
             members = await self.storage.get_member_multi(guild_id, user_ids)
             mids = [m["user"]["id"] for m in members]
 
@@ -1035,14 +1040,14 @@ class GatewayWebsocket:
 
         # we do not validate guild ids because it can either be a string
         # or a list of strings and cerberus does not validate that.
-        payload_copy = dict(payload)
-        payload_copy["d"].pop("guild_id")
-        validate(payload_copy, REQ_GUILD_SCHEMA)
+        payload_copy_data = dict(payload["d"])
+        payload_copy_data.pop("guild_id")
+        validate({"op": 8, "d": payload_copy_data}, REQ_GUILD_SCHEMA)
 
         data = payload["d"]
         gids = data.get("guild_id")
-        # Discord actually sent this??
         if gids is None:
+            log.warning("req guilds: invalid payload: no guild id")
             return
 
         uids, query, limit, presences = (
