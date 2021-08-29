@@ -1,0 +1,3 @@
+ALTER TABLE users
+    ADD COLUMN accent_color INT DEFAULT NULL,
+    ADD COLUMN bio TEXT DEFAULT '' NOT NULL;
