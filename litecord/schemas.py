@@ -166,6 +166,9 @@ class LitecordValidator(Validator):
     def _validate_type_nickname(self, value: str) -> bool:
         return isinstance(value, str) and (len(value) < 32)
 
+    def _validate_type_rgb_int_color(self, value: int) -> bool:
+        return isinstance(value, int) and value > 0 and value < 0xFFFFFF
+
 
 def validate(
     reqjson: Optional[Union[Dict, List]],
@@ -239,6 +242,16 @@ USER_UPDATE = {
     "avatar": {
         # can be both b64_icon or string (just the hash)
         "type": "string",
+        "required": False,
+        "nullable": True,
+    },
+    "bio": {
+        "type": "string",
+        "required": False,
+        "nullable": False,
+    },
+    "accent_color": {
+        "type": "rgb_int_color",
         "required": False,
         "nullable": True,
     },
