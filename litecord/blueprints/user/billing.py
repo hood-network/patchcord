@@ -191,6 +191,14 @@ async def get_payment_source(user_id: int, source_id: int) -> dict:
     return {**source, **derow}
 
 
+TO_SUB_PLAN_ID = {
+    "premium_month_tier_1": "511651871736201216",
+    "premium_month_tier_2": "511651880837840896",
+    "premium_year_tier_1": "511651876987469824",
+    "premium_year_tier_2": "511651885459963904",
+}
+
+
 async def get_subscription(subscription_id: int):
     """Get a subscription's information."""
     row = await app.db.fetchrow(
@@ -218,7 +226,11 @@ async def get_subscription(subscription_id: int):
         drow[field] = timestamp_(drow[field])
 
     drow["items"] = [
-        {"id": "123", "plan_id": drow["payment_gateway_plan_id"], "quantity": 1}
+        {
+            "id": "123",
+            "plan_id": TO_SUB_PLAN_ID[drow["payment_gateway_plan_id"]],
+            "quantity": 1,
+        }
     ]
 
     return drow
