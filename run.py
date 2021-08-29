@@ -53,6 +53,7 @@ from litecord.blueprints import (
     read_states,
     stickers,
     applications,
+    store,
 )
 
 # those blueprints are separated from the "main" ones
@@ -173,6 +174,7 @@ def set_blueprints(app_):
         read_states: "",
         stickers: "",
         applications: "/applications",
+        store: "/store",
     }
 
     for bp, suffix in bps.items():

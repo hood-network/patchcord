@@ -36,6 +36,7 @@ from .dm_channels import bp as dm_channels
 from .read_states import bp as read_states
 from .stickers import bp as stickers
 from .applications import bp as applications
+from .store import bp as store
 
 __all__ = [
     "gateway",
@@ -57,4 +58,5 @@ __all__ = [
     "read_states",
     "stickers",
     "applications",
+    "store",
 ]
