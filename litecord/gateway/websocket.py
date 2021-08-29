@@ -490,7 +490,7 @@ class GatewayWebsocket:
             "guild_experiments": [],
             "analytics_token": "transbian",
             "users": [],
-            "merged_members": [[], [], [], []],
+            "merged_members": [],
             "merged_presences": {"friends": [], "guilds": []},
         }
 
@@ -531,6 +531,8 @@ class GatewayWebsocket:
         ready_supplemental = await _compute_supplemental(
             self.app, base_ready, user_ready, users_to_send
         )
+
+        full_ready_data["merged_members"] = ready_supplemental["merged_members"]
 
         if not self.state.bot:
             for guild in full_ready_data["guilds"]:
