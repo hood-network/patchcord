@@ -529,3 +529,8 @@ async def _get_tinder_score_affinity_users():
 @bp.route("/@me/affinities/guilds", methods=["GET"])
 async def _get_tinder_score_affinity_guilds():
     return {"guild_affinities": []}
+
+
+@bp.route("/@me/applications/521842831262875670/entitlements", methods=["GET"])
+async def _stub_entitlements():
+    return []
