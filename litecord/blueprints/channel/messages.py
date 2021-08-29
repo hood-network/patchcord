@@ -54,6 +54,7 @@ async def message_search(
     before: Optional[int],
     after: Optional[int],
     limit: int,
+    order: str = "DESC",
 ) -> List[int]:
     where_clause = ""
     if before:
@@ -69,7 +70,7 @@ async def message_search(
         SELECT id
         FROM messages
         WHERE channel_id = $1 {where_clause}
-        ORDER BY id DESC
+        ORDER BY id {order}
         LIMIT {limit}
         """,
             channel_id,
@@ -87,10 +88,10 @@ async def around_message_search(
     # merge it all together: before + [around_id] + after
     halved_limit = limit // 2
     before_messages = await message_search(
-        channel_id, before=around_id, after=None, limit=halved_limit
+        channel_id, before=around_id, after=None, limit=halved_limit, order="ASC"
     )
     after_messages = await message_search(
-        channel_id, before=None, after=around_id, limit=halved_limit
+        channel_id, before=None, after=around_id, limit=halved_limit, order="ASC"
     )
     return before_messages + [around_id] + after_messages
 
