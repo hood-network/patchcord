@@ -35,6 +35,7 @@ from .attachments import bp as attachments
 from .dm_channels import bp as dm_channels
 from .read_states import bp as read_states
 from .stickers import bp as stickers
+from .applications import bp as applications
 
 __all__ = [
     "gateway",
@@ -55,4 +56,5 @@ __all__ = [
     "dm_channels",
     "read_states",
     "stickers",
+    "applications",
 ]

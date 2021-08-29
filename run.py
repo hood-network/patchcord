@@ -52,6 +52,7 @@ from litecord.blueprints import (
     dm_channels,
     read_states,
     stickers,
+    applications,
 )
 
 # those blueprints are separated from the "main" ones
@@ -171,6 +172,7 @@ def set_blueprints(app_):
         instance_invites: "/admin/instance/invites",
         read_states: "",
         stickers: "",
+        applications: "/applications",
     }
 
     for bp, suffix in bps.items():
