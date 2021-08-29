@@ -232,6 +232,9 @@ class Storage:
         # used by guilds with DISCOVERABLE feature
         drow["preffered_locale"] = "en-US"
 
+        # feature won't be impl'd
+        drow["guild_scheduled_events"] = []
+
         return drow
 
     async def _member_basic(self, guild_id: int, member_id: int):
