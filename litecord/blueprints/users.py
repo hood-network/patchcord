@@ -488,3 +488,13 @@ async def delete_account():
     await user_disconnect(user_id)
 
     return "", 204
+
+
+@bp.route("/@me/affinities/users", methods=["GET"])
+async def _get_tinder_score_affinity_users():
+    return {"user_affinities": []}
+
+
+@bp.route("/@me/affinities/guilds", methods=["GET"])
+async def _get_tinder_score_affinity_guilds():
+    return {"guild_affinities": []}
