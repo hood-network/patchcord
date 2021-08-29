@@ -95,9 +95,6 @@ def _complete_users_list(user_id: str, base_ready, user_ready, wsp) -> dict:
         relationship_user = relationship["user"]
         users_to_send[relationship_user["id"]] = relationship_user
 
-    if user_id in users_to_send:
-        users_to_send.pop(user_id)
-
     ready = {**base_ready, **user_ready}
     ready["users"] = [value for value in users_to_send.values()]
 
