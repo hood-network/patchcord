@@ -110,6 +110,8 @@ class Storage:
             "flags",
             "bot",
             "premium_since",
+            "bio",
+            "accent_color",
         ]
 
         if secure:

@@ -227,6 +227,28 @@ async def patch_me():
             user_id,
         )
 
+    if to_update(j, user, "bio"):
+        await app.db.execute(
+            """
+            UPDATE users
+            SET bio = $1
+            WHERE id = $2
+            """,
+            j["bio"],
+            user_id,
+        )
+
+    if to_update(j, user, "accent_color"):
+        await app.db.execute(
+            """
+            UPDATE users
+            SET accent_color = $1
+            WHERE id = $2
+            """,
+            j["accent_color"],
+            user_id,
+        )
+
     if user["email"] is None and "new_password" not in j:
         raise BadRequest("missing password", {"password": "Please set a password."})
 

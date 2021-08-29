@@ -102,3 +102,21 @@ async def test_create_user(test_cli):
     """,
         int(rjson["id"]),
     )
+
+
+WANTED_BIO = "hello world!"
+WANTED_ACCENT_COLOR = 0x424242
+
+
+@pytest.mark.asyncio
+async def test_patch_me_bio_accent_color(test_cli_user):
+    resp = await test_cli_user.patch(
+        "/api/v6/users/@me",
+        json={"bio": WANTED_BIO, "accent_color": WANTED_ACCENT_COLOR},
+    )
+
+    assert resp.status_code == 200
+    rjson = await resp.json
+    assert isinstance(rjson, dict)
+    assert rjson["bio"] == WANTED_BIO
+    assert rjson["accent_color"] == WANTED_ACCENT_COLOR
