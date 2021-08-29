@@ -240,7 +240,7 @@ class Storage:
     async def _member_basic(self, guild_id: int, member_id: int):
         row = await self.db.fetchrow(
             """
-        SELECT user_id, nickname, joined_at,
+        SELECT user_id, nickname AS nick, joined_at,
                deafened AS deaf, muted AS mute
         FROM members
         WHERE guild_id = $1 and user_id = $2
