@@ -484,3 +484,13 @@ async def _patch_subscription(subscription_id):
 @bp.route("/@me/billing/country-code", methods=["GET"])
 async def _get_billing_country_code():
     return {"country_code": "US"}
+
+
+@bp.route("/@me/billing/stripe/setup-intents", methods=["POST"])
+async def _stripe_setup_intents():
+    return {"client_secret": "gbawls"}
+
+
+@bp.route("/@me/billing/payment-sources/validate-billing-address", methods=["POST"])
+async def _validate_billing_address():
+    return {"token": "gbawls"}

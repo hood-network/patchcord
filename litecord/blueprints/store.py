@@ -18,7 +18,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from quart import Blueprint, jsonify
-from pathlib import Path
 
 bp = Blueprint("store", __name__)
 
