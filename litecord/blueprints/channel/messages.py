@@ -88,12 +88,12 @@ async def around_message_search(
     # merge it all together: before + [around_id] + after
     halved_limit = limit // 2
     before_messages = await message_search(
-        channel_id, before=around_id, after=None, limit=halved_limit, order="ASC"
+        channel_id, before=around_id, after=None, limit=halved_limit, order="DESC"
     )
     after_messages = await message_search(
         channel_id, before=None, after=around_id, limit=halved_limit, order="ASC"
     )
-    return before_messages + [around_id] + after_messages
+    return reversed(before_messages) + [around_id] + after_messages
 
 
 @bp.route("/<int:channel_id>/messages", methods=["GET"])
