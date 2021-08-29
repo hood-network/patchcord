@@ -252,9 +252,10 @@ class Storage:
         if row is None:
             return None
 
-        row = dict(row)
-        row["joined_at"] = timestamp_(row["joined_at"])
-        return row
+        drow = dict(row)
+        drow["user_id"] = str(drow["user_id"])
+        drow["joined_at"] = timestamp_(row["joined_at"])
+        return drow
 
     async def _member_basic_with_roles(self, guild_id: int, member_id: int):
         basic = await self._member_basic(guild_id, member_id)
