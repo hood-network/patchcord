@@ -479,3 +479,8 @@ async def _patch_subscription(subscription_id):
     # j = validate(await request.get_json(), PATCH_SUBSCRIPTION)
     # returns subscription object
     pass
+
+
+@bp.route("/@me/billing/country-code", methods=["GET"])
+async def _get_billing_country_code():
+    return {"country_code": "US"}
