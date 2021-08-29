@@ -1251,6 +1251,7 @@ class GatewayWebsocket:
                 await self._msg_ratelimit()
 
             payload = self.decoder(message)
+            log.debug("received\n{}", pprint.pformat(payload))
             await self._process_message(payload)
 
     def _cleanup(self):
