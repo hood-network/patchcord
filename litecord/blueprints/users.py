@@ -361,7 +361,9 @@ async def get_library():
     return jsonify([])
 
 
-async def map_guild_ids_to_mutual_list(mutual_guild_ids: List[int]) -> List[dict]:
+async def map_guild_ids_to_mutual_list(
+    mutual_guild_ids: List[int], peer_id: int
+) -> List[dict]:
     mutual_result = []
 
     # ascending sorting
@@ -415,7 +417,9 @@ async def get_profile(peer_id: int):
     }
 
     if request.args.get("with_mutual_guilds") in (None, True):
-        result["mutual_guilds"] = await map_guild_ids_to_mutual_list(mutual_guilds)
+        result["mutual_guilds"] = await map_guild_ids_to_mutual_list(
+            mutual_guilds, peer_id
+        )
 
     return jsonify(result)
 
