@@ -47,5 +47,15 @@ class OP:
     # request for lazy guilds
     LAZY_REQUEST = 14
 
-    UNKNOWN_1 = 23
-    UNKNOWN_2 = 24
+    # unimplemented
+    LOBBY_CONNECT = 15
+    LOBBY_DISCONNECT = 16
+    LOBBY_VOICE_STATES_UPDATE = 17
+    STREAM_CREATE = 18
+    STREAM_DELETE = 19
+    STREAM_WATCH = 20
+    STREAM_PING = 21
+    STREAM_SET_PAUSED = 22
+
+    # related to Slash Commands
+    QUERY_APPLICATION_COMMANDS = 24
