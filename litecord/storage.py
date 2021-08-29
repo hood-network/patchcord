@@ -347,7 +347,7 @@ class Storage:
         """Get member information on a guild."""
         members_basic = await self.db.fetch(
             """
-        SELECT user_id, nickname, joined_at,
+        SELECT user_id, nickname AS nick, joined_at,
                deafened AS deaf, muted AS mute
         FROM members
         WHERE guild_id = $1
