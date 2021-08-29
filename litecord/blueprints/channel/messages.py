@@ -62,16 +62,19 @@ async def message_search(
     if after:
         where_clause += f"AND id > {after}"
 
-    return await app.db.fetch(
-        f"""
+    return [
+        row["id"]
+        for row in await app.db.fetch(
+            f"""
         SELECT id
         FROM messages
         WHERE channel_id = $1 {where_clause}
         ORDER BY id DESC
         LIMIT {limit}
         """,
-        channel_id,
-    )
+            channel_id,
+        )
+    ]
 
 
 async def around_message_search(
@@ -120,7 +123,7 @@ async def get_messages(channel_id):
     result = []
 
     for message_id in message_ids:
-        msg = await app.storage.get_message(message_id["id"], user_id)
+        msg = await app.storage.get_message(message_id, user_id)
 
         if msg is None:
             continue
