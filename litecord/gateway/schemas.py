@@ -121,7 +121,7 @@ RESUME_SCHEMA = {
             "schema": {
                 "token": {"type": "string", "required": True},
                 "session_id": {"type": "string", "required": True},
-                "seq": {"type": "number", "required": True},
+                "seq": {"type": "number", "required": True, "nullable": True},
             },
         }
     },

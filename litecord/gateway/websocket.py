@@ -958,6 +958,12 @@ class GatewayWebsocket:
     async def handle_6(self, payload: Dict[str, Any]):
         """Handle OP 6 Resume."""
         payload = validate(payload, RESUME_SCHEMA)
+
+        # HACK: this is a hack for discord.js that attempts to resume
+        # with a null sequence.
+        if data["seq"] is None:
+            return await self.invalidate_session(False)
+
         data = payload["d"]
         token, sess_id, seq = data["token"], data["session_id"], data["seq"]
 
