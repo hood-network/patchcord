@@ -1269,6 +1269,7 @@ class Storage:
 
         uploader_id = drow.pop("uploader_id")
         drow["user"] = await self.get_user(uploader_id)
+        drow["available"] = True
 
         return drow
 
