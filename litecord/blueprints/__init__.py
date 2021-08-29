@@ -34,6 +34,7 @@ from .static import bp as static
 from .attachments import bp as attachments
 from .dm_channels import bp as dm_channels
 from .read_states import bp as read_states
+from .stickers import bp as stickers
 
 __all__ = [
     "gateway",
@@ -53,4 +54,5 @@ __all__ = [
     "attachments",
     "dm_channels",
     "read_states",
+    "stickers",
 ]
