@@ -217,7 +217,9 @@ async def get_subscription(subscription_id: int):
     for field in to_tstamp:
         drow[field] = timestamp_(drow[field])
 
-    drow["items"] = []
+    drow["items"] = [
+        {"id": "123", "plan_id": drow["payment_gateway_plan_id"], "quantity": 1}
+    ]
 
     return drow
 
