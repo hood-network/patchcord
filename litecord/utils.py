@@ -26,7 +26,7 @@ from typing import Any, Iterable, Optional, Sequence, List, Dict, Union
 
 from logbook import Logger
 from quart.json import JSONEncoder
-from quart import current_app as app, request
+from quart import current_app as app
 
 from .errors import BadRequest
 
@@ -274,14 +274,7 @@ def query_tuple_from_args(args: dict, limit: int) -> tuple:
     """Extract a 2-tuple out of request arguments."""
     before, after = None, None
 
-    if "around" in request.args:
-        average = int(limit / 2)
-        around = int(args["around"])
-
-        after = around - average
-        before = around + average
-
-    elif "before" in args:
+    if "before" in args:
         before = int(args["before"])
     elif "after" in args:
         before = int(args["after"])
