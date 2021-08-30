@@ -1072,10 +1072,19 @@ class GuildMemberList:
         # update our presence with the given partial presence
         # since in both cases we'd update it anyways
         self.list.presences[user_id].update(partial_presence)
+
+        # TODO: refactor presence semantics. what will partial_presence
+        # actually have? this is a hack to make nicks work.
+        if has_nick:
+            self.list.members[user_id]["nick"] = partial_presence["nick"]
+
         self.list.members[user_id]["roles"] = roles
 
         # if we're going to the same group AND there are no
         # nickname changes, treat this as a simple update
+        #
+        # nickname changes CAN trigger index changes in a list because
+        # all nicks are ordered alphabetically. that's why it isn't simple.
         if old_group == new_group and not has_nick:
             return await self._pres_update_simple(user_id)
         elif new_group is None:
