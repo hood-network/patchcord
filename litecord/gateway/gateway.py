@@ -54,7 +54,10 @@ async def websocket_handler(app, ws, url):
 
     async with app.app_context():
         gws = GatewayWebsocket(
-            ws, v=int(gw_version), encoding=gw_encoding, compress=gw_compress
+            ws,
+            version=int(gw_version),
+            encoding=gw_encoding or "json",
+            compress=gw_compress,
         )
 
         # this can be run with a single await since this whole coroutine
