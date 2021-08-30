@@ -64,7 +64,6 @@ IDENTIFY_SCHEMA = {
                 "shard": {"type": "list", "required": False},
                 "presence": {"type": "dict", "required": False},
                 "intents": {"type": "number", "required": False},
-                # TODO schema
                 "properties": {
                     "type": "dict",
                     "required": False,
@@ -87,9 +86,17 @@ IDENTIFY_SCHEMA = {
                         "$browser": {"type": "string", "required": False},
                         "$os": {"type": "string", "required": False},
                         "$device": {"type": "string", "required": False},
+                        "device": {"type": "string", "required": False},
+                        "referrer": {"type": "string", "required": False},
+                        "referring_domain": {"type": "string", "required": False},
                     },
                 },
                 "capabilities": {"type": "number", "required": False},
+                "synced_guilds": {
+                    "type": "list",
+                    "required": False,
+                    "schema": {"type": "snowflake"},
+                },
                 "client_state": {
                     "type": "dict",
                     "required": False,
