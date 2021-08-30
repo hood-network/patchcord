@@ -96,7 +96,7 @@ class GuildDispatcher(DispatcherWithState[int, str, GatewayEvent, List[str]]):
                 continue
 
             try:
-                await state.ws.dispatch(*event)
+                await state.dispatch(*event)
             except Exception:
                 log.exception("error while dispatching to {}", state.session_id)
                 continue

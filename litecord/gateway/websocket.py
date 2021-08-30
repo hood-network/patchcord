@@ -392,19 +392,19 @@ class GatewayWebsocket:
 
         self._hb_start(interval)
 
-    async def dispatch(self, event: str, data: Any):
-        """Dispatch an event to the websocket."""
-        assert self.state is not None
-        self.state.seq += 1
+    async def dispatch_raw(self, event: str, data: Any):
+        """Dispatch an event to the websocket, bypassing the gateway state.
 
+        Only use this function for events related to connection state,
+        such as READY and RESUMED, or events that are replies to
+        messages in the websocket.
+        """
         payload = {
             "op": OP.DISPATCH,
             "t": event.upper(),
             "s": self.state.seq,
             "d": data,
         }
-
-        self.state.store[self.state.seq] = payload
 
         log.debug("sending payload {!r} sid {}", event.upper(), self.state.session_id)
 
@@ -451,7 +451,7 @@ class GatewayWebsocket:
             if guild is None:
                 continue
 
-            await self.dispatch("GUILD_CREATE", guild)
+            await self.dispatch_raw("GUILD_CREATE", guild)
 
     async def _user_ready(self, *, settings=None) -> dict:
         """Fetch information about users in the READY packet.
@@ -546,9 +546,9 @@ class GatewayWebsocket:
             for guild in full_ready_data["guilds"]:
                 guild["members"] = []
 
-        await self.dispatch("READY", full_ready_data)
+        await self.dispatch_raw("READY", full_ready_data)
         if self.ws_properties.version > 6:
-            await self.dispatch("READY_SUPPLEMENTAL", ready_supplemental)
+            await self.dispatch_raw("READY_SUPPLEMENTAL", ready_supplemental)
         app.sched.spawn(self._guild_dispatch(guilds))
 
     async def _check_shards(self, shard, user_id):
@@ -959,9 +959,9 @@ class GatewayWebsocket:
             return
 
         if presences:
-            await self.dispatch("PRESENCE_REPLACE", presences)
+            await self.dispatch_raw("PRESENCE_REPLACE", presences)
 
-        await self.dispatch("RESUMED", {})
+        await self.dispatch_raw("RESUMED", {})
 
     async def handle_6(self, payload: Dict[str, Any]):
         """Handle OP 6 Resume."""
@@ -1044,7 +1044,7 @@ class GatewayWebsocket:
             presences = await self.presence.guild_presences(mids, guild_id)
             body["presences"] = presences
 
-        await self.dispatch("GUILD_MEMBERS_CHUNK", body)
+        await self.dispatch_raw("GUILD_MEMBERS_CHUNK", body)
 
     async def handle_8(self, payload: Dict):
         """Handle OP 8 Request Guild Members."""
@@ -1088,7 +1088,7 @@ class GatewayWebsocket:
         log.debug(f"Syncing guild {guild_id} with {len(member_ids)} members")
         presences = await self.presence.guild_presences(member_ids, guild_id)
 
-        await self.dispatch(
+        await self.dispatch_raw(
             "GUILD_SYNC",
             {"id": str(guild_id), "presences": presences, "members": members},
         )
@@ -1228,7 +1228,7 @@ class GatewayWebsocket:
         data = payload["d"]
 
         # stubbed
-        await self.dispatch(
+        await self.dispatch_raw(
             "GUILD_APPLICATION_COMMANDS_UPDATE",
             {
                 "updated_at": 1630271377245,

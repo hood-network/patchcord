@@ -338,7 +338,4 @@ async def add_member(guild_id: int, user_id: int, *, basic=False):
 
     guild = await app.storage.get_guild_full(guild_id, user_id, 250)
     for state in states:
-        try:
-            await state.ws.dispatch("GUILD_CREATE", guild)
-        except Exception:
-            log.exception("failed to dispatch to session_id={!r}", state.session_id)
+        await state.dispatch("GUILD_CREATE", guild)

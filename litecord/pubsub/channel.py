@@ -78,12 +78,7 @@ class ChannelDispatcher(DispatcherWithState[int, str, GatewayEvent, List[str]]):
                 new_data = gdm_recipient_view(event_data, state.user_id)
                 correct_event = (event_type, new_data)
 
-            try:
-                await state.ws.dispatch(*correct_event)
-            except Exception:
-                log.exception("error while dispatching to {}", state.session_id)
-                continue
-
+            await state.dispatch(*correct_event)
             sessions.append(session_id)
 
         log.info(

@@ -19,10 +19,16 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import hashlib
 import os
+from typing import Optional, Any
 
-from typing import Optional
+import websockets
+from logbook import Logger
+
 from litecord.presence import BasePresence
 from litecord.enums import Intents
+from .opcodes import OP
+
+log = Logger(__name__)
 
 
 def gen_session_id() -> str:
@@ -102,3 +108,30 @@ class GatewayState:
 
     def __repr__(self):
         return f"GatewayState<seq={self.seq} shard={self.current_shard},{self.shard_count} uid={self.user_id}>"
+
+    async def dispatch(self, event_type: str, event_data: Any) -> None:
+        """Dispatch an event to the underlying websocket.
+
+        Stores the event in the state's payload store for resuming.
+        """
+        self.seq += 1
+        payload = {
+            "op": OP.DISPATCH,
+            "t": event_type.upper(),
+            "s": self.seq,
+            "d": event_data,
+        }
+
+        self.store[self.seq] = payload
+
+        log.debug("dispatching event {!r} to session {}", payload["t"], self.session_id)
+
+        try:
+            await self.ws.send(payload)
+        except websockets.exceptions.ConnectionClosed as exc:
+            log.warning(
+                "Failed to dispatch {!r} to session id {}: {!r}",
+                payload["t"],
+                self.session_id,
+                exc,
+            )

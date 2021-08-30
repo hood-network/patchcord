@@ -33,9 +33,8 @@ async def send_event_to_states(
     event, data = event_data
     for state in states:
         try:
-            if state.ws:
-                await state.ws.dispatch(event, data)
-                res.append(state.session_id)
+            await state.dispatch(event, data)
+            res.append(state.session_id)
         except Exception:
             log.exception("error while dispatching")
 
