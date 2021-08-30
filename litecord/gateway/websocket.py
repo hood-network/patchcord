@@ -471,15 +471,20 @@ class GatewayWebsocket:
         friend_presences = await self.app.presence.friend_presences(friend_ids)
         settings = settings or await self.user_storage.get_user_settings(user_id)
 
+        if self.wsp.v < 7:  # v6 and below
+            user_guild_settings = await self.user_storage.get_guild_settings(user_id)
+        else:
+            user_guild_settings = {
+                "entries": await self.user_storage.get_guild_settings(user_id)
+            }
+
         return {
             "user_settings": settings,
             "notes": await self.user_storage.fetch_notes(user_id),
             "relationships": relationships,
             "presences": friend_presences,
             "read_state": {"entries": await self.user_storage.get_read_state(user_id)},
-            "user_guild_settings": {
-                "entries": await self.user_storage.get_guild_settings(user_id)
-            },
+            "user_guild_settings": user_guild_settings,
             "friend_suggestion_count": 0,
             # those are unused default values.
             "connected_accounts": [],
