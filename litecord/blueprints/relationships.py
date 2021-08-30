@@ -63,6 +63,9 @@ async def make_friend(
     _friend = RelationshipType.FRIEND.value
     _block = RelationshipType.BLOCK.value
 
+    if user_id == peer_id:
+        raise RelationshipFailed("Self-relationships are disallowed")
+
     try:
         await app.db.execute(
             """
@@ -228,9 +231,6 @@ async def post_relationship():
     if not uid:
         raise RelationshipFailed("No users with DiscordTag exist")
 
-    if uid == user_id:
-        raise RelationshipFailed("Tried to add themselves as friend")
-
     res = await make_friend(user_id, uid)
 
     if res is None:
@@ -247,7 +247,6 @@ async def add_relationship(peer_id: int):
     rel_type = payload["type"]
 
     res = await make_friend(user_id, peer_id, rel_type)
-
     if res is not None:
         return res
 
