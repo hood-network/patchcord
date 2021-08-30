@@ -127,7 +127,8 @@ class GatewayState:
         log.debug("dispatching event {!r} to session {}", payload["t"], self.session_id)
 
         try:
-            await self.ws.send(payload)
+            if self.ws:
+                await self.ws.send(payload)
         except websockets.exceptions.ConnectionClosed as exc:
             log.warning(
                 "Failed to dispatch {!r} to session id {}: {!r}",
