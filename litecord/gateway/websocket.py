@@ -475,9 +475,13 @@ class GatewayWebsocket:
 
         if self.ws_properties.version < 7:  # v6 and below
             user_guild_settings = await self.user_storage.get_guild_settings(user_id)
+            read_state = await self.user_storage.get_read_state(user_id)
         else:
             user_guild_settings = {
-                "entries": await self.user_storage.get_guild_settings(user_id)
+                "entries": await self.user_storage.get_guild_settings(user_id),
+            }
+            read_state = {
+                "entries": await self.user_storage.get_read_state(user_id),
             }
 
         return {
@@ -485,7 +489,7 @@ class GatewayWebsocket:
             "notes": await self.user_storage.fetch_notes(user_id),
             "relationships": relationships,
             "presences": friend_presences,
-            "read_state": {"entries": await self.user_storage.get_read_state(user_id)},
+            "read_state": read_state,
             "user_guild_settings": user_guild_settings,
             "friend_suggestion_count": 0,
             # those are unused default values.
