@@ -127,10 +127,31 @@ async def _max_role_position(guild_id, member_id) -> Optional[int]:
     )
 
 
-async def _validate_target_member(guild_id: int, user_id: int, target_member_id: int):
+async def _validate_target_member(
+    guild_id: int, user_id: int, target_member_id: int
+) -> bool:
+    owner_id = await storage.db.fetchval(
+        """
+        SELECT owner_id
+        FROM guilds
+        WHERE id = $1
+        """,
+        guild_id,
+    )
+
+    # owners have all permissions
+    # if doing an action as an owner, it always works
+    # if doing an action TO an owner, it always fails
+    if user_id == owner_id:
+        return True
+
+    if target_member_id == owner_id:
+        return False
+
     # there is no internal function to fetch full role objects
     # (likely because it would be too expensive to do it here),
     # so instead do a raw sql query.
+
     target_max_position = await _max_role_position(guild_id, target_member_id)
     user_max_position = await _max_role_position(guild_id, user_id)
 
