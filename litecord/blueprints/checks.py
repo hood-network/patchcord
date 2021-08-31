@@ -116,7 +116,7 @@ async def channel_check(
 async def _max_role_position(guild_id, member_id) -> Optional[int]:
     return await app.db.fetchval(
         """
-        SELECT MAX(role.position)
+        SELECT MAX(roles.position)
         FROM member_roles
         JOIN roles ON roles.id = member_roles.role_id
         WHERE member_roles.guild_id = $1 AND
