@@ -120,7 +120,7 @@ async def _max_role_position(guild_id, member_id) -> Optional[int]:
         FROM member_roles
         JOIN roles ON roles.id = member_roles.role_id
         WHERE member_roles.guild_id = $1 AND
-            member_roles.member_id = $2
+            member_roles.user_id = $2
         """,
         guild_id,
         member_id,
