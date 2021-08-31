@@ -130,7 +130,7 @@ async def _max_role_position(guild_id, member_id) -> Optional[int]:
 async def _validate_target_member(
     guild_id: int, user_id: int, target_member_id: int
 ) -> bool:
-    owner_id = await storage.db.fetchval(
+    owner_id = await app.storage.db.fetchval(
         """
         SELECT owner_id
         FROM guilds
@@ -138,6 +138,7 @@ async def _validate_target_member(
         """,
         guild_id,
     )
+    assert owner_id is not None
 
     # owners have all permissions
     # if doing an action as an owner, it always works
