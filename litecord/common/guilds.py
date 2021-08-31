@@ -50,7 +50,7 @@ async def remove_member(guild_id: int, member_id: int):
 
     user = await app.storage.get_user(member_id)
 
-    states, channels = await app.dispatcher.guild.unsub_user(guild_id, user_id)
+    states, channels = await app.dispatcher.guild.unsub_user(guild_id, member_id)
     for channel_id in channels:
         for state in states:
             await app.dispatcher.channel.unsub(channel_id, state.session_id)
