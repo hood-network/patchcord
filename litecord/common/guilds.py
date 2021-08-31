@@ -61,12 +61,6 @@ async def remove_member(guild_id: int, member_id: int):
     )
 
 
-async def remove_member_multi(guild_id: int, members: list):
-    """Remove multiple members."""
-    for member_id in members:
-        await remove_member(guild_id, member_id)
-
-
 async def create_role(guild_id, name: str, **kwargs):
     """Create a role in a guild."""
     new_role_id = app.winter_factory.snowflake()
