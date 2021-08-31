@@ -113,18 +113,88 @@ async def channel_check(
         return ctype, owner_id
 
 
-async def guild_perm_check(user_id, guild_id, permission: str):
-    """Check guild permissions for a user."""
+async def _max_role_position(guild_id, member_id) -> Optional[int]:
+    return await app.db.fetchval(
+        """
+        SELECT MAX(roles.position)
+        FROM member_roles
+        JOIN roles ON roles.id = member_roles.role_id
+        WHERE member_roles.guild_id = $1 AND
+            member_roles.user_id = $2
+        """,
+        guild_id,
+        member_id,
+    )
+
+
+async def _validate_target_member(
+    guild_id: int, user_id: int, target_member_id: int
+) -> bool:
+    owner_id = await app.storage.db.fetchval(
+        """
+        SELECT owner_id
+        FROM guilds
+        WHERE id = $1
+        """,
+        guild_id,
+    )
+    assert owner_id is not None
+
+    # owners have all permissions
+    # if doing an action as an owner, it always works
+    # if doing an action TO an owner, it always fails
+    if user_id == owner_id:
+        return True
+
+    if target_member_id == owner_id:
+        return False
+
+    # there is no internal function to fetch full role objects
+    # (likely because it would be too expensive to do it here),
+    # so instead do a raw sql query.
+
+    target_max_position = await _max_role_position(guild_id, target_member_id)
+    user_max_position = await _max_role_position(guild_id, user_id)
+
+    assert target_max_position is not None
+    assert user_max_position is not None
+
+    return user_max_position > target_max_position
+
+
+async def guild_perm_check(
+    user_id,
+    guild_id,
+    permission: str,
+    target_member_id: Optional[int] = None,
+    raise_err: bool = True,
+) -> bool:
+    """Check guild permissions for a user.
+
+    Accepts optional target argument for actions that are done TO another member
+    in the guild."""
     base_perms = await base_permissions(user_id, guild_id)
     hasperm = getattr(base_perms.bits, permission)
 
-    if not hasperm:
+    # if we have the PERM and there's a target member involved,
+    # check on the target's max(role.position), if its equal or greater,
+    # raise MissingPermissions
+    if hasperm and target_member_id:
+        hasperm = await _validate_target_member(guild_id, user_id, target_member_id)
+
+    if not hasperm and raise_err:
         raise MissingPermissions("Missing permissions.")
 
     return bool(hasperm)
 
 
-async def channel_perm_check(user_id, channel_id, permission: str, raise_err=True):
+# TODO add target semantics
+async def channel_perm_check(
+    user_id,
+    channel_id,
+    permission: str,
+    raise_err=True,
+):
     """Check channel permissions for a user."""
     base_perms = await get_permissions(user_id, channel_id)
     hasperm = getattr(base_perms.bits, permission)

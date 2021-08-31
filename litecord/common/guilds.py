@@ -50,7 +50,11 @@ async def remove_member(guild_id: int, member_id: int):
 
     user = await app.storage.get_user(member_id)
 
-    await app.dispatcher.guild.unsub(guild_id, member_id)
+    states, channels = await app.dispatcher.guild.unsub_user(guild_id, member_id)
+    for channel_id in channels:
+        for state in states:
+            await app.dispatcher.channel.unsub(channel_id, state.session_id)
+
     await app.lazy_guild.remove_member(guild_id, user["id"])
     await app.dispatcher.guild.dispatch(
         guild_id,
@@ -59,12 +63,6 @@ async def remove_member(guild_id: int, member_id: int):
             {"guild_id": str(guild_id), "user": user},
         ),
     )
-
-
-async def remove_member_multi(guild_id: int, members: list):
-    """Remove multiple members."""
-    for member_id in members:
-        await remove_member(guild_id, member_id)
 
 
 async def create_role(guild_id, name: str, **kwargs):

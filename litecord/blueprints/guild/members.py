@@ -129,7 +129,7 @@ async def modify_guild_member(guild_id, member_id):
     nick_flag = False
 
     if "nick" in j:
-        await guild_perm_check(user_id, guild_id, "manage_nicknames")
+        await guild_perm_check(user_id, guild_id, "manage_nicknames", member_id)
 
         nick = j["nick"] or None
 
