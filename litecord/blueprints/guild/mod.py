@@ -23,7 +23,7 @@ from litecord.blueprints.auth import token_check
 from litecord.blueprints.checks import guild_perm_check
 
 from litecord.schemas import validate, GUILD_PRUNE
-from litecord.common.guilds import remove_member, remove_member_multi
+from litecord.common.guilds import remove_member
 
 bp = Blueprint("guild_moderation", __name__)
 
@@ -32,8 +32,7 @@ bp = Blueprint("guild_moderation", __name__)
 async def kick_guild_member(guild_id, member_id):
     """Remove a member from a guild."""
     user_id = await token_check()
-
-    await guild_perm_check(user_id, guild_id, "kick_members")
+    await guild_perm_check(user_id, guild_id, "kick_members", member_id)
     await remove_member(guild_id, member_id)
     return "", 204
 
@@ -70,7 +69,7 @@ async def get_bans(guild_id):
 async def create_ban(guild_id, member_id):
     user_id = await token_check()
 
-    await guild_perm_check(user_id, guild_id, "ban_members")
+    await guild_perm_check(user_id, guild_id, "ban_members", member_id)
 
     j = await request.get_json()
 
@@ -179,6 +178,19 @@ async def get_guild_prune_count(guild_id):
     return jsonify({"pruned": len(member_ids)})
 
 
+async def prune_members(user_id, guild_id, member_ids):
+    # calculate permissions against each pruned member, don't prune
+    # if permissions don't allow it
+    for member_id in member_ids:
+        has_permissions = await guild_perm_check(
+            user_id, guild_id, "kick_members", member_id, raise_err=False
+        )
+        if not has_permissions:
+            continue
+
+        await remove_member(guild_id, member_id)
+
+
 @bp.route("/<int:guild_id>/prune", methods=["POST"])
 async def begin_guild_prune(guild_id):
     user_id = await token_check()
@@ -189,5 +201,5 @@ async def begin_guild_prune(guild_id):
     days = j["days"]
     member_ids = await get_prune(guild_id, days)
 
-    app.sched.spawn(remove_member_multi(guild_id, member_ids))
+    app.sched.spawn(prune_members(user_id, guild_id, member_ids))
     return jsonify({"pruned": len(member_ids)})
