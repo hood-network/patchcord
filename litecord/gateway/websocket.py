@@ -119,7 +119,9 @@ def _complete_users_list(user_id: str, base_ready, user_ready, ws_properties) ->
                     "type": private_channel["type"],
                     "last_message_id": private_channel["last_message_id"],
                     "recipient_ids": [
-                        recipient["id"] for recipient in private_channel["recipients"]
+                        recipient["id"]
+                        for recipient in private_channel["recipients"]
+                        if recipient["id"] != user_id
                     ],
                     # TODO implement last_pin_timestamp here
                     # "last_pin_timestamp": "2020-03-30T00:00:00.888000+00:00",
