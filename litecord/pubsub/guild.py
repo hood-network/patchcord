@@ -71,6 +71,16 @@ class GuildDispatcher(DispatcherWithState[int, str, GatewayEvent, List[str]]):
 
         return states, channel_ids
 
+    async def unsub_user(
+        self, guild_id: int, user_id: int
+    ) -> Tuple[List[GatewayState], List[int]]:
+        states = app.state_manager.fetch_states(user_id, guild_id)
+        for state in states:
+            await self.unsub(guild_id, state.session_id)
+
+        guild_chan_ids = await app.storage.get_channel_ids(guild_id)
+        return states, guild_chan_ids
+
     async def dispatch_filter(
         self, guild_id: int, filter_function, event: GatewayEvent
     ):
