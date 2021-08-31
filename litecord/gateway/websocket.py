@@ -111,6 +111,21 @@ def _complete_users_list(user_id: str, base_ready, user_ready, ws_properties) ->
                 }
             )
 
+        ready["private_channels"] = []
+        for private_channel in base_ready["private_channels"]:
+            ready["private_channels"].append(
+                {
+                    "id": private_channel["id"],
+                    "type": private_channel["type"],
+                    "last_message_id": private_channel["last_message_id"],
+                    "recipient_ids": [
+                        recipient["id"] for recipient in private_channel["recipients"]
+                    ],
+                    # TODO implement last_pin_timestamp here
+                    # "last_pin_timestamp": "2020-03-30T00:00:00.888000+00:00",
+                },
+            )
+
     return ready, users_to_send
 
 
