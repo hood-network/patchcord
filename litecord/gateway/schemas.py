@@ -89,6 +89,7 @@ IDENTIFY_SCHEMA = {
                         "device": {"type": "string", "required": False},
                         "referrer": {"type": "string", "required": False},
                         "referring_domain": {"type": "string", "required": False},
+                        "browser_user_agent": {"type": "string", "required": False},
                     },
                 },
                 "capabilities": {"type": "number", "required": False},
@@ -105,7 +106,7 @@ IDENTIFY_SCHEMA = {
                         # values being a list of 3 strings. this can not be
                         # validated by cerberus
                         "highest_last_message_id": {
-                            "type": "string",
+                            "anyof_type": ["string", "number"],
                             "required": False,
                         },
                         "read_state_version": {"type": "number", "required": False},
