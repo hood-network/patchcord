@@ -53,6 +53,21 @@ GroupID = Union[int, str]
 # TODO: move this constant out of the lazy_guild module
 MAX_ROLES = 250
 
+import string
+
+# initialize member list order table by loading it up
+# with the digits, as they come first in member list ordering
+# then one lowercase letter, and then its uppercase counterpart.
+LETTER_AS_NUMBER = {digit: int(digit) for digit in string.digits}
+for index, pair in enumerate(
+    zip(
+        string.ascii_lowercase,
+        string.ascii_uppercase,
+    )
+):
+    LETTER_AS_NUMBER[pair[0]] = len(string.digits) + index
+    LETTER_AS_NUMBER[pair[1]] = len(string.digits) + index + 1
+
 
 @dataclass
 class GroupInfo:
@@ -475,10 +490,17 @@ class GuildMemberList:
 
         return nickname or username
 
+    def _display_name_as_sort_key(self, member_id: str):
+        display_name = self._display_name(member_id)
+        return [LETTER_AS_NUMBER.get(letter, 0) for letter in display_name]
+
     async def _sort_groups(self):
+        # numbers, lowercase letters, uppercase letters
+        # 0 1 2 3 4 5 6 7 8 9, a, A, b, B, c, C, d, D...
+
+        # list.sort is used as it sorts it all in-place
         for member_ids in self.list.data.values():
-            # this should update the list in-place
-            member_ids.sort(key=self._display_name)
+            member_ids.sort(key=self._display_name_as_sort_key)
 
     async def __init_member_list(self):
         """Generate the main member list with groups."""
