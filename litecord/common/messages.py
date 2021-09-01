@@ -32,9 +32,13 @@ async def msg_create_request() -> tuple:
 
     files = await request.files
 
+    for form_key, given_file in files.items():
+        if given_file.content_length is None:
+            raise BadRequest("Given file does not have content length.")
+
     # we don't really care about the given fields on the files dict, so
     # we only extract the values
-    return json_from_form, [v for k, v in files.items()]
+    return json_from_form, [x for x in files.values()]
 
 
 def msg_create_check_content(payload: dict, files: list, *, use_embeds=False):
@@ -78,8 +82,10 @@ async def msg_add_attachment(message_id: int, channel_id: int, attachment_file) 
     img_width, img_height = None, None
 
     # extract file size
-    # TODO: this is probably inneficient
-    file_size = attachment_file.stream.getbuffer().nbytes
+    # it's possible a part does not contain content length.
+    # do not let that pass on.
+    file_size = attachment_file.content_length
+    assert file_size is not None
 
     if is_image:
         # open with pillow, extract image size
