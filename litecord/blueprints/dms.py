@@ -50,7 +50,7 @@ async def jsonify_dm(dm_id: int, user_id: int):
     return jsonify(dm_chan)
 
 
-async def create_dm(user_id, recipient_id):
+async def create_dm(user_id: int, recipient_id: int):
     """Create a new dm with a user,
     or get the existing DM id if it already exists."""
 
@@ -109,7 +109,7 @@ async def start_dm():
         await request.get_json(),
         CREATE_GROUP_DM_V9 if request.discord_api_version == 9 else CREATE_DM,
     )
-    recipient_id: str = (
+    recipient_id = int(
         j["recipients"][0] if request.discord_api_version == 9 else j["recipient_id"]
     )
 
