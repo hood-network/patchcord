@@ -54,7 +54,7 @@ async def jsonify_dm(dm_id: int, user_id: int):
             lambda user: user["id"] == str(user_id), dm_chan["recipients"]
         )
         assert self_user_index is not None
-        dm_chan["recipients"].remove(self_user_index)
+        dm_chan["recipients"].pop(self_user_index)
 
     return jsonify(dm_chan)
 
