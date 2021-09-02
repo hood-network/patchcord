@@ -534,11 +534,11 @@ RELATIONSHIP = {
 CREATE_DM = {"recipient_id": {"type": "snowflake", "required": True}}
 
 CREATE_GROUP_DM = {
-    "recipients": {"type": "list", "required": True, "schema": {"type": "snowflake"}}
+    "recipient_id": {"type": "list", "required": True, "schema": {"type": "snowflake"}}
 }
 
 CREATE_GROUP_DM_V9 = {
-    "recipient_id": {"type": "list", "required": True, "schema": {"type": "snowflake"}}
+    "recipients": {"type": "list", "required": True, "schema": {"type": "snowflake"}}
 }
 
 GROUP_DM_UPDATE = {

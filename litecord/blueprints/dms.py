@@ -105,8 +105,13 @@ async def create_dm(user_id, recipient_id):
 async def start_dm():
     """Create a DM with a user."""
     user_id = await token_check()
-    j = validate(await request.get_json(), CREATE_DM)
-    recipient_id = j["recipient_id"]
+    j = validate(
+        await request.get_json(),
+        CREATE_GROUP_DM_V9 if request.discord_api_version == 9 else CREATE_DM,
+    )
+    recipient_id: str = (
+        j["recipients"][0] if request.discord_api_version == 9 else j["recipient_id"]
+    )
 
     return await create_dm(user_id, recipient_id)
 
