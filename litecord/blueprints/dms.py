@@ -24,7 +24,7 @@ blueprint for direct messages
 from quart import Blueprint, request, current_app as app, jsonify
 from logbook import Logger
 
-from ..schemas import validate, CREATE_DM, CREATE_GROUP_DM
+from ..schemas import validate, CREATE_DM, CREATE_GROUP_DM, CREATE_GROUP_DM_V9
 from ..enums import ChannelType
 
 
@@ -117,8 +117,13 @@ async def create_group_dm(p_user_id: int):
     user_id = await token_check()
     assert user_id == p_user_id
 
-    j = validate(await request.get_json(), CREATE_GROUP_DM)
-    recipients = j["recipients"]
+    j = validate(
+        await request.get_json(),
+        CREATE_GROUP_DM_V9 if request.discord_api_version == 9 else CREATE_GROUP_DM,
+    )
+    recipients = (
+        j["recipients"] if request.discord_api_version == 9 else j["recipient_id"]
+    )
 
     if len(recipients) == 1:
         # its a group dm with 1 user... a dm!

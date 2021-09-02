@@ -537,6 +537,10 @@ CREATE_GROUP_DM = {
     "recipients": {"type": "list", "required": True, "schema": {"type": "snowflake"}}
 }
 
+CREATE_GROUP_DM_V9 = {
+    "recipient_id": {"type": "list", "required": True, "schema": {"type": "snowflake"}}
+}
+
 GROUP_DM_UPDATE = {
     "name": {"type": "guild_name", "required": False},
     "icon": {"type": "b64_icon", "required": False, "nullable": True},
