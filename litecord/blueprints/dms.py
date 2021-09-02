@@ -30,7 +30,7 @@ from ..enums import ChannelType
 
 from .auth import token_check
 
-from litecord.blueprints.dm_channels import gdm_create, gdm_add_recipient
+from litecord.blueprints.dm_channels import gdm_create, gdm_add_recipient, gdm_pubsub
 from litecord.common.channels import try_dm_state
 
 log = Logger(__name__)
@@ -73,6 +73,7 @@ async def create_dm(user_id: int, recipient_id: int):
     )
 
     if dm_id:
+        await gdm_pubsub(dm_id, (user_id, recipient_id))
         return await jsonify_dm(dm_id, user_id)
 
     # if no dm was found, create a new one
@@ -105,6 +106,7 @@ async def create_dm(user_id: int, recipient_id: int):
     # until the user sends a message.
     await try_dm_state(user_id, dm_id)
 
+    await gdm_pubsub(dm_id, (user_id, recipient_id))
     return await jsonify_dm(dm_id, user_id)
 
 

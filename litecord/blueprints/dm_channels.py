@@ -17,6 +17,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
+from typing import Iterable
+
 from quart import Blueprint, current_app as app, jsonify
 from logbook import Logger
 
@@ -55,6 +57,14 @@ async def _raw_gdm_remove(channel_id, user_id):
     )
 
 
+async def gdm_pubsub(channel_id: int, recipients: Iterable[int]):
+    for recipient_id in recipients:
+        await app.dispatcher.channel.sub_many(
+            channel_id,
+            [state.session_id for state in app.state_manager.user_states(recipient_id)],
+        )
+
+
 async def gdm_create(user_id, peer_id) -> int:
     """Create a group dm, given two users.
 
@@ -83,8 +93,7 @@ async def gdm_create(user_id, peer_id) -> int:
     await _raw_gdm_add(channel_id, user_id)
     await _raw_gdm_add(channel_id, peer_id)
 
-    await app.dispatcher.channel.sub(channel_id, user_id)
-    await app.dispatcher.channel.sub(channel_id, peer_id)
+    await gdm_pubsub(channel_id, (user_id, peer_id))
 
     chan = await app.storage.get_channel(channel_id)
     await app.dispatcher.channel.dispatch(channel_id, ("CHANNEL_CREATE", chan))
@@ -108,7 +117,7 @@ async def gdm_add_recipient(channel_id: int, peer_id: int, *, user_id=None):
     await dispatch_user(peer_id, ("CHANNEL_CREATE", gdm_recipient_view(chan, peer_id)))
 
     await app.dispatcher.channel.dispatch(channel_id, ("CHANNEL_UPDATE", chan))
-    await app.dispatcher.channel.sub(peer_id)
+    await gdm_pubsub(channel_id, (peer_id,))
 
     if user_id:
         await send_sys_message(channel_id, MessageType.RECIPIENT_ADD, user_id, peer_id)
