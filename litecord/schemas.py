@@ -217,6 +217,7 @@ REGISTER = {
     "captcha_key": {"type": "string", "required": False, "nullable": True},
     "gift_code_sku_id": {"type": "string", "required": False, "nullable": True},
     "consent": {"type": "boolean", "required": False},
+    "date_of_birth": {"type": "string", "required": False, "nullable": True},
 }
 
 # only used by us, not discord, hence 'invcode' (to separate from discord)
