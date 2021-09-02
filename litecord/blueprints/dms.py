@@ -47,6 +47,13 @@ async def get_dms():
 
 async def jsonify_dm(dm_id: int, user_id: int):
     dm_chan = await app.storage.get_dm(dm_id, user_id)
+
+    if request.discord_api_version > 7:
+        new_recipients = []
+        for recipient_user in dm_chan["recipients"]:
+            new_recipients.append(recipient_user["id"])
+        dm_chan["recipients"] = new_recipients
+
     return jsonify(dm_chan)
 
 
