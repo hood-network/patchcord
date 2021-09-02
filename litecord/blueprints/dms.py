@@ -32,6 +32,7 @@ from .auth import token_check
 
 from litecord.blueprints.dm_channels import gdm_create, gdm_add_recipient, gdm_pubsub
 from litecord.common.channels import try_dm_state
+from litecord.utils import index_by_func
 
 log = Logger(__name__)
 bp = Blueprint("dms", __name__)
