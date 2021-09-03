@@ -36,25 +36,47 @@ async def find_user(username, discrim, ctx) -> int:
     )
 
 
-async def set_user_staff(user_id, ctx):
-    """Give a single user staff status."""
+async def set_any_user_flag(ctx, user_id, flag_name):
     old_flags = await ctx.db.fetchval(
         """
-    SELECT flags
-    FROM users
-    WHERE id = $1
-    """,
+        SELECT flags
+        FROM users
+        WHERE id = $1
+        """,
         user_id,
     )
 
-    new_flags = old_flags | UserFlags.staff
+    new_flags = old_flags | getattr(UserFlags, flag_name)
 
     await ctx.db.execute(
         """
-    UPDATE users
-    SET flags=$1
-    WHERE id = $2
-    """,
+        UPDATE users
+        SET flags=$1
+        WHERE id = $2
+        """,
+        new_flags,
+        user_id,
+    )
+
+
+async def unset_any_user_flag(ctx, user_id, flag_name):
+    old_flags = await ctx.db.fetchval(
+        """
+        SELECT flags
+        FROM users
+        WHERE id = $1
+        """,
+        user_id,
+    )
+
+    new_flags = old_flags ^ getattr(UserFlags, flag_name)
+
+    await ctx.db.execute(
+        """
+        UPDATE users
+        SET flags=$1
+        WHERE id = $2
+        """,
         new_flags,
         user_id,
     )
@@ -72,21 +94,35 @@ async def adduser(ctx, args):
     print(f'\tdiscrim: {user["discriminator"]}')
 
 
-async def make_staff(ctx, args):
-    """Give a single user the staff flag.
+async def set_flag(ctx, args):
+    """Setting a 'staff' flag gives the user access to the Admin API.
+    Beware of that.
 
-    This will grant them access to the Admin API.
-
-    The flag changes will only apply after a
-    server restart.
+    Flag changes only apply to a user after a server restart so that
+    all connected clients get to refresh their state.
     """
     uid = await find_user(args.username, args.discrim, ctx)
 
     if not uid:
         return print("user not found")
 
-    await set_user_staff(uid, ctx)
-    print("OK: set staff")
+    await set_any_user_flag(ctx, uid, args.flag_name)
+    print(f"OK: set {args.flag_name}")
+
+
+async def unset_flag(ctx, args):
+    """Unsetting a 'staff' flag revokes the user's access to the Admin API.
+
+    Flag changes only apply to a user after a server restart so that
+    all connected clients get to refresh their state.
+    """
+    uid = await find_user(args.username, args.discrim, ctx)
+
+    if not uid:
+        return print("user not found")
+
+    await unset_any_user_flag(ctx, uid, args.flag_name)
+    print(f"OK: unset {args.flag_name}")
 
 
 async def generate_bot_token(ctx, args):
@@ -162,14 +198,23 @@ def setup(subparser):
 
     setup_test_parser.set_defaults(func=adduser)
 
-    staff_parser = subparser.add_parser(
-        "make_staff", help="make a user staff", description=make_staff.__doc__
+    setflag_parser = subparser.add_parser(
+        "setflag", help="set a flag for a user", description=set_flag.__doc__
     )
+    setflag_parser.add_argument("username")
+    setflag_parser.add_argument("discrim", help="the discriminator of the user")
+    setflag_parser.add_argument("flag_name", help="flag to set"),
 
-    staff_parser.add_argument("username")
-    staff_parser.add_argument("discrim", help="the discriminator of the user")
+    setflag_parser.set_defaults(func=set_flag)
 
-    staff_parser.set_defaults(func=make_staff)
+    unsetflag_parser = subparser.add_parser(
+        "unsetflag", help="unset a flag for a user", description=unset_flag.__doc__
+    )
+    unsetflag_parser.add_argument("username")
+    unsetflag_parser.add_argument("discrim", help="the discriminator of the user")
+    unsetflag_parser.add_argument("flag_name", help="flag to unset"),
+
+    unsetflag_parser.set_defaults(func=unset_flag)
 
     del_user_parser = subparser.add_parser("deluser", help="delete a single user")
 
