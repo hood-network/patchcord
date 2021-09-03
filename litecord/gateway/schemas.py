@@ -88,7 +88,12 @@ IDENTIFY_SCHEMA = {
                         "$device": {"type": "string", "required": False},
                         "device": {"type": "string", "required": False},
                         "referrer": {"type": "string", "required": False},
+                        "referrer_current": {"type": "string", "required": False},
                         "referring_domain": {"type": "string", "required": False},
+                        "referring_domain_current": {
+                            "type": "string",
+                            "required": False,
+                        },
                         "browser_user_agent": {"type": "string", "required": False},
                     },
                 },
