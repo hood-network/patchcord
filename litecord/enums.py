@@ -165,6 +165,11 @@ class UserFlags(Flags):
 
     bug_hunter_2 = 16384
 
+    underage_deleted = 1 << 15
+    verified_bot = 1 << 16
+    verified_developer = 1 << 17
+    certified_moderator = 1 << 18
+
 
 class MessageFlags(Flags):
     """Message flags."""
