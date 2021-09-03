@@ -95,6 +95,7 @@ IDENTIFY_SCHEMA = {
                             "required": False,
                         },
                         "browser_user_agent": {"type": "string", "required": False},
+                        "browser_version": {"type": "string", "required": False},
                     },
                 },
                 "capabilities": {"type": "number", "required": False},
