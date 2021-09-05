@@ -107,7 +107,9 @@ async def test_user_fixture(app):
 async def test_cli_user(test_cli, test_user):
     """Yield a TestClient instance that contains a randomly generated
     user."""
-    yield TestClient(test_cli, test_user)
+    client = TestClient(test_cli, test_user)
+    yield client
+    await client.cleanup()
 
 
 @pytest.fixture
@@ -138,5 +140,7 @@ async def test_cli_staff(test_cli):
         user_id,
     )
 
-    yield TestClient(test_cli, test_user)
+    client = TestClient(test_cli, test_user)
+    yield client
+    await client.cleanup()
     await _user_fixture_teardown(test_cli.app, test_user)
