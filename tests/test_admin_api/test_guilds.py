@@ -25,26 +25,10 @@ from litecord.blueprints.guilds import delete_guild
 from litecord.errors import GuildNotFound
 
 
-async def _create_guild(test_cli_staff, *, region=None) -> dict:
-    genned_name = secrets.token_hex(6)
-
-    async with test_cli_staff.app.app_context():
-        resp = await test_cli_staff.post(
-            "/api/v6/guilds", json={"name": genned_name, "region": region}
-        )
-
-    assert resp.status_code == 200
-    rjson = await resp.json
-    assert isinstance(rjson, dict)
-    assert rjson["name"] == genned_name
-
-    return rjson
-
-
-async def _fetch_guild(test_cli_staff, guild_id, *, ret_early=False):
+async def _fetch_guild(test_cli_staff, guild_id: str, *, return_early: bool = False):
     resp = await test_cli_staff.get(f"/api/v6/admin/guilds/{guild_id}")
 
-    if ret_early:
+    if return_early:
         return resp
 
     assert resp.status_code == 200
@@ -55,73 +39,54 @@ async def _fetch_guild(test_cli_staff, guild_id, *, ret_early=False):
     return rjson
 
 
-async def _delete_guild(test_cli, guild_id: int):
-    async with test_cli.app.app_context():
-        await delete_guild(int(guild_id))
-
-
 @pytest.mark.asyncio
 async def test_guild_fetch(test_cli_staff):
     """Test the creation and fetching of a guild via the Admin API."""
-    async with test_cli_staff.app.app_context():
-        rjson = await _create_guild(test_cli_staff)
-        guild_id = rjson["id"]
-        try:
-            await _fetch_guild(test_cli_staff, guild_id)
-        finally:
-            await _delete_guild(test_cli_staff, int(guild_id))
+    guild = await test_cli_staff.create_guild()
+    await _fetch_guild(test_cli_staff, str(guild.id))
 
 
 @pytest.mark.asyncio
 async def test_guild_update(test_cli_staff):
     """Test the update of a guild via the Admin API."""
-    async with test_cli_staff.app.app_context():
-        rjson = await _create_guild(test_cli_staff)
-        guild_id = rjson["id"]
-        assert not rjson["unavailable"]
+    guild = await test_cli_staff.create_guild()
+    guild_id = str(guild.id)
 
-        try:
-            # I believe setting up an entire gateway client registered to the guild
-            # would be overkill to test the side-effects, so... I'm not
-            # testing them. Yes, I know its a bad idea, but if someone has an easier
-            # way to write that, do send an MR.
-            resp = await test_cli_staff.patch(
-                f"/api/v6/admin/guilds/{guild_id}", json={"unavailable": True}
-            )
+    # I believe setting up an entire gateway client registered to the guild
+    # would be overkill to test the side-effects, so... I'm not
+    # testing them. Yes, I know its a bad idea, but if someone has an easier
+    # way to write that, do send an MR.
+    resp = await test_cli_staff.patch(
+        f"/api/v6/admin/guilds/{guild_id}", json={"unavailable": True}
+    )
 
-            assert resp.status_code == 200
-            rjson = await resp.json
-            assert isinstance(rjson, dict)
-            assert rjson["id"] == guild_id
-            assert rjson["unavailable"]
+    assert resp.status_code == 200
+    rjson = await resp.json
+    assert isinstance(rjson, dict)
+    assert rjson["id"] == guild_id
+    assert rjson["unavailable"]
 
-            rjson = await _fetch_guild(test_cli_staff, guild_id)
-            assert rjson["unavailable"]
-        finally:
-            await _delete_guild(test_cli_staff, int(guild_id))
+    rjson = await _fetch_guild(test_cli_staff, guild_id)
+    assert rjson["id"] == guild_id
+    assert rjson["unavailable"]
 
 
 @pytest.mark.asyncio
 async def test_guild_delete(test_cli_staff):
     """Test the update of a guild via the Admin API."""
-    async with test_cli_staff.app.app_context():
-        rjson = await _create_guild(test_cli_staff)
-        guild_id = rjson["id"]
+    guild = await test_cli_staff.create_guild()
+    guild_id = str(guild.id)
 
-        try:
-            resp = await test_cli_staff.delete(f"/api/v6/admin/guilds/{guild_id}")
+    resp = await test_cli_staff.delete(f"/api/v6/admin/guilds/{guild_id}")
+    assert resp.status_code == 204
 
-            assert resp.status_code == 204
+    resp = await _fetch_guild(test_cli_staff, guild_id, return_early=True)
+    assert resp.status_code == 404
 
-            resp = await _fetch_guild(test_cli_staff, guild_id, ret_early=True)
-
-            assert resp.status_code == 404
-            rjson = await resp.json
-            assert isinstance(rjson, dict)
-            assert rjson["error"]
-            assert rjson["code"] == GuildNotFound.error_code
-        finally:
-            await _delete_guild(test_cli_staff, int(guild_id))
+    rjson = await resp.json
+    assert isinstance(rjson, dict)
+    assert rjson["error"]
+    assert rjson["code"] == GuildNotFound.error_code
 
 
 @pytest.mark.asyncio
@@ -132,17 +97,15 @@ async def test_guild_create_voice(test_cli_staff):
         "/api/v6/admin/voice/regions", json={"id": region_id, "name": region_name}
     )
     assert resp.status_code == 200
-    guild_id = None
+    rjson = await resp.json
+    assert isinstance(rjson, list)
+    assert region_id in [r["id"] for r in rjson]
 
+    # This test is basically creating the guild with a self-selected region
+    # then deleting the guild afterwards on test resource cleanup
     try:
-        rjson = await resp.json
-        assert isinstance(rjson, list)
-        assert region_id in [r["id"] for r in rjson]
-        guild_id = await _create_guild(test_cli_staff, region=region_id)
+        await test_cli_staff.create_guild(region=region_id)
     finally:
-        if guild_id:
-            await _delete_guild(test_cli_staff, int(guild_id["id"]))
-
         await test_cli_staff.app.db.execute(
             """
             DELETE FROM voice_regions
