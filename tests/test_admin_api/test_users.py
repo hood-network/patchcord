@@ -21,6 +21,7 @@ import secrets
 
 import pytest
 
+from tests.common import email
 from litecord.enums import UserFlags
 
 
@@ -39,6 +40,20 @@ async def test_list_users(test_cli_staff):
     rjson = await resp.json
     assert isinstance(rjson, list)
     assert rjson
+
+
+@pytest.mark.asyncio
+async def test_find_single_user(test_cli_staff):
+    user = await test_cli_staff.create_user(
+        username="test_user" + secrets.token_hex(2), email=email()
+    )
+    resp = await _search(test_cli_staff, username=user.name)
+
+    assert resp.status_code == 200
+    rjson = await resp.json
+    assert isinstance(rjson, list)
+    fetched_user = rjson[0]
+    assert fetched_user["id"] == str(user.id)
 
 
 async def _setup_user(test_cli) -> dict:
