@@ -435,6 +435,25 @@ MESSAGE_CREATE = {
         "required": False,
         "nullable": True,
     },
+    "message_reference": {
+        "type": "dict",
+        "required": False,
+        "nullable": True,
+        "schema": {
+            "guild_id": {"type": "string", "required": False},
+            "channel_id": {"type": "string", "required": True},
+            "message_id": {"type": "string", "required": True},
+        },
+    },
+    "allowed_mentions": {
+        "type": "dict",
+        "required": False,
+        "nullable": True,
+        "schema": {
+            "parse": {"type": "list", "required": True},
+            "replied_user": {"type": "boolean", "required": True},
+        },
+    },
 }
 
 

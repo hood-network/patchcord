@@ -36,6 +36,7 @@ from litecord.permissions import base_permissions
 
 from litecord.blueprints.auth import check_password
 from litecord.utils import to_update
+from litecord.common.messages import message_view
 from litecord.common.users import (
     mass_user_update,
     delete_user,
@@ -470,7 +471,7 @@ async def _get_mentions():
         if gid not in guild_ids:
             continue
 
-        res.append(message)
+        res.append(message_view(message))
 
     return jsonify(res)
 

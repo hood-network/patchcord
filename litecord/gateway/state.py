@@ -128,6 +128,12 @@ class GatewayState:
 
         try:
             if self.ws:
+                if (
+                    event_type.startswith("MESSAGE_")
+                    and payload["d"]["message_reference"] is not None
+                    and self.ws.ws_properties.version > 7
+                ):
+                    payload["d"]["type"] = 19
                 await self.ws.send(payload)
         except websockets.exceptions.ConnectionClosed as exc:
             log.warning(

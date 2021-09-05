@@ -28,6 +28,8 @@ from logbook import Logger
 from quart.json import JSONEncoder
 from quart import current_app as app
 
+from litecord.common.messages import message_view
+
 from .errors import BadRequest
 
 log = Logger(__name__)
@@ -226,7 +228,7 @@ async def search_result_from_list(rows: List) -> Dict[str, Any]:
 
         msg = await app.storage.get_message(row["current_id"])
         msg["hit"] = True
-        res.append(before + [msg] + after)
+        res.append(before + [message_view(msg)] + after)
 
     return {"total_results": results, "messages": res, "analytics_id": ""}
 

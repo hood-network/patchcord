@@ -35,7 +35,6 @@ from litecord.blueprints.user.billing import PLAN_ID_TO_TYPE
 from litecord.types import timestamp_
 from litecord.utils import pg_set_json
 
-
 log = Logger(__name__)
 
 
@@ -1019,7 +1018,7 @@ class Storage:
             """
         SELECT id::text, channel_id::text, author_id, content,
             created_at AS timestamp, edited_at AS edited_timestamp,
-            tts, mention_everyone, nonce, message_type, embeds, flags
+            tts, mention_everyone, nonce, message_type, embeds, flags, message_reference
         FROM messages
         WHERE id = $1
         """,
