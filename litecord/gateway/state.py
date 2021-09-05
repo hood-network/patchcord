@@ -130,7 +130,7 @@ class GatewayState:
             if self.ws:
                 if (
                     event_type.startswith("MESSAGE_")
-                    and payload["d"]["message_reference"] is not None
+                    and (payload.get("d") or {}).get("message_reference") is not None
                     and self.ws.ws_properties.version > 7
                 ):
                     payload["d"]["type"] = 19
