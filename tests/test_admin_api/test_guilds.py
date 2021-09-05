@@ -21,7 +21,6 @@ import secrets
 
 import pytest
 
-from litecord.blueprints.guilds import delete_guild
 from litecord.errors import GuildNotFound
 
 
