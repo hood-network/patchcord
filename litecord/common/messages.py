@@ -131,6 +131,7 @@ async def msg_guild_text_mentions(
     payload: dict, guild_id: int, mentions_everyone: bool, mentions_here: bool
 ):
     """Calculates mention data side-effects."""
+    # TODO this should be aware of allowed_mentions
     channel_id = int(payload["channel_id"])
 
     # calculate the user ids we'll bump the mention count for
