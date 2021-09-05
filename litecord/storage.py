@@ -231,7 +231,7 @@ class Storage:
         drow["max_members"] = 100000
 
         # used by guilds with DISCOVERABLE feature
-        drow["preffered_locale"] = "en-US"
+        drow["preferred_locale"] = "en-US"
 
         # feature won't be impl'd
         drow["guild_scheduled_events"] = []
