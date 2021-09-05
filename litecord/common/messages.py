@@ -192,3 +192,10 @@ async def msg_guild_text_mentions(
             user_id,
             channel_id,
         )
+
+
+def message_view(message_data: dict) -> dict:
+    # Change message type to 19 if this is a reply to another message
+    if message_data["message_reference"] and request.discord_api_version > 7:
+        return {**message_data, **{"type": 19}}
+    return message_data

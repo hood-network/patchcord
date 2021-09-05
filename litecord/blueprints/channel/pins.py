@@ -26,6 +26,7 @@ from litecord.types import timestamp_
 from litecord.system_messages import send_sys_message
 from litecord.enums import MessageType, SYS_MESSAGES
 from litecord.errors import BadRequest
+from litecord.common.messages import message_view
 
 bp = Blueprint("channel_pins", __name__)
 
@@ -58,7 +59,7 @@ async def get_pins(channel_id):
     for message_id in ids:
         message = await app.storage.get_message(message_id)
         if message is not None:
-            res.append(message)
+            res.append(message_view(message))
 
     return jsonify(res)
 

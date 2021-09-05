@@ -41,6 +41,7 @@ from litecord.common.messages import (
     msg_create_check_content,
     msg_add_attachment,
     msg_guild_text_mentions,
+    message_view,
 )
 from litecord.pubsub.user import dispatch_user
 
@@ -129,7 +130,7 @@ async def get_messages(channel_id):
         if msg is None:
             continue
 
-        result.append(msg)
+        result.append(message_view(msg))
 
     log.info("Fetched {} messages", len(result))
     return jsonify(result)
@@ -146,7 +147,7 @@ async def get_single_message(channel_id, message_id):
     if not message:
         raise MessageNotFound()
 
-    return jsonify(message)
+    return jsonify(message_view(message))
 
 
 async def _dm_pre_dispatch(channel_id, peer_id):
@@ -196,8 +197,8 @@ async def create_message(
             """
             INSERT INTO messages (id, channel_id, guild_id, author_id,
                 content, tts, mention_everyone, nonce, message_type,
-                embeds)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                embeds, message_reference, allowed_mentions)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
             """,
             message_id,
             channel_id,
@@ -209,6 +210,8 @@ async def create_message(
             data["nonce"],
             MessageType.DEFAULT.value,
             data.get("embeds") or [],
+            data.get("message_reference") or None,
+            data.get("allowed_mentions") or None,
         )
 
     return message_id
@@ -266,6 +269,8 @@ async def _create_message(channel_id):
             "embeds": (
                 [await fill_embed(j["embed"])] if j.get("embed") is not None else []
             ),
+            "message_reference": j.get("message_reference"),
+            "allowed_mentions": j.get("allowed_mentions"),
         },
     )
 
@@ -304,7 +309,7 @@ async def _create_message(channel_id):
             payload, guild_id, mentions_everyone, mentions_here
         )
 
-    return jsonify(payload)
+    return jsonify(message_view(payload))
 
 
 @bp.route("/<int:channel_id>/messages/<int:message_id>", methods=["PATCH"])
@@ -390,7 +395,7 @@ async def edit_message(channel_id, message_id):
     if updated:
         await app.dispatcher.channel.dispatch(channel_id, ("MESSAGE_UPDATE", message))
 
-    return jsonify(message)
+    return jsonify(message_view(message))
 
 
 async def _del_msg_fkeys(message_id: int):

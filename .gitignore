@@ -109,3 +109,4 @@ attachments/*
 
 .DS_Store
 .vscode
+.idea
