@@ -194,6 +194,9 @@ async def close_channel(channel_id):
     user_id = await token_check()
 
     chan_type = await app.storage.get_chan_type(channel_id)
+    if chan_type is None:
+        raise ChannelNotFound("Channel not found")
+
     ctype = ChannelType(chan_type)
 
     if ctype in GUILD_CHANS:
