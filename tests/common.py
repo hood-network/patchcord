@@ -34,6 +34,15 @@ def email() -> str:
     return f"{secrets.token_hex(5)}@{secrets.token_hex(5)}.com"
 
 
+def random_email() -> str:
+    # TODO: move everyone who uses email() to random_email()
+    return email()
+
+
+def random_username() -> str:
+    return secrets.token_hex(10)
+
+
 @dataclass
 class WrappedUser:
     test_cli: "TestClient"
@@ -271,11 +280,13 @@ class TestClient:
     async def create_user(
         self,
         *,
-        username: str,
-        email: str,
+        username: Optional[str] = None,
+        email: Optional[str] = None,
         password: Optional[str] = None,
     ) -> WrappedUser:
-        password = password or secrets.token_hex(6)
+        username = username or random_username()
+        email = email or random_email()
+        password = password or random_username()
 
         async with self.app.app_context():
             user_id, password_hash = await create_user(username, email, password)
