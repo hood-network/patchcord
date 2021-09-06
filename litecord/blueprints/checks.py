@@ -92,7 +92,7 @@ async def channel_check(
         """,
             channel_id,
         )
-
+        assert guild_id is not None
         await guild_check(user_id, guild_id)
         return ctype, guild_id
 
