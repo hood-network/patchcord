@@ -431,8 +431,7 @@ class Storage:
             drow["last_message_id"] = last_msg
 
             return {**row, **drow}
-
-        if chan_type == ChannelType.GUILD_VOICE:
+        elif chan_type == ChannelType.GUILD_VOICE:
             vrow = await self.db.fetchrow(
                 """
             SELECT bitrate, user_limit
@@ -443,9 +442,9 @@ class Storage:
             )
 
             return {**row, **dict(vrow)}
-
-        # this only exists to trick mypy. this codepath is unreachable
-        raise RuntimeError("Unreachable code path.")
+        else:
+            # this only exists to trick mypy. this codepath is unreachable
+            raise AssertionError("Unreachable code path.")
 
     async def get_chan_type(self, channel_id: int) -> Optional[int]:
         """Get the channel type integer, given channel ID."""
@@ -603,7 +602,9 @@ class Storage:
             drow["last_message_id"] = await self.chan_last_message_str(channel_id)
             return drow
 
-        return None
+        raise RuntimeError(
+            f"Data Inconsistency: Channel type {ctype} is not properly handled"
+        )
 
     async def get_channel_ids(self, guild_id: int) -> List[int]:
         """Get all channel IDs in a guild."""
