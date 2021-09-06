@@ -18,6 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import pytest
+from litecord.common.guilds import add_member
 
 pytestmark = pytest.mark.asyncio
 
@@ -82,5 +83,23 @@ async def test_channel_message_delete(test_cli_user):
 
     resp = await test_cli_user.delete(
         f"/api/v6/channels/{channel.id}/messages/{message.id}",
+    )
+    assert resp.status_code == 204
+
+
+async def test_channel_message_delete_different_author(test_cli_user):
+    guild = await test_cli_user.create_guild()
+    channel = await test_cli_user.create_guild_channel(guild_id=guild.id)
+    user = await test_cli_user.create_user()
+    async with test_cli_user.app.app_context():
+        await add_member(guild.id, user.id)
+
+    message = await test_cli_user.create_message(
+        guild_id=guild.id, channel_id=channel.id, author_id=user.id
+    )
+
+    resp = await test_cli_user.delete(
+        f"/api/v6/channels/{channel.id}/messages/{message.id}",
+        headers={"authorization": user.token},
     )
     assert resp.status_code == 204
