@@ -256,8 +256,7 @@ async def close_channel(channel_id):
         await app.dispatcher.guild.dispatch(guild_id, ("CHANNEL_DELETE", chan))
         await app.dispatcher.channel.drop(channel_id)
         return jsonify(chan)
-
-    if ctype == ChannelType.DM:
+    elif ctype == ChannelType.DM:
         chan = await app.storage.get_channel(channel_id)
 
         # we don't ever actually delete DM channels off the database.
@@ -278,8 +277,7 @@ async def close_channel(channel_id):
         await dispatch_user(user_id, ("CHANNEL_DELETE", chan))
 
         return jsonify(chan)
-
-    if ctype == ChannelType.GROUP_DM:
+    elif ctype == ChannelType.GROUP_DM:
         await gdm_remove_recipient(channel_id, user_id)
 
         gdm_count = await app.db.fetchval(
@@ -294,8 +292,8 @@ async def close_channel(channel_id):
         if gdm_count == 0:
             # destroy dm
             await gdm_destroy(channel_id)
-
-    raise ChannelNotFound()
+    else:
+        raise RuntimeError(f"Data inconsistency: Unknown channel type {ctype}")
 
 
 async def _update_pos(channel_id, pos: int):
