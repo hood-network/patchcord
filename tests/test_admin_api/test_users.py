@@ -120,24 +120,17 @@ async def test_create_delete(test_cli_staff):
 @pytest.mark.asyncio
 async def test_user_update(test_cli_staff):
     """Test user update."""
-    rjson = await _setup_user(test_cli_staff)
+    user = await test_cli_staff.create_user()
 
-    user_id = rjson["id"]
+    # set them as partner flag
+    resp = await test_cli_staff.patch(
+        f"/api/v6/admin/users/{user.id}", json={"flags": UserFlags.partner}
+    )
 
-    # test update
+    assert resp.status_code == 200
+    rjson = await resp.json
+    assert rjson["id"] == str(user.id)
+    assert rjson["flags"] == UserFlags.partner
 
-    try:
-        # set them as partner flag
-        resp = await test_cli_staff.patch(
-            f"/api/v6/admin/users/{user_id}", json={"flags": UserFlags.partner}
-        )
-
-        assert resp.status_code == 200
-        rjson = await resp.json
-        assert rjson["id"] == user_id
-        assert rjson["flags"] == UserFlags.partner
-
-        # TODO: maybe we can check for side effects by fetching the
-        # user manually too...
-    finally:
-        await _del_user(test_cli_staff, user_id)
+    refetched = await user.refetch()
+    assert refetched.flags == UserFlags.partner
