@@ -26,7 +26,7 @@ from litecord.common.guilds import delete_guild, create_guild_channel
 from litecord.blueprints.channel.messages import create_message
 from litecord.blueprints.auth import make_token
 from litecord.storage import int_
-from litecord.enums import ChannelType
+from litecord.enums import ChannelType, UserFlags
 from litecord.errors import ChannelNotFound, MessageNotFound
 
 
@@ -48,16 +48,51 @@ class WrappedUser:
     test_cli: "TestClient"
     id: int
     name: str
+    discriminator: str
+    avatar: Optional[str]
+    flags: UserFlags
+    public_flags: UserFlags
+    bot: bool
+    premium: bool
+    bio: str
+    accent_color: Optional[int]
+
+    # secure fields
     email: str
-    password: str
-    token: str
+    verified: str
+
+    # extra-secure tokens (not here by default)
+    password: Optional[str] = None
+    password_hash: Optional[str] = None
+    token: Optional[str] = None
+
+    # not there by default
+    premium_type: Optional[str] = None
+    mobile: Optional[bool] = None
+    phone: Optional[bool] = None
+    mfa_enabled: Optional[bool] = None
 
     async def refetch(self) -> dict:
         async with self.test_cli.app.app_context():
-            return await self.test_cli.app.storage.get_user(self.id)
+            rjson = await self.test_cli.app.storage.get_user(self.id, secure=True)
+            return WrappedUser.from_json(self.test_cli, rjson)
 
     async def delete(self):
         return await delete_user(self.id)
+
+    @classmethod
+    def from_json(cls, test_cli, data_not_owned):
+        data = dict(data_not_owned)  # take ownership of data via copy
+        data["name"] = data.pop("username")
+        return cls(
+            test_cli,
+            **{
+                **data,
+                **{
+                    "id": int(data["id"]),
+                },
+            },
+        )
 
 
 @dataclass
@@ -291,9 +326,19 @@ class TestClient:
         async with self.app.app_context():
             user_id, password_hash = await create_user(username, email, password)
             user_token = make_token(user_id, password_hash)
+            full_user_object = await self.app.storage.get_user(user_id, secure=True)
 
         return self.add_resource(
-            WrappedUser(self, user_id, username, email, password, user_token)
+            WrappedUser.from_json(
+                self,
+                {
+                    **full_user_object,
+                    **{
+                        "token": user_token,
+                        "password_hash": password_hash,
+                    },
+                },
+            )
         )
 
     async def create_guild(
