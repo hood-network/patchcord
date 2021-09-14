@@ -270,9 +270,11 @@ class WrappedMessage:
             assert resp.status_code == 200
             assert rjson["id"] == str(self.id)
 
-    async def refetch(self) -> dict:
+    async def refetch(self) -> Optional["WrappedMessage"]:
         async with self.test_cli.app.app_context():
             message_data = await self.test_cli.app.storage.get_message(self.id)
+            if message_data is None:
+                return None
             return WrappedMessage.from_json(self.test_cli, message_data)
 
     @classmethod

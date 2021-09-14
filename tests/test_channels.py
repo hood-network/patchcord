@@ -122,3 +122,23 @@ async def test_channel_message_delete_different_author(test_cli_user):
         headers={"authorization": user.token},
     )
     assert resp.status_code == 204
+
+
+async def test_channel_message_bulk_delete(test_cli_user):
+    guild = await test_cli_user.create_guild()
+    channel = await test_cli_user.create_guild_channel(guild_id=guild.id)
+    messages = []
+    for _ in range(10):
+        messages.append(
+            await test_cli_user.create_message(guild_id=guild.id, channel_id=channel.id)
+        )
+
+    resp = await test_cli_user.post(
+        f"/api/v6/channels/{channel.id}/messages/bulk-delete",
+        json={"messages": [message.id for message in messages]},
+    )
+    assert resp.status_code == 204
+
+    # assert everyone cant be refetched
+    for message in messages:
+        assert (await message.refetch()) is None
