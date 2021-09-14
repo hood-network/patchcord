@@ -35,10 +35,17 @@ async def test_channel_create(test_cli_user):
     )
     assert resp.status_code == 200
     rjson = await resp.json
+    channel_id: str = rjson["id"]
     assert rjson["name"] == "hello-world"
 
     refetched_guild = await guild.refetch()
     assert len(refetched_guild.channels) == 2
+    assert channel_id in (channel["id"] for channel in refetched_guild.channels)
+
+    resp = await test_cli_user.get(f"/api/v6/channels/{channel_id}")
+    assert resp.status_code == 200
+    rjson = await resp.json
+    assert rjson["id"] == channel_id
 
 
 async def test_channel_message_send(test_cli_user):
