@@ -45,3 +45,26 @@ async def test_message_listing(test_cli_user):
     fetched_ids = [m["id"] for m in rjson]
     for message in messages:
         assert str(message.id) in fetched_ids
+
+    # assert all messages are below given id if its on 'before' param
+
+    resp = await test_cli_user.get(
+        f"/api/v6/channels/{channel.id}/messages",
+        query_string={"before": middle_message_id},
+    )
+    assert resp.status_code == 200
+    rjson = await resp.json
+
+    for message_json in rjson:
+        assert int(message_json["id"]) <= middle_message_id
+
+    # assert all message are above given id if its on 'after' param
+    resp = await test_cli_user.get(
+        f"/api/v6/channels/{channel.id}/messages",
+        query_string={"after": middle_message_id},
+    )
+    assert resp.status_code == 200
+    rjson = await resp.json
+
+    for message_json in rjson:
+        assert int(message_json["id"]) >= middle_message_id
