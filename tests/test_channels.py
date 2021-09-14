@@ -48,6 +48,18 @@ async def test_channel_create(test_cli_user):
     assert rjson["id"] == channel_id
 
 
+async def test_channel_delete(test_cli_user):
+    guild = await test_cli_user.create_guild()
+    channel = await test_cli_user.create_guild_channel(guild_id=guild.id)
+
+    resp = await test_cli_user.delete(
+        f"/api/v6/channels/{channel.id}",
+    )
+    assert resp.status_code == 200
+    rjson = await resp.json
+    assert rjson["id"] == str(channel.id)
+
+
 async def test_channel_message_send(test_cli_user):
     guild = await test_cli_user.create_guild()
     channel = guild.channels[0]
