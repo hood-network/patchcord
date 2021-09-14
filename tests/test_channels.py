@@ -105,6 +105,8 @@ async def test_channel_message_delete(test_cli_user):
     )
     assert resp.status_code == 204
 
+    assert (await message.refetch()) is None
+
 
 async def test_channel_message_delete_different_author(test_cli_user):
     guild = await test_cli_user.create_guild()
