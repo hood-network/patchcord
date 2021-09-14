@@ -279,7 +279,7 @@ def query_tuple_from_args(args: dict, limit: int) -> tuple:
     if "before" in args:
         before = int(args["before"])
     elif "after" in args:
-        before = int(args["after"])
+        after = int(args["after"])
 
     return before, after
 
