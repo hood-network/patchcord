@@ -68,3 +68,30 @@ async def test_message_listing(test_cli_user):
 
     for message_json in rjson:
         assert int(message_json["id"]) >= middle_message_id
+
+
+async def test_message_pinning(test_cli_user):
+    guild = await test_cli_user.create_guild()
+    channel = await test_cli_user.create_guild_channel(guild_id=guild.id)
+    message = await test_cli_user.create_message(
+        guild_id=guild.id, channel_id=channel.id
+    )
+
+    resp = await test_cli_user.put(f"/api/v6/channels/{channel.id}/pins/{message.id}")
+    assert resp.status_code == 204
+
+    resp = await test_cli_user.get(f"/api/v6/channels/{channel.id}/pins")
+    assert resp.status_code == 200
+    rjson = await resp.json
+    assert len(rjson) == 1
+    assert rjson[0]["id"] == str(message.id)
+
+    resp = await test_cli_user.delete(
+        f"/api/v6/channels/{channel.id}/pins/{message.id}"
+    )
+    assert resp.status_code == 204
+
+    resp = await test_cli_user.get(f"/api/v6/channels/{channel.id}/pins")
+    assert resp.status_code == 200
+    rjson = await resp.json
+    assert len(rjson) == 0
