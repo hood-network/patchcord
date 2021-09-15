@@ -70,6 +70,27 @@ async def test_message_listing(test_cli_user):
         assert int(message_json["id"]) >= middle_message_id
 
 
+async def test_message_update(test_cli_user):
+    guild = await test_cli_user.create_guild()
+    channel = await test_cli_user.create_guild_channel(guild_id=guild.id)
+    message = await test_cli_user.create_message(
+        guild_id=guild.id, channel_id=channel.id
+    )
+
+    resp = await test_cli_user.patch(
+        f"/api/v6/channels/{channel.id}/messages/{message.id}",
+        json={"content": "awooga"},
+    )
+    assert resp.status_code == 200
+    rjson = await resp.json
+
+    assert rjson["id"] == str(message.id)
+    assert rjson["content"] == "awooga"
+
+    refetched = await message.refetch()
+    assert refetched.content == "awooga"
+
+
 async def test_message_pinning(test_cli_user):
     guild = await test_cli_user.create_guild()
     channel = await test_cli_user.create_guild_channel(guild_id=guild.id)
