@@ -109,7 +109,7 @@ async def add_pin(channel_id, message_id):
     )
 
     if mtype in SYS_MESSAGES:
-        raise SysMsgInvalidAction("Cannot execute action on a system message")
+        raise SysMsgInvalidAction("Cannot pin a system message")
 
     await app.db.execute(
         """
