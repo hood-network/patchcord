@@ -28,7 +28,7 @@ sys.path.append(os.getcwd())
 
 from tests.common import email, TestClient
 
-from run import app as main_app, set_blueprints
+from run import app as main_app
 
 from litecord.common.users import create_user, delete_user
 from litecord.enums import UserFlags
@@ -37,7 +37,6 @@ from litecord.blueprints.auth import make_token
 
 @pytest.fixture(name="app")
 async def _test_app(unused_tcp_port):
-    set_blueprints(main_app)
     main_app.config["_testing"] = True
 
     # reassign an unused tcp port for websockets
