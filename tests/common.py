@@ -220,6 +220,8 @@ class WrappedGuildChannel:
                     "id": int(rjson["id"]),
                     "guild_id": int(rjson["guild_id"]),
                     "parent_id": int_(rjson["parent_id"]),
+                    "last_message_id": int_(rjson["last_message_id"]),
+                    "rate_limit_per_user": int_(rjson["rate_limit_per_user"]),
                 },
             },
         )
