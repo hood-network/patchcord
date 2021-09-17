@@ -34,3 +34,19 @@ async def test_webhook_flow(test_cli_user):
     assert rjson["channel_id"] == str(channel.id)
     assert rjson["guild_id"] == str(guild.id)
     assert rjson["name"] == "awooga"
+
+    webhook_id = rjson["id"]
+    webhook_token = rjson["token"]
+
+    resp = await test_cli_user.post(
+        f"/api/v6/webhooks/{webhook_id}/{webhook_token}",
+        json={"content": "test_message"},
+        headers={"authorization": ""},
+    )
+    assert resp.status_code == 204
+
+    refetched_channel = await channel.refetch()
+    message = await test_cli_user.app.storage.get_message(
+        refetched_channel.last_message_id
+    )
+    assert message["author"]["id"] == webhook_id
