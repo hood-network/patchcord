@@ -28,7 +28,7 @@ sys.path.append(os.getcwd())
 
 from tests.common import email, TestClient
 
-from run import app as main_app, set_blueprints
+from run import app as main_app
 
 from litecord.common.users import create_user, delete_user
 from litecord.enums import UserFlags
@@ -36,8 +36,7 @@ from litecord.blueprints.auth import make_token
 
 
 @pytest.fixture(name="app")
-def _test_app(unused_tcp_port, event_loop):
-    set_blueprints(main_app)
+async def _test_app(unused_tcp_port):
     main_app.config["_testing"] = True
 
     # reassign an unused tcp port for websockets
@@ -53,13 +52,13 @@ def _test_app(unused_tcp_port, event_loop):
     main_app.config["REGISTRATIONS"] = True
 
     # make sure we're calling the before_serving hooks
-    event_loop.run_until_complete(main_app.startup())
+    await main_app.startup()
 
     # https://docs.pytest.org/en/latest/fixture.html#fixture-finalization-executing-teardown-code
     yield main_app
 
     # properly teardown
-    event_loop.run_until_complete(main_app.shutdown())
+    await main_app.shutdown()
 
 
 @pytest.fixture(name="test_cli")
@@ -107,7 +106,9 @@ async def test_user_fixture(app):
 async def test_cli_user(test_cli, test_user):
     """Yield a TestClient instance that contains a randomly generated
     user."""
-    yield TestClient(test_cli, test_user)
+    client = TestClient(test_cli, test_user)
+    yield client
+    await client.cleanup()
 
 
 @pytest.fixture
@@ -138,5 +139,7 @@ async def test_cli_staff(test_cli):
         user_id,
     )
 
-    yield TestClient(test_cli, test_user)
+    client = TestClient(test_cli, test_user)
+    yield client
+    await client.cleanup()
     await _user_fixture_teardown(test_cli.app, test_user)

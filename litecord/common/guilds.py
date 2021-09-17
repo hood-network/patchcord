@@ -232,6 +232,22 @@ async def _del_from_table(table: str, user_id: int):
 async def delete_guild(guild_id: int):
     """Delete a single guild."""
     await _del_from_table("vanity_invites", guild_id)
+
+    # while most guild channel tables have 'ON DELETE CASCADE', this
+    # must not be true to the channels table, which is generic for any channel.
+    #
+    # the drawback is that this causes breakdown on the data's semantics as
+    # we get a channel with a type of GUILD_TEXT/GUILD_VOICE but without any
+    # entry on the guild_channels table, causing errors.
+    for channel_id in await app.storage.get_channel_ids(guild_id):
+        await app.db.execute(
+            """
+            DELETE FROM channels
+            WHERE channels.id = $1
+            """,
+            channel_id,
+        )
+
     await app.db.execute(
         """
     DELETE FROM guilds

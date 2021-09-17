@@ -37,6 +37,33 @@ class SysMsgInvalidAction(BadRequest):
     error_code = 50021
 
 
+async def _dispatch_pins_update(channel_id: int) -> None:
+    message_id = await app.db.fetchval(
+        """
+        SELECT message_id
+        FROM channel_pins
+        WHERE channel_id = $1
+        ORDER BY message_id ASC
+        LIMIT 1
+        """,
+        channel_id,
+    )
+
+    timestamp = (
+        app.winter_factory.to_datetime(message_id) if message_id is not None else None
+    )
+    await app.dispatcher.channel.dispatch(
+        channel_id,
+        (
+            "CHANNEL_PINS_UPDATE",
+            {
+                "channel_id": str(channel_id),
+                "last_pin_timestamp": timestamp_(timestamp),
+            },
+        ),
+    )
+
+
 @bp.route("/<int:channel_id>/pins", methods=["GET"])
 async def get_pins(channel_id):
     """Get the pins for a channel"""
@@ -82,7 +109,7 @@ async def add_pin(channel_id, message_id):
     )
 
     if mtype in SYS_MESSAGES:
-        raise SysMsgInvalidAction("Cannot execute action on a system message")
+        raise SysMsgInvalidAction("Cannot pin a system message")
 
     await app.db.execute(
         """
@@ -93,29 +120,7 @@ async def add_pin(channel_id, message_id):
         message_id,
     )
 
-    row = await app.db.fetchrow(
-        """
-        SELECT message_id
-        FROM channel_pins
-        WHERE channel_id = $1
-        ORDER BY message_id ASC
-        LIMIT 1
-        """,
-        channel_id,
-    )
-
-    timestamp = app.winter_factory.to_datetime(row["message_id"])
-
-    await app.dispatcher.channel.dispatch(
-        channel_id,
-        (
-            "CHANNEL_PINS_UPDATE",
-            {
-                "channel_id": str(channel_id),
-                "last_pin_timestamp": timestamp_(timestamp),
-            },
-        ),
-    )
+    await _dispatch_pins_update(channel_id)
 
     await send_sys_message(
         channel_id, MessageType.CHANNEL_PINNED_MESSAGE, message_id, user_id
@@ -140,28 +145,6 @@ async def delete_pin(channel_id, message_id):
         message_id,
     )
 
-    row = await app.db.fetchrow(
-        """
-    SELECT message_id
-    FROM channel_pins
-    WHERE channel_id = $1
-    ORDER BY message_id ASC
-    LIMIT 1
-    """,
-        channel_id,
-    )
-
-    timestamp = app.winter_factory.to_datetime(row["message_id"])
-
-    await app.dispatcher.channel.dispatch(
-        channel_id,
-        (
-            "CHANNEL_PINS_UPDATE",
-            {
-                "channel_id": str(channel_id),
-                "last_pin_timestamp": timestamp.isoformat(),
-            },
-        ),
-    )
+    await _dispatch_pins_update(channel_id)
 
     return "", 204

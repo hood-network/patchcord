@@ -231,7 +231,7 @@ class Storage:
         drow["max_members"] = 100000
 
         # used by guilds with DISCOVERABLE feature
-        drow["preffered_locale"] = "en-US"
+        drow["preferred_locale"] = "en-US"
 
         # feature won't be impl'd
         drow["guild_scheduled_events"] = []
@@ -431,8 +431,7 @@ class Storage:
             drow["last_message_id"] = last_msg
 
             return {**row, **drow}
-
-        if chan_type == ChannelType.GUILD_VOICE:
+        elif chan_type == ChannelType.GUILD_VOICE:
             vrow = await self.db.fetchrow(
                 """
             SELECT bitrate, user_limit
@@ -443,11 +442,11 @@ class Storage:
             )
 
             return {**row, **dict(vrow)}
+        else:
+            # this only exists to trick mypy. this codepath is unreachable
+            raise AssertionError("Unreachable code path.")
 
-        # this only exists to trick mypy. this codepath is unreachable
-        raise RuntimeError("Unreachable code path.")
-
-    async def get_chan_type(self, channel_id: int) -> int:
+    async def get_chan_type(self, channel_id: int) -> Optional[int]:
         """Get the channel type integer, given channel ID."""
         return await self.db.fetchval(
             """
@@ -533,6 +532,9 @@ class Storage:
     async def get_channel(self, channel_id: int, **kwargs) -> Optional[Dict[str, Any]]:
         """Fetch a single channel's information."""
         chan_type = await self.get_chan_type(channel_id)
+        if chan_type is None:
+            return None
+
         ctype = ChannelType(chan_type)
 
         if ctype in (
@@ -603,7 +605,9 @@ class Storage:
             drow["last_message_id"] = await self.chan_last_message_str(channel_id)
             return drow
 
-        return None
+        raise RuntimeError(
+            f"Data Inconsistency: Channel type {ctype} is not properly handled"
+        )
 
     async def get_channel_ids(self, guild_id: int) -> List[int]:
         """Get all channel IDs in a guild."""
