@@ -150,8 +150,6 @@ async def send_sys_message(
 
     Parameters
     ----------
-    app
-        The app instance.
     channel_id
         The channel ID to send the system message to.
     m_type
