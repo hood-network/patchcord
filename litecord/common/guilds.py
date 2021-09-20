@@ -23,8 +23,9 @@ from quart import current_app as app
 
 from ..permissions import get_role_perms, get_permissions
 from ..utils import dict_get, maybe_lazy_guild_dispatch
-from ..enums import ChannelType
+from ..enums import ChannelType, MessageType
 from litecord.pubsub.member import dispatch_member
+from litecord.system_messages import send_sys_message
 
 log = Logger(__name__)
 
@@ -323,7 +324,17 @@ async def add_member(guild_id: int, user_id: int, *, basic=False):
     if basic:
         return
 
-    # TODO: system message for member join
+    system_channel_id = await app.db.fetchval(
+        """
+        SELECT system_channel_id FROM guilds
+        WHERE id = $1
+        """,
+        guild_id,
+    )
+    if system_channel_id:
+        await send_sys_message(
+            system_channel_id, MessageType.GUILD_MEMBER_JOIN, user_id
+        )
 
     await app.db.execute(
         """
