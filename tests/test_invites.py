@@ -23,42 +23,42 @@ from litecord.enums import MessageType
 pytestmark = pytest.mark.asyncio
 
 
-async def test_invite_create(test_cli_user):
-    """ "Test the creation of an invite."""
-    guild = await test_cli_user.create_guild()
-    channel = guild.channels[0]
-
+async def _create_invite(test_cli_user, guild, channel):
     resp = await test_cli_user.post(
         f'/api/v9/channels/{channel["id"]}/invites', json={}
     )
-
     assert resp.status_code == 200
     rjson = await resp.json
+
     assert rjson["channel"]["id"] == channel["id"]
     assert rjson["guild"]["id"] == str(guild.id)
+    return rjson
+
+
+async def _join_invite(test_cli_user, invite, user):
+    resp = await test_cli_user.post(
+        f'/api/v9/invites/{invite["code"]}', headers={"Authorization": user.token}
+    )
+    assert resp.status_code == 200
+
+
+async def test_invite_create(test_cli_user):
+    """Test the creation of an invite."""
+    guild = await test_cli_user.create_guild()
+    channel = guild.channels[0]
+
+    await _create_invite(test_cli_user, guild, channel)
 
 
 async def test_invite_join(test_cli_user):
-    """ "Test the ability to create & join an invite."""
+    """Test the ability to create & join an invite."""
     guild = await test_cli_user.create_guild()
     channel = guild.channels[0]
 
-    resp = await test_cli_user.post(
-        f'/api/v9/channels/{channel["id"]}/invites', json={}
-    )
-
-    assert resp.status_code == 200
-    rjson = await resp.json
-    invite_code = rjson["code"]
-    assert rjson["channel"]["id"] == channel["id"]
-    assert rjson["guild"]["id"] == str(guild.id)
-
+    invite = await _create_invite(test_cli_user, guild, channel)
     user = await test_cli_user.create_user()
 
-    resp = await test_cli_user.post(
-        f"/api/v9/invites/{invite_code}", headers={"Authorization": user.token}
-    )
-    assert resp.status_code == 200
+    await _join_invite(test_cli_user, invite, user)
 
 
 async def test_invite_system_message(test_cli_user):
@@ -79,22 +79,10 @@ async def test_invite_system_message(test_cli_user):
     assert resp.status_code == 200
     rjson = await resp.json
 
-    assert rjson["system_channel_id"] == channel_id
-
-    resp = await test_cli_user.post(f"/api/v9/channels/{channel_id}/invites", json={})
-    assert resp.status_code == 200
-    rjson = await resp.json
-
-    invite_code = rjson["code"]
-    assert rjson["channel"]["id"] == channel_id
-    assert rjson["guild"]["id"] == str(guild.id)
-
+    invite = await _create_invite(test_cli_user, guild, channel)
     user = await test_cli_user.create_user()
 
-    resp = await test_cli_user.post(
-        f"/api/v9/invites/{invite_code}", headers={"Authorization": user.token}
-    )
-    assert resp.status_code == 200
+    await _join_invite(test_cli_user, invite, user)
 
     resp = await test_cli_user.get(f"/api/v9/channels/{channel_id}/messages")
     assert resp.status_code == 200
