@@ -46,6 +46,26 @@ async def _handle_pin_msg(channel_id, _pinned_id, author_id):
     return new_id
 
 
+async def _handle_guild_join_msg(channel_id, user_id):
+    """Handle the system join message."""
+    new_id = app.winter_factory.snowflake()
+
+    await app.db.execute(
+        """
+        INSERT INTO messages
+            (id, channel_id, guild_id, author_id, content, message_type)
+        VALUES
+            ($1, $2, NULL, $3, '', $4)
+        """,
+        new_id,
+        channel_id,
+        user_id,
+        MessageType.GUILD_MEMBER_JOIN.value,
+    )
+
+    return new_id
+
+
 # TODO: decrease repetition between add and remove handlers
 async def _handle_recp_add(channel_id, author_id, peer_id):
     new_id = app.winter_factory.snowflake()
@@ -163,6 +183,7 @@ async def send_sys_message(
     try:
         handler = {
             MessageType.CHANNEL_PINNED_MESSAGE: _handle_pin_msg,
+            MessageType.GUILD_MEMBER_JOIN: _handle_guild_join_msg,
             # gdm specific
             MessageType.RECIPIENT_ADD: _handle_recp_add,
             MessageType.RECIPIENT_REMOVE: _handle_recp_rmv,
