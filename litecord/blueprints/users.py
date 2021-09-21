@@ -417,7 +417,7 @@ async def get_profile(peer_id: int):
         "premium_since": peer_premium,
     }
 
-    if request.args.get("with_mutual_guilds") in (None, True):
+    if request.args.get("with_mutual_guilds", type=bool) in (None, True):
         result["mutual_guilds"] = await map_guild_ids_to_mutual_list(
             mutual_guilds, peer_id
         )
