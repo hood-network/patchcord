@@ -25,7 +25,7 @@ pytestmark = pytest.mark.asyncio
 
 async def _create_invite(test_cli_user, guild, channel):
     resp = await test_cli_user.post(
-        f'/api/v9/channels/{channel["id"]}/invites', json={}
+        f'/api/v9/channels/{channel["id"]}/invites', json={"max_uses": 100}
     )
     assert resp.status_code == 200
     rjson = await resp.json
@@ -94,3 +94,59 @@ async def test_invite_system_message(test_cli_user):
     assert system_message["type"] == MessageType.GUILD_MEMBER_JOIN.value
     assert system_message["content"] == ""
     assert system_message["author"]["id"] == str(user.id)
+
+
+async def test_leave_join_invite_cycle(test_cli_user):
+    """Assert repeatedly joining and leaving a guild works"""
+    guild = await test_cli_user.create_guild()
+    channel = guild.channels[0]
+    invite = await _create_invite(test_cli_user, guild, channel)
+    user = await test_cli_user.create_user()
+
+    # pass 1
+    await _join_invite(test_cli_user, invite, user)
+    resp = await test_cli_user.get("/api/v6/users/@me/guilds", as_user=user)
+    assert resp.status_code == 200
+    rjson = await resp.json
+    assert any(incoming_guild["id"] == str(guild.id) for incoming_guild in rjson)
+    resp = await test_cli_user.delete(
+        f"/api/v6/users/@me/guilds/{guild.id}", as_user=user
+    )
+    assert resp.status_code == 204
+    resp = await test_cli_user.get("/api/v6/users/@me/guilds", as_user=user)
+    assert resp.status_code == 200
+    rjson = await resp.json
+    for incoming_guild in rjson:
+        assert incoming_guild["id"] != str(guild.id)
+
+    # pass 2
+    await _join_invite(test_cli_user, invite, user)
+    resp = await test_cli_user.get("/api/v6/users/@me/guilds", as_user=user)
+    assert resp.status_code == 200
+    rjson = await resp.json
+    assert any(incoming_guild["id"] == str(guild.id) for incoming_guild in rjson)
+    resp = await test_cli_user.delete(
+        f"/api/v6/users/@me/guilds/{guild.id}", as_user=user
+    )
+    assert resp.status_code == 204
+    resp = await test_cli_user.get("/api/v6/users/@me/guilds", as_user=user)
+    assert resp.status_code == 200
+    rjson = await resp.json
+    for incoming_guild in rjson:
+        assert incoming_guild["id"] != str(guild.id)
+
+    # pass 3
+    await _join_invite(test_cli_user, invite, user)
+    resp = await test_cli_user.get("/api/v6/users/@me/guilds", as_user=user)
+    assert resp.status_code == 200
+    rjson = await resp.json
+    assert any(incoming_guild["id"] == str(guild.id) for incoming_guild in rjson)
+    resp = await test_cli_user.delete(
+        f"/api/v6/users/@me/guilds/{guild.id}", as_user=user
+    )
+    assert resp.status_code == 204
+    resp = await test_cli_user.get("/api/v6/users/@me/guilds", as_user=user)
+    assert resp.status_code == 200
+    rjson = await resp.json
+    for incoming_guild in rjson:
+        assert incoming_guild["id"] != str(guild.id)

@@ -423,6 +423,8 @@ class TestClient:
         headers = kwargs.get("headers", {})
         if "authorization" not in headers:
             headers["authorization"] = self.user["token"]
+        if "as_user" in kwargs:
+            headers["authorization"] = kwargs.pop("as_user").token
         return headers
 
     async def get(self, *args, **kwargs):
