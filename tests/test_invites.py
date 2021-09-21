@@ -36,9 +36,7 @@ async def _create_invite(test_cli_user, guild, channel):
 
 
 async def _join_invite(test_cli_user, invite, user):
-    resp = await test_cli_user.post(
-        f'/api/v9/invites/{invite["code"]}', headers={"Authorization": user.token}
-    )
+    resp = await test_cli_user.post(f'/api/v9/invites/{invite["code"]}', as_user=user)
     assert resp.status_code == 200
 
 
