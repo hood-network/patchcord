@@ -67,7 +67,7 @@ async def remove_member(guild_id: int, member_id: int):
         for state in states:
             await app.dispatcher.channel.unsub(channel_id, state.session_id)
 
-    await app.lazy_guild.remove_member(guild_id, user["id"])
+    await app.lazy_guild.remove_member(guild_id, int(user["id"]))
     await app.dispatcher.guild.dispatch(
         guild_id,
         (

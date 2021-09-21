@@ -958,7 +958,7 @@ class GuildMemberList:
         old_idx = self._get_item_index(user_id)
 
         # for now, remove any of the users' subscribed states
-        state_keys = self.state.keys()
+        state_keys = tuple(self.state.keys())
 
         for session_id in state_keys:
             state = self._get_state(session_id)
