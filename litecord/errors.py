@@ -71,6 +71,7 @@ ERR_MSG_MAP = {
     50035: "Invalid Form Body",
     50036: "An invite was accepted to a guild the application's bot is not in",
     50041: "Invalid API version",
+    50055: "Invalid guild",
     90001: "Reaction blocked",
 }
 

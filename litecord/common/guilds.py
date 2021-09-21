@@ -24,6 +24,7 @@ from quart import current_app as app
 from ..permissions import get_role_perms, get_permissions
 from ..utils import dict_get, maybe_lazy_guild_dispatch
 from ..enums import ChannelType, MessageType
+from ..errors import BadRequest
 from litecord.pubsub.member import dispatch_member
 from litecord.system_messages import send_sys_message
 
@@ -33,6 +34,16 @@ log = Logger(__name__)
 async def remove_member(guild_id: int, member_id: int):
     """Do common tasks related to deleting a member from the guild,
     such as dispatching GUILD_DELETE and GUILD_MEMBER_REMOVE."""
+    owner_id = await app.db.fetchval(
+        """
+        SELECT owner_id
+        FROM guilds
+        WHERE id = $1
+        """,
+        guild_id,
+    )
+    if owner_id == member_id:
+        raise BadRequest(50055)
 
     await app.db.execute(
         """
