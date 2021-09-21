@@ -23,9 +23,9 @@ from litecord.enums import MessageType
 pytestmark = pytest.mark.asyncio
 
 
-async def _create_invite(test_cli_user, guild, channel):
+async def _create_invite(test_cli_user, guild, channel, max_uses=100):
     resp = await test_cli_user.post(
-        f'/api/v9/channels/{channel["id"]}/invites', json={"max_uses": 100}
+        f'/api/v9/channels/{channel["id"]}/invites', json={"max_uses": max_uses}
     )
     assert resp.status_code == 200
     rjson = await resp.json
@@ -122,3 +122,22 @@ async def test_leave_join_invite_cycle(test_cli_user):
 
         for incoming_guild in rjson:
             assert incoming_guild["id"] != str(guild.id)
+
+
+async def test_invite_max_uses(test_cli_user):
+    """Assert max_uses in invites is respected"""
+    guild = await test_cli_user.create_guild()
+    channel = guild.channels[0]
+    invite = await _create_invite(test_cli_user, guild, channel, 1)
+    user = await test_cli_user.create_user()
+
+    # join and leave
+    await _join_invite(test_cli_user, invite, user)
+
+    resp = await test_cli_user.delete(
+        f"/api/v6/users/@me/guilds/{guild.id}", as_user=user
+    )
+    assert resp.status_code == 204
+
+    resp = await test_cli_user.post(f'/api/v9/invites/{invite["code"]}', as_user=user)
+    assert resp.status_code == 403
