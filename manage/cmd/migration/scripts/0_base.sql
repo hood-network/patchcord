@@ -414,6 +414,9 @@ CREATE TABLE IF NOT EXISTS guild_voice_channels (
 
 
 CREATE TABLE IF NOT EXISTS guild_settings (
+    -- NOTE: migration 13 fixes table constraints to point to
+    -- members instead of users this prevents descynrhonization
+    -- on a member leave/kick/ban
     user_id bigint REFERENCES users (id) ON DELETE CASCADE,
     guild_id bigint REFERENCES guilds (id) ON DELETE CASCADE,
 
@@ -578,6 +581,9 @@ CREATE TABLE IF NOT EXISTS channel_overwrites (
     -- makes us able to remove the channel overwrites of
     -- a role when its deleted (same for users, etc).
     target_role bigint REFERENCES roles (id) ON DELETE CASCADE,
+    -- NOTE: migration 13 fixes table constraints to point to
+    -- members instead of users this prevents descynrhonization
+    -- on a member leave/kick/ban
     target_user bigint REFERENCES users (id) ON DELETE CASCADE,
 
     -- since those are permission bit sets
@@ -605,6 +611,9 @@ CREATE TABLE IF NOT EXISTS guild_whitelists (
 
 /* Represents a role a member has. */
 CREATE TABLE IF NOT EXISTS member_roles (
+    -- NOTE: migration 13 fixes table constraints to point to
+    -- members instead of users this prevents descynrhonization
+    -- on a member leave/kick/ban
     user_id bigint REFERENCES users (id) ON DELETE CASCADE,
     guild_id bigint REFERENCES guilds (id) ON DELETE CASCADE,
     role_id bigint REFERENCES roles (id) ON DELETE CASCADE,

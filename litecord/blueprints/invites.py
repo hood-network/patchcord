@@ -109,6 +109,8 @@ async def _inv_check_age(inv: dict):
     if inv["max_age"] == 0:
         return
 
+    # TODO: also verify when max_uses is 0
+
     now = datetime.datetime.utcnow()
     delta_sec = (now - inv["created_at"]).total_seconds()
 
