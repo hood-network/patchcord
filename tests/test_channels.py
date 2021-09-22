@@ -33,7 +33,7 @@ async def test_channel_create(test_cli_user):
             "name": "hello-world",
         },
     )
-    assert resp.status_code == 200
+    assert resp.status_code == 201
     rjson = await resp.json
     channel_id: str = rjson["id"]
     assert rjson["name"] == "hello-world"

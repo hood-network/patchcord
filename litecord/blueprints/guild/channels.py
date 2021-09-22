@@ -62,7 +62,7 @@ async def create_channel(guild_id):
     chan = await app.storage.get_channel(new_channel_id)
     await app.dispatcher.guild.dispatch(guild_id, ("CHANNEL_CREATE", chan))
 
-    return jsonify(chan)
+    return jsonify(chan), 201
 
 
 async def _chan_update_dispatch(guild_id: int, channel_id: int):
