@@ -23,7 +23,7 @@ from litecord.enums import MessageType
 pytestmark = pytest.mark.asyncio
 
 
-async def _create_invite(test_cli_user, guild, channel, max_uses=100):
+async def _create_invite(test_cli_user, guild, channel, max_uses=0):
     resp = await test_cli_user.post(
         f'/api/v9/channels/{channel["id"]}/invites', json={"max_uses": max_uses}
     )
