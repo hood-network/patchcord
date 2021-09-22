@@ -57,7 +57,7 @@ async def remove_member(guild_id: int, member_id: int):
     await dispatch_member(
         guild_id,
         member_id,
-        ("GUILD_DELETE", {"id": str(guild_id), "unavailable": False}),
+        ("GUILD_DELETE", {"guild_id": str(guild_id), "unavailable": False}),
     )
 
     user = await app.storage.get_user(member_id)
