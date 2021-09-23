@@ -1224,6 +1224,20 @@ class GatewayWebsocket:
         # make shard query
         for chan_id, ranges in data.get("channels", {}).items():
             chan_id = int(chan_id)
+
+            # we need to check if the channel exists
+            # or else bad things can happen
+            chan_type = await app.db.fetchval(
+                """
+                SELECT channel_type
+                FROM channels
+                WHERE id = $1
+                """,
+                chan_id,
+            )
+            if chan_type is None:
+                continue
+
             member_list = await app.lazy_guild.get_gml(chan_id)
 
             perms = await get_permissions(
