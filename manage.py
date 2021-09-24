@@ -2,7 +2,7 @@
 """
 
 Litecord
-Copyright (C) 2018-2019  Luna Mendes
+Copyright (C) 2018-2021  Luna Mendes and Litecord Contributors
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
