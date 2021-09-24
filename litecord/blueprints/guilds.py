@@ -528,3 +528,10 @@ async def change_vanity_url(guild_id: int):
     )
 
     return jsonify(await app.storage.get_invite(inv_code))
+
+
+@bp.route("/<int:guild_id>/templates", methods=["GET"])
+async def get_guild_templates(guild_id: int):
+    """This is currently just a stub"""
+
+    return jsonify([])
