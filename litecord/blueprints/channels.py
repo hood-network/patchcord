@@ -91,7 +91,7 @@ async def _update_guild_chan_text(guild_id: int, channel_id: int):
 
     # at least one of the fields were updated,
     # dispatch GUILD_UPDATE
-    guild = await app.storage.get_guild(guild_id)
+    guild = await app.storage.get_guild_full(guild_id)
     await app.dispatcher.guild.dispatch(guild_id, ("GUILD_UPDATE", guild))
 
 
@@ -102,7 +102,7 @@ async def _update_guild_chan_voice(guild_id: int, channel_id: int):
     if res == "UPDATE 0":
         return
 
-    guild = await app.storage.get_guild(guild_id)
+    guild = await app.storage.get_guild_full(guild_id)
     await app.dispatcher.dispatch(guild_id, ("GUILD_UPDATE", guild))
 
 
