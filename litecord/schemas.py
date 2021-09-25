@@ -450,8 +450,8 @@ MESSAGE_CREATE = {
         "required": False,
         "nullable": True,
         "schema": {
-            "parse": {"type": "list", "required": True},
-            "replied_user": {"type": "boolean", "required": True},
+            "parse": {"type": "list", "required": False},
+            "replied_user": {"type": "boolean", "required": False},
         },
     },
 }
