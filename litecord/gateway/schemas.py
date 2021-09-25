@@ -123,6 +123,8 @@ IDENTIFY_SCHEMA = {
                     },
                 },
                 "guild_subscriptions": {"type": "boolean", "required": False},
+                # this is just to make bot libraries happy
+                "v": {"type": "number", "required": False},
             },
         }
     },
