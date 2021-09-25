@@ -122,6 +122,7 @@ IDENTIFY_SCHEMA = {
                         },
                     },
                 },
+                "guild_subscriptions": {"type": "boolean", "required": False},
             },
         }
     },
