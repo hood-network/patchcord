@@ -18,6 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import asyncio
+import ssl
 import sys
 
 import asyncpg
@@ -367,7 +368,15 @@ def start_websocket(host, port, ws_handler) -> asyncio.Future:
         # so we can pass quart's app object.
         await ws_handler(app, ws, url)
 
-    return websockets.serve(_wrapper, host, port)
+    kwargs = {"ws_handler": _wrapper, "host": host, "port": port}
+    tls_cert_path = getattr(app.config, "WEBSOCKET_TLS_CERT_PATH", None)
+    tls_key_path = getattr(app.config, "WEBSOCKET_TLS_CERT_PATH", None)
+    if tls_cert_path:
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        context.load_cert_chain(tls_cert_path, tls_key_path)
+        kwargs["ssl"] = context
+
+    return websockets.serve(**kwargs)
 
 
 @app.before_serving

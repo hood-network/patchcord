@@ -48,6 +48,11 @@ class Config:
     # e.g 'gateway.example.com' for reverse proxies.
     WEBSOCKET_URL = "localhost:5001"
 
+    # Set these to file paths if you want to enable raw TLS support on
+    # the websocket (without NGINX)
+    WEBSOCKET_TLS_CERT_PATH = None
+    WEBSOCKET_TLS_KEY_PATH = None
+
     #: Where to host the websocket?
     #  (a local address the server will bind to)
     WS_HOST = "0.0.0.0"
