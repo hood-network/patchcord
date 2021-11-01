@@ -120,6 +120,7 @@ IDENTIFY_SCHEMA = {
                             "type": "number",
                             "required": False,
                         },
+                        "user_settings_version": {"type": "number", "required": False},
                     },
                 },
                 "guild_subscriptions": {"type": "boolean", "required": False},
