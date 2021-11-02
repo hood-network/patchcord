@@ -49,6 +49,28 @@ async def _close(conn):
     await conn.close(1000, "test end")
 
 
+async def extract_and_verify_ready(conn):
+    ready = await _json(conn)
+    assert ready["op"] == OP.DISPATCH
+    assert ready["t"] == "READY"
+
+    data = ready["d"]
+
+    # NOTE: change if default gateway changes
+    assert data["v"] == 6
+
+    # make sure other fields exist and are with
+    # proper types.
+    assert isinstance(data["user"], dict)
+    assert isinstance(data["private_channels"], list)
+    assert isinstance(data["guilds"], list)
+    assert isinstance(data["session_id"], str)
+    assert isinstance(data["_trace"], list)
+
+    if "shard" in data:
+        assert isinstance(data["shard"], list)
+
+
 async def get_gw(test_cli, version: int) -> str:
     """Get the Gateway URL."""
     gw_resp = await test_cli.get(f"/api/v{version}/gateway")
@@ -136,27 +158,8 @@ async def test_ready_fields(test_cli_user):
     )
 
     try:
-        ready = await _json(conn)
-        assert isinstance(ready, dict)
-        assert ready["op"] == OP.DISPATCH
-        assert ready["t"] == "READY"
+        await extract_and_verify_ready(conn)
 
-        data = ready["d"]
-        assert isinstance(data, dict)
-
-        # NOTE: change if default gateway changes
-        assert data["v"] == 6
-
-        # make sure other fields exist and are with
-        # proper types.
-        assert isinstance(data["user"], dict)
-        assert isinstance(data["private_channels"], list)
-        assert isinstance(data["guilds"], list)
-        assert isinstance(data["session_id"], str)
-        assert isinstance(data["_trace"], list)
-
-        if "shard" in data:
-            assert isinstance(data["shard"], list)
     finally:
         await _close(conn)
 
@@ -301,3 +304,17 @@ async def test_resume(test_cli_user):
     assert isinstance(msg, dict)
     assert isinstance(msg["op"], int)
     assert msg["op"] == OP.INVALID_SESSION
+
+
+@pytest.mark.asyncio
+async def test_ready_bot(test_cli_bot):
+    conn = await gw_start(test_cli_bot.cli)
+    await _json(conn)  # ignore hello
+    await _json_send(
+        conn, {"op": OP.IDENTIFY, "d": {"token": test_cli_bot.user["token"]}}
+    )
+
+    try:
+        await extract_and_verify_ready(conn)
+    finally:
+        await _close(conn)

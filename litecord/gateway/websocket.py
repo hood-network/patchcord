@@ -91,7 +91,8 @@ def _complete_users_list(user_id: str, base_ready, user_ready, ws_properties) ->
         for recipient in private_channel["recipients"]:
             users_to_send[recipient["id"]] = recipient
 
-    for relationship in user_ready["relationships"]:
+    user_relationships = user_ready.get("relationships", [])
+    for relationship in user_relationships:
         relationship_user = relationship["user"]
         users_to_send[relationship_user["id"]] = relationship_user
 
@@ -101,7 +102,7 @@ def _complete_users_list(user_id: str, base_ready, user_ready, ws_properties) ->
     # relationship object structure changed in v9
     if ws_properties.version == 9:
         ready["relationships"] = []
-        for relationship in user_ready["relationships"]:
+        for relationship in user_relationships:
             ready["relationships"].append(
                 {
                     "user_id": relationship["user"]["id"],
@@ -138,7 +139,9 @@ async def _compute_supplemental(app, base_ready, user_ready, users_to_send: dict
         "guilds": [],
     }
 
-    for relationship in user_ready["relationships"]:
+    user_relationships = user_ready.get("relationships", [])
+
+    for relationship in user_relationships:
         if relationship["type"] != RelationshipType.FRIEND.value:
             continue
 

@@ -143,3 +143,25 @@ async def test_cli_staff(test_cli):
     yield client
     await client.cleanup()
     await _user_fixture_teardown(test_cli.app, test_user)
+
+
+@pytest.fixture
+async def test_cli_bot(test_cli):
+    """Yield a TestClient with a bot user."""
+    # do not create a new test user to prevent race conditions caused
+    # by a test wanting both fixtures
+    app = test_cli.app
+    test_user = await _user_fixture_setup(app)
+    user_id = test_user["id"]
+
+    assert await app.db.fetchval(
+        """
+        UPDATE users SET bot = true WHERE id = $1 RETURNING bot
+        """,
+        user_id,
+    )
+
+    client = TestClient(test_cli, test_user)
+    yield client
+    await client.cleanup()
+    await _user_fixture_teardown(test_cli.app, test_user)
