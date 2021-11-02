@@ -107,6 +107,12 @@ from litecord.gateway.gateway import websocket_handler
 
 from litecord.utils import LitecordJSONEncoder
 
+# == HACKY PATCH ==
+# this MUST be removed once Hypercorn gets py3.10 support.
+from asyncio import start_server as _start_server
+
+asyncio.start_server = lambda *args, loop=None, **kwargs: _start_server(*args, **kwargs)
+
 # setup logbook
 handler = StreamHandler(sys.stdout, level=logbook.INFO)
 handler.push_application()
