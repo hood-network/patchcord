@@ -268,16 +268,13 @@ class GatewayWebsocket:
         """Split data in chunk_size-big chunks and send them
         over the websocket."""
         log.debug(
-            "zlib-stream: chunking {} bytes into {}-byte chunks", len(data), chunk_size
+            "zlib-stream: sending {} bytes into {}-byte chunks", len(data), chunk_size
         )
 
-        total_chunks = 0
-        for chunk in yield_chunks(data, chunk_size):
-            total_chunks += 1
-            log.debug("zlib-stream: chunk {}", total_chunks)
-            await self.ws.send(chunk)
-
-        log.debug("zlib-stream: sent {} chunks", total_chunks)
+        # we send the entire iterator as per websockets documentation
+        # to pretent setting FIN when we don't want to
+        # see https://gitlab.com/litecord/litecord/-/issues/139
+        await self.ws.send(yield_chunks(data, chunk_size))
 
     async def _zlib_stream_send(self, encoded):
         """Sending a single payload across multiple compressed
@@ -314,7 +311,7 @@ class GatewayWebsocket:
 
         #  clients should handle chunked sends (via detection
         #  of the ZLIB_SUFFIX suffix appended to data2), so
-        #  this shouldn't being problems.
+        #  this shouldn't cause problems.
 
         # TODO: the chunks are 1024 bytes, 1KB, is this good enough?
         await self._chunked_send(data1, 1024)
