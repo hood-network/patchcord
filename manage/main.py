@@ -93,7 +93,7 @@ def main(config):
     async def _ctx_wrapper(fake_app, args):
         app = fake_app.make_app()
         async with app.app_context():
-            await args.func(fake_app, args)
+            return await args.func(fake_app, args)
 
     try:
         if len(argv) < 2:
@@ -107,8 +107,9 @@ def main(config):
             init_app_managers(app, init_voice=False)
 
         args = parser.parse_args()
-        loop.run_until_complete(_ctx_wrapper(app, args))
+        return loop.run_until_complete(_ctx_wrapper(app, args))
     except Exception:
         log.exception("error while running command")
+        return 1
     finally:
         loop.run_until_complete(app.db.close())
