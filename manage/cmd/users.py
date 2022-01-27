@@ -94,6 +94,23 @@ async def adduser(ctx, args):
     print(f'\tdiscrim: {user["discriminator"]}')
 
 
+async def addbot(ctx, args):
+    uid, _ = await create_user(args.username, args.email, args.password)
+
+    await ctx.db.execute(
+        """
+        UPDATE users
+        SET bot=True
+        WHERE id = $1
+        """,
+        uid,
+    )
+
+    args.user_id = uid
+
+    return await generate_bot_token(ctx, args)
+
+
 async def set_flag(ctx, args):
     """Setting a 'staff' flag gives the user access to the Admin API.
     Beware of that.
@@ -138,7 +155,8 @@ async def generate_bot_token(ctx, args):
     )
 
     if not password_hash:
-        return print("cannot find a bot with specified id")
+        print("cannot find a bot with specified id")
+        return 1
 
     print(make_token(args.user_id, password_hash))
 
@@ -197,6 +215,14 @@ def setup(subparser):
     setup_test_parser.add_argument("password", help="password of the user")
 
     setup_test_parser.set_defaults(func=adduser)
+
+    addbot_parser = subparser.add_parser("addbot", help="create a bot")
+
+    addbot_parser.add_argument("username", help="username of the bot")
+    addbot_parser.add_argument("email", help="email of the bot")
+    addbot_parser.add_argument("password", help="password of the bot")
+
+    addbot_parser.set_defaults(func=addbot)
 
     setflag_parser = subparser.add_parser(
         "setflag", help="set a flag for a user", description=set_flag.__doc__
