@@ -283,39 +283,19 @@ class GatewayWebsocket:
         # compress and flush (for the rest of compressed data + ZLIB_SUFFIX)
         data1 = self.ws_properties.zctx.compress(encoded)
         data2 = self.ws_properties.zctx.flush(zlib.Z_FULL_FLUSH)
+        data = data1 + data2
 
         log.debug(
-            "zlib-stream: length {} -> compressed ({} + {})",
+            "zlib-stream: length {} -> compressed ({})",
             len(encoded),
-            len(data1),
-            len(data2),
+            len(data),
         )
 
-        if not data1:
-            # if data1 is nothing, that might cause problems
-            # to clients, since they'll receive an empty message
-            data1 = bytes([data2[0]])
-            data2 = data2[1:]
-
-            log.debug(
-                "zlib-stream: len(data1) == 0, remaking as ({} + {})",
-                len(data1),
-                len(data2),
-            )
-
-        # NOTE: the old approach was ws.send(data1 + data2).
-        #  I changed this to a chunked send of data1 and data2
-        #  because that can bring some problems to the network
-        #  since we can be potentially sending a really big packet
-        #  as a single message.
-
-        #  clients should handle chunked sends (via detection
-        #  of the ZLIB_SUFFIX suffix appended to data2), so
-        #  this shouldn't cause problems.
+        # since we always chunk the entire compressed message, we shouldn't
+        # worry about sending big frames to the clients
 
         # TODO: the chunks are 1024 bytes, 1KB, is this good enough?
-        await self._chunked_send(data1, 1024)
-        await self._chunked_send(data2, 1024)
+        await self._chunked_send(data, 1024)
 
     async def _zstd_stream_send(self, encoded):
         compressor = self.ws_properties.zsctx.stream_writer(
