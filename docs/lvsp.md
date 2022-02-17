@@ -8,7 +8,9 @@ LVSP runs over a *long-lived* websocket with TLS. The encoding is JSON.
 
 ## OP code table
 
-"client" is litecord. "server" is the voice server.
+"client" is litecord. "server" is the voice server. 
+
+note: only the opcode is sent in a message, so the names are determined by the implementation of LVSP.
 
 | opcode | name | sent by |
 | --: | :-- | :-- |
@@ -119,15 +121,17 @@ are laid on.
 
 ### InfoType Enum
 
+note: this enum is only ever identified by its opcode, so the `name` field can differ from the values in this enum without error. 
+
 | value | name | description |
 | --: | :-- | :-- |
 | 0 | CHANNEL\_REQ | channel assignment request |
 | 1 | CHANNEL\_ASSIGN | channel assignment reply |
 | 2 | CHANNEL\_DESTROY | channel destroy |
-| 3 | VST\_CREATE | voice state create request |
-| 4 | VST\_DONE | voice state created |
-| 5 | VST\_UPDATE | voice state update |
-| 6 | VST\_LEAVE | voice state leave |
+| 3 | VOICE\_STATE\_CREATE | voice state create request |
+| 4 | VOICE\_STATE\_DONE | voice state created |
+| 5 | VOICE\_STATE\_DESTROY | voice state destroy |
+| 6 | VOICE\_STATE\_UPDATE | voice state update |
 
 ### CHANNEL\_REQ
 
@@ -158,7 +162,7 @@ a channel being deleted, or all members in it leaving.
 
 Same data as CHANNEL\_ASSIGN, but without `token`.
 
-### VST\_CREATE
+### VOICE\_STATE\_CREATE
 
 Sent by the client to create a voice state.
 
@@ -168,20 +172,24 @@ Sent by the client to create a voice state.
 | channel\_id | snowflake | channel id |
 | guild\_id | Optional[snowflake] | guild id. not provided if dm / group dm |
 
-### VST\_DONE
+### VOICE\_STATE\_DONE
 
-Sent by the server to indicate the success of a VST\_CREATE.
+Sent by the server to indicate the success of a VOICE\_STATE\_CREATE.
 
-Has the same fields as VST\_CREATE, but with extras:
+Has the same fields as VOICE\_STATE\_CREATE, but with extras:
 
 | field | type | description |
 | --: | :-- | :-- |
 | session\_id | string | session id for the voice state |
 
-### VST\_DESTROY
+### VOICE\_STATE\_DESTROY
 
 Sent by the client when a user is leaving a channel OR moving between channels
 in a guild. More on state transitions later on.
+
+### VOICE\_STATE\_UPDATE
+
+Sent to update an existing voice state. Potentially unused.
 
 | field | type | description |
 | --: | :-- | :-- |
@@ -195,11 +203,11 @@ Since the channel is unitialized, both logic on initialization AND
 user join is here.
 
  - Client will send a CHANNEL\_REQ.
- - Client MAY send a VST\_CREATE right after as well.
+ - Client MAY send a VOICE\_STATE\_CREATE right after as well.
  - The Server MUST process CHANNEL\_REQ first, so the Server can keep
     a lock on channel operations while it is initialized.
  - Reply with CHANNEL\_ASSIGN once initialization is done.
- - Process VST\_CREATE
+ - Process VOICE\_STATE\_CREATE
 
 ### Updating a voice channel
 
@@ -214,15 +222,15 @@ user join is here.
 
 ### User joining an (initialized) voice channel
 
- - Client sends VST\_CREATE
- - Server sends VST\_DONE
+ - Client sends VOICE\_STATE\_CREATE
+ - Server sends VOICE\_STATE\_DONE
 
 ### User leaves a channel
 
- - Client sends VST\_DESTROY with the old fields
+ - Client sends VOICE\_STATE\_DESTROY with the old fields
 
 ### User moves a channel
 
- - Client sends VST\_DESTROY with the old fields
- - Client sends VST\_CREATE with the new fields
- - Server sends VST\_DONE
+ - Client sends VOICE\_STATE\_DESTROY with the old fields
+ - Client sends VOICE\_STATE\_CREATE with the new fields
+ - Server sends VOICE\_STATE\_DONE
