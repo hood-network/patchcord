@@ -103,17 +103,15 @@ class LVSPConnection:
         """Handle HELLO message."""
         data = msg["d"]
 
-        nonce = data['nonce']
-
         self._hb_interval = data["heartbeat_interval"]
 
-        # actually do this
-        shared_secret = "deez nutz"
-        deez = hmac.new(shared_secret.encode(), nonce.encode(), hashlib.sha256).hexdigest()
+        token = hmac.new(
+            self.app.config.get("LVSP_SECRET").encode(),
+            data["nonce"].encode(),
+            hashlib.sha256,
+        ).hexdigest()
 
-        await self.send_op(OP.identify, {
-            "token": deez
-        })
+        await self.send_op(OP.identify, {"token": token})
 
     async def _update_health(self, new_health: float):
         """Update the health value of a given voice server."""
