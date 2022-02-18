@@ -65,6 +65,9 @@ class Config:
 
     #: Postgres credentials
     POSTGRES = {}
+    
+    #: Shared secret for LVSP
+    LVSP_SECRET = ""
 
 
 class Development(Config):
