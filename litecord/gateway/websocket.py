@@ -887,6 +887,9 @@ class GatewayWebsocket:
         # they CAN NOT enter two channels in a single guild.
 
         # this state id format takes care of that.
+        #
+        # TODO voice_key should have a type as a 0th element to prevent
+        # code from having to call get_guild(id2).
         voice_key = (self.state.user_id, state_id2)
         voice_state = await self.app.voice.get_state(voice_key)
 
