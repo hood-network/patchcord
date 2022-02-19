@@ -904,6 +904,10 @@ class GatewayWebsocket:
         if same_guild and not same_channel:
             return await self.app.voice.move_state(voice_state, channel_id)
 
+        # TODO: this is an edge case. we're trying to move guilds in
+        # a single message, perhaps?
+        log.warning("vsu payload does not appear logical")
+
     async def _handle_5(self, payload: Dict[str, Any]):
         """Handle OP 5 Voice Server Ping.
 
