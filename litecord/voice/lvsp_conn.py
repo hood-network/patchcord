@@ -24,6 +24,9 @@ from typing import Dict
 import websockets
 from logbook import Logger
 
+import hmac
+import hashlib
+
 from litecord.voice.lvsp_opcodes import OPCodes as OP, InfoTable, InfoReverse
 
 log = Logger(__name__)
@@ -59,7 +62,7 @@ class LVSPConnection:
         """Receive a payload."""
         assert self.conn is not None
         msg = await self.conn.recv()
-        msg = json.dumps(msg)
+        msg = json.loads(msg)
         return msg
 
     async def send_op(self, opcode: int, data: dict):
@@ -100,10 +103,15 @@ class LVSPConnection:
         """Handle HELLO message."""
         data = msg["d"]
 
-        # nonce = data['nonce']
         self._hb_interval = data["heartbeat_interval"]
 
-        # TODO: send identify
+        token = hmac.new(
+            self.app.config.get("LVSP_SECRET").encode(),
+            data["nonce"].encode(),
+            hashlib.sha256,
+        ).hexdigest()
+
+        await self.send_op(OP.identify, {"token": token})
 
     async def _update_health(self, new_health: float):
         """Update the health value of a given voice server."""
@@ -112,7 +120,7 @@ class LVSPConnection:
         await self.app.db.execute(
             """
         UPDATE voice_servers
-        SET health = $1
+        SET last_health = $1
         WHERE hostname = $2
         """,
             new_health,
@@ -124,13 +132,17 @@ class LVSPConnection:
 
         We only start heartbeating after READY.
         """
-        await self._update_health(msg["health"])
+        data = msg["d"]
+
+        await self._update_health(data["health"])
         self._start_hb()
 
     async def _handle_5(self, msg):
         """Handle HEARTBEAT_ACK."""
         self._stop_hb()
-        await self._update_health(msg["health"])
+        data = msg["d"]
+
+        await self._update_health(data["health"])
         self._start_hb()
 
     async def _handle_6(self, msg):
