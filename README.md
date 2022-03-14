@@ -53,7 +53,7 @@ are not implemented, for example:
 
 - Threads
 - Channel Categories
-- API v9 (Right now, Litecord, in generla, assumes v9 is
+- API v9 (Right now, Litecord, in general, assumes v9 is
   just v6 to make clients work, new payload structure support is
   scattered throughout the codebase)
 
