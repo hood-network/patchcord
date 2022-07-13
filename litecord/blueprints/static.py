@@ -17,7 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from quart import Blueprint, current_app as app, render_template_string, render_template
+from quart import Blueprint, current_app as app, render_template
 from pathlib import Path
 import aiohttp
 import json
@@ -110,7 +110,7 @@ async def _load_build(hash: str = "latest"):
         else:
             return "Build not supported", 404
 
-        return render_template(file, **kwargs)
+        return await render_template(file, **kwargs)
 
 
 @bp.route("/")
