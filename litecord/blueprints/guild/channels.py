@@ -59,7 +59,7 @@ async def create_channel(guild_id):
     new_channel_id = app.winter_factory.snowflake()
     await create_guild_channel(guild_id, new_channel_id, channel_type, **j)
 
-    chan = await app.storage.get_channel(new_channel_id)
+    chan = await app.storage.get_channel(new_channel_id, request.discord_api_version)
     await app.dispatcher.guild.dispatch(guild_id, ("CHANNEL_CREATE", chan))
 
     return jsonify(chan), 201
@@ -68,7 +68,7 @@ async def create_channel(guild_id):
 async def _chan_update_dispatch(guild_id: int, channel_id: int):
     """Fetch new information about the channel and dispatch
     a single CHANNEL_UPDATE event to the guild."""
-    chan = await app.storage.get_channel(channel_id)
+    chan = await app.storage.get_channel(channel_id, request.discord_api_version)
     await app.dispatcher.guild.dispatch(guild_id, ("CHANNEL_UPDATE", chan))
 
 

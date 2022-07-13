@@ -48,13 +48,16 @@ async def get_dms():
 
 async def jsonify_dm(dm_id: int, user_id: int):
     dm_chan = await app.storage.get_dm(dm_id, user_id)
+    self_user_index = index_by_func(
+        lambda user: user["id"] == str(user_id), dm_chan["recipients"]
+    )
 
     if request.discord_api_version > 7:
-        self_user_index = index_by_func(
-            lambda user: user["id"] == str(user_id), dm_chan["recipients"]
-        )
         assert self_user_index is not None
         dm_chan["recipients"].pop(self_user_index)
+    else:
+        if self_user_index == 0:
+            dm_chan["recipients"].append(dm_chan["recipients"].pop(0))
 
     return jsonify(dm_chan)
 
@@ -121,7 +124,7 @@ async def _handle_dm(user_id: int, data: dict):
         j = validate(data, CREATE_DM_V9)
 
     recipients = j.get('recipient_ids', j['recipients'])
-    if len(recipients) < 1:
+    if len(recipients) > 1:
         channel_id = await gdm_create(user_id, int(recipients[0]))
         for recipient in recipients[1:]:
             await gdm_add_recipient(channel_id, int(recipient))
