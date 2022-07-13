@@ -39,9 +39,7 @@ async def static_pages(path):
 @bp.route("/assets/<asset>")
 async def proxy_asset(asset):
     """Proxy asset requests to Discord."""
-    async with app.a_session.get(
-        f"https://canary.discord.com/assets/{asset}"
-    ) as resp:
+    async with aiohttp.request("GET", f"https://canary.discord.com/assets/{asset}") as resp:
         return await resp.read(), resp.status, resp.headers
 
 
@@ -80,12 +78,12 @@ def _get_environment(app):
 async def _load_build(hash: str = "latest"):
     """Load a build from discord.sale."""
     if hash == "latest":
-        async with app.a_session.get("https://api.discord.sale/builds") as resp:
+        async with aiohttp.request("GET", "https://api.discord.sale/builds") as resp:
             if not resp.status == 200:
                 return "Build not found", 404
             hash = await resp.json()[0]["hash"]
 
-    async with app.a_session.get(f"https://api.discord.sale/builds/{hash}") as resp:
+    async with aiohttp.request("GET", f"https://api.discord.sale/builds/{hash}") as resp:
         if not resp.status == 200:
             return "Build not found", 404
 
