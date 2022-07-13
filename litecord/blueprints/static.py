@@ -21,36 +21,7 @@ from quart import Blueprint, current_app as app, render_template_string, render_
 from pathlib import Path
 import aiohttp
 import json
-
-ENVIRONMENT = json.dumps({
-    "API_ENDPOINT": f"//{app.config['MAIN_URL']}/api",
-    "WEBAPP_ENDPOINT": f"//{app.config['MAIN_URL']}",
-    "GATEWAY_ENDPOINT": "wss://" if app.config["IS_SSL"] else "ws://" + app.config["WEBSOCKET_URL"],
-    "CDN_HOST": f"//{app.config['MAIN_URL']}",
-    "ASSET_ENDPOINT": "https://" if app.config["IS_SSL"] else "http://" + app.config["MAIN_URL"],
-    "MEDIA_PROXY_ENDPOINT": f"//{app.config['MEDIA_PROXY']}",
-    "WIDGET_ENDPOINT": f"//{app.config['MAIN_URL']}/widget",
-    "INVITE_HOST": f"{app.config['MAIN_URL']}/invite",
-    "GUILD_TEMPLATE_HOST": f"{app.config['MAIN_URL']}/template",
-    "GIFT_CODE_HOST": f"{app.config['MAIN_URL']}/gift",
-    "RELEASE_CHANNEL": "staging",
-    "MARKETING_ENDPOINT": f"//{app.config['MAIN_URL']}",
-    "BRAINTREE_KEY": "production_5st77rrc_49pp2rp4phym7387",
-    "STRIPE_KEY": "pk_live_CUQtlpQUF0vufWpnpUmQvcdi",
-    "NETWORKING_ENDPOINT": f"//{app.config['MAIN_URL']}",
-    "RTC_LATENCY_ENDPOINT": "//latency.discord.media/rtc",
-    "ACTIVITY_APPLICATION_HOST": "discordsays.com",
-    "PROJECT_ENV": "development",
-    "REMOTE_AUTH_ENDPOINT": "//remote-auth-gateway.discord.gg",
-    "SENTRY_TAGS": {
-        "buildId": "7ea92cf",
-        "buildType": "normal"
-    },
-    "MIGRATION_SOURCE_ORIGIN": "https://discordapp.com",
-    "MIGRATION_DESTINATION_ORIGIN": "https://" if app.config["IS_SSL"] else "http://" + app.config["MAIN_URL"],
-    "HTML_TIMESTAMP": 1657677787711,
-    "ALGOLIA_KEY": "aca0d7082e4e63af5ba5917d5e96bed0"
-})
+import time
 
 bp = Blueprint("static", __name__)
 
@@ -74,6 +45,38 @@ async def proxy_asset(asset):
         return await resp.read(), resp.status, resp.headers
 
 
+def _get_environment(app):
+    return json.dumps({
+        "API_ENDPOINT": f"//{app.config['MAIN_URL']}/api",
+        "WEBAPP_ENDPOINT": f"//{app.config['MAIN_URL']}",
+        "GATEWAY_ENDPOINT": "wss://" if app.config["IS_SSL"] else "ws://" + app.config["WEBSOCKET_URL"],
+        "CDN_HOST": f"//{app.config['MAIN_URL']}",
+        "ASSET_ENDPOINT": "https://" if app.config["IS_SSL"] else "http://" + app.config["MAIN_URL"],
+        "MEDIA_PROXY_ENDPOINT": f"//{app.config['MEDIA_PROXY']}",
+        "WIDGET_ENDPOINT": f"//{app.config['MAIN_URL']}/widget",
+        "INVITE_HOST": f"{app.config['MAIN_URL']}/invite",
+        "GUILD_TEMPLATE_HOST": f"{app.config['MAIN_URL']}/template",
+        "GIFT_CODE_HOST": f"{app.config['MAIN_URL']}/gift",
+        "RELEASE_CHANNEL": "staging",
+        "MARKETING_ENDPOINT": f"//{app.config['MAIN_URL']}",
+        "BRAINTREE_KEY": "production_5st77rrc_49pp2rp4phym7387",
+        "STRIPE_KEY": "pk_live_CUQtlpQUF0vufWpnpUmQvcdi",
+        "NETWORKING_ENDPOINT": f"//{app.config['MAIN_URL']}",
+        "RTC_LATENCY_ENDPOINT": "//latency.discord.media/rtc",
+        "ACTIVITY_APPLICATION_HOST": "discordsays.com",
+        "PROJECT_ENV": "development",
+        "REMOTE_AUTH_ENDPOINT": "//remote-auth-gateway.discord.gg",
+        "SENTRY_TAGS": {
+            "buildId": "7ea92cf",
+            "buildType": "normal"
+        },
+        "MIGRATION_SOURCE_ORIGIN": "https://discordapp.com",
+        "MIGRATION_DESTINATION_ORIGIN": "https://" if app.config["IS_SSL"] else "http://" + app.config["MAIN_URL"],
+        "HTML_TIMESTAMP": int(time.time() * 1000),
+        "ALGOLIA_KEY": "aca0d7082e4e63af5ba5917d5e96bed0"
+    })
+
+
 async def _load_build(hash: str = "latest"):
     """Load a build from discord.sale."""
     if hash == "latest":
@@ -92,7 +95,7 @@ async def _load_build(hash: str = "latest"):
         version = info["number"]
 
         kwargs = {
-            'GLOBAL_ENV': ENVIRONMENT,
+            'GLOBAL_ENV': _get_environment(app),
             "build_id": version,
             "style": styles[0],
             "loader": scripts[0],
