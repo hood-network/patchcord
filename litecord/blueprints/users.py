@@ -313,26 +313,16 @@ async def get_connections():
 
 @bp.route("/@me/consent", methods=["GET", "POST"])
 async def get_consent():
-    """Always disable data collection.
-
-    Also takes any data collection changes
-    by the client and ignores them, as they
-    will always be false.
-    """
+    """Always enable data collection."""
     return jsonify(
         {
-            "usage_statistics": {"consented": False},
-            "personalization": {"consented": False},
+            "usage_statistics": {"consented": True},
+            "personalization": {"consented": True},
         }
     )
 
 
 @bp.route("/@me/harvest", methods=["GET"])
-async def get_harvest():
-    """Dummy route"""
-    return "", 204
-
-
 @bp.route("/@me/devices", methods=["POST"])
 async def post_devices():
     """Dummy route"""
@@ -340,11 +330,6 @@ async def post_devices():
 
 
 @bp.route("/@me/activities/statistics/applications", methods=["GET"])
-async def get_stats_applications():
-    """Dummy route for info on gameplay time and such"""
-    return jsonify([])
-
-
 @bp.route("/@me/library", methods=["GET"])
 async def get_library():
     """Probably related to Discord Store?"""
@@ -521,6 +506,6 @@ async def _get_tinder_score_affinity_guilds():
     return {"guild_affinities": []}
 
 
-@bp.route("/@me/applications/521842831262875670/entitlements", methods=["GET"])
-async def _stub_entitlements():
+@bp.route("/@me/applications/<app_id>/entitlements", methods=["GET"])
+async def _stub_entitlements(app_id):
     return []
