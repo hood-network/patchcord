@@ -49,6 +49,7 @@ async def proxy_asset(asset):
 def _get_environment(app):
     return {
         "API_ENDPOINT": f"//{app.config['MAIN_URL']}/api",
+        "API_VERSION": 9,
         "WEBAPP_ENDPOINT": f"//{app.config['MAIN_URL']}",
         "GATEWAY_ENDPOINT": "wss://" if app.config["IS_SSL"] else "ws://" + app.config["WEBSOCKET_URL"],
         "CDN_HOST": f"//{app.config['MAIN_URL']}",
