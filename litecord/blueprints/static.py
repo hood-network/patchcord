@@ -79,16 +79,16 @@ async def _load_build(hash: str = "latest"):
     """Load a build from discord.sale."""
     if hash == "latest":
         async with aiohttp.request("GET", "https://api.discord.sale/builds") as resp:
-            if not resp.status == 200:
+            if not 300 > resp.status >= 200:
                 return "Build not found", 404
-            hash = await resp.json()[0]["hash"]
+            hash = (await resp.json())[0]["hash"]
 
     async with aiohttp.request("GET", f"https://api.discord.sale/builds/{hash}") as resp:
-        if not resp.status == 200:
+        if not 300 > resp.status >= 200:
             return "Build not found", 404
 
         info = await resp.json()
-        scripts = [f"{file}.js" for file in info["files"]["root_scripts"]]
+        scripts = [f"{file}.js" for file in info["files"]["rootScripts"]]
         styles = [f"{file}.css" for file in info["files"]["css"]]
         version = info["number"]
 
