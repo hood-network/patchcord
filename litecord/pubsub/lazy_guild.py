@@ -415,7 +415,7 @@ class GuildMemberList:
 
         # we need to store the overwrites since
         # we have incoming presences to manage.
-        await self._fetch_overwrites(request)
+        await self._fetch_overwrites()
 
         return list(filter(self._can_read_chan, hoisted))
 
