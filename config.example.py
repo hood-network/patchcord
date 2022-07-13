@@ -70,7 +70,7 @@ class Config:
     LVSP_SECRET = ""
 
     #: Default client build
-    DEFAULT_CLIENT = "latest"
+    DEFAULT_BUILD = "latest"
 
 
 class Development(Config):
