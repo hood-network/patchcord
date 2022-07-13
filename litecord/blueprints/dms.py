@@ -122,12 +122,12 @@ async def _handle_dm(user_id: int, data: dict):
 
     recipients = j.get('recipient_ids', j['recipients'])
     if len(recipients) < 1:
-        channel_id = await gdm_create(user_id, recipients[0])
+        channel_id = await gdm_create(user_id, int(recipients[0]))
         for recipient in recipients[1:]:
-            await gdm_add_recipient(channel_id, recipient)
+            await gdm_add_recipient(channel_id, int(recipient))
         return jsonify(await app.storage.get_channel(channel_id))
 
-    return await create_dm(user_id, recipients[0])
+    return await create_dm(user_id, int(recipients[0]))
 
 
 @bp.route("/@me/channels", methods=["POST"])
