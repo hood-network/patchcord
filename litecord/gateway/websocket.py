@@ -100,8 +100,8 @@ def _complete_users_list(user_id: str, base_ready, user_ready, ws_properties) ->
     ready = {**base_ready, **user_ready}
     ready["users"] = [value for value in users_to_send.values()]
 
-    for relationship in ready["relationships"]:
-        relationship["user_id"] = relationship["user"]["id"]
+    # for relationship in ready["relationships"]:
+    #     relationship["user_id"] = relationship["user"]["id"]
 
     for private_channel in ready["private_channels"]:
         if private_channel["type"] == 1:
@@ -115,11 +115,8 @@ def _complete_users_list(user_id: str, base_ready, user_ready, ws_properties) ->
                 if self_user_index == 0:
                     private_channel["recipients"].append(private_channel["recipients"].pop(0))
 
-        if ws_properties.version >= 9:
-            private_channel["recipient_ids"] = [
-                recipient["id"]
-                for recipient in private_channel["recipients"]
-            ],
+        # if ws_properties.version >= 9:
+        #     private_channel["recipient_ids"] = [recipient["id"] for recipient in private_channel["recipients"]],
 
     return ready, users_to_send
 
