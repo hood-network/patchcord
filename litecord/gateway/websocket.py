@@ -115,11 +115,11 @@ def _complete_users_list(user_id: str, base_ready, user_ready, ws_properties) ->
                 if self_user_index == 0:
                     private_channel["recipients"].append(private_channel["recipients"].pop(0))
 
-        private_channel["recipient_ids"] = [
-            recipient["id"]
-            for recipient in private_channel["recipients"]
-            if recipient["id"] != user_id
-        ],
+        if ws_properties.version >= 9:
+            private_channel["recipient_ids"] = [
+                recipient["id"]
+                for recipient in private_channel["recipients"]
+            ],
 
     return ready, users_to_send
 
