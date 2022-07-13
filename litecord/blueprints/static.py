@@ -122,7 +122,8 @@ async def index_handler():
     return await _load_build(app.config['DEFAULT_BUILD'])
 
 
+@bp.route("/launch/<hash>")
 @bp.route("/build/<hash>")
-async def build_handler(hash):
+async def build_handler(hash = "latest"):
     """Load a specific build."""
     return await _load_build(hash)
