@@ -39,7 +39,8 @@ def gdm_recipient_view(orig: dict, user_id: int) -> dict:
     # make a copy or the original channel object
     data = dict(orig)
     idx = index_by_func(lambda user: user["id"] == str(user_id), data["recipients"])
-    data["recipients"].pop(idx)
+    if idx is not None:
+        data["recipients"].pop(idx)
     return data
 
 
