@@ -5,6 +5,8 @@ Discord's HTTP API and Gateway in Python 3.
 
 This project is a rewrite of [litecord-reference] and [litecord serviced].
 
+This fork aims to integrate a client into Litecord for educational purposes. Credits to [Displunger](https://gitlab.com/derpystuff/displunger).
+
 [clean-room]: https://en.wikipedia.org/wiki/Clean_room_design
 [litecord-reference]: https://gitlab.com/luna/litecord-reference
 [litecord serviced]: https://github.com/litecord

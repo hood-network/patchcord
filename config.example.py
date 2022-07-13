@@ -69,6 +69,9 @@ class Config:
     #: Shared secret for LVSP
     LVSP_SECRET = ""
 
+    #: Default client build
+    DEFAULT_CLIENT = "latest"
+
 
 class Development(Config):
     DEBUG = True

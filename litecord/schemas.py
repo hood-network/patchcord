@@ -100,7 +100,7 @@ class LitecordValidator(Validator):
 
         return 0 < discrim <= 9999
 
-    def _validate_type_snowflake(self, value: str) -> bool:
+    def _validate_type_snowflake(self, value: Union[int, str]) -> bool:
         try:
             int(value)
             return True
@@ -168,6 +168,9 @@ class LitecordValidator(Validator):
 
     def _validate_type_rgb_int_color(self, value: int) -> bool:
         return isinstance(value, int) and value > 0 and value < 0xFFFFFF
+
+    def _validate_type_recipients(self, value: Union[List[Union[int, str]], Union[int, str]]):
+        return all(self._validate_type_snowflake(v) for v in value) if isinstance(value, list) else self._validate_type_snowflake(value)
 
 
 def validate(
@@ -551,14 +554,10 @@ RELATIONSHIP = {
     }
 }
 
-CREATE_DM = {"recipient_id": {"type": "snowflake", "required": True}}
+CREATE_DM = {"recipient_id": {"type": "recipient", "required": True}}
 
-CREATE_GROUP_DM = {
-    "recipient_id": {"type": "list", "required": True, "schema": {"type": "snowflake"}}
-}
-
-CREATE_GROUP_DM_V9 = {
-    "recipients": {"type": "list", "required": True, "schema": {"type": "snowflake"}}
+CREATE_DM_V9 = {
+    "recipients": {"type": "recipient", "required": True}
 }
 
 GROUP_DM_UPDATE = {

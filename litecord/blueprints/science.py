@@ -32,6 +32,11 @@ async def applications():
     return jsonify([])
 
 
+@bp.route("/teams", methods=["GET"])
+async def teams():
+    return jsonify([])
+
+
 @bp.route("/experiments", methods=["GET"])
 async def experiments():
     return jsonify({"assignments": []})

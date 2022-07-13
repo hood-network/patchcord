@@ -105,6 +105,7 @@ def _complete_users_list(user_id: str, base_ready, user_ready, ws_properties) ->
         for relationship in user_relationships:
             ready["relationships"].append(
                 {
+                    "user": relationship["user"],
                     "user_id": relationship["user"]["id"],
                     "type": relationship["type"],
                     "nickname": None,  # TODO implement friend nicknames
@@ -119,6 +120,7 @@ def _complete_users_list(user_id: str, base_ready, user_ready, ws_properties) ->
                     "id": private_channel["id"],
                     "type": private_channel["type"],
                     "last_message_id": private_channel["last_message_id"],
+                    "recipients": private_channel["recipients"],
                     "recipient_ids": [
                         recipient["id"]
                         for recipient in private_channel["recipients"]
@@ -489,11 +491,14 @@ class GatewayWebsocket:
             "read_state": read_state,
             "user_guild_settings": user_guild_settings,
             "friend_suggestion_count": 0,
+            'country_code': 'US',
+            'session_type': 'normal',
+            'geo_ordered_rtc_regions': ,
             # those are unused default values.
             "connected_accounts": [],
             "experiments": [],
             "guild_experiments": [],
-            "analytics_token": "transbian",
+            "analytics_token": "analytics",
             "users": [],
             "merged_members": [],
             "merged_presences": {"friends": [], "guilds": []},
@@ -521,7 +526,7 @@ class GatewayWebsocket:
             "private_channels": private_channels,
             "guilds": guilds,
             "session_id": self.state.session_id,
-            "_trace": ["transbian"],
+            "_trace": ["litecord"],
             "shard": [self.state.current_shard, self.state.shard_count],
         }
 
@@ -539,9 +544,9 @@ class GatewayWebsocket:
 
         full_ready_data["merged_members"] = ready_supplemental["merged_members"]
 
-        if not self.state.bot:
-            for guild in full_ready_data["guilds"]:
-                guild["members"] = []
+        # if not self.state.bot:
+        #     for guild in full_ready_data["guilds"]:
+        #         guild["members"] = []
 
         await self.dispatch_raw("READY", full_ready_data)
         if self.ws_properties.version > 6:

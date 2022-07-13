@@ -125,6 +125,7 @@ def make_app():
     app.config.from_object(f"config.{config.MODE}")
     is_debug = app.config.get("DEBUG", False)
     app.debug = is_debug
+    app.a_session = ClientSession()
 
     if is_debug:
         log.info("on debug")
@@ -423,6 +424,9 @@ async def app_after_serving():
 
     log.info("closing db")
     await app.db.close()
+
+    if app.a_session and not app.a_session.closed:
+        await app.a_session.close()
 
 
 @app.errorhandler(LitecordError)

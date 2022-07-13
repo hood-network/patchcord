@@ -24,7 +24,7 @@ blueprint for direct messages
 from quart import Blueprint, request, current_app as app, jsonify
 from logbook import Logger
 
-from ..schemas import validate, CREATE_DM, CREATE_GROUP_DM, CREATE_GROUP_DM_V9
+from ..schemas import validate, CREATE_DM, CREATE_DM_V9
 from ..enums import ChannelType
 
 
@@ -112,19 +112,29 @@ async def create_dm(user_id: int, recipient_id: int):
     return await jsonify_dm(dm_id, user_id)
 
 
+async def _handle_dm(user_id: int, data: dict):
+    """Handle DM creation requests."""
+
+    if 'recipient_ids' in data:
+        j = validate(data, CREATE_DM)
+    else:
+        j = validate(data, CREATE_DM_V9)
+
+    recipients = j.get('recipient_ids', j['recipients'])
+    if len(recipients) < 1:
+        channel_id = await gdm_create(user_id, recipients[0])
+        for recipient in recipients[1:]:
+            await gdm_add_recipient(channel_id, recipient)
+        return jsonify(await app.storage.get_channel(channel_id))
+
+    return await create_dm(user_id, recipients[0])
+
+
 @bp.route("/@me/channels", methods=["POST"])
 async def start_dm():
     """Create a DM with a user."""
     user_id = await token_check()
-    j = validate(
-        await request.get_json(),
-        CREATE_GROUP_DM_V9 if request.discord_api_version == 9 else CREATE_DM,
-    )
-    recipient_id = int(
-        j["recipients"][0] if request.discord_api_version == 9 else j["recipient_id"]
-    )
-
-    return await create_dm(user_id, recipient_id)
+    return await _handle_dm(user_id, await request.get_json())
 
 
 @bp.route("/<int:p_user_id>/channels", methods=["POST"])
@@ -133,22 +143,4 @@ async def create_group_dm(p_user_id: int):
     user_id = await token_check()
     assert user_id == p_user_id
 
-    j = validate(
-        await request.get_json(),
-        CREATE_GROUP_DM_V9 if request.discord_api_version == 9 else CREATE_GROUP_DM,
-    )
-    recipients = (
-        j["recipients"] if request.discord_api_version == 9 else j["recipient_id"]
-    )
-
-    if len(recipients) == 1:
-        # its a group dm with 1 user... a dm!
-        return await create_dm(user_id, int(recipients[0]))
-
-    # create a group dm with multiple users
-    channel_id = await gdm_create(user_id, recipients[0])
-
-    for recipient in recipients[1:]:
-        await gdm_add_recipient(channel_id, recipient)
-
-    return jsonify(await app.storage.get_channel(channel_id))
+    return await _handle_dm(user_id, await request.get_json())

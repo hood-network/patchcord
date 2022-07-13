@@ -8,25 +8,25 @@
     </head>
     <body>
         <main id="register">
-            <h1>register</h1>
+            <h1>Invite Register</h1>
             <form method="post" action="/api/v6/auth/register_inv">
                 <div class="form-group">
-                    <label for="username">username <small>(only alphanumeric or underscore, no spaces)</small></label>
+                    <label for="username">Username <small>(only alphanumeric or underscore, no spaces)</small></label>
                     <input type="text" name="username" maxlength=19 minlength=2 pattern="^[a-zA-Z0-9_]+$" placeholder="luna" required>
                 </div>
 
                 <div class="form-group">
-                    <label for="email">email</label>
+                    <label for="email">Email</label>
                     <input type="email" name="email" pattern="^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$" placeholder="luna@blockchain.mail" required>
                 </div>
 
                 <div class="form-group">
-                    <label for="password">password</label>
+                    <label for="password">Password</label>
                     <input type="password" name="password" minlength=5 required>
                 </div>
 
                 <div class="form-group">
-                    <label for="invcode">invite code</label>
+                    <label for="invcode">Invite Code</label>
                     <input type="text" name="invcode" placeholder="4MLsEr" required>
                 </div>
 
