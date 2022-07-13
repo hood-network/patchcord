@@ -17,7 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from quart import Blueprint, current_app as app, render_template, make_response, redirect
+from quart import Blueprint, current_app as app, render_template, make_response
 from pathlib import Path
 import aiohttp
 import time
@@ -33,12 +33,6 @@ async def static_pages(path):
 
     static_path = Path.cwd() / Path("static") / path
     return await app.send_static_file(str(static_path))
-
-
-@bp.route("/sticker-packs", methods=["GET"])
-async def sticker_packs():
-    """Send static sticker packs"""
-    return await redirect("https://discord.com/api/v9/sticker-packs", code=302)
 
 
 @bp.route("/assets/<asset>", methods=["GET"])

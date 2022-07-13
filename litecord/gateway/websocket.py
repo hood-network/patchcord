@@ -503,6 +503,8 @@ class GatewayWebsocket:
             "users": [],
             "merged_members": [],
             "merged_presences": {"friends": [], "guilds": []},
+            "tutorial": None,
+            "user_settings_proto": "CgIYAQ==",
         }
 
     async def dispatch_ready(self, **kwargs):

@@ -17,11 +17,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from quart import Blueprint, jsonify
+from quart import Blueprint, jsonify, redirect
 
 bp = Blueprint("stickers", __name__)
 
 
-@bp.route("/sticker-packs")
-async def _stub_sticker_packs():
-    return jsonify({"sticker_packs": []})
+@bp.route("/sticker-packs", methods=["GET"])
+async def sticker_packs():
+    """Send static sticker packs"""
+    return await redirect("https://discord.com/api/v9/sticker-packs", code=302)
