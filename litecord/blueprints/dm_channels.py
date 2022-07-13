@@ -117,6 +117,16 @@ async def gdm_add_recipient(channel_id: int, peer_id: int, *, user_id=None):
     await dispatch_user(peer_id, ("CHANNEL_CREATE", gdm_recipient_view(chan, peer_id)))
 
     await app.dispatcher.channel.dispatch(channel_id, ("CHANNEL_UPDATE", chan))
+    await app.dispatcher.channel.dispatch(
+        channel_id,
+        (
+            "CHANNEL_RECIPIENT_ADD",
+            {
+                "channel_id": str(channel_id),
+                "user": await app.storage.get_user(peer_id),
+            },
+        ),
+    )
     await gdm_pubsub(channel_id, (peer_id,))
 
     if user_id:
@@ -137,8 +147,10 @@ async def gdm_remove_recipient(channel_id: int, peer_id: int, *, user_id=None):
     chan = await app.storage.get_channel(channel_id, user_id=user_id)
     await dispatch_user(peer_id, ("CHANNEL_DELETE", gdm_recipient_view(chan, user_id)))
 
-    await app.dispatcher.channel.unsub(peer_id)
+    for state in app.state_manager.user_states(peer_id):
+        await app.dispatcher.channel.unsub(channel_id, state.session_id)
 
+    await app.dispatcher.channel.dispatch(channel_id, ("CHANNEL_UPDATE", chan))
     await app.dispatcher.channel.dispatch(
         channel_id,
         (
