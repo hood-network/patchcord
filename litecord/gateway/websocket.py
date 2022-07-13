@@ -493,7 +493,7 @@ class GatewayWebsocket:
             "friend_suggestion_count": 0,
             'country_code': 'US',
             'session_type': 'normal',
-            'geo_ordered_rtc_regions': ,
+            'geo_ordered_rtc_regions': [],
             # those are unused default values.
             "connected_accounts": [],
             "experiments": [],
