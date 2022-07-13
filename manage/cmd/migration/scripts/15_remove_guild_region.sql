@@ -1,2 +1,2 @@
 ALTER TABLE guilds
-    ALTER COLUMN region [SET DATA] TYPE text,
+    ALTER COLUMN region TYPE text,
