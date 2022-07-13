@@ -108,6 +108,7 @@ class Storage:
             "avatar",
             "flags",
             "bot",
+            "system",
             "premium_since",
             "bio",
             "accent_color",

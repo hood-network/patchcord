@@ -498,8 +498,9 @@ async def _patch_subscription(subscription_id):
 
 
 @bp.route("/@me/billing/country-code", methods=["GET"])
+@bp.route("/@me/billing/localized-pricing-promo", methods=["GET"])
 async def _get_billing_country_code():
-    return {"country_code": "US"}
+    return {"country_code": "US", "localized_pricing_promo": None}
 
 
 @bp.route("/@me/billing/stripe/setup-intents", methods=["POST"])

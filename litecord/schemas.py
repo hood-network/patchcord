@@ -429,6 +429,10 @@ MEMBER_UPDATE = {
 # NOTE: things such as payload_json are parsed at the handler
 # for creating a message.
 MESSAGE_CREATE = {
+    "type": {"type": "int", "required": False},
+    "channel_id": {"type": "snowflake", "required": False},
+    "attachments": {"type": "list", "required": False, "schema": {"type": "dict"}},
+    "sticker_ids": {"type": "list", "required": False, "schema": {"type": "snowflake"}},
     "content": {"type": "string", "minlength": 0, "maxlength": 2000},
     "nonce": {"type": "snowflake", "required": False},
     "tts": {"type": "boolean", "required": False},

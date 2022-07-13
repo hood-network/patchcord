@@ -70,6 +70,7 @@ CREATE TABLE IF NOT EXISTS users (
 
     -- user properties
     bot boolean DEFAULT FALSE,
+    system boolean DEFAULT FALSE,
     mfa_enabled boolean DEFAULT FALSE,
     verified boolean DEFAULT FALSE,
     avatar text REFERENCES icons (hash) DEFAULT NULL,

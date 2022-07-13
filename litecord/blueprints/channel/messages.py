@@ -271,6 +271,7 @@ async def _create_message(channel_id):
             ),
             "message_reference": j.get("message_reference"),
             "allowed_mentions": j.get("allowed_mentions"),
+            "sticker_ids": j.get("sticker_ids", []),
         },
     )
 

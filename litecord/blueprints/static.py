@@ -17,10 +17,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from quart import Blueprint, current_app as app, render_template, make_response
+from quart import Blueprint, current_app as app, render_template, make_response, redirect
 from pathlib import Path
 import aiohttp
-import json
 import time
 
 bp = Blueprint("static", __name__)
@@ -36,7 +35,13 @@ async def static_pages(path):
     return await app.send_static_file(str(static_path))
 
 
-@bp.route("/assets/<asset>")
+@bp.route("/sticker-packs", methods=["GET"])
+async def sticker_packs():
+    """Send static sticker packs"""
+    return await redirect("https://discord.com/api/v9/sticker-packs", code=302)
+
+
+@bp.route("/assets/<asset>", methods=["GET"])
 async def proxy_asset(asset):
     """Proxy asset requests to Discord."""
     async with aiohttp.request("GET", f"https://canary.discord.com/assets/{asset}") as resp:
@@ -121,6 +126,13 @@ async def _load_build(hash: str = "latest"):
 async def index_handler():
     """Handler for the index page."""
     return await _load_build(app.config['DEFAULT_BUILD'])
+
+
+@bp.route("/launch")
+@bp.route("/build")
+async def latest_build():
+    """Load the latest build."""
+    return await _load_build()
 
 
 @bp.route("/launch/<hash>")

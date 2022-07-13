@@ -689,6 +689,12 @@ async def _search_channel(channel_id):
     return jsonify(await search_result_from_list(rows))
 
 
+@bp.route("/<int:channel_id>/application-commands/search", methods=["GET"])
+async def _search_application_commands(channel_id):
+    """Stub application command search"""
+    return jsonify({"application_commands": [], "applications": [], "cursor": {"next": None, "previous": None, "repaired": None}})
+
+
 # NOTE that those functions stay here until some other
 # route or code wants it.
 
@@ -804,12 +810,13 @@ async def bulk_delete(channel_id: int):
     # as per discord behavior, if any id here is older than two weeks,
     # we must error. a cuter behavior would be returning the message ids
     # that were deleted, ignoring the 2 week+ old ones.
-    for message_id in message_ids:
-        message_dt = app.winter_factory.to_datetime(message_id)
-        delta = datetime.datetime.utcnow() - message_dt
+    # i dont want to do that
+    # for message_id in message_ids:
+    #     message_dt = app.winter_factory.to_datetime(message_id)
+    #     delta = datetime.datetime.utcnow() - message_dt
 
-        if delta.days > 14:
-            raise BadRequest(50034)
+    #     if delta.days > 14:
+    #         raise BadRequest(50034)
 
     payload = {
         "guild_id": str(guild_id),

@@ -64,6 +64,12 @@ async def patch_current_settings():
     return jsonify(settings)
 
 
+@bp.route("/@me/settings-proto/<int:proto>", methods=["GET", "PATCH"])
+async def settings_proto(proto: int):
+    """Proto settings stub"""
+    return jsonify({"settings": "CgIYAQ=="})
+
+
 @bp.route("/@me/guilds/<int:guild_id>/settings", methods=["PATCH"])
 async def patch_guild_settings(guild_id: int):
     """Update the users' guild settings for a given guild.

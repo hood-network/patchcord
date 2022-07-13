@@ -28,12 +28,9 @@ async def science():
 
 
 @bp.route("/applications", methods=["GET"])
-async def applications():
-    return jsonify([])
-
-
 @bp.route("/teams", methods=["GET"])
-async def teams():
+@bp.route("/outbound-promotions", methods=["GET"])
+async def applications():
     return jsonify([])
 
 

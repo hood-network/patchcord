@@ -62,17 +62,6 @@ async def get_other(target_id):
     """Get any user, given the user ID."""
     user_id = await token_check()
 
-    bot = await app.db.fetchval(
-        """
-    SELECT bot FROM users
-    WHERE users.id = $1
-    """,
-        user_id,
-    )
-
-    if not bot:
-        raise Forbidden("Only bots can use this endpoint")
-
     other = await app.storage.get_user(target_id)
     return jsonify(other)
 
