@@ -95,7 +95,7 @@ async def gdm_create(user_id, peer_id) -> int:
 
     await gdm_pubsub(channel_id, (user_id, peer_id))
 
-    chan = await app.storage.get_channel(channel_id)
+    chan = await app.storage.get_channel(channel_id, user_id=user_id)
     await app.dispatcher.channel.dispatch(channel_id, ("CHANNEL_CREATE", chan))
 
     return channel_id
@@ -111,7 +111,7 @@ async def gdm_add_recipient(channel_id: int, peer_id: int, *, user_id=None):
     """
     await _raw_gdm_add(channel_id, peer_id)
 
-    chan = await app.storage.get_channel(channel_id)
+    chan = await app.storage.get_channel(channel_id, user_id=user_id)
 
     # the reasoning behind gdm_recipient_view is in its docstring.
     await dispatch_user(peer_id, ("CHANNEL_CREATE", gdm_recipient_view(chan, peer_id)))
@@ -134,7 +134,7 @@ async def gdm_remove_recipient(channel_id: int, peer_id: int, *, user_id=None):
     """
     await _raw_gdm_remove(channel_id, peer_id)
 
-    chan = await app.storage.get_channel(channel_id)
+    chan = await app.storage.get_channel(channel_id, user_id=user_id)
     await dispatch_user(peer_id, ("CHANNEL_DELETE", gdm_recipient_view(chan, user_id)))
 
     await app.dispatcher.channel.unsub(peer_id)
@@ -227,7 +227,7 @@ async def add_to_group_dm(dm_chan, peer_id):
 
     await gdm_add_recipient(dm_chan, peer_id, user_id=user_id)
 
-    return jsonify(await app.storage.get_channel(dm_chan))
+    return jsonify(await app.storage.get_channel(dm_chan, user_id=user_id))
 
 
 @bp.route("/<int:dm_chan>/recipients/<int:peer_id>", methods=["DELETE"])

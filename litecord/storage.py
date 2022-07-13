@@ -603,7 +603,6 @@ class Storage:
             drow["type"] = chan_type
 
             user_id: Optional[int] = kwargs.get("user_id")
-            assert user_id is not None
             drow["recipients"] = await self._gdm_recipients(channel_id, user_id)
 
             drow["last_message_id"] = await self.chan_last_message_str(channel_id)
@@ -1224,7 +1223,7 @@ class Storage:
 
     async def get_dm(self, dm_id: int, user_id: Optional[int] = None) -> Optional[Dict]:
         """Get a DM channel."""
-        dm_chan = await self.get_channel(dm_id)
+        dm_chan = await self.get_channel(dm_id, user_id=user_id)
         return dm_chan
 
     async def guild_from_channel(self, channel_id: int) -> int:

@@ -128,7 +128,7 @@ async def _handle_dm(user_id: int, data: dict):
         channel_id = await gdm_create(user_id, int(recipients[0]))
         for recipient in recipients[1:]:
             await gdm_add_recipient(channel_id, int(recipient))
-        return jsonify(await app.storage.get_channel(channel_id))
+        return jsonify(await app.storage.get_channel(channel_id, user_id=user_id))
 
     return await create_dm(user_id, int(recipients[0]))
 

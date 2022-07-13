@@ -57,7 +57,7 @@ async def get_channel(channel_id):
     # channel_check takes care of checking
     # DMs and group DMs
     await channel_check(user_id, channel_id)
-    chan = await app.storage.get_channel(channel_id, request.discord_api_version)
+    chan = await app.storage.get_channel(channel_id, request.discord_api_version, user_id=user_id)
 
     if not chan:
         raise ChannelNotFound("single channel not found")
@@ -201,7 +201,7 @@ async def close_channel(channel_id):
 
     if ctype in GUILD_CHANS:
         _, guild_id = await channel_check(user_id, channel_id)
-        chan = await app.storage.get_channel(channel_id, request.discord_api_version)
+        chan = await app.storage.get_channel(channel_id, request.discord_api_version, user_id=user_id)
 
         # the selected function will take care of checking
         # the sanity of tables once the channel becomes deleted.
@@ -623,7 +623,7 @@ async def update_channel(channel_id: int):
 
     await update_handler(channel_id, j, user_id)
 
-    chan = await app.storage.get_channel(channel_id, request.discord_api_version)
+    chan = await app.storage.get_channel(channel_id, request.discord_api_version, user_id=user_id)
 
     if is_guild:
         await app.dispatcher.guild.dispatch(guild_id, ("CHANNEL_UPDATE", chan))

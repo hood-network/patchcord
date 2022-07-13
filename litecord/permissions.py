@@ -20,7 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import ctypes
 from typing import Optional, Union
 
-from quart import current_app as app
+from quart import current_app as app, request
 
 # so we don't keep repeating the same
 # type for all the fields
@@ -264,7 +264,7 @@ async def compute_overwrites(
     perms = base_perms
 
     # list of overwrites
-    overwrites = await storage.chan_overwrites(channel_id)
+    overwrites = await storage.chan_overwrites(channel_id, request.discord_api_version)
 
     # if the channel isn't a guild, we should just return
     # ALL_PERMISSIONS. the old approach was calling guild_from_channel
