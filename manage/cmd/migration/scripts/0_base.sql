@@ -343,7 +343,7 @@ CREATE TABLE IF NOT EXISTS guilds (
     splash text DEFAULT NULL,
     owner_id bigint NOT NULL REFERENCES users (id),
 
-    region text REFERENCES voice_regions (id),
+    region text,
 
     features text[],
 
