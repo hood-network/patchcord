@@ -17,7 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from quart import Blueprint, current_app as app, render_template
+from quart import Blueprint, current_app as app, render_template, make_response
 from pathlib import Path
 import aiohttp
 import json
@@ -40,7 +40,10 @@ async def static_pages(path):
 async def proxy_asset(asset):
     """Proxy asset requests to Discord."""
     async with aiohttp.request("GET", f"https://canary.discord.com/assets/{asset}") as resp:
-        return await resp.read(), resp.status, resp.headers
+        response = await make_response(await resp.read())
+        response.status = resp.status
+        response.headers.update(resp.headers)
+        return response
 
 
 def _get_environment(app):
