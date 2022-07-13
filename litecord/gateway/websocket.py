@@ -169,6 +169,7 @@ async def _compute_supplemental(app, base_ready, user_ready, users_to_send: dict
         supplemental["guilds"].append(
             {
                 "voice_states": [],
+                "embedded_activities": [],
                 "id": guild["id"],
             }
         )
