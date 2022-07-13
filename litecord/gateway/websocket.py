@@ -41,6 +41,7 @@ from litecord.utils import (
     custom_status_set_null,
     want_bytes,
     want_string,
+    index_by_func,
 )
 from litecord.permissions import get_permissions
 from litecord.presence import BasePresence
@@ -99,37 +100,25 @@ def _complete_users_list(user_id: str, base_ready, user_ready, ws_properties) ->
     ready = {**base_ready, **user_ready}
     ready["users"] = [value for value in users_to_send.values()]
 
-    # relationship object structure changed in v9
-    if ws_properties.version == 9:
-        ready["relationships"] = []
-        for relationship in user_relationships:
-            ready["relationships"].append(
-                {
-                    "user": relationship["user"],
-                    "user_id": relationship["user"]["id"],
-                    "type": relationship["type"],
-                    "nickname": None,  # TODO implement friend nicknames
-                    "id": relationship["id"],
-                }
-            )
+    for relationship in ready["relationships"]:
+        relationship["user_id"] = relationship["user"]["id"]
 
-        ready["private_channels"] = []
-        for private_channel in base_ready["private_channels"]:
-            ready["private_channels"].append(
-                {
-                    "id": private_channel["id"],
-                    "type": private_channel["type"],
-                    "last_message_id": private_channel["last_message_id"],
-                    "recipients": private_channel["recipients"],
-                    "recipient_ids": [
-                        recipient["id"]
-                        for recipient in private_channel["recipients"]
-                        if recipient["id"] != user_id
-                    ],
-                    # TODO implement last_pin_timestamp here
-                    # "last_pin_timestamp": "2020-03-30T00:00:00.888000+00:00",
-                },
+    for private_channel in ready["private_channels"]:
+        private_channel["recipient_ids"] = [
+            recipient["id"]
+            for recipient in private_channel["recipients"]
+            if recipient["id"] != user_id
+        ],
+        if private_channel["type"] == 1:
+            self_user_index = index_by_func(
+                lambda user: user["id"] == str(user_id), private_channel["recipients"]
             )
+            if ws_properties.version > 7:
+                assert self_user_index is not None
+                private_channel["recipients"].pop(self_user_index)
+            else:
+                if self_user_index == 0:
+                    private_channel["recipients"].append(private_channel["recipients"].pop(0))
 
     return ready, users_to_send
 
