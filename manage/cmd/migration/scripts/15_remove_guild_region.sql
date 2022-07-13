@@ -1,2 +1,2 @@
 ALTER TABLE guilds
-    ALTER COLUMN region TYPE text
+    DROP CONSTRAINT guilds_region_fkey;
