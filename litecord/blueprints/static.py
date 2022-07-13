@@ -42,12 +42,12 @@ async def proxy_asset(asset):
     async with aiohttp.request("GET", f"https://canary.discord.com/assets/{asset}") as resp:
         response = await make_response(await resp.read())
         response.status = resp.status
-        response.headers.update(resp.headers)
+        response.headers['content-type'] = resp.headers['content-type']
         return response
 
 
 def _get_environment(app):
-    return json.dumps({
+    return {
         "API_ENDPOINT": f"//{app.config['MAIN_URL']}/api",
         "WEBAPP_ENDPOINT": f"//{app.config['MAIN_URL']}",
         "GATEWAY_ENDPOINT": "wss://" if app.config["IS_SSL"] else "ws://" + app.config["WEBSOCKET_URL"],
@@ -75,7 +75,7 @@ def _get_environment(app):
         "MIGRATION_DESTINATION_ORIGIN": "https://" if app.config["IS_SSL"] else "http://" + app.config["MAIN_URL"],
         "HTML_TIMESTAMP": int(time.time() * 1000),
         "ALGOLIA_KEY": "aca0d7082e4e63af5ba5917d5e96bed0"
-    })
+    }
 
 
 async def _load_build(hash: str = "latest"):

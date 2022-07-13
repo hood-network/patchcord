@@ -23,7 +23,7 @@
       <!-- endsection -->
    </head>
    <body>
-      <div id="app-mount"></div><script>window.__OVERLAY__ = /overlay/.test(location.pathname)</script><script>window.GLOBAL_ENV = JSON.parse("{{ GLOBAL_ENV }}");
+      <div id="app-mount"></div><script>window.__OVERLAY__ = /overlay/.test(location.pathname)</script><script>window.GLOBAL_ENV = JSON.parse("{{ GLOBAL_ENV|tojson|safe }}");
       </script><script>undefined</script><script src="/assets/{{ loader }}" integrity=""></script><script src="/assets/{{ classes }}" integrity=""></script><script src="/assets/{{ app }}" integrity=""></script>
    </body>
 </html>
