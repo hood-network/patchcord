@@ -104,11 +104,6 @@ def _complete_users_list(user_id: str, base_ready, user_ready, ws_properties) ->
         relationship["user_id"] = relationship["user"]["id"]
 
     for private_channel in ready["private_channels"]:
-        private_channel["recipient_ids"] = [
-            recipient["id"]
-            for recipient in private_channel["recipients"]
-            if recipient["id"] != user_id
-        ],
         if private_channel["type"] == 1:
             self_user_index = index_by_func(
                 lambda user: user["id"] == str(user_id), private_channel["recipients"]
@@ -119,6 +114,12 @@ def _complete_users_list(user_id: str, base_ready, user_ready, ws_properties) ->
             else:
                 if self_user_index == 0:
                     private_channel["recipients"].append(private_channel["recipients"].pop(0))
+
+        private_channel["recipient_ids"] = [
+            recipient["id"]
+            for recipient in private_channel["recipients"]
+            if recipient["id"] != user_id
+        ],
 
     return ready, users_to_send
 
