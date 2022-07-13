@@ -171,7 +171,7 @@ async def _dm_pre_dispatch(channel_id, peer_id):
         # opened, so we don't need to do anything
         return
 
-    dm_chan = await app.storage.get_channel(channel_id)
+    dm_chan = await app.storage.get_channel(channel_id, request.discord_api_version)
 
     # dispatch CHANNEL_CREATE so the client knows which
     # channel the future event is about

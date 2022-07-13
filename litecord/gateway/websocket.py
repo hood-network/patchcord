@@ -387,7 +387,7 @@ class GatewayWebsocket:
         interval = randint(40, 46) * 1000
 
         await self.send_op(
-            OP.HELLO, {"heartbeat_interval": interval, "_trace": ["lesbian-server"]}
+            OP.HELLO, {"heartbeat_interval": interval, "_trace": ["litecord"]}
         )
 
         self._hb_start(interval)
@@ -428,7 +428,7 @@ class GatewayWebsocket:
             {
                 **await self.storage.get_guild(guild_id, user_id),
                 **await self.storage.get_guild_extra(
-                    guild_id, user_id, self.state.large
+                    guild_id, user_id, self.state.large, self.ws.ws_properties.version
                 ),
             }
             for guild_id in guild_ids
@@ -445,7 +445,7 @@ class GatewayWebsocket:
         for guild_obj in unavailable_guilds:
             # fetch full guild object including the 'large' field
             guild = await self.storage.get_guild_full(
-                int(guild_obj["id"]), self.state.user_id, self.state.large
+                int(guild_obj["id"]), self.state.user_id, self.state.large, api_version=self.ws.ws_properties.version
             )
 
             if guild is None:

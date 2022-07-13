@@ -347,7 +347,7 @@ GUILD_UPDATE = {
 
 CHAN_OVERWRITE = {
     "id": {"coerce": int},
-    "type": {"type": "string", "allowed": ["role", "member"]},
+    "type": {"type": "snowflake", "allowed": ["role", "member", "0", "1", 0, 1]},
     "allow": {"coerce": Permissions},
     "deny": {"coerce": Permissions},
 }
@@ -558,10 +558,10 @@ RELATIONSHIP = {
     }
 }
 
-CREATE_DM = {"recipient_id": {"type": "recipient", "required": True}}
+CREATE_DM = {"recipient_id": {"type": "recipients", "required": True}}
 
 CREATE_DM_V9 = {
-    "recipients": {"type": "recipient", "required": True}
+    "recipients": {"type": "recipients", "required": True}
 }
 
 GROUP_DM_UPDATE = {

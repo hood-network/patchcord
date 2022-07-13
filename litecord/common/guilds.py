@@ -372,6 +372,6 @@ async def add_member(guild_id: int, user_id: int, *, basic=False):
         for state in states:
             await app.dispatcher.channel.sub(channel_id, state.session_id)
 
-    guild = await app.storage.get_guild_full(guild_id, user_id, 250)
+    guild = await app.storage.get_guild_full(guild_id, user_id, 250, api_version=request.discord_api_version)
     for state in states:
         await state.dispatch("GUILD_CREATE", guild)

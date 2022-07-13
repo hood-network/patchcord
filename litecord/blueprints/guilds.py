@@ -127,8 +127,6 @@ async def create_guild():
     else:
         image = None
 
-    region = j["region"] if "region" in j else next(iter(app.voice.lvsp.regions))
-
     await app.db.execute(
         """
         INSERT INTO guilds (id, name, region, icon, owner_id,
@@ -138,7 +136,7 @@ async def create_guild():
         """,
         guild_id,
         j["name"],
-        region,
+        "deprecated",
         image,
         user_id,
         j.get("verification_level", 0),
@@ -190,7 +188,7 @@ async def create_guild():
     if j.get("channels"):
         await guild_create_channels_prep(guild_id, j["channels"])
 
-    guild_total = await app.storage.get_guild_full(guild_id, user_id, 250)
+    guild_total = await app.storage.get_guild_full(guild_id, user_id, 250, api_version=request.discord_api_version)
 
     await app.dispatcher.guild.sub_user(guild_id, user_id)
 
@@ -204,7 +202,7 @@ async def get_guild(guild_id):
     user_id = await token_check()
     await guild_check(user_id, guild_id)
 
-    return jsonify(await app.storage.get_guild_full(guild_id, user_id, 250))
+    return jsonify(await app.storage.get_guild_full(guild_id, user_id, 250, api_version=request.discord_api_version))
 
 
 async def _guild_update_icon(scope: str, guild_id: int, icon: Optional[str], **kwargs):
@@ -345,7 +343,7 @@ async def _update_guild(guild_id):
 
             continue
 
-        chan = await app.storage.get_channel(j[field])
+        chan = await app.storage.get_channel(j[field], request.discord_api_version)
 
         if chan is None:
             raise BadRequest("invalid channel id")
@@ -363,7 +361,7 @@ async def _update_guild(guild_id):
             guild_id,
         )
 
-    guild = await app.storage.get_guild_full(guild_id, user_id)
+    guild = await app.storage.get_guild_full(guild_id, user_id, api_version=request.discord_api_version)
     await app.dispatcher.guild.dispatch(guild_id, ("GUILD_UPDATE", guild))
     return jsonify(guild)
 
@@ -450,7 +448,7 @@ async def get_vanity_url(guild_id: int):
     if inv_code is None:
         return jsonify({"code": None})
 
-    return jsonify(await app.storage.get_invite(inv_code))
+    return jsonify(await app.storage.get_invite(inv_code, request.discord_api_version))
 
 
 @bp.route("/<int:guild_id>/vanity-url", methods=["PATCH"])
@@ -478,14 +476,14 @@ async def change_vanity_url(guild_id: int):
     # sql gives us, but i havent really found a way to put
     # multiple ON CONFLICT clauses so we could UPDATE when
     # guild_id_fkey fails but INSERT when code_fkey fails..
-    inv = await app.storage.get_invite(inv_code)
+    inv = await app.storage.get_invite(inv_code, request.discord_api_version)
     if inv:
         raise BadRequest("invite already exists")
 
     # TODO: this is bad, what if a guild has no channels?
     # we should probably choose the first channel that has
     # @everyone read messages
-    channels = await app.storage.get_channel_data(guild_id)
+    channels = await app.storage.get_channel_data(guild_id, api_version=request.discord_api_version)
     channel_id = int(channels[0]["id"])
 
     # delete the old invite, insert new one
@@ -527,7 +525,7 @@ async def change_vanity_url(guild_id: int):
         inv_code,
     )
 
-    return jsonify(await app.storage.get_invite(inv_code))
+    return jsonify(await app.storage.get_invite(inv_code, request.discord_api_version))
 
 
 @bp.route("/<int:guild_id>/templates", methods=["GET"])

@@ -234,14 +234,14 @@ async def create_invite(channel_id):
         j["temporary"],
     )
 
-    invite = await app.storage.get_invite(invite_code)
+    invite = await app.storage.get_invite(invite_code, request.discord_api_version)
     return jsonify(invite)
 
 
 @bp.route("/invite/<invite_code>", methods=["GET"])
 @bp.route("/invites/<invite_code>", methods=["GET"])
 async def get_invite(invite_code: str):
-    inv = await app.storage.get_invite(invite_code)
+    inv = await app.storage.get_invite(invite_code, request.discord_api_version)
 
     if not inv:
         return "", 404
@@ -283,13 +283,13 @@ async def _delete_invite(invite_code: str):
 
     await guild_perm_check(user_id, guild_id, "manage_channels")
 
-    inv = await app.storage.get_invite(invite_code)
+    inv = await app.storage.get_invite(invite_code, request.discord_api_version)
     await delete_invite(invite_code)
     return jsonify(inv)
 
 
 async def _get_inv(code):
-    inv = await app.storage.get_invite(code)
+    inv = await app.storage.get_invite(code, request.discord_api_version)
     meta = await app.storage.get_invite_metadata(code)
     return {**inv, **meta}
 
@@ -348,7 +348,7 @@ async def _use_invite(invite_code):
     await use_invite(user_id, invite_code)
 
     # the reply is an invite object for some reason.
-    inv = await app.storage.get_invite(invite_code)
+    inv = await app.storage.get_invite(invite_code, request.discord_api_version)
     inv_meta = await app.storage.get_invite_metadata(invite_code)
 
     return jsonify({**inv, **{"inviter": inv_meta["inviter"]}})

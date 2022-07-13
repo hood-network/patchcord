@@ -30,7 +30,7 @@ import asyncio
 from collections import defaultdict
 from typing import Any, List, Dict, Union, Optional, Iterable, Iterator, Tuple, Set
 from dataclasses import dataclass, asdict, field
-from quart import current_app as app
+from quart import current_app as app, request
 
 from logbook import Logger
 
@@ -341,7 +341,7 @@ class GuildMemberList:
             await self._init_member_list()
 
     async def _fetch_overwrites(self):
-        overwrites = await self.storage.chan_overwrites(self.channel_id)
+        overwrites = await self.storage.chan_overwrites(self.channel_id, request.discord_api_version)
         overwrites = {int(ov["id"]): ov for ov in overwrites}
         self.list.overwrites = overwrites
 
@@ -415,7 +415,7 @@ class GuildMemberList:
 
         # we need to store the overwrites since
         # we have incoming presences to manage.
-        await self._fetch_overwrites()
+        await self._fetch_overwrites(request)
 
         return list(filter(self._can_read_chan, hoisted))
 

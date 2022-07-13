@@ -67,7 +67,7 @@ async def _update_features(guild_id: int, features: list):
         guild_id,
     )
 
-    guild = await app.storage.get_guild_full(guild_id)
+    guild = await app.storage.get_guild_full(guild_id, api_version=request.discord_api_version)
     await app.dispatcher.guild.dispatch(guild_id, ("GUILD_UPDATE", guild))
 
 

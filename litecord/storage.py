@@ -458,7 +458,7 @@ class Storage:
             channel_id,
         )
 
-    async def chan_overwrites(self, channel_id: int) -> List[Dict[str, Any]]:
+    async def chan_overwrites(self, channel_id: int, api_version: int = 6) -> List[Dict[str, Any]]:
         overwrite_rows = await self.db.fetch(
             """
         SELECT target_type, target_role, target_user, allow, deny
@@ -476,7 +476,10 @@ class Storage:
             drow["deny"] = drow["deny"] & ((2 << 31) - 1)
 
             target_type = drow["target_type"]
-            drow["type"] = "member" if target_type == 0 else "role"
+            if api_version > 7:
+                drow["type"] = target_type
+            else:
+                drow["type"] = "member" if target_type == 0 else "role"
 
             # if type is 0, the overwrite is for a member
             # if type is 1, the overwrite is for a role
@@ -530,7 +533,7 @@ class Storage:
 
         return res
 
-    async def get_channel(self, channel_id: int, **kwargs) -> Optional[Dict[str, Any]]:
+    async def get_channel(self, channel_id: int, api_version: int = 6, **kwargs) -> Optional[Dict[str, Any]]:
         """Fetch a single channel's information."""
         chan_type = await self.get_chan_type(channel_id)
         if chan_type is None:
@@ -556,7 +559,7 @@ class Storage:
             dbase["type"] = chan_type
 
             res = await self._channels_extra(dbase)
-            res["permission_overwrites"] = await self.chan_overwrites(channel_id)
+            res["permission_overwrites"] = await self.chan_overwrites(channel_id, api_version)
 
             res["id"] = str(res["id"])
             return res
@@ -623,7 +626,7 @@ class Storage:
 
         return [r["id"] for r in rows]
 
-    async def get_channel_data(self, guild_id) -> List[Dict]:
+    async def get_channel_data(self, guild_id, api_version: int = 6) -> List[Dict]:
         """Get channel list information on a guild"""
         channel_basics = await self.db.fetch(
             """
@@ -650,7 +653,7 @@ class Storage:
 
             res = await self._channels_extra(drow)
 
-            res["permission_overwrites"] = await self.chan_overwrites(row["id"])
+            res["permission_overwrites"] = await self.chan_overwrites(row["id"], api_version)
 
             # Making sure.
             res["id"] = str(res["id"])
@@ -735,7 +738,7 @@ class Storage:
         return res
 
     async def get_guild_extra(
-        self, guild_id: int, user_id: Optional[int] = None, large: Optional[int] = None
+        self, guild_id: int, user_id: Optional[int] = None, large: Optional[int] = None, api_version: int = 6
     ) -> Dict:
         """Get extra information about a guild."""
         res = {}
@@ -766,7 +769,7 @@ class Storage:
             res["joined_at"] = timestamp_(joined_at)
 
         members = await self.get_member_data(guild_id)
-        channels = await self.get_channel_data(guild_id)
+        channels = await self.get_channel_data(guild_id, api_version)
         roles = await self.get_role_data(guild_id)
 
         # prevent data inconsistencies
@@ -790,7 +793,7 @@ class Storage:
         }
 
     async def get_guild_full(
-        self, guild_id: int, user_id: Optional[int] = None, large_count: int = 250
+        self, guild_id: int, user_id: Optional[int] = None, large_count: int = 250, api_version: int = 6
     ) -> Optional[Dict]:
         """Get full information on a guild.
 
@@ -804,7 +807,7 @@ class Storage:
         if guild["unavailable"]:
             return guild
 
-        extra = await self.get_guild_extra(guild_id, user_id, large_count)
+        extra = await self.get_guild_extra(guild_id, user_id, large_count, api_version)
 
         return {**guild, **extra}
 
@@ -1129,7 +1132,7 @@ class Storage:
 
         return res
 
-    async def get_invite(self, invite_code: str) -> Optional[Dict]:
+    async def get_invite(self, invite_code: str, api_version: int = 6) -> Optional[Dict]:
         """Fetch invite information given its code."""
         invite = await self.db.fetchrow(
             """
@@ -1161,7 +1164,7 @@ class Storage:
         else:
             dinv["guild"] = {}
 
-        chan = await self.get_channel(invite["channel_id"])
+        chan = await self.get_channel(invite["channel_id"], api_version)
 
         if chan is None:
             return None

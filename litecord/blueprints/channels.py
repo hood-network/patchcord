@@ -57,7 +57,7 @@ async def get_channel(channel_id):
     # channel_check takes care of checking
     # DMs and group DMs
     await channel_check(user_id, channel_id)
-    chan = await app.storage.get_channel(channel_id)
+    chan = await app.storage.get_channel(channel_id, request.discord_api_version)
 
     if not chan:
         raise ChannelNotFound("single channel not found")
@@ -91,7 +91,7 @@ async def _update_guild_chan_text(guild_id: int, channel_id: int):
 
     # at least one of the fields were updated,
     # dispatch GUILD_UPDATE
-    guild = await app.storage.get_guild_full(guild_id)
+    guild = await app.storage.get_guild_full(guild_id, api_version=request.discord_api_version)
     await app.dispatcher.guild.dispatch(guild_id, ("GUILD_UPDATE", guild))
 
 
@@ -102,7 +102,7 @@ async def _update_guild_chan_voice(guild_id: int, channel_id: int):
     if res == "UPDATE 0":
         return
 
-    guild = await app.storage.get_guild_full(guild_id)
+    guild = await app.storage.get_guild_full(guild_id, api_version=request.discord_api_version)
     await app.dispatcher.dispatch(guild_id, ("GUILD_UPDATE", guild))
 
 
@@ -132,7 +132,7 @@ async def _update_guild_chan_cat(guild_id: int, channel_id: int):
 
     # tell all people in the guild of the category removal
     for child_id in childs:
-        child = await app.storage.get_channel(child_id)
+        child = await app.storage.get_channel(child_id, request.discord_api_version)
         await app.dispatcher.guild.dispatch(guild_id, ("CHANNEL_UPDATE", child))
 
 
@@ -201,7 +201,7 @@ async def close_channel(channel_id):
 
     if ctype in GUILD_CHANS:
         _, guild_id = await channel_check(user_id, channel_id)
-        chan = await app.storage.get_channel(channel_id)
+        chan = await app.storage.get_channel(channel_id, request.discord_api_version)
 
         # the selected function will take care of checking
         # the sanity of tables once the channel becomes deleted.
@@ -257,7 +257,7 @@ async def close_channel(channel_id):
         await app.dispatcher.channel.drop(channel_id)
         return jsonify(chan)
     elif ctype == ChannelType.DM:
-        chan = await app.storage.get_channel(channel_id)
+        chan = await app.storage.get_channel(channel_id, request.discord_api_version)
 
         # we don't ever actually delete DM channels off the database.
         # instead, we close the channel for the user that is making
@@ -313,7 +313,7 @@ async def _mass_chan_update(guild_id, channel_ids: List[Optional[int]]):
         if channel_id is None:
             continue
 
-        chan = await app.storage.get_channel(channel_id)
+        chan = await app.storage.get_channel(channel_id, request.discord_api_version)
         await app.dispatcher.guild.dispatch(guild_id, ("CHANNEL_UPDATE", chan))
 
 
@@ -365,7 +365,10 @@ async def _process_overwrites(guild_id: int, channel_id: int, overwrites: list) 
     for overwrite in overwrites:
 
         # 0 for member overwrite, 1 for role overwrite
-        target_type = 0 if overwrite["type"] == "member" else 1
+        try:
+            target_type = int(overwrite["type"])
+        except Exception:
+            target_type = 0 if overwrite["type"] == "member" else 1
         target_role = None if target_type == 0 else overwrite["id"]
         target_user = overwrite["id"] if target_type == 0 else None
 
@@ -456,7 +459,7 @@ async def _update_channel_common(channel_id: int, guild_id: int, j: dict):
         )
 
     if "position" in j:
-        channel_data = await app.storage.get_channel_data(guild_id)
+        channel_data = await app.storage.get_channel_data(guild_id, request.discord_api_version)
 
         # get an ordered list of the chans array by position
         # TODO bad impl. can break easily. maybe dict?
@@ -620,7 +623,7 @@ async def update_channel(channel_id: int):
 
     await update_handler(channel_id, j, user_id)
 
-    chan = await app.storage.get_channel(channel_id)
+    chan = await app.storage.get_channel(channel_id, request.discord_api_version)
 
     if is_guild:
         await app.dispatcher.guild.dispatch(guild_id, ("CHANNEL_UPDATE", chan))

@@ -38,7 +38,7 @@ async def get_guild_channels(guild_id):
     user_id = await token_check()
     await guild_check(user_id, guild_id)
 
-    return jsonify(await app.storage.get_channel_data(guild_id))
+    return jsonify(await app.storage.get_channel_data(guild_id, request.discord_api_version))
 
 
 @bp.route("/<int:guild_id>/channels", methods=["POST"])
@@ -122,7 +122,7 @@ async def modify_channel_pos(guild_id):
     j = validate({"roles": raw_j}, ROLE_UPDATE_POSITION)
     roles = j["roles"]
 
-    channels = await app.storage.get_channel_data(guild_id)
+    channels = await app.storage.get_channel_data(guild_id, request.discord_api_version)
 
     channel_positions = {chan["position"]: int(chan["id"]) for chan in channels}
     swap_pairs = gen_pairs(roles, channel_positions)

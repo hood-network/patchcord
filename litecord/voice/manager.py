@@ -20,7 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 from typing import Tuple, Dict, List
 from collections import defaultdict
 from dataclasses import fields
-from quart import current_app as app
+from quart import current_app as app, request
 
 from logbook import Logger
 
@@ -57,7 +57,7 @@ class VoiceManager:
     async def can_join(self, user_id: int, channel_id: int) -> int:
         """Return if a user can join a channel."""
 
-        channel = await self.app.storage.get_channel(channel_id)
+        channel = await self.app.storage.get_channel(channel_id, request.discord_api_version)
         ctype = ChannelType(channel["type"])
 
         if ctype not in VOICE_CHANNELS:
@@ -286,7 +286,7 @@ class VoiceManager:
 
         # slow, but it be like that, also copied from other users...
         for guild_id in guild_ids:
-            guild = await self.app.storage.get_guild_full(guild_id, None)
+            guild = await self.app.storage.get_guild_full(guild_id, None, api_version=request.discord_api_version)
             await app.dispatcher.guild.dispatch(guild_id, ("GUILD_UPDATE", guild))
 
         # TODO propagate the channel deprecation to LVSP connections
