@@ -25,4 +25,4 @@ bp = Blueprint("stickers", __name__)
 @bp.route("/sticker-packs", methods=["GET"])
 async def sticker_packs():
     """Send static sticker packs"""
-    return await redirect("https://discord.com/api/v9/sticker-packs", code=302)
+    return redirect("https://discord.com/api/v9/sticker-packs", code=302)
