@@ -309,6 +309,7 @@ async def _update_guild(guild_id):
         "afk_timeout",
         "description",
         "preferred_locale",
+        "premium_progress_bar_enabled",
     ]
 
     for field in [f for f in fields if f in j]:

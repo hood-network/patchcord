@@ -141,6 +141,7 @@ class WrappedGuild:
     presences: list
     emojis: list
     voice_states: list
+    premium_progress_bar_enabled: bool
 
     large: Optional[bool] = None
 

@@ -346,6 +346,7 @@ GUILD_UPDATE = {
     },
     "preferred_locale": {"type": "string", "required": False, "nullable": True},
     "discovery_splash": {"type": "string", "required": False, "nullable": True},
+    "premium_progress_bar_enabled": {"type": "boolean", "required": False},
 }
 
 

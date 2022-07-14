@@ -17,7 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from quart import Blueprint, current_app as app, render_template, make_response, request
+from quart import Blueprint, current_app as app, render_template, make_response, request, abort
 from pathlib import Path
 import aiohttp
 import time
@@ -118,6 +118,8 @@ async def load_build(hash = "latest"):
 @bp.route("/", defaults={"path": ""}, methods=["GET"])
 @bp.route("/<path:path>", methods=["GET"])
 async def send_client(path):
+    if path.startswith("/api/"):
+        return await abort(404)
     return await _load_build(request.cookies.get("build_id", app.config.get("DEFAULT_BUILD", "latest")), default=True)
 
 
