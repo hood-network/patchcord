@@ -25,20 +25,6 @@ import time
 bp = Blueprint("static", __name__)
 
 
-@bp.route("/assets/<asset>", methods=["GET"])
-async def proxy_asset(asset):
-    """Proxy asset requests to Discord."""
-    if asset == "version.staging.json":
-        asset = "version.canary.json"
-    async with aiohttp.request("GET", f"https://canary.discord.com/assets/{asset}") as resp:
-        response = await make_response(await resp.read())
-        response.status = resp.status
-        response.headers["content-type"] = resp.headers["content-type"]
-        if "etag" in resp.headers:
-            response.headers["etag"] = resp.headers["etag"]
-        return response
-
-
 def _get_environment(app):
     return {
         "API_ENDPOINT": f"//{app.config['MAIN_URL']}/api",
@@ -133,3 +119,27 @@ async def load_build(hash = "latest"):
 @bp.route("/<path:path>", methods=["GET"])
 async def send_client(path):
     return await _load_build(request.cookies.get("build_id", app.config.get("DEFAULT_BUILD", "latest")), default=True)
+
+
+@bp.route("/assets/<asset>", methods=["GET"])
+async def proxy_asset(asset):
+    """Proxy asset requests to Discord."""
+    if asset == "version.staging.json":
+        asset = "version.canary.json"
+    async with aiohttp.request("GET", f"https://canary.discord.com/assets/{asset}") as resp:
+        if not 300 > resp.status >= 200:  # Fallback to the Wayback Machine if the asset is not found
+            async with aiohttp.request("GET", f"http://web.archive.org/web/https://discord.com/assets/{asset}") as resp:
+                if not 300 > resp.status >= 200:
+                    return "Asset not found", 404
+
+                # Insert if_ into the url after the date to get the actual file
+                async with aiohttp.request("GET", resp.url.replace("/http", "if_/http")) as resp:
+                    response = await make_response(await resp.read())
+        else:
+            response = await make_response(await resp.read())
+
+        response.status = resp.status
+        response.headers["content-type"] = resp.headers["content-type"]
+        if "etag" in resp.headers:
+            response.headers["etag"] = resp.headers["etag"]
+        return response
