@@ -112,17 +112,26 @@ async def _load_build(hash: str = "latest"):
         resp = await make_response(await render_template(file, **kwargs))
         if not latest:
             resp.set_cookie("build_id", hash)
+        else:
+            resp.set_cookie("build_id", "", expires=0)
         return resp
 
 
-@bp.route("/launch/<hash>")
-@bp.route("/build/<hash>")
-async def build_handler(hash = "latest"):
+@bp.route("/launch", methods=["GET"])
+@bp.route("/build", methods=["GET"])
+async def load_latest_build():
+    """Load a specific build."""
+    return await _load_build()
+
+
+@bp.route("/launch/<hash>", methods=["GET"])
+@bp.route("/build/<hash>", methods=["GET"])
+async def load_build(hash = "latest"):
     """Load a specific build."""
     return await _load_build(hash)
 
 
-@bp.route("/", defaults={"path": ""})
-@bp.route("/<path:path>")
+@bp.route("/", defaults={"path": ""}, methods=["GET"])
+@bp.route("/<path:path>", methods=["GET"])
 async def send_client(path):
     return await _load_build(request.cookies.get("build_id", "latest"))
