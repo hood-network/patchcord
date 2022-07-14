@@ -111,7 +111,7 @@ async def _load_build(hash: str = "latest"):
 
         resp = await make_response(await render_template(file, **kwargs))
         if not latest:
-            await resp.set_cookie("build_id", version)
+            await resp.set_cookie("build_id", hash)
         return resp
 
 
