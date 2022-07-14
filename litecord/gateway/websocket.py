@@ -758,7 +758,7 @@ class GatewayWebsocket:
             await self.invalidate_session(False)
             raise WebsocketClose(4009, "You are being ratelimited.")
 
-        if self._check_ratelimit("session", user_id):
+        if self._check_ratelimit("session", user_id) and self.state.bot:
             await self.invalidate_session(False)
             raise WebsocketClose(4004, "Websocket Session Ratelimit reached.")
 

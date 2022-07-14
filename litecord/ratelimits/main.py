@@ -29,7 +29,7 @@ REST:
       PATCH Username |  2/3600s | per-account
       |All Requests| |  50/1s   | per-account
 WS:
-     Gateway Connect |   1/5s   | per-account
+     Gateway Connect |   2/5s   | per-account
      Presence Update |   5/60s  | per-session
  |All Sent Messages| | 120/60s  | per-session
 """
@@ -47,7 +47,7 @@ RATELIMITS = {
     "guild_members.update_nickname": Ratelimit(1, 1, ("guild_id")),
     # this only applies to username.
     # 'users.patch_me': Ratelimit(2, 3600),
-    "_ws.connect": Ratelimit(1, 5),
+    "_ws.connect": Ratelimit(2, 5),
     "_ws.presence": Ratelimit(5, 60),
     "_ws.messages": Ratelimit(120, 60),
     # 1000 / 4h for new session issuing
