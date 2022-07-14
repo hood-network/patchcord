@@ -1,0 +1,1 @@
+ALTER TABLE guilds ADD COLUMN premium_progress_bar_enabled boolean NOT NULL DEFAULT false;
