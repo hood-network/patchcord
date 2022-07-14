@@ -121,7 +121,7 @@ redirect_logging()
 
 
 def make_app():
-    app = Quart(__name__)
+    app = Quart(__name__, static_url_path="")
     app.config.from_object(f"config.{config.MODE}")
     is_debug = app.config.get("DEBUG", False)
     app.debug = is_debug

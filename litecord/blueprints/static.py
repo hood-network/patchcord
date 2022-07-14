@@ -25,16 +25,6 @@ import time
 bp = Blueprint("static", __name__)
 
 
-@bp.route("/<path:path>")
-async def static_pages(path):
-    """Map requests from / to /static."""
-    if ".." in path:
-        return "The maze wasn't meant for you.", 404
-
-    static_path = Path.cwd() / Path("static") / path
-    return await app.send_static_file(str(static_path))
-
-
 @bp.route("/assets/<asset>", methods=["GET"])
 async def proxy_asset(asset):
     """Proxy asset requests to Discord."""
