@@ -267,7 +267,7 @@ async def patch_me():
 
     if j.get("flags"):
         old_flags = UserFlags.from_int(user["flags"])
-        new_flags = UserFlags.from_int(j["flags"])
+        new_flags = UserFlags.from_int(int(j["flags"]))
 
         if old_flags.is_premium_dismissed != new_flags.is_premium_dismissed:
             _toggle_flag(old_flags, UserFlags.premium_dismissed, new_flags.is_premium_dismissed)

@@ -260,7 +260,7 @@ USER_UPDATE = {
         "nullable": True,
     },
     "flags": {
-        "type": "int",
+        "type": "snowflake",
         "required": False,
     }
 }
