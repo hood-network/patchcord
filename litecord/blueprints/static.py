@@ -17,7 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from quart import Blueprint, current_app as app, render_template, make_response
+from quart import Blueprint, current_app as app, render_template, make_response, request
 from pathlib import Path
 import aiohttp
 import time
@@ -29,7 +29,7 @@ bp = Blueprint("static", __name__)
 async def static_pages(path):
     """Map requests from / to /static."""
     if ".." in path:
-        return "no", 404
+        return "The maze wasn't meant for you.", 404
 
     static_path = Path.cwd() / Path("static") / path
     return await app.send_static_file(str(static_path))
@@ -38,10 +38,14 @@ async def static_pages(path):
 @bp.route("/assets/<asset>", methods=["GET"])
 async def proxy_asset(asset):
     """Proxy asset requests to Discord."""
+    if asset == "version.staging.json":
+        asset = "version.canary.json"
     async with aiohttp.request("GET", f"https://canary.discord.com/assets/{asset}") as resp:
         response = await make_response(await resp.read())
         response.status = resp.status
-        response.headers['content-type'] = resp.headers['content-type']
+        response.headers["content-type"] = resp.headers["content-type"]
+        if "etag" in resp.headers:
+            response.headers["etag"] = resp.headers["etag"]
         return response
 
 
@@ -80,7 +84,9 @@ def _get_environment(app):
 
 async def _load_build(hash: str = "latest"):
     """Load a build from discord.sale."""
+    latest = False
     if hash == "latest":
+        latest = True
         async with aiohttp.request("GET", "https://api.discord.sale/builds") as resp:
             if not 300 > resp.status >= 200:
                 return "Build not found", 404
@@ -96,8 +102,8 @@ async def _load_build(hash: str = "latest"):
         version = info["number"]
 
         kwargs = {
-            'GLOBAL_ENV': _get_environment(app),
-            "build_id": version,
+            "GLOBAL_ENV": _get_environment(app),
+            "build_id": f" v{version}" if not latest else " | Your Place to Talk and Hang Out",
             "style": styles[0],
             "loader": scripts[0],
             "classes": scripts[1]
@@ -113,20 +119,10 @@ async def _load_build(hash: str = "latest"):
         else:
             return "Build not supported", 404
 
-        return await render_template(file, **kwargs)
-
-
-@bp.route("/")
-async def index_handler():
-    """Handler for the index page."""
-    return await _load_build(app.config['DEFAULT_BUILD'])
-
-
-@bp.route("/launch")
-@bp.route("/build")
-async def latest_build():
-    """Load the latest build."""
-    return await _load_build()
+        resp = await make_response(await render_template(file, **kwargs))
+        if not latest:
+            await resp.set_cookie("build_id", version)
+        return resp
 
 
 @bp.route("/launch/<hash>")
@@ -134,3 +130,9 @@ async def latest_build():
 async def build_handler(hash = "latest"):
     """Load a specific build."""
     return await _load_build(hash)
+
+
+@app.route("/", defaults={"path": ""})
+@app.route("/<path:path>")
+async def send_client(path):
+    return await _load_build(request.cookies.get("build_id", "latest"))
