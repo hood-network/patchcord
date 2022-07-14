@@ -374,6 +374,8 @@ CREATE TABLE IF NOT EXISTS guilds (
 
     system_channel_id bigint REFERENCES channels (id) DEFAULT NULL,
 
+    premium_progress_bar_enabled boolean DEFAULT false,
+
     -- only for guilds with certain features
     description text DEFAULT NULL,
     banner text DEFAULT NULL
