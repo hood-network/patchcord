@@ -72,11 +72,9 @@ def _get_environment(app):
     }
 
 
-async def _load_build(hash: str = "latest"):
+async def _load_build(hash: str = "latest", default: bool = False):
     """Load a build from discord.sale."""
-    latest = False
     if hash == "latest":
-        latest = True
         async with aiohttp.request("GET", "https://api.discord.sale/builds") as resp:
             if not 300 > resp.status >= 200:
                 return "Build not found", 404
@@ -93,7 +91,7 @@ async def _load_build(hash: str = "latest"):
 
         kwargs = {
             "GLOBAL_ENV": _get_environment(app),
-            "build_id": f" v{version}" if not latest else " | Your Place to Talk and Hang Out",
+            "build_id": f" v{version}" if not default else " | Your Place to Talk and Hang Out",
             "style": styles[0],
             "loader": scripts[0],
             "classes": scripts[1]
@@ -110,9 +108,9 @@ async def _load_build(hash: str = "latest"):
             return "Build not supported", 404
 
         resp = await make_response(await render_template(file, **kwargs))
-        if not latest:
+        if not default:
             resp.set_cookie("build_id", hash)
-        else:
+        elif request.cookies.get("build_id"):
             resp.set_cookie("build_id", "", expires=0)
         return resp
 
@@ -134,4 +132,4 @@ async def load_build(hash = "latest"):
 @bp.route("/", defaults={"path": ""}, methods=["GET"])
 @bp.route("/<path:path>", methods=["GET"])
 async def send_client(path):
-    return await _load_build(request.cookies.get("build_id", "latest"))
+    return await _load_build(request.cookies.get("build_id", app.config.get("DEFAULT_BUILD", "latest")), default=True)
