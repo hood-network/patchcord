@@ -139,6 +139,9 @@ class ActivityFlags(Flags):
     join_request = 8
     sync = 16
     play = 32
+    party_privacy_friends = 64
+    party_privacy_voice_channel = 128
+    embedded = 256
 
 
 class UserFlags(Flags):
@@ -160,15 +163,22 @@ class UserFlags(Flags):
 
     premium_early = 512
 
-    unread_system = 4096
+    team_user = 1024
+
+    partner_or_verification_application = 2048
+    system = 4096
     unread_urgent_system = 8192
 
     bug_hunter_2 = 16384
 
-    underage_deleted = 1 << 15
-    verified_bot = 1 << 16
-    verified_developer = 1 << 17
-    certified_moderator = 1 << 18
+    underage_deleted = 32768
+    verified_bot = 65536
+    verified_developer = 131072
+    certified_moderator = 262144
+
+    http_interactions = 524288
+    spammer = 1048576
+    disable_premium = 2097152
 
 
 class MessageFlags(Flags):
@@ -179,6 +189,12 @@ class MessageFlags(Flags):
     crossposted = 1 << 0
     is_crosspost = 1 << 1
     suppress_embeds = 1 << 2
+    source_message_deleted = 1 << 3
+    urgent = 1 << 4
+    has_thread = 1 << 5
+    ephemeral = 1 << 6
+    loading = 1 << 7
+    failed_to_mention_some_roles_in_thread = 1 << 8
 
 
 class StatusType(EasyEnum):

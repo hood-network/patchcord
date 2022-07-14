@@ -259,6 +259,10 @@ USER_UPDATE = {
         "required": False,
         "nullable": True,
     },
+    "flags": {
+        "type": "int",
+        "required": False,
+    }
 }
 
 PARTIAL_ROLE_GUILD_CREATE = {
