@@ -132,7 +132,7 @@ async def build_handler(hash = "latest"):
     return await _load_build(hash)
 
 
-@app.route("/", defaults={"path": ""})
-@app.route("/<path:path>")
+@bp.route("/", defaults={"path": ""})
+@bp.route("/<path:path>")
 async def send_client(path):
     return await _load_build(request.cookies.get("build_id", "latest"))
