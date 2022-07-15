@@ -212,6 +212,7 @@ async def update_nickname(guild_id):
 
     j = validate(await request.get_json(), SELF_MEMBER_UPDATE)
     member = await app.storage.get_member_data_one(guild_id, user_id)
+    user = await app.storage.get_user(user_id, True)
     presence_dict = {}
 
     if to_update(j, member, "nick"):
@@ -228,7 +229,7 @@ async def update_nickname(guild_id):
         presence_dict["nick"] = j["nick"] or None
 
     if to_update(j, member, "avatar"):
-        if member["user"]["premium_type"] != PremiumType.TIER_2:
+        if user["premium_type"] != PremiumType.TIER_2:
             raise BadRequest("no member avatar without nitro")
 
         new_icon = await app.icons.update("member_avatar", f"{guild_id}_{user_id}", j["avatar"], size=(128, 128))
@@ -246,7 +247,7 @@ async def update_nickname(guild_id):
         presence_dict["avatar"] = new_icon.icon_hash
 
     if to_update(j, member, "banner"):
-        if member["user"]["premium_type"] != PremiumType.TIER_2:
+        if user["premium_type"] != PremiumType.TIER_2:
             raise BadRequest("no member banner without nitro")
 
         new_icon = await app.icons.update("member_banner", f"{guild_id}_{user_id}", j["banner"])
@@ -264,7 +265,7 @@ async def update_nickname(guild_id):
         presence_dict["banner"] = new_icon.icon_hash
 
     if to_update(j, member, "bio"):
-        if j["bio"] and member["user"]["premium_type"] != PremiumType.TIER_2:
+        if j["bio"] and user["premium_type"] != PremiumType.TIER_2:
             raise BadRequest("no member bio without nitro")
 
         await app.db.execute(
