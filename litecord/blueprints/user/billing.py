@@ -187,7 +187,7 @@ async def get_payment_source(user_id: int, source_id: int) -> dict:
 
     derow["default"] = derow["default_"]
     derow.pop("default_")
-    derow["billing_address"] = dict(derow["billing_address"])
+    derow["billing_address"] = json.loads(derow["billing_address"]) if isinstance(derow["billing_address"], str) else derow["billing_address"]
 
     source = {"id": str(source_id), "type": source_type.value}
 
@@ -512,7 +512,7 @@ async def _patch_subscription(subscription_id):
 
 
 @bp.route("/@me/guilds/premium/subscription-slots")
-async def _slots(subscription_id):
+async def _slots():
     return jsonify([])
 
 
