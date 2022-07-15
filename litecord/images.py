@@ -558,7 +558,7 @@ class IconManager:
         query = f"SELECT {arg} from {table} "
         if '_' in key:  # Support guild_user
             query += "WHERE user_id = $1 and guild_id = $2"
-            args = (key.split('_')[1], key.split('_')[0])
+            args = (int(key.split('_')[1]), int(key.split('_')[0]))
         else:
             query += "WHERE id = $1"
             args = (key,)
