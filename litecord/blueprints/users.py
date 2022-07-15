@@ -418,7 +418,7 @@ async def get_profile(peer_id: int):
 
     # don't return a proper card if no guilds are being shared.
     if not mutual_guilds and not friends:
-        return "", 404
+        return "", 403
 
     # actual premium status is determined by that
     # column being NULL or not
@@ -435,12 +435,16 @@ async def get_profile(peer_id: int):
         "user": peer,
         "connected_accounts": [],
         "premium_since": peer_premium,
+        "premium_guild_since": peer_premium,  # same for now
     }
 
     if request.args.get("with_mutual_guilds", type=bool) in (None, True):
         result["mutual_guilds"] = await map_guild_ids_to_mutual_list(
             mutual_guilds, peer_id
         )
+
+    if request.args.get("guild_id", type=int):
+        result["guild_member"] = await app.storage.get_member_data_one(request.args.get("guild_id", type=int), peer_id)
 
     return jsonify(result)
 
