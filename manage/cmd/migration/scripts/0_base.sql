@@ -554,6 +554,7 @@ CREATE TABLE IF NOT EXISTS members (
     avatar text REFERENCES icons (hash) DEFAULT NULL,
     banner text REFERENCES icons (hash) DEFAULT NULL,
     nickname text DEFAULT NULL,
+    bio text DEFAULT "" NOT NULL,
 
     PRIMARY KEY (user_id, guild_id)
 );

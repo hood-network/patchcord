@@ -1,0 +1,2 @@
+ALTER TABLE members
+    ADD COLUMN bio TEXT DEFAULT '' NOT NULL;
