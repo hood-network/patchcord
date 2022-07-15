@@ -555,7 +555,7 @@ class IconManager:
     async def update(self, scope: str, key: str, new_icon_data: str, **kwargs) -> Icon:
         """Update an icon on a key."""
         arg, table = _get_args(scope)
-        query = f"SELECT {arg} from {table}"
+        query = f"SELECT {arg} from {table} "
         if '_' in key:  # Support guild_user
             query += "WHERE user_id = $1 and guild_id = $2"
             args = (key.split('_')[1], key.split('_')[0])
