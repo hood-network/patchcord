@@ -1,10 +1,6 @@
 UPDATE icons
     SET scope = 'user_avatar'
-    WHERE scope = 'avatar';
-
-UPDATE icons
-    SET scope = 'user_banner'
-    WHERE scope = 'banner';
+    WHERE scope = 'user';
 
 UPDATE icons
     SET scope = 'guild_icon'
