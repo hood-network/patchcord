@@ -239,37 +239,6 @@ class Storage:
 
         return drow
 
-    async def _member_basic(self, guild_id: int, member_id: int):
-        row = await self.db.fetchrow(
-            """
-        SELECT user_id, nickname AS nick, joined_at,
-               deafened AS deaf, muted AS mute
-        FROM members
-        WHERE guild_id = $1 and user_id = $2
-        """,
-            guild_id,
-            member_id,
-        )
-
-        if row is None:
-            return None
-
-        drow = dict(row)
-        drow["user_id"] = str(drow["user_id"])
-        drow["joined_at"] = timestamp_(row["joined_at"])
-        return drow
-
-    async def _member_basic_with_roles(self, guild_id: int, member_id: int):
-        basic = await self._member_basic(guild_id, member_id)
-
-        if basic is None:
-            return None
-
-        basic = dict(basic)
-        roles = await self.get_member_role_ids(guild_id, member_id)
-
-        return {**basic, **{"roles": roles}}
-
     async def get_member_role_ids(self, guild_id: int, member_id: int) -> List[str]:
         """Get a list of role IDs that are on a member."""
         roles = await self.db.fetch(
@@ -302,32 +271,29 @@ class Storage:
 
         return list(map(str, roles))
 
-    async def _member_dict(self, row, guild_id, member_id) -> Dict[str, Any]:
-        roles = await self.get_member_role_ids(guild_id, member_id)
+    async def get_member_data_one(self, guild_id, member_id, with_user: bool = True) -> Optional[Dict[str, Any]]:
+        row = await self.db.fetchrow(
+            """
+        SELECT user_id, nickname AS nick, joined_at,
+               deafened AS deaf, muted AS mute, avatar, banner, bio
+        FROM members
+        WHERE guild_id = $1 and user_id = $2
+        """,
+            guild_id,
+            member_id,
+        )
 
-        # TODO refactor member fetching's code paths
-        return {
-            "user": await self.get_user(member_id),
-            "nick": row["nick"],
-            # we don't send the @everyone role's id to
-            # the user since it is known that everyone has
-            # that role.
-            "roles": roles,
-            "joined_at": row["joined_at"],
-            "deaf": row["deaf"],
-            "mute": row["mute"],
-        }
-
-    async def get_member_data_one(
-        self, guild_id: int, member_id: int
-    ) -> Optional[Dict[str, Any]]:
-        """Get data about one member in a guild."""
-        basic = await self._member_basic(guild_id, member_id)
-
-        if not basic:
+        if row is None:
             return None
 
-        return await self._member_dict(basic, guild_id, member_id)
+        drow = dict(row)
+        drow["user_id"] = str(drow["user_id"])
+        drow["joined_at"] = timestamp_(row["joined_at"])
+        drow["roles"] = await self.get_member_role_ids(guild_id, member_id)
+        if with_user:
+            drow["user"] = await self.get_user(member_id)
+
+        return drow
 
     async def get_member_multi(
         self, guild_id: int, user_ids: List[int]
@@ -337,7 +303,6 @@ class Storage:
 
         for user_id in user_ids:
             member = await self.get_member_data_one(guild_id, user_id)
-
             if not member:
                 continue
 
@@ -345,12 +310,12 @@ class Storage:
 
         return members
 
-    async def get_member_data(self, guild_id: int) -> List[Dict[str, Any]]:
+    async def get_member_data(self, guild_id: int, with_user: bool = True) -> List[Dict[str, Any]]:
         """Get member information on a guild."""
         members_basic = await self.db.fetch(
             """
         SELECT user_id, nickname AS nick, joined_at,
-               deafened AS deaf, muted AS mute
+               deafened AS deaf, muted AS mute, avatar, banner, bio
         FROM members
         WHERE guild_id = $1
         """,
@@ -358,12 +323,15 @@ class Storage:
         )
 
         members = []
-
         for row in members_basic:
             drow = dict(row)
-            drow["joined_at"] = timestamp_(drow["joined_at"])
-            member = await self._member_dict(drow, guild_id, drow["user_id"])
-            members.append(member)
+            user_id = drow["user_id"]
+            drow["user_id"] = str(drow["user_id"])
+            drow["joined_at"] = timestamp_(row["joined_at"])
+            drow["roles"] = await self.get_member_role_ids(guild_id, user_id)
+            if with_user:
+                drow["user"] = await self.get_user(user_id)
+            members.append(drow)
 
         return members
 
@@ -1059,7 +1027,7 @@ class Storage:
 
             if guild_id:
                 # TODO: maybe make this partial?
-                member = await self.get_member_data_one(guild_id, user_id)
+                member = await self.get_member_data_one(guild_id, user_id, False)
 
             return {**user, **{"member": member}} if member else user
 
@@ -1100,7 +1068,7 @@ class Storage:
 
         # user id can be none, though, and we need to watch out for that
         if user_id is not None:
-            res["member"] = await self._member_basic_with_roles(guild_id, user_id)
+            res["member"] = await self.get_member_data_one(guild_id, user_id, False)
 
         if res.get("member") is None:
             try:

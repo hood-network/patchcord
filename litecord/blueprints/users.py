@@ -60,7 +60,7 @@ async def get_me():
 @bp.route("/<int:target_id>", methods=["GET"])
 async def get_other(target_id):
     """Get any user, given the user ID."""
-    user_id = await token_check()
+    await token_check()
 
     other = await app.storage.get_user(target_id)
     return jsonify(other)
@@ -213,12 +213,29 @@ async def patch_me():
         if mime == "image/gif" and user["premium_type"] == PremiumType.NONE:
             raise BadRequest("no gif without nitro")
 
-        new_icon = await app.icons.update("user", user_id, j["avatar"], size=(128, 128))
+        new_icon = await app.icons.update("user_avatar", user_id, j["avatar"], size=(128, 128))
 
         await app.db.execute(
             """
         UPDATE users
         SET avatar = $1
+        WHERE id = $2
+        """,
+            new_icon.icon_hash,
+            user_id,
+        )
+
+    if to_update(j, user, "banner"):
+        if user["premium_type"] != PremiumType.TIER_2:
+            raise BadRequest("no banner without nitro")
+
+        mime, _ = parse_data_uri(j["banner"])
+        new_icon = await app.icons.update("user_banner", user_id, j["banner"])
+
+        await app.db.execute(
+            """
+        UPDATE users
+        SET banner = $1
         WHERE id = $2
         """,
             new_icon.icon_hash,
@@ -232,7 +249,7 @@ async def patch_me():
             SET bio = $1
             WHERE id = $2
             """,
-            j["bio"],
+            j["bio"] or "",
             user_id,
         )
 

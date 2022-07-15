@@ -22,7 +22,11 @@ from quart import Blueprint, request, current_app as app, jsonify
 from litecord.blueprints.auth import token_check
 from litecord.errors import BadRequest
 
-from litecord.schemas import validate, MEMBER_UPDATE
+from litecord.schemas import validate, MEMBER_UPDATE, SELF_MEMBER_UPDATE
+from litecord.images import parse_data_uri
+from litecord.utils import to_update
+
+from litecord.enums import PremiumType
 
 from litecord.blueprints.checks import guild_check, guild_owner_check, guild_perm_check
 
@@ -206,27 +210,82 @@ async def update_nickname(guild_id):
     user_id = await token_check()
     await guild_check(user_id, guild_id)
 
-    j = validate(await request.get_json(), {"nick": {"type": "nickname"}})
+    j = validate(await request.get_json(), SELF_MEMBER_UPDATE)
+    member = await app.storage.get_member_data_one(guild_id, user_id)
+    presence_dict = {}
 
-    nick = j["nick"] or None
+    if to_update(j, member, "nick"):
+        await app.db.execute(
+            """
+        UPDATE members
+        SET nickname = $1
+        WHERE user_id = $2 AND guild_id = $3
+        """,
+            j["nick"] or None,
+            user_id,
+            guild_id,
+        )
+        presence_dict["nick"] = j["nick"] or None
 
-    await app.db.execute(
-        """
-    UPDATE members
-    SET nickname = $1
-    WHERE user_id = $2 AND guild_id = $3
-    """,
-        nick,
-        user_id,
-        guild_id,
-    )
+    if to_update(j, member, "avatar"):
+        if member["user"]["premium_type"] != PremiumType.TIER_2:
+            raise BadRequest("no member avatar without nitro")
+
+        new_icon = await app.icons.update("member_avatar", f"{guild_id}_{user_id}", j["avatar"], size=(128, 128))
+
+        await app.db.execute(
+            """
+        UPDATE members
+        SET avatar = $1
+        WHERE user_id = $2 AND guild_id = $3
+        """,
+            new_icon.icon_hash,
+            user_id,
+            guild_id,
+        )
+        presence_dict["avatar"] = new_icon.icon_hash
+
+    if to_update(j, member, "banner"):
+        if member["user"]["premium_type"] != PremiumType.TIER_2:
+            raise BadRequest("no member banner without nitro")
+
+        new_icon = await app.icons.update("member_banner", f"{guild_id}_{user_id}", j["banner"])
+
+        await app.db.execute(
+            """
+        UPDATE members
+        SET banner = $1
+        WHERE user_id = $2 AND guild_id = $3
+        """,
+            new_icon.icon_hash,
+            user_id,
+            guild_id,
+        )
+        presence_dict["banner"] = new_icon.icon_hash
+
+    if to_update(j, member, "bio"):
+        if j["bio"] and member["user"]["premium_type"] != PremiumType.TIER_2:
+            raise BadRequest("no member bio without nitro")
+
+        await app.db.execute(
+            """
+        UPDATE members
+        SET bio = $1
+        WHERE user_id = $2 AND guild_id = $3
+        """,
+            j["bio"] or "",
+            user_id,
+            guild_id,
+        )
+        presence_dict["bio"] = j["bio"] or ""
 
     member = await app.storage.get_member_data_one(guild_id, user_id)
 
     # call pres_update for nick changes, etc.
-    await app.lazy_guild.pres_update(guild_id, user_id, {"nick": j["nick"]})
+    if presence_dict:
+        await app.lazy_guild.pres_update(guild_id, user_id, presence_dict)
     await app.dispatcher.guild.dispatch(
         guild_id, ("GUILD_MEMBER_UPDATE", {**{"guild_id": str(guild_id)}, **member})
     )
 
-    return j["nick"]
+    return member

@@ -577,7 +577,7 @@ async def _update_group_dm(channel_id: int, j: dict, author_id: int):
 
     if "icon" in j:
         new_icon = await app.icons.update(
-            "channel-icons", channel_id, j["icon"], always_icon=True
+            "channel_icon", channel_id, j["icon"], always_icon=True
         )
 
         await app.db.execute(

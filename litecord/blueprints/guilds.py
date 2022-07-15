@@ -282,25 +282,25 @@ async def _update_guild(guild_id):
     guild = await app.storage.get_guild(guild_id)
 
     if to_update(j, guild, "icon"):
-        await _guild_update_icon("guild", guild_id, j["icon"], size=(128, 128))
+        await _guild_update_icon("guild_icon", guild_id, j["icon"], size=(128, 128))
 
     if to_update(j, guild, "splash"):
         if not await app.storage.has_feature(guild_id, "INVITE_SPLASH"):
             raise BadRequest("guild does not have INVITE_SPLASH feature")
 
-        await _guild_update_icon("splash", guild_id, j["splash"])
+        await _guild_update_icon("guild_splash", guild_id, j["splash"])
 
     if to_update(j, guild, "banner"):
         if not await app.storage.has_feature(guild_id, "VERIFIED"):
             raise BadRequest("guild is not verified")
 
-        await _guild_update_icon("banner", guild_id, j["banner"])
+        await _guild_update_icon("guild_banner", guild_id, j["banner"])
 
     if to_update(j, guild, "discovery_splash"):
         if not await app.storage.has_feature(guild_id, "PUBLIC"):
             raise BadRequest("guild does not have PUBLIC feature")
 
-        await _guild_update_icon("discovery_splash", guild_id, j["discovery_splash"])
+        await _guild_update_icon("guild_discovery_splash", guild_id, j["discovery_splash"])
 
     fields = [
         "verification_level",

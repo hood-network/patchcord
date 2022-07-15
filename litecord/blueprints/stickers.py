@@ -17,7 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from quart import Blueprint, jsonify, redirect
+from quart import Blueprint, redirect
 
 bp = Blueprint("stickers", __name__)
 

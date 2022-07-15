@@ -252,7 +252,7 @@ USER_UPDATE = {
     "bio": {
         "type": "string",
         "required": False,
-        "nullable": False,
+        "nullable": True,
     },
     "accent_color": {
         "type": "rgb_int_color",
@@ -423,11 +423,22 @@ ROLE_UPDATE_POSITION = {
 
 
 MEMBER_UPDATE = {
-    "nick": {"type": "nickname", "required": False},
-    "roles": {"type": "list", "required": False, "schema": {"coerce": int}},
+    "avatar": {"type": "string", "required": False, "nullable": True},
+    "banner": {"type": "string", "required": False, "nullable": True},
+    "bio": {"type": "string", "required": False, "nullable": True},
+    "nick": {"type": "nickname", "required": False, "nullable": True},
+    "roles": {"type": "list", "required": False, "schema": {"coerce": int}, "nullable": True},
     "mute": {"type": "boolean", "required": False},
     "deaf": {"type": "boolean", "required": False},
-    "channel_id": {"type": "snowflake", "required": False},
+    "channel_id": {"type": "snowflake", "required": False, "nullable": True},
+}
+
+
+SELF_MEMBER_UPDATE = {
+    "avatar": {"type": "string", "required": False, "nullable": True},
+    "banner": {"type": "string", "required": False, "nullable": True},
+    "bio": {"type": "string", "required": False, "nullable": True},
+    "nick": {"type": "nickname", "required": False, "nullable": True},
 }
 
 

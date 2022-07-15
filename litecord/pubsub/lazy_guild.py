@@ -1076,6 +1076,9 @@ class GuildMemberList:
             log.warning("pres update with unknown old group uid={}", user_id)
             return []
 
+        avatar = partial_presence.get("avatar", old_presence.get("avatar"))
+        banner = partial_presence.get("banner", old_presence.get("banner"))
+        bio = partial_presence.get("bio", old_presence.get("bio") or "")
         roles = partial_presence.get("roles", old_presence["roles"])
         status = partial_presence.get("status", old_presence["status"])
 
@@ -1099,6 +1102,9 @@ class GuildMemberList:
         if has_nick:
             self.list.members[user_id]["nick"] = partial_presence["nick"]
 
+        self.list.members[user_id]["avatar"] = avatar
+        self.list.members[user_id]["banner"] = banner
+        self.list.members[user_id]["bio"] = bio
         self.list.members[user_id]["roles"] = roles
 
         # if we're going to the same group AND there are no

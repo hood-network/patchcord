@@ -22,7 +22,7 @@ import mimetypes
 import asyncio
 import base64
 import tempfile
-from typing import Optional, Union
+from typing import Optional, Tuple, Union
 
 from dataclasses import dataclass
 from hashlib import sha256
@@ -175,29 +175,31 @@ def parse_data_uri(string) -> tuple:
         raise ImageError("data URI invalid syntax")
 
 
-def _gen_update_sql(scope: str) -> str:
-    # match a scope to (table, field)
-    field = {
-        "user": "avatar",
-        "guild": "icon",
-        "splash": "splash",
-        "discovery_splash": "discovery_splash",
-        "banner": "banner",
-        "channel-icons": "icon",
-    }[scope]
+def _get_args(scope: str) -> Tuple[str, str]:
+    fields = {
+        "member_avatar": "avatar",
+        "member_banner": "banner",
+        "user_avatar": "avatar",
+        "user_banner": "banner",
+        "guild_icon": "icon",
+        "guild_splash": "splash",
+        "guild_discovery_splash": "discovery_splash",
+        "guild_banner": "banner",
+        "channel_icon": "icon",
+    }
 
-    table = {
-        "user": "users",
-        "guild": "guilds",
-        "splash": "guilds",
-        "discovery_splash": "guilds",
-        "banner": "guilds",
-        "channel-icons": "group_dm_channels",
-    }[scope]
-
-    return f"""
-    SELECT {field} FROM {table} WHERE id = $1
-    """
+    tables = {
+        "member_avatar": "members",
+        "member_banner": "members",
+        "user_avatar": "users",
+        "user_banner": "users",
+        "guild_icon": "guilds",
+        "guild_splash": "guilds",
+        "guild_discovery_splash": "guilds",
+        "guild_banner": "guilds",
+        "channel_icon": "group_dm_channels",
+    }
+    return fields[scope], tables[scope]
 
 
 def _invalid(kwargs: dict) -> Optional[Icon]:
@@ -402,7 +404,7 @@ class IconManager:
         # ignore icon hashes if we're talking about emoji
         icon_hash = await calculate_hash(data_fd) if scope != "emoji" else None
 
-        if scope == "user" and mime == "image/gif":
+        if mime == "image/gif":
             icon_hash = f"a_{icon_hash}"
 
         log.debug("PUT icon {!r} {!r} {!r} {!r}", scope, key, icon_hash, mime)
@@ -447,6 +449,33 @@ class IconManager:
 
         await self.storage.db.execute(
             """
+        UPDATE users
+        SET banner = NULL
+        WHERE banner = $1
+        """,
+            icon.icon_hash,
+        )
+
+        await self.storage.db.execute(
+            """
+        UPDATE members
+        SET avatar = NULL
+        WHERE avatar = $1
+        """,
+            icon.icon_hash,
+        )
+
+        await self.storage.db.execute(
+            """
+        UPDATE members
+        SET banner = NULL
+        WHERE banner = $1
+        """,
+            icon.icon_hash,
+        )
+
+        await self.storage.db.execute(
+            """
         UPDATE group_dm_channels
         SET icon = NULL
         WHERE icon = $1
@@ -476,6 +505,15 @@ class IconManager:
         UPDATE guilds
         SET splash = NULL
         WHERE splash = $1
+        """,
+            icon.icon_hash,
+        )
+
+        await self.storage.db.execute(
+            """
+        UPDATE guilds
+        SET discovery_splash = NULL
+        WHERE discovery_splash = $1
         """,
             icon.icon_hash,
         )
@@ -516,7 +554,7 @@ class IconManager:
 
     async def update(self, scope: str, key: str, new_icon_data: str, **kwargs) -> Icon:
         """Update an icon on a key."""
-        old_icon_hash = await self.storage.db.fetchval(_gen_update_sql(scope), key)
+        old_icon_hash = await self.storage.db.fetchval("SELECT $1 FROM $2 WHERE id = $3", *_get_args(scope), key)
 
         # converting key to str only here since from here onwards
         # its operations on the icons table (or a dereference with

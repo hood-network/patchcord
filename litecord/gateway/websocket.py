@@ -959,6 +959,7 @@ class GatewayWebsocket:
 
         if presences:
             await self.dispatch_raw("PRESENCE_REPLACE", presences)
+            await self.dispatch_raw("PRESENCES_REPLACE", presences)
 
         await self.dispatch_raw("RESUMED", {})
 

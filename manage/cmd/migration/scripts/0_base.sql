@@ -74,6 +74,7 @@ CREATE TABLE IF NOT EXISTS users (
     mfa_enabled boolean DEFAULT FALSE,
     verified boolean DEFAULT FALSE,
     avatar text REFERENCES icons (hash) DEFAULT NULL,
+    banner text REFERENCES icons (hash) DEFAULT NULL,
 
     -- user badges, discord dev, etc
     flags int DEFAULT 0,
@@ -546,10 +547,14 @@ CREATE TABLE IF NOT EXISTS webhooks (
 CREATE TABLE IF NOT EXISTS members (
     user_id bigint REFERENCES users (id) ON DELETE CASCADE,
     guild_id bigint REFERENCES guilds (id) ON DELETE CASCADE,
-    nickname text DEFAULT NULL,
     joined_at timestamp without time zone default (now() at time zone 'utc'),
     deafened boolean DEFAULT false,
     muted boolean DEFAULT false,
+
+    avatar text REFERENCES icons (hash) DEFAULT NULL,
+    banner text REFERENCES icons (hash) DEFAULT NULL,
+    nickname text DEFAULT NULL,
+
     PRIMARY KEY (user_id, guild_id)
 );
 

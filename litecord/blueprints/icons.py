@@ -51,14 +51,14 @@ async def _get_raw_emoji(emoji_file):
 @bp.route("/icons/<int:guild_id>/<icon_file>", methods=["GET"])
 async def _get_guild_icon(guild_id: int, icon_file: str):
     icon_hash, ext = splitext_(icon_file)
-    return await send_icon("guild", guild_id, icon_hash, ext=ext)
+    return await send_icon("guild_icon", guild_id, icon_hash, ext=ext)
 
 
-@bp.route("/embed/avatars/<int:default_id>.png")
-async def _get_default_user_avatar(default_id: int):
+@bp.route("/embed/avatars/<default_id>")
+async def _get_default_user_avatar(default_id):
     # TODO: how do we determine which assets to use for this?
-    # I don't think we can use discord assets.
-    pass
+    # I don't think we can use discord assets (well we can for educational purposes)
+    return redirect(f"https://cdn.discordapp.com/embed/avatars/{default_id}", code=301)
 
 
 async def _handle_webhook_avatar(md_url_redir: str):
@@ -84,33 +84,50 @@ async def _get_user_avatar(user_id, avatar_file):
     if md_url_redir:
         return await _handle_webhook_avatar(md_url_redir)
 
-    return await send_icon("user", user_id, avatar_hash, ext=ext)
+    return await send_icon("user_avatar", user_id, avatar_hash, ext=ext)
+
+
+@bp.route("/guilds/<int:guild_id>/users/<int:user_id>/avatars/<avatar_file>")
+async def _get_member_avatar(guild_id, user_id, avatar_file):
+    avatar_hash, ext = splitext_(avatar_file)
+    return await send_icon("member_avatar", f"{guild_id}_{user_id}", avatar_hash, ext=ext)
+
+
+@bp.route("/guilds/<int:guild_id>/users/<int:user_id>/banners/<banner_file>")
+async def _get_member_banner(guild_id, user_id, banner_file):
+    avatar_hash, ext = splitext_(banner_file)
+    return await send_icon("member_banner", f"{guild_id}_{user_id}", avatar_hash, ext=ext)
 
 
 # @bp.route('/app-icons/<int:application_id>/<icon_hash>.<ext>')
-async def get_app_icon(application_id, icon_hash, ext):
-    pass
+# async def get_app_icon(application_id, icon_hash, ext):
+#     pass
 
 
 @bp.route("/channel-icons/<int:channel_id>/<icon_file>", methods=["GET"])
 async def _get_gdm_icon(channel_id: int, icon_file: str):
     icon_hash, ext = splitext_(icon_file)
-    return await send_icon("channel-icons", channel_id, icon_hash, ext=ext)
+    return await send_icon("channel_icon", channel_id, icon_hash, ext=ext)
 
 
 @bp.route("/splashes/<int:guild_id>/<icon_file>", methods=["GET"])
 async def _get_guild_splash(guild_id: int, icon_file: str):
     icon_hash, ext = splitext_(icon_file)
-    return await send_icon("splash", guild_id, icon_hash, ext=ext)
+    return await send_icon("guild_splash", guild_id, icon_hash, ext=ext)
 
 
-@bp.route("/banners/<int:guild_id>/<icon_file>", methods=["GET"])
-async def _get_guild_banner(guild_id: int, icon_file: str):
-    icon_hash, ext = splitext_(icon_file)
-    return await send_icon("banner", guild_id, icon_hash, ext=ext)
+@bp.route("/banners/<int:id>/<file>", methods=["GET"])
+async def _get_banner(id: int, file: str):
+    hash, ext = splitext_(file)
+    user = await app.storage.get_user(id)
+
+    # This is used for guild and user banners
+    if user:
+        return await send_icon("user_banner", id, hash, ext=ext)
+    return await send_icon("guild_banner", id, hash, ext=ext)
 
 
 @bp.route("/discovery-splashes/<int:guild_id>/<icon_file>", methods=["GET"])
 async def _get_discovery_splash(guild_id: int, icon_file: str):
     icon_hash, ext = splitext_(icon_file)
-    return await send_icon("discovery_splash", guild_id, icon_hash, ext=ext)
+    return await send_icon("guild_discovery_splash", guild_id, icon_hash, ext=ext)

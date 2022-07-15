@@ -155,6 +155,9 @@ class PresenceManager:
             session_ids = await member_list.pres_update(
                 int(member["user"]["id"]),
                 {
+                    "avatar": member["avatar"],
+                    "banner": member["banner"],
+                    "bio": member["bio"],
                     "roles": member["roles"],
                     "status": presence.status,
                     "game": presence.game,
