@@ -554,13 +554,13 @@ class IconManager:
 
     async def update(self, scope: str, key: str, new_icon_data: str, **kwargs) -> Icon:
         """Update an icon on a key."""
+        arg, table = _get_args(scope)
         old_icon_hash = await self.storage.db.fetchval(
-            """
-            SELECT $1
-            FROM $2
-            WHERE id = $3
+            f"""
+            SELECT {arg}
+            FROM {table}
+            WHERE id = $1
             """,
-            *_get_args(scope),
             key,
         )
 
