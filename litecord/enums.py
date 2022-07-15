@@ -250,6 +250,7 @@ class MessageNotifications(EasyEnum):
 class PremiumType:
     """Premium (Nitro) type."""
 
+    TIER_0 = 0
     TIER_1 = 1
     TIER_2 = 2
     NONE = None

@@ -67,6 +67,7 @@ class PaymentStatus:
 
 
 PLAN_ID_TO_TYPE = {
+    "premium_month_tier_0": PremiumType.TIER_0,
     "premium_month_tier_1": PremiumType.TIER_1,
     "premium_month_tier_2": PremiumType.TIER_2,
     "premium_year_tier_1": PremiumType.TIER_1,
@@ -77,6 +78,7 @@ PLAN_ID_TO_TYPE = {
 # how much should a payment be, depending
 # of the subscription
 AMOUNTS = {
+    "premium_month_tier_0": 299,
     "premium_month_tier_1": 499,
     "premium_month_tier_2": 999,
     "premium_year_tier_1": 4999,
@@ -185,6 +187,7 @@ async def get_payment_source(user_id: int, source_id: int) -> dict:
 
     derow["default"] = derow["default_"]
     derow.pop("default_")
+    derow["billing_address"] = json.loads(derow["billing_address"])
 
     source = {"id": str(source_id), "type": source_type.value}
 
@@ -192,6 +195,7 @@ async def get_payment_source(user_id: int, source_id: int) -> dict:
 
 
 TO_SUB_PLAN_ID = {
+    "premium_month_tier_0": "978380692553465866",
     "premium_month_tier_1": "511651871736201216",
     "premium_month_tier_2": "511651880837840896",
     "premium_year_tier_1": "511651876987469824",
@@ -443,10 +447,12 @@ async def _create_subscription():
 
     plan_id = j["payment_gateway_plan_id"]
 
+    # tier 0 is new nitro basic
     # tier 1 is lightro / classic
     # tier 2 is nitro
 
     period_end = {
+        "premium_month_tier_0": "1 month",
         "premium_month_tier_1": "1 month",
         "premium_month_tier_2": "1 month",
         "premium_year_tier_1": "1 year",

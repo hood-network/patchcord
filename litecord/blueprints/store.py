@@ -129,6 +129,19 @@ SKU_STUBS = {
             "price_tier": None,
         },
     ],
+    978380684370378762: [
+        {
+            "id": "978380692553465866",
+            "name": "Nitro Basic Monthly",
+            "interval": 1,
+            "interval_count": 1,
+            "tax_inclusive": True,
+            "sku_id": "978380684370378762",
+            "currency": "usd",
+            "price": 299,
+            "price_tier": None,
+        },
+    ],
 }
 
 
