@@ -554,7 +554,15 @@ class IconManager:
 
     async def update(self, scope: str, key: str, new_icon_data: str, **kwargs) -> Icon:
         """Update an icon on a key."""
-        old_icon_hash = await self.storage.db.fetchval("SELECT $1 FROM $2 WHERE id = $3", *_get_args(scope), key)
+        old_icon_hash = await self.storage.db.fetchval(
+            """
+            SELECT $1
+            FROM $2
+            WHERE id = $3
+            """,
+            *_get_args(scope),
+            key,
+        )
 
         # converting key to str only here since from here onwards
         # its operations on the icons table (or a dereference with
