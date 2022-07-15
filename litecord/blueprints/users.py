@@ -444,7 +444,10 @@ async def get_profile(peer_id: int):
         )
 
     if request.args.get("guild_id", type=int):
-        result["guild_member"] = await app.storage.get_member_data_one(request.args.get("guild_id", type=int), peer_id)
+        guild_id = int(request.args["guild_id"])
+        member = await app.storage.get_member_data_one(guild_id, user_id)
+        if member:
+            result["guild_member"] = await app.storage.get_member_data_one(guild_id, peer_id)
 
     return jsonify(result)
 
