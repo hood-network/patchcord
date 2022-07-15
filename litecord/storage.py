@@ -106,7 +106,7 @@ class Storage:
             "username",
             "discriminator",
             "avatar",
-            "banner"
+            "banner",
             "flags",
             "bot",
             "system",
