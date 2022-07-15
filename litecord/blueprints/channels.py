@@ -214,7 +214,7 @@ async def close_channel(channel_id):
         main_tbl = {
             ChannelType.GUILD_TEXT: "guild_text_channels",
             ChannelType.GUILD_VOICE: "guild_voice_channels",
-            # TODO: categories?
+            ChannelType.GUILD_CATEGORY: None,
         }[ctype]
 
         await _update_func(guild_id, channel_id)
@@ -226,13 +226,34 @@ async def close_channel(channel_id):
         await _delete_messages(channel_id)
         await _guild_cleanup(channel_id)
 
-        await app.db.execute(
-            f"""
-        DELETE FROM {main_tbl}
-        WHERE id = $1
-        """,
-            channel_id,
-        )
+        if main_tbl is not None:
+            await app.db.execute(
+                f"""
+            DELETE FROM {main_tbl}
+            WHERE id = $1
+            """,
+                channel_id
+            )
+
+        updated_ids = []
+        if ctype == ChannelType.GUILD_CATEGORY:
+            rows = await app.db.fetch(
+                """
+            SELECT id
+            FROM guild_channels
+            WHERE parent_id = $1
+            """,
+                channel_id,
+            )
+            updated_ids = [r["id"] for r in rows]
+
+            await app.db.execute(
+                """
+            UPDATE guild_channels SET parent_id = NULL
+            WHERE parent_id = $1
+            """,
+                channel_id
+            )
 
         await app.db.execute(
             """
@@ -254,6 +275,10 @@ async def close_channel(channel_id):
         app.lazy_guild.remove_channel(channel_id)
 
         await app.dispatcher.guild.dispatch(guild_id, ("CHANNEL_DELETE", chan))
+        for id in updated_ids:
+            channel = await app.storage.get_channel(id, request.discord_api_version)
+            await app.dispatcher.guild.dispatch(guild_id, ("CHANNEL_UPDATE", channel))
+
         await app.dispatcher.channel.drop(channel_id)
         return jsonify(chan)
     elif ctype == ChannelType.DM:

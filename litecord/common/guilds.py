@@ -208,14 +208,17 @@ async def create_guild_channel(
     # account for the first channel in a guild too
     max_pos = max_pos or 0
 
+    parent_id = kwargs.get("parent_id") or None
+
     # all channels go to guild_channels
     await app.db.execute(
         """
-    INSERT INTO guild_channels (id, guild_id, name, position)
-    VALUES ($1, $2, $3, $4)
+    INSERT INTO guild_channels (id, guild_id, parent_id, name, position)
+    VALUES ($1, $2, $3, $4, $5)
     """,
         channel_id,
         guild_id,
+        parent_id,
         kwargs["name"],
         max_pos + 1,
     )

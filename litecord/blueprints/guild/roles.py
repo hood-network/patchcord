@@ -79,14 +79,13 @@ async def _role_pairs_update(guild_id: int, pairs: list):
 
     Dispatches GUILD_ROLE_UPDATE for all roles being updated.
     """
-    for pair in pairs:
-        pair_1, pair_2 = pair
+    updated = []
+    conn = await app.db.acquire()
 
-        role_1, new_pos_1 = pair_1
-        role_2, new_pos_2 = pair_2
+    async with conn.transaction():
+        for pair in pairs:
+            _id, pos = pair
 
-        conn = await app.db.acquire()
-        async with conn.transaction():
             # update happens in a transaction
             # so we don't fuck it up
             await conn.execute(
@@ -95,29 +94,18 @@ async def _role_pairs_update(guild_id: int, pairs: list):
             SET position = $1
             WHERE roles.id = $2
             """,
-                new_pos_1,
-                role_1,
+                pos,
+                _id,
             )
+            updated.append(_id)
 
-            await conn.execute(
-                """
-            UPDATE roles
-            SET position = $1
-            WHERE roles.id = $2
-            """,
-                new_pos_2,
-                role_2,
-            )
+    await app.db.release(conn)
 
-        await app.db.release(conn)
-
-        # the route fires multiple Guild Role Update.
-        await _role_update_dispatch(role_1, guild_id)
-        await _role_update_dispatch(role_2, guild_id)
+    for _id in updated:
+        await _role_update_dispatch(_id, guild_id)
 
 
-PairList = List[Tuple[Tuple[int, int], Tuple[int, int]]]
-
+PairList = List[Tuple[int, int]]
 
 def gen_pairs(
     list_of_changes: List[Dict[str, int]],
@@ -126,23 +114,6 @@ def gen_pairs(
 ) -> PairList:
     """Generate a list of pairs that, when applied to the database,
     will generate the desired state given in list_of_changes.
-
-    We must check if the given list_of_changes isn't overwriting an
-    element's (such as a role or a channel) position to an existing one,
-    without there having an already existing change for the other one.
-
-    Here's a pratical explanation with roles:
-
-    R1 (in position RP1) wants to be in the same position
-    as R2 (currently in position RP2).
-
-    So, if we did the simpler approach, list_of_changes
-    would just contain the preferred change: (R1, RP2).
-
-    With gen_pairs, there MUST be a (R2, RP1) in list_of_changes,
-    if there is, the given result in gen_pairs will be a pair
-    ((R1, RP2), (R2, RP1)) which is then used to actually
-    update the roles' positions in a transaction.
 
     Parameters
     ----------
@@ -159,52 +130,37 @@ def gen_pairs(
     Returns
     -------
     list
-        List of swaps to do to achieve the preferred
+        List of changes to do to achieve the preferred
         state given by ``list_of_changes``.
     """
     pairs: PairList = []
     blacklist = blacklist or []
 
-    preferred_state = {
-        element["id"]: element["position"] for element in list_of_changes
-    }
+    preferred_state = []
+    for chan in current_state:
+        preferred_state.insert(chan, current_state[chan])
 
     for blacklisted_id in blacklist:
-        if blacklisted_id in preferred_state.keys():
-            preferred_state.pop(blacklisted_id)
+        if blacklisted_id in preferred_state:
+            preferred_state.remove(blacklisted_id)
+
+    current_state = preferred_state.copy()
 
     # for each change, we must find a matching change
     # in the same list, so we can make a swap pair
     for change in list_of_changes:
-        element_1, new_pos_1 = change["id"], change["position"]
-
-        # check current pairs
-        # so we don't repeat an element
-        flag = False
-
-        for pair in pairs:
-            if (element_1, new_pos_1) in pair:
-                flag = True
-
-        # skip if found
-        if flag:
+        _id, pos = change["id"], change["position"]
+        if _id not in preferred_state:
             continue
 
-        # search if there is a role/channel in the
-        # position we want to change to
-        element_2 = current_state.get(new_pos_1)
+        preferred_state.remove(_id)
+        preferred_state.insert(pos, _id)
 
-        if element_2 is None:
-            continue
+    assert len(current_state) == len(preferred_state)
 
-        # if there is, is that existing channel being
-        # swapped to another position?
-        new_pos_2 = preferred_state.get(element_2)
-
-        # if its being swapped to leave space, add it
-        # to the pairs list
-        if new_pos_2 is not None:
-            pairs.append(((element_1, new_pos_1), (element_2, new_pos_2)))
+    for i in range(len(current_state)):
+        if current_state[i] != preferred_state[i]:
+            pairs.append((preferred_state[i], i))
 
     return pairs
 

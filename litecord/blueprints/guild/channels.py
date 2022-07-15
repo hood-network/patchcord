@@ -25,7 +25,7 @@ from litecord.errors import BadRequest
 from litecord.enums import ChannelType
 from litecord.blueprints.guild.roles import gen_pairs
 
-from litecord.schemas import validate, ROLE_UPDATE_POSITION, CHAN_CREATE
+from litecord.schemas import validate, CHAN_CREATE, CHANNEL_UPDATE_POSITION
 from litecord.blueprints.checks import guild_check, guild_owner_check, guild_perm_check
 from litecord.common.guilds import create_guild_channel
 
@@ -53,8 +53,11 @@ async def create_channel(guild_id):
     channel_type = j.get("type", ChannelType.GUILD_TEXT)
     channel_type = ChannelType(channel_type)
 
-    if channel_type not in (ChannelType.GUILD_TEXT, ChannelType.GUILD_VOICE):
+    if channel_type not in (ChannelType.GUILD_TEXT, ChannelType.GUILD_VOICE, ChannelType.GUILD_CATEGORY):
         raise BadRequest("Invalid channel type")
+
+    elif channel_type == ChannelType.GUILD_CATEGORY and j.get("parent_id"):
+        raise BadRequest("Category cannot have a parent")
 
     new_channel_id = app.winter_factory.snowflake()
     await create_guild_channel(guild_id, new_channel_id, channel_type, **j)
@@ -72,40 +75,42 @@ async def _chan_update_dispatch(guild_id: int, channel_id: int):
     await app.dispatcher.guild.dispatch(guild_id, ("CHANNEL_UPDATE", chan))
 
 
-async def _do_single_swap(guild_id: int, pair: tuple):
-    """Do a single channel swap, dispatching
-    the CHANNEL_UPDATE events for after the swap"""
-    pair1, pair2 = pair
-    channel_1, new_pos_1 = pair1
-    channel_2, new_pos_2 = pair2
-
-    # do the swap in a transaction.
-    conn = await app.db.acquire()
-
-    async with conn.transaction():
-        await conn.executemany(
-            """
-        UPDATE guild_channels
-        SET position = $1
-        WHERE id = $2 AND guild_id = $3
-        """,
-            [(new_pos_1, channel_1, guild_id), (new_pos_2, channel_2, guild_id)],
-        )
-
-    await app.db.release(conn)
-
-    await _chan_update_dispatch(guild_id, channel_1)
-    await _chan_update_dispatch(guild_id, channel_2)
-
-
-async def _do_channel_swaps(guild_id: int, swap_pairs: list):
-    """Swap channel pairs' positions, given the list
-    of pairs to do.
+async def _do_channel_updates(guild_id: int, updates: list):
+    """Update channel positions, given the list of pairs to do.
 
     Dispatches CHANNEL_UPDATEs to the guild.
     """
-    for pair in swap_pairs:
-        await _do_single_swap(guild_id, pair)
+    updated = []
+
+    conn = await app.db.acquire()
+    for pair in updates:
+        _id, pos = pair
+
+        async with conn.transaction():
+            await conn.execute(
+                """
+            UPDATE guild_channels
+            SET position = $1
+            WHERE id = $2 AND guild_id = $3
+            """,
+                pos,
+                _id,
+                guild_id
+            )
+        updated.append(_id)
+
+    await app.db.release(conn)
+
+    for _id in updated:
+        await _chan_update_dispatch(guild_id, _id)
+
+
+def _group_channel(chan):
+    if ChannelType(chan["type"]) == ChannelType.GUILD_CATEGORY:
+        return "c"
+    elif chan["parent_id"] is None:
+        return "n"
+    return chan["parent_id"]
 
 
 @bp.route("/<int:guild_id>/channels", methods=["PATCH"])
@@ -116,15 +121,47 @@ async def modify_channel_pos(guild_id):
     await guild_owner_check(user_id, guild_id)
     await guild_perm_check(user_id, guild_id, "manage_channels")
 
-    # same thing as guild.roles, so we use
-    # the same schema and all.
     raw_j = await request.get_json()
-    j = validate({"roles": raw_j}, ROLE_UPDATE_POSITION)
-    roles = j["roles"]
+    j = validate({"channels": raw_j}, CHANNEL_UPDATE_POSITION)
+    j = j["channels"]
 
-    channels = await app.storage.get_channel_data(guild_id, request.discord_api_version)
+    channels = {int(chan["id"]): chan for chan in await app.storage.get_channel_data(guild_id)}
+    channel_tree = {}
 
-    channel_positions = {chan["position"]: int(chan["id"]) for chan in channels}
-    swap_pairs = gen_pairs(roles, channel_positions)
-    await _do_channel_swaps(guild_id, swap_pairs)
+    for chan in j:
+        conn = await app.db.acquire()
+        _id = int(chan["id"])
+        if _id in channels and "parent_id" in chan and (chan["parent_id"] is None or chan["parent_id"] in channels):
+            channels[_id]["parent_id"] = chan["parent_id"]
+            await conn.execute(
+                """
+            UPDATE guild_channels
+            SET parent_id = $1
+            WHERE id = $2 AND guild_id = $3
+            """,
+                chan["parent_id"],
+                chan["id"],
+                guild_id
+            )
+
+            await _chan_update_dispatch(guild_id, chan["id"])
+        await app.db.release(conn)
+
+    for chan in channels.values():
+        channel_tree.setdefault(_group_channel(chan), []).append(chan)
+
+    for _key in channel_tree:
+        _channels = channel_tree[_key]
+        _channel_ids = list(map(lambda chan: int(chan["id"]), _channels))
+        print(_key, _channel_ids)
+        _channel_positions = {chan["position"]: int(chan["id"])
+                              for chan in _channels}
+        _change_list = list(filter(lambda chan: "position" in chan and int(chan["id"]) in _channel_ids, j))
+        _swap_pairs = gen_pairs(
+            _change_list,
+            _channel_positions
+        )
+
+        await _do_channel_updates(guild_id, _swap_pairs)
+
     return "", 204

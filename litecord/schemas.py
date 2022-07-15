@@ -428,6 +428,22 @@ ROLE_UPDATE_POSITION = {
 }
 
 
+CHANNEL_UPDATE_POSITION = {
+    "channels": {
+        "type": "list",
+        "schema": {
+            "type": "dict",
+            "schema": {
+                "id": {"coerce": int},
+                "position": {"coerce": int},
+                "parent_id": {"coerce": int, "required": False, "nullable": True},
+                "lock_permissions": {"type": "boolean", "required": False},
+            },
+        }
+    }
+}
+
+
 MEMBER_UPDATE = {
     "avatar": {"type": "string", "required": False, "nullable": True},
     "banner": {"type": "string", "required": False, "nullable": True},

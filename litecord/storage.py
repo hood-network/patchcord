@@ -383,7 +383,7 @@ class Storage:
         """
         channel_type = row["type"]
         chan_type = ChannelType(channel_type)
-        assert chan_type in (ChannelType.GUILD_TEXT, ChannelType.GUILD_VOICE)
+        assert chan_type in (ChannelType.GUILD_TEXT, ChannelType.GUILD_VOICE, ChannelType.GUILD_CATEGORY)
 
         if chan_type == ChannelType.GUILD_TEXT:
             ext_row = await self.db.fetchrow(
@@ -412,6 +412,8 @@ class Storage:
             )
 
             return {**row, **dict(vrow)}
+        elif chan_type == ChannelType.GUILD_CATEGORY:
+            return row
         else:
             # this only exists to trick mypy. this codepath is unreachable
             raise AssertionError("Unreachable code path.")
@@ -531,6 +533,8 @@ class Storage:
             res["permission_overwrites"] = await self.chan_overwrites(channel_id, api_version)
 
             res["id"] = str(res["id"])
+            if (res["parent_id"]):
+                res["parent_id"] = str(res["parent_id"])
             return res
         elif ctype == ChannelType.DM:
             dm_row = await self.db.fetchrow(
@@ -625,6 +629,8 @@ class Storage:
 
             # Making sure.
             res["id"] = str(res["id"])
+            if (res["parent_id"]):
+                res["parent_id"] = str(res["parent_id"])
             channels.append(res)
 
         return channels
