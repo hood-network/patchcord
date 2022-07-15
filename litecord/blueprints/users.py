@@ -544,14 +544,14 @@ async def delete_account():
 
 @bp.route("/@me/affinities/users", methods=["GET"])
 async def _get_tinder_score_affinity_users():
-    return {"user_affinities": []}
+    return jsonify({"user_affinities": [], "inverse_user_affinities": []})
 
 
 @bp.route("/@me/affinities/guilds", methods=["GET"])
 async def _get_tinder_score_affinity_guilds():
-    return {"guild_affinities": []}
+    return jsonify({"guild_affinities": []})
 
 
 @bp.route("/@me/applications/<app_id>/entitlements", methods=["GET"])
 async def _stub_entitlements(app_id):
-    return []
+    return jsonify([])

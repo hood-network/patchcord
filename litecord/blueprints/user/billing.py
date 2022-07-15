@@ -187,7 +187,6 @@ async def get_payment_source(user_id: int, source_id: int) -> dict:
 
     derow["default"] = derow["default_"]
     derow.pop("default_")
-    derow["billing_address"] = json.loads(derow["billing_address"])
 
     source = {"id": str(source_id), "type": source_type.value}
 
@@ -501,6 +500,13 @@ async def _patch_subscription(subscription_id):
     # j = validate(await request.get_json(), PATCH_SUBSCRIPTION)
     # returns subscription object
     pass
+
+
+@bp.route("/@me/guilds/premium/subscription-slots", defaults={"subscription_id": 0})
+@bp.route("/@me/billing/subscriptions/preview", defaults={"subscription_id": 0}, methods=["GET", "PATCH"])
+@bp.route("/@me/billing/subscriptions/<int:subscription_id>/preview", methods=["GET", "PATCH"])
+async def _preview_sub(subscription_id):
+    return jsonify([])
 
 
 @bp.route("/@me/billing/country-code", methods=["GET"])
