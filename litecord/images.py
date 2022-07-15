@@ -62,7 +62,7 @@ def get_mime(ext: str):
     if ext in MIMES:
         return MIMES[ext]
 
-    return mimetypes.types_map[f".{ext}"]
+    return mimetypes.types_map[f".{ext or 'webp'}"]
 
 
 @dataclass
@@ -556,7 +556,7 @@ class IconManager:
         """Update an icon on a key."""
         arg, table = _get_args(scope)
         query = f"SELECT {arg} from {table} "
-        if '_' in key:  # Support guild_user
+        if "_" in str(key):  # Support guild_user
             query += "WHERE user_id = $1 and guild_id = $2"
             args = (int(key.split('_')[1]), int(key.split('_')[0]))
         else:
