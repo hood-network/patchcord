@@ -382,6 +382,7 @@ async def _get_billing_sources():
     return jsonify(res)
 
 
+@bp.route("/@me/billing/subscriptions/preview", methods=["GET", "PATCH"])
 @bp.route("/@me/billing/subscriptions", methods=["GET"])
 async def _get_billing_subscriptions():
     user_id = await token_check()
@@ -486,6 +487,13 @@ async def _create_subscription():
     return jsonify(await get_subscription(new_id))
 
 
+@bp.route("/@me/billing/subscriptions/<int:subscription_id>/preview", methods=["GET", "PATCH"])
+@bp.route("/@me/billing/subscriptions/<int:subscription_id", methods=["GET"])
+async def _get_subscription(subscription_id):
+    await token_check()
+    return jsonify(await get_subscription(subscription_id))
+
+
 @bp.route("/@me/billing/subscriptions/<int:subscription_id>", methods=["DELETE"])
 async def _delete_subscription(subscription_id):
     # user_id = await token_check()
@@ -502,10 +510,8 @@ async def _patch_subscription(subscription_id):
     pass
 
 
-@bp.route("/@me/guilds/premium/subscription-slots", defaults={"subscription_id": 0})
-@bp.route("/@me/billing/subscriptions/preview", defaults={"subscription_id": 0}, methods=["GET", "PATCH"])
-@bp.route("/@me/billing/subscriptions/<int:subscription_id>/preview", methods=["GET", "PATCH"])
-async def _preview_sub(subscription_id):
+@bp.route("/@me/guilds/premium/subscription-slots")
+async def _slots(subscription_id):
     return jsonify([])
 
 
