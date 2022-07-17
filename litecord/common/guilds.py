@@ -19,7 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from typing import List
 from logbook import Logger
-from quart import current_app as app
+from quart import current_app as app, request
 
 from ..permissions import get_role_perms, get_permissions
 from ..utils import dict_get, maybe_lazy_guild_dispatch
