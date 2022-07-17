@@ -108,7 +108,7 @@ async def _general_guild_icon(scope: str, guild_id: int, icon: Optional[str], **
 
 async def put_guild_icon(guild_id: int, icon: Optional[str]):
     """Insert a guild icon on the icon database."""
-    return await _general_guild_icon("guild", guild_id, icon, size=(128, 128))
+    return await _general_guild_icon("guild_icon", guild_id, icon, size=(128, 128))
 
 
 @bp.route("", methods=["POST"], strict_slashes=False)
