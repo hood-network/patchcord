@@ -422,7 +422,8 @@ class IconManager:
 
         # write it off to fs
         icon_path = IMAGE_FOLDER / f"{key}_{icon_hash}.{extension}"
-        icon_path.write_bytes(raw_data)
+        if not icon_path.exists():
+            icon_path.write_bytes(raw_data)
 
         # copy from data_fd to icon_fd
         # with icon_path.open(mode='wb') as icon_fd:

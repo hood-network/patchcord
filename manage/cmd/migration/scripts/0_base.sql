@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS icons (
     key text,
 
     -- sha256 of the icon
-    hash text UNIQUE,
+    hash text NOT NULL,
 
     -- icon mime
     mime text NOT NULL,
