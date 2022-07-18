@@ -17,7 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from quart import Blueprint, redirect
+from quart import Blueprint, redirect, request, current_app as app
 
 bp = Blueprint("stickers", __name__)
 
@@ -25,4 +25,16 @@ bp = Blueprint("stickers", __name__)
 @bp.route("/sticker-packs", methods=["GET"])
 async def sticker_packs():
     """Send static sticker packs"""
-    return redirect("https://discord.com/api/v9/sticker-packs", code=301)
+    return redirect(f"https://discord.com/api/v9/sticker-packs?{request.query_string.decode()}", code=301)
+
+
+@bp.route("/gifs/<path:path>", methods=["GET", "POST"])
+async def gifs(path):
+    """Send gifs and stuff"""
+    return redirect(f"https://discord.com/api/v9/gifs/{path}?{request.query_string.decode()}", code=301)
+
+
+@bp.route("/integrations/<provider>/search", methods=["GET"])
+async def search_gifs(provider):
+    """Send gifs and stuff"""
+    return redirect(f"https://discord.com/api/v9/gifs/search?provider={provider}&{request.query_string.decode()}", code=301)
