@@ -77,7 +77,7 @@ async def _load_build(hash: str = "latest", default: bool = False):
 
         kwargs = {
             "GLOBAL_ENV": _get_environment(app),
-            "build_id": f" v{version}" if not default else " | Your Place to Talk and Hang Out",
+            "build_id": f" v{version}" if not default else "",
             "style": styles[0],
             "loader": scripts[0],
             "classes": scripts[1]
