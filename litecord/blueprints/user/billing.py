@@ -221,6 +221,7 @@ async def get_subscription(subscription_id: int):
 
     drow = dict(row)
 
+    drow["user_id"] = str(drow["user_id"])
     drow["type"] = drow["s_type"]
     drow.pop("s_type")
 
@@ -383,7 +384,8 @@ async def _get_billing_sources():
     return jsonify(res)
 
 
-@bp.route("/@me/billing/subscriptions/preview", methods=["GET", "PATCH"])
+@bp.route("/@me/billing/invoices/preview", methods=["GET", "PATCH", "POST"])
+@bp.route("/@me/billing/subscriptions/preview", methods=["GET", "PATCH", "POST"])
 @bp.route("/@me/billing/subscriptions", methods=["GET"])
 async def _get_billing_subscriptions():
     user_id = await token_check()
