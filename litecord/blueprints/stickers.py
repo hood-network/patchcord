@@ -28,6 +28,12 @@ async def sticker_packs():
     return redirect(f"https://discord.com/api/v9/sticker-packs?{request.query_string.decode()}", code=308)
 
 
+@bp.route("/gifs/select", methods=["POST"])
+async def stub_select():
+    """Stub for select telemetry"""
+    return "", 204
+
+
 @bp.route("/gifs/<path:path>", methods=["GET", "POST"])
 async def gifs(path):
     """Send gifs and stuff"""

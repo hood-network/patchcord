@@ -118,7 +118,7 @@ async def load_build(hash = "latest"):
 @bp.route("/", defaults={"path": ""}, methods=["GET"])
 @bp.route("/<path:path>", methods=["GET"])
 async def send_client(path):
-    if path.startswith("/api/"):
+    if path.startswith("api/"):
         return await abort(404)
     return await _load_build(request.cookies.get("build_id", app.config.get("DEFAULT_BUILD", "latest")), default=True)
 
