@@ -76,7 +76,7 @@ class Icon:
     @property
     def fs_hash(self) -> Optional[str]:
         icon_hash = self.icon_hash
-        return icon_hash.split("#")[-1] if icon_hash and "#" in icon_hash else icon_hash
+        return icon_hash.split(".")[-1] if icon_hash and "." in icon_hash else icon_hash
 
     @property
     def as_path(self) -> Optional[str]:
@@ -407,7 +407,7 @@ class IconManager:
 
         # calculate sha256
         # ignore icon hashes if we're talking about emoji
-        icon_hash = (hex(hash(scope)).lstrip("-0x") + "#" + await calculate_hash(data_fd)) if scope != "emoji" else None
+        icon_hash = (hex(hash(scope)).lstrip("-0x") + "." + await calculate_hash(data_fd)) if scope != "emoji" else None
 
         if mime == "image/gif":
             icon_hash = f"a_{icon_hash}"
@@ -426,7 +426,7 @@ class IconManager:
         )
 
         # write it off to fs
-        icon_path = IMAGE_FOLDER / f"{icon_hash.split('#')[-1] if icon_hash else key}.{extension}"
+        icon_path = IMAGE_FOLDER / f"{icon_hash.split('.')[-1] if icon_hash else key}.{extension}"
         if not icon_path.exists():
             icon_path.write_bytes(raw_data)
 
