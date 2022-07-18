@@ -384,7 +384,6 @@ async def _get_billing_sources():
     return jsonify(res)
 
 
-@bp.route("/@me/billing/invoices/preview", methods=["GET", "PATCH", "POST"])
 @bp.route("/@me/billing/subscriptions/preview", methods=["GET", "PATCH", "POST"])
 @bp.route("/@me/billing/subscriptions", methods=["GET"])
 async def _get_billing_subscriptions():
@@ -490,11 +489,12 @@ async def _create_subscription():
     return jsonify(await get_subscription(new_id))
 
 
-@bp.route("/@me/billing/subscriptions/<int:subscription_id>/preview", methods=["GET", "PATCH"])
+@bp.route("/@me/billing/invoices/preview", methods=["GET", "PATCH", "POST"], defaults={"subscription_id": None})
+@bp.route("/@me/billing/subscriptions/<int:subscription_id>/preview", methods=["GET", "PATCH", "POST"])
 @bp.route("/@me/billing/subscriptions/<int:subscription_id>", methods=["GET"])
 async def _get_subscription(subscription_id):
     await token_check()
-    return jsonify(await get_subscription(subscription_id))
+    return jsonify(await get_subscription(subscription_id or request.get_json()["subscription_id"]))
 
 
 @bp.route("/@me/billing/subscriptions/<int:subscription_id>", methods=["DELETE"])
