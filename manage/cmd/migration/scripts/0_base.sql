@@ -73,8 +73,8 @@ CREATE TABLE IF NOT EXISTS users (
     system boolean DEFAULT FALSE,
     mfa_enabled boolean DEFAULT FALSE,
     verified boolean DEFAULT FALSE,
-    avatar text REFERENCES icons (hash) DEFAULT NULL,
-    banner text REFERENCES icons (hash) DEFAULT NULL,
+    avatar text REFERENCES icons (hash) ON DELETE SET NULL ON UPDATE CASCADE DEFAULT NULL,
+    banner text REFERENCES icons (hash) ON DELETE SET NULL ON UPDATE CASCADE DEFAULT NULL,
 
     -- user badges, discord dev, etc
     flags int DEFAULT 0,
@@ -465,7 +465,7 @@ CREATE TABLE IF NOT EXISTS group_dm_channels (
     id bigint REFERENCES channels (id) ON DELETE CASCADE,
     owner_id bigint REFERENCES users (id),
     name text,
-    icon text REFERENCES icons (hash) DEFAULT NULL,
+    icon text REFERENCES icons (hash) ON DELETE SET NULL ON UPDATE CASCADE DEFAULT NULL,
     PRIMARY KEY (id)
 );
 
@@ -490,7 +490,7 @@ CREATE TABLE IF NOT EXISTS guild_emoji (
     uploader_id bigint REFERENCES users (id),
 
     name text NOT NULL,
-    image text REFERENCES icons (hash),
+    image text REFERENCES icons (hash) ON DELETE CASCADE ON UPDATE CASCADE,
     animated bool DEFAULT false,
     managed bool DEFAULT false,
     require_colons bool DEFAULT true
@@ -551,8 +551,8 @@ CREATE TABLE IF NOT EXISTS members (
     deafened boolean DEFAULT false,
     muted boolean DEFAULT false,
 
-    avatar text REFERENCES icons (hash) DEFAULT NULL,
-    banner text REFERENCES icons (hash) DEFAULT NULL,
+    avatar text REFERENCES icons (hash) ON DELETE SET NULL ON UPDATE CASCADE DEFAULT NULL,
+    banner text REFERENCES icons (hash) ON DELETE SET NULL ON UPDATE CASCADE DEFAULT NULL,
     nickname text DEFAULT NULL,
     bio text DEFAULT "" NOT NULL,
 

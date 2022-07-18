@@ -74,13 +74,18 @@ class Icon:
     mime: Optional[str]
 
     @property
+    def fs_hash(self) -> Optional[str]:
+        icon_hash = self.icon_hash
+        return icon_hash.split("#")[-1] if icon_hash and "#" in icon_hash else icon_hash
+
+    @property
     def as_path(self) -> Optional[str]:
         """Return a filesystem path for the given icon."""
         if self.mime is None:
             return None
 
         ext = get_ext(self.mime)
-        return str(IMAGE_FOLDER / f"{self.key}_{self.icon_hash}.{ext}")
+        return str(IMAGE_FOLDER / f"{self.fs_hash}.{ext}")
 
     @property
     def as_pathlib(self) -> Optional[Path]:
@@ -295,7 +300,7 @@ class IconManager:
         target_mime = get_mime(target)
         log.info("converting from {} to {}", icon.mime, target_mime)
 
-        target_path = IMAGE_FOLDER / f"{icon.key}_{icon.icon_hash}.{target}"
+        target_path = IMAGE_FOLDER / f"{icon.icon_hash}.{target}"
 
         if target_path.exists():
             return Icon(icon.key, icon.icon_hash, target_mime)
@@ -402,7 +407,7 @@ class IconManager:
 
         # calculate sha256
         # ignore icon hashes if we're talking about emoji
-        icon_hash = await calculate_hash(data_fd) if scope != "emoji" else None
+        icon_hash = (hex(hash(scope)).lstrip("-0x") + "#" + await calculate_hash(data_fd)) if scope != "emoji" else None
 
         if mime == "image/gif":
             icon_hash = f"a_{icon_hash}"
@@ -421,7 +426,7 @@ class IconManager:
         )
 
         # write it off to fs
-        icon_path = IMAGE_FOLDER / f"{key}_{icon_hash}.{extension}"
+        icon_path = IMAGE_FOLDER / f"{icon_hash}.{extension}"
         if not icon_path.exists():
             icon_path.write_bytes(raw_data)
 
@@ -438,114 +443,15 @@ class IconManager:
 
         log.debug("DEL {}", icon)
 
-        # dereference
-        await self.storage.db.execute(
-            """
-        UPDATE users
-        SET avatar = NULL
-        WHERE avatar = $1
-        """,
-            icon.icon_hash,
-        )
-
-        await self.storage.db.execute(
-            """
-        UPDATE users
-        SET banner = NULL
-        WHERE banner = $1
-        """,
-            icon.icon_hash,
-        )
-
-        await self.storage.db.execute(
-            """
-        UPDATE members
-        SET avatar = NULL
-        WHERE avatar = $1
-        """,
-            icon.icon_hash,
-        )
-
-        await self.storage.db.execute(
-            """
-        UPDATE members
-        SET banner = NULL
-        WHERE banner = $1
-        """,
-            icon.icon_hash,
-        )
-
-        await self.storage.db.execute(
-            """
-        UPDATE group_dm_channels
-        SET icon = NULL
-        WHERE icon = $1
-        """,
-            icon.icon_hash,
-        )
-
-        await self.storage.db.execute(
-            """
-        DELETE FROM guild_emoji
-        WHERE image = $1
-        """,
-            icon.icon_hash,
-        )
-
-        await self.storage.db.execute(
-            """
-        UPDATE guilds
-        SET icon = NULL
-        WHERE icon = $1
-        """,
-            icon.icon_hash,
-        )
-
-        await self.storage.db.execute(
-            """
-        UPDATE guilds
-        SET splash = NULL
-        WHERE splash = $1
-        """,
-            icon.icon_hash,
-        )
-
-        await self.storage.db.execute(
-            """
-        UPDATE guilds
-        SET discovery_splash = NULL
-        WHERE discovery_splash = $1
-        """,
-            icon.icon_hash,
-        )
-
-        await self.storage.db.execute(
-            """
-        UPDATE guilds
-        SET banner = NULL
-        WHERE banner = $1
-        """,
-            icon.icon_hash,
-        )
-
-        await self.storage.db.execute(
-            """
-        UPDATE group_dm_channels
-        SET icon = NULL
-        WHERE icon = $1
-        """,
-            icon.icon_hash,
-        )
-
         await self.storage.db.execute(
             """
         DELETE FROM icons
-        WHERE hash = $1
+        WHERE CHARINDEX ($1, hash) > 0
         """,
-            icon.icon_hash,
+            icon.fs_hash,
         )
 
-        paths = IMAGE_FOLDER.glob(f"{icon.key}_{icon.icon_hash}.*")
+        paths = IMAGE_FOLDER.glob(f"{icon.fs_hash}.*")
 
         for path in paths:
             try:
@@ -573,6 +479,15 @@ class IconManager:
 
         old_icon = await self.generic_get(scope, key, old_icon_hash)
         if old_icon:
-            await self.delete(old_icon)
+            hits = await self.storage.db.fetch(
+                """
+            SELECT hash
+            FROM icons
+            WHERE CHARINDEX ($1, hash) > 0
+            """,
+                old_icon.fs_hash,
+            )
+            if hits and len(hits) <= 1:  # if we have more than one hit, we can't delete it
+                await self.delete(old_icon)
 
         return await self.put(scope, key, new_icon_data, **kwargs)
