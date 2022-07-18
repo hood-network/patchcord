@@ -483,7 +483,7 @@ class IconManager:
                 """
             SELECT hash
             FROM icons
-            WHERE CHARINDEX ($1, hash) > 0
+            WHERE STRPOS (hash, $1) > 0
             """,
                 old_icon.fs_hash,
             )
