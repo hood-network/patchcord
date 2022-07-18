@@ -30,6 +30,7 @@ from litecord.errors import BadRequest
 from litecord.types import timestamp_, HOURS
 from litecord.enums import UserFlags, PremiumType
 from litecord.common.users import mass_user_update
+from litecord.utils import snowflake_timestamp
 
 log = Logger(__name__)
 bp = Blueprint("users_billing", __name__)
@@ -172,7 +173,7 @@ async def get_payment_source(user_id: int, source_id: int) -> dict:
 
     extras_row = await app.db.fetchrow(
         f"""
-    SELECT {fields}, billing_address, default_, id::text
+    SELECT {fields}, billing_address, invalid, default_, id::text
     FROM user_payment_sources
     WHERE id = $1
     """,
@@ -185,11 +186,10 @@ async def get_payment_source(user_id: int, source_id: int) -> dict:
         derow["last_4"] = derow["cc_full"][-4:]
         derow.pop("cc_full")
 
-    derow["default"] = derow["default_"]
-    derow.pop("default_")
+    derow["default"] = derow.pop("default_")
     derow["billing_address"] = json.loads(derow["billing_address"]) if isinstance(derow["billing_address"], str) else derow["billing_address"]
 
-    source = {"id": str(source_id), "type": source_type.value}
+    source = {"id": str(source_id), "type": source_type.value, "country": derow["billing_address"]["country"], "flags": 0, "payment_gateway": 1, "screen_status": 0}
 
     return {**source, **derow}
 
@@ -230,13 +230,17 @@ async def get_subscription(subscription_id: int):
     for field in to_tstamp:
         drow[field] = timestamp_(drow[field])
 
+    drow["created_at"] = snowflake_timestamp(int(drow["id"])).isoformat()
+
     drow["items"] = [
         {
-            "id": "123",
+            "id": "992118651056570430",
             "plan_id": TO_SUB_PLAN_ID[drow["payment_gateway_plan_id"]],
             "quantity": 1,
         }
     ]
+
+    drow["renewal_mutations"] = {"items": []}
 
     return drow
 
@@ -494,14 +498,23 @@ async def _create_subscription():
 @bp.route("/@me/billing/subscriptions/<int:subscription_id>", methods=["GET"])
 async def _get_subscription(subscription_id):
     await token_check()
-    return jsonify(await get_subscription(subscription_id or (await request.get_json())["subscription_id"]))
+    return jsonify(await get_subscription(subscription_id or int((await request.get_json())["subscription_id"])))
 
 
 @bp.route("/@me/billing/subscriptions/<int:subscription_id>", methods=["DELETE"])
 async def _delete_subscription(subscription_id):
-    # user_id = await token_check()
-    # return '', 204
-    pass
+    user_id = await token_check()
+
+    await app.db.execute(
+        """
+        DELETE FROM user_subscriptions
+        WHERE id = $1 and user_id = $2
+        """,
+        subscription_id,
+        user_id,
+    )
+
+    return '', 204
 
 
 @bp.route("/@me/billing/subscriptions/<int:subscription_id>", methods=["PATCH"])

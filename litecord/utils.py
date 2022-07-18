@@ -34,6 +34,8 @@ from .errors import BadRequest
 
 log = Logger(__name__)
 
+EPOCH = 1420070400000
+
 
 async def async_map(function, iterable: Iterable) -> list:
     """Map a coroutine to an iterable."""
@@ -364,3 +366,8 @@ def want_bytes(data: Union[str, bytes]) -> bytes:
 
 def want_string(data: Union[str, bytes]) -> str:
     return data.decode() if isinstance(data, bytes) else data
+
+
+def snowflake_timestamp(id: int) -> datetime.datetime:
+    timestamp = ((id >> 22) + EPOCH) / 1000
+    return datetime.datetime.fromtimestamp(timestamp, tz=datetime.timezone.utc)
