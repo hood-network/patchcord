@@ -41,7 +41,7 @@ def _get_environment(app):
         "RELEASE_CHANNEL": "staging",
         "MARKETING_ENDPOINT": f"//{app.config['MAIN_URL']}",
         "BRAINTREE_KEY": "production_5st77rrc_49pp2rp4phym7387",
-        "STRIPE_KEY": "pk_live_CUQtlpQUF0vufWpnpUmQvcdi",
+        "STRIPE_KEY": "pk_test_A7jK4iCYHL045qgjjfzAfPxu",
         "NETWORKING_ENDPOINT": f"//{app.config['MAIN_URL']}",
         "RTC_LATENCY_ENDPOINT": "//latency.discord.media/rtc",
         "ACTIVITY_APPLICATION_HOST": "discordsays.com",
