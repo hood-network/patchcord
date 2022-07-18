@@ -407,7 +407,7 @@ class IconManager:
 
         # calculate sha256
         # ignore icon hashes if we're talking about emoji
-        icon_hash = (hex(hash(scope)).lstrip("-0x") + "." + await calculate_hash(data_fd)) if scope != "emoji" else None
+        icon_hash = (hex(hash(scope)).lstrip("-0x")[:3] + hex(hash(key)).lstrip("-0x")[:3] + "." + await calculate_hash(data_fd)) if scope != "emoji" else None
 
         if mime == "image/gif":
             icon_hash = f"a_{icon_hash}"
