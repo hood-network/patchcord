@@ -446,7 +446,7 @@ class IconManager:
         await self.storage.db.execute(
             """
         DELETE FROM icons
-        WHERE CHARINDEX ($1, hash) > 0
+        WHERE STRPOS (hash, $1) > 0
         """,
             icon.fs_hash,
         )
