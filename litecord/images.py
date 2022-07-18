@@ -85,7 +85,7 @@ class Icon:
             return None
 
         ext = get_ext(self.mime)
-        return str(IMAGE_FOLDER / f"{self.fs_hash}.{ext}")
+        return str(IMAGE_FOLDER / f"{self.fs_hash if self.icon_hash else self.key}.{ext}")
 
     @property
     def as_pathlib(self) -> Optional[Path]:
@@ -300,7 +300,7 @@ class IconManager:
         target_mime = get_mime(target)
         log.info("converting from {} to {}", icon.mime, target_mime)
 
-        target_path = IMAGE_FOLDER / f"{icon.icon_hash}.{target}"
+        target_path = IMAGE_FOLDER / f"{icon.fs_hash if icon.fs_hash else icon.key}.{target}"
 
         if target_path.exists():
             return Icon(icon.key, icon.icon_hash, target_mime)
@@ -426,7 +426,7 @@ class IconManager:
         )
 
         # write it off to fs
-        icon_path = IMAGE_FOLDER / f"{icon_hash}.{extension}"
+        icon_path = IMAGE_FOLDER / f"{icon_hash.split('#')[-1] if icon_hash else key}.{extension}"
         if not icon_path.exists():
             icon_path.write_bytes(raw_data)
 
@@ -451,7 +451,7 @@ class IconManager:
             icon.fs_hash,
         )
 
-        paths = IMAGE_FOLDER.glob(f"{icon.fs_hash}.*")
+        paths = IMAGE_FOLDER.glob(f"{icon.fs_hash if icon.fs_hash else icon.key}.*")
 
         for path in paths:
             try:
