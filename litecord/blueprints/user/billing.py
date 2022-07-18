@@ -494,7 +494,7 @@ async def _create_subscription():
 @bp.route("/@me/billing/subscriptions/<int:subscription_id>", methods=["GET"])
 async def _get_subscription(subscription_id):
     await token_check()
-    return jsonify(await get_subscription(subscription_id or request.get_json()["subscription_id"]))
+    return jsonify(await get_subscription(subscription_id or (await request.get_json())["subscription_id"]))
 
 
 @bp.route("/@me/billing/subscriptions/<int:subscription_id>", methods=["DELETE"])
