@@ -116,15 +116,21 @@ async def _get_guild_splash(guild_id: int, icon_file: str):
     return await send_icon("guild_splash", guild_id, icon_hash, ext=ext)
 
 
-@bp.route("/banners/<int:id>/<file>", methods=["GET"])
-async def _get_banner(id: int, file: str):
-    hash, ext = splitext_(file)
+@bp.route("/banners/<int:id>/<banner_file>", methods=["GET"])
+async def _get_banner(id: int, banner_file: str):
+    hash, ext = splitext_(banner_file)
     user = await app.storage.get_user(id)
 
     # This is used for guild and user banners
     if user:
         return await send_icon("user_banner", id, hash, ext=ext)
     return await send_icon("guild_banner", id, hash, ext=ext)
+
+
+@bp.route("/channels/<int:channel_id>/banners/<banner_file>", methods=["GET"])
+async def _get_channel_banner(channel_id: int, banner_file: str):
+    banner_hash, ext = splitext_(banner_file)
+    return await send_icon("channel_banner", channel_id, banner_hash, ext=ext)
 
 
 @bp.route("/discovery-splashes/<int:guild_id>/<icon_file>", methods=["GET"])

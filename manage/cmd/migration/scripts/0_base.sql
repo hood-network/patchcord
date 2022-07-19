@@ -341,7 +341,7 @@ CREATE TABLE IF NOT EXISTS guilds (
 
     name text NOT NULL,
     icon text DEFAULT NULL,
-    splash text DEFAULT NULL,
+    splash text REFERENCES icons (hash) ON DELETE SET NULL ON UPDATE CASCADE DEFAULT NULL,
     owner_id bigint NOT NULL REFERENCES users (id),
 
     region text,
@@ -379,10 +379,8 @@ CREATE TABLE IF NOT EXISTS guilds (
 
     -- only for guilds with certain features
     description text DEFAULT NULL,
-    banner text DEFAULT NULL
+    banner text REFERENCES icons (hash) ON DELETE SET NULL ON UPDATE CASCADE DEFAULT NULL
 );
-
-
 
 
 CREATE TABLE IF NOT EXISTS guild_channels (
@@ -393,6 +391,7 @@ CREATE TABLE IF NOT EXISTS guild_channels (
     parent_id bigint DEFAULT NULL,
 
     name text NOT NULL,
+    banner text REFERENCES icons (hash) ON DELETE SET NULL ON UPDATE CASCADE DEFAULT NULL,
     position int,
     nsfw bool default false
 );

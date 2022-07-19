@@ -191,6 +191,7 @@ def _get_args(scope: str) -> Tuple[str, str]:
         "guild_discovery_splash": "discovery_splash",
         "guild_banner": "banner",
         "channel_icon": "icon",
+        "channel_banner": "banner",
     }
 
     tables = {
@@ -203,6 +204,7 @@ def _get_args(scope: str) -> Tuple[str, str]:
         "guild_discovery_splash": "guilds",
         "guild_banner": "guilds",
         "channel_icon": "group_dm_channels",
+        "channel_banner": "guild_channels",
     }
     return fields[scope], tables[scope]
 

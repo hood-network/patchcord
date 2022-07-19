@@ -366,6 +366,7 @@ CHAN_OVERWRITE = {
 
 CHAN_CREATE = {
     "name": {"type": "string", "minlength": 1, "maxlength": 100, "required": True},
+    "banner": {"type": "string", "required": False, "nullable": True},
     "type": {"type": "channel_type", "default": ChannelType.GUILD_TEXT.value},
     "position": {"coerce": int, "required": False},
     "topic": {"type": "string", "minlength": 0, "maxlength": 1024, "required": False},

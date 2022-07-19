@@ -18,7 +18,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import time
-import datetime
 from typing import List, Optional
 from dataclasses import dataclass
 
@@ -40,7 +39,7 @@ from litecord.schemas import (
 from litecord.blueprints.checks import channel_check, channel_perm_check
 from litecord.system_messages import send_sys_message
 from litecord.blueprints.dm_channels import gdm_remove_recipient, gdm_destroy
-from litecord.utils import search_result_from_list
+from litecord.utils import search_result_from_list, to_update
 from litecord.embed.messages import process_url_embed, msg_update_embeds
 from litecord.pubsub.user import dispatch_user
 from litecord.permissions import get_permissions, Permissions
@@ -474,6 +473,8 @@ async def put_channel_overwrite(channel_id: int, overwrite_id: int):
 
 
 async def _update_channel_common(channel_id: int, guild_id: int, j: dict):
+    channel_data = await app.storage.get_channel_data(guild_id, request.discord_api_version)
+
     if "name" in j:
         await app.db.execute(
             """
@@ -485,9 +486,20 @@ async def _update_channel_common(channel_id: int, guild_id: int, j: dict):
             channel_id,
         )
 
-    if "position" in j:
-        channel_data = await app.storage.get_channel_data(guild_id, request.discord_api_version)
+    if to_update(j, channel_data, "banner"):
+        new_icon = await app.icons.update("channel_banner", channel_id, j["banner"])
 
+        await app.db.execute(
+            """
+        UPDATE guild_channels
+        SET banner = $1
+        WHERE id = $2
+        """,
+            new_icon.icon_hash,
+            channel_id,
+        )
+
+    if "position" in j:
         # get an ordered list of the chans array by position
         # TODO bad impl. can break easily. maybe dict?
         chans: List[Optional[int]] = [None] * len(channel_data)

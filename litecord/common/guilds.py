@@ -210,17 +210,20 @@ async def create_guild_channel(
 
     parent_id = kwargs.get("parent_id") or None
 
+    banner = await app.icons.put("channel_banner", channel_id, kwargs.get("banner"), always_icon=True)
+
     # all channels go to guild_channels
     await app.db.execute(
         """
-    INSERT INTO guild_channels (id, guild_id, parent_id, name, position)
-    VALUES ($1, $2, $3, $4, $5)
+    INSERT INTO guild_channels (id, guild_id, parent_id, name, position, banner)
+    VALUES ($1, $2, $3, $4, $5, $6)
     """,
         channel_id,
         guild_id,
         parent_id,
         kwargs["name"],
         max_pos + 1,
+        banner.icon_hash
     )
 
     # the rest of sql magic is dependant on the channel
