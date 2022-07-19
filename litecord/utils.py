@@ -205,7 +205,7 @@ def yield_chunks(input_list: Sequence[Any], chunk_size: int):
 def to_update(j: dict, orig: dict, field: str) -> bool:
     """Compare values to check if j[field] is actually updating
     the value in orig[field]. Useful for icon checks."""
-    return field in j and j[field] and j[field] != orig[field]
+    return field in j and j[field] != orig[field]
 
 
 async def search_result_from_list(rows: List) -> Dict[str, Any]:
