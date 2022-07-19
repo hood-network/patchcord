@@ -473,7 +473,7 @@ async def put_channel_overwrite(channel_id: int, overwrite_id: int):
 
 
 async def _update_channel_common(channel_id: int, guild_id: int, j: dict):
-    channel_data = await app.storage.get_channel_data(guild_id, request.discord_api_version)
+    chan = await app.storage.get_channel(channel_id, request.discord_api_version)
 
     if "name" in j:
         await app.db.execute(
@@ -486,7 +486,7 @@ async def _update_channel_common(channel_id: int, guild_id: int, j: dict):
             channel_id,
         )
 
-    if to_update(j, channel_data, "banner"):
+    if to_update(j, chan, "banner"):
         new_icon = await app.icons.update("channel_banner", channel_id, j["banner"])
 
         await app.db.execute(
@@ -500,6 +500,7 @@ async def _update_channel_common(channel_id: int, guild_id: int, j: dict):
         )
 
     if "position" in j:
+        channel_data = await app.storage.get_channel_data(guild_id, request.discord_api_version)
         # get an ordered list of the chans array by position
         # TODO bad impl. can break easily. maybe dict?
         chans: List[Optional[int]] = [None] * len(channel_data)

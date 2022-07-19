@@ -229,7 +229,6 @@ async def patch_me():
         if user["premium_type"] != PremiumType.TIER_2:
             raise BadRequest("no banner without nitro")
 
-        mime, _ = parse_data_uri(j["banner"])
         new_icon = await app.icons.update("user_banner", user_id, j["banner"])
 
         await app.db.execute(

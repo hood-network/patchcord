@@ -378,14 +378,9 @@ async def process_subscription(subscription_id: int):
 async def _get_billing_sources():
     user_id = await token_check()
     source_ids = await get_payment_source_ids(user_id)
+    sources = [await get_payment_source(user_id, source_id) for source_id in source_ids]
 
-    res = []
-
-    for source_id in source_ids:
-        source = await get_payment_source(user_id, source_id)
-        res.append(source)
-
-    return jsonify(res)
+    return jsonify(sources)
 
 
 @bp.route("/@me/billing/subscriptions/preview", methods=["GET", "PATCH", "POST"])
