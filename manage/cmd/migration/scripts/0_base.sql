@@ -74,6 +74,7 @@ CREATE TABLE IF NOT EXISTS users (
     mfa_enabled boolean DEFAULT FALSE,
     verified boolean DEFAULT FALSE,
     avatar text REFERENCES icons (hash) ON DELETE SET NULL ON UPDATE CASCADE DEFAULT NULL,
+    avatar_decoration text REFERENCES icons (hash) ON DELETE SET NULL ON UPDATE CASCADE DEFAULT NULL,
     banner text REFERENCES icons (hash) ON DELETE SET NULL ON UPDATE CASCADE DEFAULT NULL,
     bio text DEFAULT "" NOT NULL,
     pronouns text DEFAULT "" NOT NULL,

@@ -1,0 +1,2 @@
+ALTER TABLE users
+    ADD COLUMN avatar_decoration text REFERENCES icons (hash) ON DELETE SET NULL ON UPDATE CASCADE DEFAULT NULL;

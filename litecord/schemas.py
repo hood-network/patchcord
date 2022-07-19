@@ -249,6 +249,12 @@ USER_UPDATE = {
         "required": False,
         "nullable": True,
     },
+    "avatar_decoration": {
+        # can be both b64_icon or string (just the hash)
+        "type": "string",
+        "required": False,
+        "nullable": True,
+    },
     "banner": {
         # can be both b64_icon or string (just the hash)
         "type": "string",

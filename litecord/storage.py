@@ -114,6 +114,7 @@ class Storage:
             "bio",
             "accent_color",
             "pronouns",
+            "avatar_decoration",
         ]
 
         if secure:

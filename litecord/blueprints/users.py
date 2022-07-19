@@ -225,6 +225,22 @@ async def patch_me():
             user_id,
         )
 
+    if to_update(j, user, "avatar_decoration"):
+        if user["premium_type"] != PremiumType.TIER_2:
+            raise BadRequest("no avatar_decoration without nitro")
+
+        new_icon = await app.icons.update("user_avatar_decoration", user_id, j["avatar_decoration"])
+
+        await app.db.execute(
+            """
+        UPDATE users
+        SET avatar_decoration = $1
+        WHERE id = $2
+        """,
+            new_icon.icon_hash,
+            user_id,
+        )
+
     if to_update(j, user, "banner"):
         if user["premium_type"] != PremiumType.TIER_2:
             raise BadRequest("no banner without nitro")

@@ -87,6 +87,12 @@ async def _get_user_avatar(user_id, avatar_file):
     return await send_icon("user_avatar", user_id, avatar_hash, ext=ext)
 
 
+@bp.route("/users/<int:user_id>/avatar-decorations/<avatar_file>")
+async def _get_avatar_decoration(user_id, avatar_file):
+    avatar_hash, ext = splitext_(avatar_file)
+    return await send_icon("user_avatar_decoration", user_id, avatar_hash, ext=ext)
+
+
 @bp.route("/guilds/<int:guild_id>/users/<int:user_id>/avatars/<avatar_file>")
 async def _get_member_avatar(guild_id, user_id, avatar_file):
     avatar_hash, ext = splitext_(avatar_file)
