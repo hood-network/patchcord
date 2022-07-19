@@ -373,7 +373,7 @@ CHAN_CREATE = {
     "nsfw": {"type": "boolean", "required": False},
     "rate_limit_per_user": {"coerce": int, "min": 0, "max": 120, "required": False},
     "default_auto_archive_duration": {"coerce": int, "required": False, "nullable": True},
-    "rtc_region": {"type": "string", "required": False},
+    "rtc_region": {"type": "string", "required": False, "nullable": True},
     "bitrate": {
         "coerce": int,
         "min": 8000,
