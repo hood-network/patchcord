@@ -127,6 +127,7 @@ async def _get_banner(id: int, banner_file: str):
     return await send_icon("guild_banner", id, hash, ext=ext)
 
 
+@bp.route("/channel-banners/<int:channel_id>/<banner_file>", methods=["GET"])
 @bp.route("/channels/<int:channel_id>/banners/<banner_file>", methods=["GET"])
 async def _get_channel_banner(channel_id: int, banner_file: str):
     banner_hash, ext = splitext_(banner_file)
