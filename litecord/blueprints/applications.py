@@ -17,11 +17,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from quart import Blueprint, jsonify
+from quart import Blueprint, redirect
 
 bp = Blueprint("applications", __name__)
 
 
 @bp.route("/detectable")
 async def _detectable_stub():
-    return jsonify([])
+    return redirect("https://discord.com/api/v9/applications/detectable", code=308)
