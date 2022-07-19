@@ -113,6 +113,7 @@ class Storage:
             "premium_since",
             "bio",
             "accent_color",
+            "pronouns",
         ]
 
         if secure:

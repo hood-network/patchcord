@@ -252,6 +252,17 @@ async def patch_me():
             user_id,
         )
 
+    if to_update(j, user, "pronouns"):
+        await app.db.execute(
+            """
+            UPDATE users
+            SET pronouns = $1
+            WHERE id = $2
+            """,
+            j["pronouns"] or "",
+            user_id,
+        )
+
     if to_update(j, user, "accent_color"):
         await app.db.execute(
             """

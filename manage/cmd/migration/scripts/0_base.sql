@@ -75,6 +75,8 @@ CREATE TABLE IF NOT EXISTS users (
     verified boolean DEFAULT FALSE,
     avatar text REFERENCES icons (hash) ON DELETE SET NULL ON UPDATE CASCADE DEFAULT NULL,
     banner text REFERENCES icons (hash) ON DELETE SET NULL ON UPDATE CASCADE DEFAULT NULL,
+    bio text DEFAULT "" NOT NULL,
+    pronouns text DEFAULT "" NOT NULL,
 
     -- user badges, discord dev, etc
     flags int DEFAULT 0,

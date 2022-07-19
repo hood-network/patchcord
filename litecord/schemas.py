@@ -260,6 +260,11 @@ USER_UPDATE = {
         "required": False,
         "nullable": True,
     },
+    "pronouns": {
+        "type": "string",
+        "required": False,
+        "nullable": True,
+    },
     "accent_color": {
         "type": "rgb_int_color",
         "required": False,
