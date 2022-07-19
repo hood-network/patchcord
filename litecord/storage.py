@@ -519,7 +519,7 @@ class Storage:
         ):
             base = await self.db.fetchrow(
                 """
-            SELECT id, guild_id::text, parent_id, name, position, nsfw
+            SELECT id, guild_id::text, parent_id, name, position, nsfw, banner
             FROM guild_channels
             WHERE guild_channels.id = $1
             """,
