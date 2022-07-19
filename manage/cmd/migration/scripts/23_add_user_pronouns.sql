@@ -1,2 +1,2 @@
 ALTER TABLE users
-    ADD COLUMN pronouns TEXT DEFAULT "" NOT NULL;
+    ADD COLUMN pronouns text DEFAULT "" NOT NULL;
