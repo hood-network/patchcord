@@ -71,6 +71,7 @@ async def update_guild(guild_id: int):
     return jsonify(guild)
 
 
+@bp.route("/<int:guild_id>/delete", methods=["POST"])
 @bp.route("/<int:guild_id>", methods=["DELETE"])
 async def delete_guild_as_admin(guild_id):
     """Delete a single guild via the admin API without ownership checks."""

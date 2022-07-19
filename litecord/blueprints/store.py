@@ -17,7 +17,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from quart import Blueprint, jsonify
+from tracemalloc import get_object_traceback
+from quart import Blueprint, jsonify, request
+
+from litecord.auth import token_check
+from .user.billing import get_payment, get_payment_source_ids
 
 bp = Blueprint("store", __name__)
 
@@ -147,7 +151,15 @@ SKU_STUBS = {
 
 @bp.route("/published-listings/skus/<int:sku_id>/subscription-plans")
 async def _stub_sku_plans(sku_id: int):
+    user_id = await token_check()
+    sources = await get_payment_source_ids(user_id)
     stub_subscriptions = SKU_STUBS.get(sku_id)
     if stub_subscriptions is None:
         return "", 404
+
+    for sub in stub_subscriptions:
+        prices = {"amount": sub["price"], "currency": sub["currency"], "exponent": 2}
+        price_dict = {"country_prices": {"country_code": "US", "prices": [prices]}, "payment_source_prices": {str(k): [prices] for k in sources}}
+        sub["prices"] = {k: price_dict for k in range(0, 5)}
+
     return jsonify(stub_subscriptions)
