@@ -1044,6 +1044,11 @@ class Storage:
             USER_MENTION, _get_member, row["content"]
         )
 
+        if res["message_reference"]:
+            message = await self.get_message(int(res["message_reference"]["message_id"]))
+            if message:
+                res["mentions"].append(await _get_member(int(message["author"]["id"])))
+
         # _dummy just returns the string of the id, since we don't
         # actually use the role objects in mention_roles, just their ids.
         async def _get_role_mention(role_id: int):
