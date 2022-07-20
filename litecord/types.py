@@ -17,6 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
+from datetime import timezone
 from typing import Optional
 
 # size units
@@ -50,4 +51,4 @@ class Color:
 
 def timestamp_(dt) -> Optional[str]:
     """safer version for dt.isoformat()"""
-    return f"{dt.isoformat()}+00:00" if dt else None
+    return f"{dt.astimezone(timezone.utc).isoformat()}+00:00" if dt else None
