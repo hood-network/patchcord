@@ -51,4 +51,4 @@ class Color:
 
 def timestamp_(dt) -> Optional[str]:
     """safer version for dt.isoformat()"""
-    return f"{dt.astimezone(timezone.utc).isoformat()}+00:00" if dt else None
+    return dt.astimezone(timezone.utc).isoformat() if dt else None
