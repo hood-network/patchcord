@@ -87,8 +87,6 @@ async def get_webhook(
     if source_id:
         source_guild_id = await app.storage.guild_from_channel(source_id)
 
-        if source_guild_id:
-            drow["source_guild_id"] = source_guild_id
         row = await app.db.fetchrow(
             """SELECT id::text, name
         FROM guild_channels
@@ -107,8 +105,7 @@ async def get_webhook(
         )
         drow["source_guild"] = dict(row) if row else None
 
-    drow["user"] = await app.storage.get_user(row["creator_id"])
-    drow.pop("creator_id")
+    drow["user"] = await app.storage.get_user(drow.pop("creator_id"))
 
     if not secure:
         drow.pop("user")
