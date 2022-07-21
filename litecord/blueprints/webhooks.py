@@ -91,7 +91,7 @@ async def get_webhook(
             drow["source_guild_id"] = source_guild_id
         row = await app.db.fetchrow(
             """SELECT id::text, name
-        FROM text_channels
+        FROM guild_text_channels
         WHERE id = $1
         """,
             source_id,
