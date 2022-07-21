@@ -1111,7 +1111,7 @@ class Storage:
         res["pinned"] = pin_id is not None
 
         stickers = []
-        for id in res["sticker_ids"]:
+        for id in res.pop("sticker_ids", []):
             sticker = await self.get_default_sticker(id)
             if sticker:
                 stickers.append(sticker)
@@ -1363,6 +1363,7 @@ class Storage:
             stickers = await self.get_sticker_packs()
             self.stickers = stickers = {"packs": {int(s["id"]): s for s in stickers["sticker_packs"]}}
             for pack in stickers["packs"]:
-                stickers.update({int(s["id"]): s for s in pack["stickers"]})
+                for sticker in pack["stickers"]:
+                    stickers[int(sticker["id"])] = sticker
 
         return self.stickers.get(sticker_id)
