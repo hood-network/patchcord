@@ -1052,7 +1052,7 @@ class Storage:
         if res.get("message_reference") and not is_crosspost:
             message = await self.get_message(int(res["message_reference"]["message_id"]))
             res["referenced_message"] = message
-            if message and (res.get("allowed_mentions") or {}).get("replied_user", False):
+            if message and (not res.get("allowed_mentions") or res["allowed_mentions"].get("replied_user", False)):
                 res["mentions"].append(await _get_member(int(message["author"]["id"])))
 
         # _dummy just returns the string of the id, since we don't
@@ -1112,9 +1112,10 @@ class Storage:
 
         res["pinned"] = pin_id is not None
 
-        if res["sticker_ids"]:
+        sticker_ids = res.pop("sticker_ids")
+        if sticker_ids:
             stickers = []
-            for id in res.pop("sticker_ids", []):
+            for id in sticker_ids:
                 sticker = await self.get_default_sticker(id)
                 if sticker:
                     stickers.append(sticker)
