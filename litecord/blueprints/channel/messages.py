@@ -197,7 +197,7 @@ async def create_message(
             """
             INSERT INTO messages (id, channel_id, guild_id, author_id,
                 content, tts, mention_everyone, nonce, message_type, flags,
-                embeds, message_reference, allowed_mentions, sticker_ids,)
+                embeds, message_reference, allowed_mentions, sticker_ids)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
             """,
             message_id,
