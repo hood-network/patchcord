@@ -1362,8 +1362,7 @@ class Storage:
         if not self.stickers:
             stickers = await self.get_sticker_packs()
             self.stickers = stickers = {"packs": {int(s["id"]): s for s in stickers["sticker_packs"]}}
-            for pack in stickers["packs"]:
-                for sticker in pack["stickers"]:
-                    stickers[int(sticker["id"])] = sticker
+            for pack in stickers["packs"].values():
+                stickers.update({int(s["id"]): s for s in pack["stickers"]})
 
         return self.stickers.get(sticker_id)
