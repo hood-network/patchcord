@@ -1116,7 +1116,8 @@ class Storage:
             if sticker:
                 stickers.append(sticker)
 
-        res["stickers"] = res["sticker_items"] = stickers
+        res["stickers"] = stickers
+        res["sticker_items"] = [{"format_type": sticker["format_type"], "id": sticker["id"], "name": sticker["name"]} for sticker in stickers]
 
         # this is specifically for lazy guilds:
         # only insert when the channel
