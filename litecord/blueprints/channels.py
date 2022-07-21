@@ -753,8 +753,18 @@ async def _follow_channel(channel_id):
 
     webhook_id = app.winter_factory.snowflake()
     token = secrets.token_urlsafe(40)
-    webhook_icon = await app.icons.put(
-        "user_avatar", webhook_id, guild_icon.icon_hash, always_icon=True, size=(128, 128)
+    webhook_icon = (hex(hash("user_avatar")).lstrip("-0x")[:3] + hex(hash(str(webhook_id))).lstrip("-0x")[:3] + "." + guild_icon.fs_hash)
+
+    await app.db.execute(
+        """
+        INSERT INTO icons
+            (scope, key, hash, mime)
+        VALUES
+            ('user_avatar', $1, $2, $3)
+        """,
+        str(webhook_id),
+        webhook_icon,
+        guild_icon.mime or "image/webp",
     )
 
     await app.db.execute(
@@ -770,13 +780,24 @@ async def _follow_channel(channel_id):
         destination_id,
         user_id,
         f"{guild['name']} #{channel['name']}",
-        webhook_icon.icon_hash,
+        webhook_icon,
         token,
         channel_id,
     )
 
     await _dispatch_webhook_update(destination_guild_id, destination_id)
     return jsonify({"channel_id": str(channel_id), "webhook_id": str(webhook_id)})
+
+
+@bp.route("/<int:channel_id>/follower-stats", methods=["GET"])
+async def _follower_stats(channel_id):  # Even the official API stubs this
+    """Channel follower stats stub"""
+    user_id = await token_check()
+    await channel_check(user_id, channel_id, only=ChannelType.GUILD_NEWS)
+    await channel_perm_check(user_id, channel_id, "read_messages")
+
+    guild_id = await app.storage.guild_from_channel(channel_id)
+    return jsonify({"guild_id": str(guild_id), "webhook_source_channel_id": None, "users_seen_ever": None})
 
 
 @bp.route("/<int:channel_id>/messages/search", methods=["GET"])
