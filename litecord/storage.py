@@ -19,7 +19,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from typing import List, Dict, Any, Optional, Union, TypedDict
 
+import aiohttp
 from logbook import Logger
+import json
 
 from litecord.enums import ChannelType, MessageFlags
 from litecord.schemas import USER_MENTION, ROLE_MENTION
@@ -75,6 +77,7 @@ class Storage:
         self.app = app
         self.db = app.db
         self.presence = None
+        self.stickers = None
 
     async def fetchrow_with_json(self, query: str, *args) -> Any:
         """Fetch a single row with JSON/JSONB support."""
@@ -1107,6 +1110,14 @@ class Storage:
 
         res["pinned"] = pin_id is not None
 
+        stickers = []
+        for id in res["sticker_ids"]:
+            sticker = await self.get_default_sticker(id)
+            if sticker:
+                stickers.append(sticker)
+
+        res["stickers"] = res["sticker_items"] = stickers
+
         # this is specifically for lazy guilds:
         # only insert when the channel
         # is actually from a guild.
@@ -1326,3 +1337,32 @@ class Storage:
         if features is None:
             return False
         return feature.upper() in features
+
+    async def get_sticker_packs(self) -> dict:
+        try:
+            return self.load_sticker_packs()
+        except Exception:
+            pass
+
+        async with aiohttp.request("GET", "https://discord.com/api/v9/sticker-packs", headers={"User-Agent": "DiscordBot (Litecord, Litecord)"}) as r:
+            r.raise_for_status()
+            data = await r.json()
+            self.save_sticker_packs(data)
+            return data
+
+    def load_sticker_packs(self):
+        with open("static/sticker_packs.json", "r") as f:
+            return json.load(f)
+
+    def save_sticker_packs(self, data):
+        with open("static/sticker_packs.json", "w") as f:
+            json.dump(data, f)
+
+    async def get_default_sticker(self, sticker_id: int) -> dict:
+        if not self.stickers:
+            stickers = await self.get_sticker_packs()
+            self.stickers = stickers = {"packs": {int(s["id"]): s for s in stickers["sticker_packs"]}}
+            for pack in stickers["packs"]:
+                stickers.update({int(s["id"]): s for s in pack["stickers"]})
+
+        return stickers[sticker_id]

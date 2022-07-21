@@ -513,7 +513,7 @@ MESSAGE_UPDATE = {
 MESSAGE_CREATE = {
     **MESSAGE_UPDATE,
     "channel_id": {"type": "snowflake", "required": False},
-    "sticker_ids": {"type": "list", "required": False, "schema": {"type": "snowflake"}},
+    "sticker_ids": {"type": "list", "required": False, "schema": {"coerce": int}},
     "nonce": {"type": "snowflake", "required": False},
     "tts": {"type": "boolean", "required": False},
     "message_reference": {
