@@ -166,3 +166,5 @@ async def sticker(sticker_id):
         response.headers["content-type"] = resp.headers["content-type"]
         if "etag" in resp.headers:
             response.headers["etag"] = resp.headers["etag"]
+
+        return response
