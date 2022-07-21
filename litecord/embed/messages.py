@@ -113,23 +113,12 @@ async def process_url_embed(payload: dict, *, delay=0):
 
     message_id = int(payload["id"])
 
-    # if we already have embeds
-    # we shouldn't add our own.
-    embeds = payload["embeds"]
-    if embeds:
-        log.debug("url processor: ignoring existing embeds @ mid {}", message_id)
-        return
-
     # if suppress embeds is set
     # we shouldn't add our own.
-    suppress = payload.get("flags", 0) & MessageFlags.suppress_embeds == MessageFlags.suppress_embeds
+    suppress = MessageFlags.from_int(payload.get("flags", 0)).is_suppress_embeds
     if suppress:
         log.debug("url processor: ignoring suppressed embeds @ mid {}", message_id)
         return
-
-    # now, we have two types of embeds:
-    # - image embeds
-    # - url embeds
 
     # use regex to get URLs
     urls = re.findall(r"(https?://\S+)", payload["content"])
@@ -165,4 +154,4 @@ async def process_url_embed(payload: dict, *, delay=0):
 
     log.debug("made {} embeds for mid {}", len(new_embeds), message_id)
 
-    await msg_update_embeds(payload, new_embeds)
+    await msg_update_embeds(payload, payload.get("embeds", []) + new_embeds)

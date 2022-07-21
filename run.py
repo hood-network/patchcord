@@ -394,6 +394,8 @@ async def app_before_serving():
     log.info("opening db")
     await init_app_db(app)
 
+    app.session = ClientSession()
+
     init_app_managers(app)
     await post_app_start(app)
 

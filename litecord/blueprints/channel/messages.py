@@ -346,6 +346,7 @@ async def edit_message(channel_id, message_id):
             message_id,
         )
 
+    flags = None
     if "flags" in j:
         old_flags = MessageFlags.from_int(old_message.get("flags", 0))
         new_flags = MessageFlags.from_int(int(j["flags"]))
@@ -362,6 +363,7 @@ async def edit_message(channel_id, message_id):
                 old_flags.value,
                 message_id,
             )
+            flags = old_flags.value
 
     if to_update(j, old_message, "content"):
         updated = True
@@ -388,12 +390,6 @@ async def edit_message(channel_id, message_id):
             message_id,
         )
 
-        # do not spawn process_url_embed since we already have embeds.
-    elif to_update(j, old_message, "content"):
-        # if there weren't any embed changes BUT
-        # we had a content change, we dispatch process_url_embed but with
-        # an artificial delay.
-
         # the artificial delay keeps consistency between the events, since
         # it makes more sense for the MESSAGE_UPDATE with new content to come
         # BEFORE the MESSAGE_UPDATE with the new embeds (based on content)
@@ -405,6 +401,7 @@ async def edit_message(channel_id, message_id):
                     "channel_id": channel_id,
                     "content": j["content"],
                     "embeds": old_message["embeds"],
+                    "flags": flags if flags is not None else old_message.get("flags", 0),
                 },
                 delay=0.2,
             )
