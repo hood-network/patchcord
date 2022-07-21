@@ -990,7 +990,7 @@ class Storage:
                 "avatar": wb_info["avatar"],
                 "discriminator": "0000",
             }
-            res["webhook_id"] = str(wb_info["id"])
+            res["webhook_id"] = str(wb_info["webhook_id"])
         else:
             res["author"] = await self.get_user(res["author_id"])
 
