@@ -49,6 +49,7 @@ from litecord.pubsub.user import dispatch_user
 from litecord.permissions import get_permissions, Permissions
 
 from .channel.messages import _del_msg_fkeys
+from .webhooks import _dispatch_webhook_update
 
 log = Logger(__name__)
 bp = Blueprint("channels", __name__)
