@@ -603,7 +603,7 @@ async def _update_text_channel(channel_id: int, j: dict, _user_id: int):
         await app.db.execute(
             f"""
         UPDATE channels
-        SET type = $1
+        SET channel_type = $1
         WHERE id = $2
         """,
             j["type"],
