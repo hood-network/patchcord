@@ -1016,7 +1016,6 @@ class Storage:
             return None
 
         res = dict(row)
-        res["nonce"] = str(res["nonce"])
         res["timestamp"] = timestamp_(res["timestamp"])
         res["edited_timestamp"] = timestamp_(res["edited_timestamp"])
 
@@ -1129,6 +1128,9 @@ class Storage:
 
         if res["flags"] == 0:
             res.pop("flags")
+
+        if not res["nonce"]:
+            res.pop("nonce")
 
         return res
 

@@ -669,7 +669,7 @@ CREATE TABLE IF NOT EXISTS messages (
     embeds jsonb DEFAULT '[]',
     sticker_ids jsonb DEFAULT '[]',
 
-    nonce bigint default 0,
+    nonce text DEFAULT NULL,
 
     message_type int NOT NULL
 );
