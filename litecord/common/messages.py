@@ -5,6 +5,7 @@ from PIL import Image
 from quart import request, current_app as app
 
 from litecord.errors import BadRequest
+from litecord.enums import MessageFlags
 
 log = logging.getLogger(__name__)
 
@@ -192,6 +193,6 @@ async def msg_guild_text_mentions(
 
 def message_view(message_data: dict) -> dict:
     # Change message type to 19 if this is a reply to another message
-    if message_data["message_reference"] and request.discord_api_version > 7:
+    if message_data["message_reference"] and not (message_data.get("flags", 0) & MessageFlags.is_crosspost == MessageFlags.is_crosspost) and request.discord_api_version > 7:
         return {**message_data, **{"type": 19}}
     return message_data

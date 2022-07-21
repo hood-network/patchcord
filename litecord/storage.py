@@ -1031,6 +1031,7 @@ class Storage:
         channel_id = int(row["channel_id"])
         content = row["content"]
         guild_id = await self.guild_from_channel(channel_id)
+        is_crosspost = res.get("flags", 0) & MessageFlags.is_crosspost == MessageFlags.is_crosspost
 
         # calculate user mentions and role mentions by regex
         async def _get_member(user_id):
@@ -1048,9 +1049,10 @@ class Storage:
             USER_MENTION, _get_member, row["content"]
         )
 
-        if res["message_reference"]:
+        if res.get("message_reference") and not is_crosspost:
             message = await self.get_message(int(res["message_reference"]["message_id"]))
-            if message:
+            res["referenced_message"] = message
+            if message and (res.get("allowed_mentions") or {}).get("replied_user", False):
                 res["mentions"].append(await _get_member(int(message["author"]["id"])))
 
         # _dummy just returns the string of the id, since we don't
@@ -1080,7 +1082,7 @@ class Storage:
         await self._inject_author(res)
 
         # If we're a crosspost, we need to inject the original attachments
-        if (res.get("flags", 0) & MessageFlags.is_crosspost == MessageFlags.is_crosspost) and res.get("message_reference"):
+        if is_crosspost and res.get("message_reference"):
             res["attachments"] = await self.get_attachments(int(res["message_reference"]["message_id"]))
         else:
             res["attachments"] = await self.get_attachments(message_id)
@@ -1110,14 +1112,15 @@ class Storage:
 
         res["pinned"] = pin_id is not None
 
-        stickers = []
-        for id in res.pop("sticker_ids", []):
-            sticker = await self.get_default_sticker(id)
-            if sticker:
-                stickers.append(sticker)
+        if res["sticker_ids"]:
+            stickers = []
+            for id in res.pop("sticker_ids", []):
+                sticker = await self.get_default_sticker(id)
+                if sticker:
+                    stickers.append(sticker)
 
-        res["stickers"] = stickers
-        res["sticker_items"] = [{"format_type": sticker["format_type"], "id": sticker["id"], "name": sticker["name"]} for sticker in stickers]
+            res["stickers"] = stickers
+            res["sticker_items"] = [{"format_type": sticker["format_type"], "id": sticker["id"], "name": sticker["name"]} for sticker in stickers]
 
         # this is specifically for lazy guilds:
         # only insert when the channel
