@@ -514,7 +514,7 @@ MESSAGE_CREATE = {
     **MESSAGE_UPDATE,
     "channel_id": {"type": "snowflake", "required": False},
     "sticker_ids": {"type": "list", "required": False, "schema": {"coerce": int}},
-    "nonce": {"coerce": str, "required": False},
+    "nonce": {"coerce": str, "required": False, "nullable": True},
     "tts": {"type": "boolean", "required": False},
     "message_reference": {
         "type": "dict",

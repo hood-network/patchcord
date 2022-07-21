@@ -264,7 +264,7 @@ async def _create_message(channel_id):
         {
             "content": j["content"] or "",
             "tts": is_tts,
-            "nonce": int(j.get("nonce", 0)),
+            "nonce": j.get("nonce"),
             "everyone_mention": mentions_everyone or mentions_here,
             # fill_embed takes care of filling proxy and width/height
             "embeds": embeds,
