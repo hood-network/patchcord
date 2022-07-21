@@ -202,16 +202,12 @@ async def create_invite(channel_id):
     # non-guild channels.
     await channel_perm_check(user_id, channel_id, "create_invites")
 
-    if chantype not in (
-        ChannelType.GUILD_TEXT,
-        ChannelType.GUILD_VOICE,
-        ChannelType.GROUP_DM,
-    ):
+    if chantype == ChannelType.DM:
         raise BadRequest("Invalid channel type")
 
     invite_code = gen_inv_code()
 
-    if chantype in (ChannelType.GUILD_TEXT, ChannelType.GUILD_VOICE):
+    if chantype != ChannelType.GROUP_DM:
         guild_id = maybe_guild_id
     else:
         guild_id = None

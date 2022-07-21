@@ -22,7 +22,7 @@ import json
 import secrets
 import datetime
 import re
-from typing import Any, Iterable, Optional, Sequence, List, Dict, Union
+from typing import Any, Iterable, Optional, Sequence, List, Dict, Union, TypeVar
 
 from logbook import Logger
 from quart.json import JSONEncoder
@@ -31,10 +31,12 @@ from quart import current_app as app
 from litecord.common.messages import message_view
 
 from .errors import BadRequest
+from .enums import Flags
 
 log = Logger(__name__)
 
 EPOCH = 1420070400000
+TF = TypeVar("TF", bound=Flags)
 
 
 async def async_map(function, iterable: Iterable) -> list:
@@ -371,3 +373,12 @@ def want_string(data: Union[str, bytes]) -> str:
 def snowflake_timestamp(id: int) -> datetime.datetime:
     timestamp = ((id >> 22) + EPOCH) / 1000
     return datetime.datetime.fromtimestamp(timestamp, tz=datetime.timezone.utc)
+
+
+def toggle_flag(flags: TF, value: int, state: bool) -> TF:
+    if state is True:
+        flags.value |= value
+    elif state is False:
+        flags.value &= ~value
+
+    return flags

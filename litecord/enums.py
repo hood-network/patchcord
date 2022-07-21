@@ -77,16 +77,18 @@ class ChannelType(EasyEnum):
     GUILD_VOICE = 2
     GROUP_DM = 3
     GUILD_CATEGORY = 4
+    GUILD_NEWS = 5
 
 
 GUILD_CHANS = (
     ChannelType.GUILD_TEXT,
     ChannelType.GUILD_VOICE,
     ChannelType.GUILD_CATEGORY,
+    ChannelType.GUILD_NEWS,
 )
 
 
-VOICE_CHANNELS = (ChannelType.DM, ChannelType.GUILD_VOICE, ChannelType.GUILD_CATEGORY)
+VOICE_CHANNELS = (ChannelType.DM, ChannelType.GUILD_VOICE, ChannelType.GROUP_DM)
 
 
 class ActivityType(EasyEnum):
@@ -106,6 +108,12 @@ class MessageType(EasyEnum):
     CHANNEL_ICON_CHANGE = 5
     CHANNEL_PINNED_MESSAGE = 6
     GUILD_MEMBER_JOIN = 7
+
+
+class WebhookType(EasyEnum):
+    INCOMING = 1
+    FOLLOWER = 2
+    APPLICATION = 3
 
 
 SYS_MESSAGES = (

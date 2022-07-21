@@ -28,6 +28,7 @@ from logbook import Logger
 
 from litecord.embed.sanitizer import proxify, fetch_metadata, fetch_mediaproxy_embed
 from litecord.embed.schemas import EmbedURL
+from litecord.enums import MessageFlags
 
 log = Logger(__name__)
 
@@ -115,9 +116,15 @@ async def process_url_embed(payload: dict, *, delay=0):
     # if we already have embeds
     # we shouldn't add our own.
     embeds = payload["embeds"]
-
     if embeds:
         log.debug("url processor: ignoring existing embeds @ mid {}", message_id)
+        return
+
+    # if suppress embeds is set
+    # we shouldn't add our own.
+    suppress = payload.get("flags", 0) & MessageFlags.suppress_embeds == MessageFlags.suppress_embeds
+    if suppress:
+        log.debug("url processor: ignoring suppressed embeds @ mid {}", message_id)
         return
 
     # now, we have two types of embeds:

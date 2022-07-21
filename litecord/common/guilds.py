@@ -128,7 +128,7 @@ async def create_role(guild_id, name: str, **kwargs):
 
 
 async def _specific_chan_create(channel_id, ctype, **kwargs):
-    if ctype == ChannelType.GUILD_TEXT:
+    if ctype in (ChannelType.GUILD_TEXT, ChannelType.GUILD_NEWS):
         await app.db.execute(
             """
         INSERT INTO guild_text_channels (id, topic)

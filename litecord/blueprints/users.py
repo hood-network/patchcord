@@ -23,19 +23,19 @@ from asyncpg import UniqueViolationError
 from quart import Blueprint, jsonify, request, current_app as app
 from logbook import Logger
 
-from ..errors import Forbidden, BadRequest, Unauthorized
+from ..errors import BadRequest, Unauthorized
 from ..schemas import validate, USER_UPDATE, GET_MENTIONS
 
 from .guilds import guild_check
 from litecord.auth import token_check, hash_data
 from litecord.common.guilds import remove_member
 
-from litecord.enums import PremiumType, UserFlags, Flags
+from litecord.enums import PremiumType, UserFlags
 from litecord.images import parse_data_uri
 from litecord.permissions import base_permissions
 
 from litecord.blueprints.auth import check_password
-from litecord.utils import to_update
+from litecord.utils import to_update, toggle_flag
 from litecord.common.messages import message_view
 from litecord.common.users import (
     mass_user_update,
@@ -142,13 +142,6 @@ async def _check_pass(j, user):
 
     if not await check_password(phash, j["password"]):
         raise BadRequest("password incorrect", {"password": "password does not match."})
-
-
-def _toggle_flag(flags: Flags, value: int, state: bool) -> Flags:
-    if state is True:
-        flags.value |= value
-    elif state is False:
-        flags.value &= ~value
 
 
 @bp.route("/@me", methods=["PATCH"])
@@ -310,14 +303,11 @@ async def patch_me():
 
     if j.get("flags"):
         old_flags = UserFlags.from_int(user["flags"])
-        new_flags = UserFlags.from_int(int(j["flags"]))
+        new_flags = UserFlags.from_int(j["flags"])
 
-        if old_flags.is_premium_dismissed != new_flags.is_premium_dismissed:
-            _toggle_flag(old_flags, UserFlags.premium_dismissed, new_flags.is_premium_dismissed)
-        if old_flags.is_unread_urgent_system != new_flags.is_unread_urgent_system:
-            _toggle_flag(old_flags, UserFlags.unread_urgent_system, new_flags.is_unread_urgent_system)
-        if old_flags.is_disable_premium != new_flags.is_disable_premium:
-            _toggle_flag(old_flags, UserFlags.disable_premium, new_flags.is_disable_premium)
+        toggle_flag(old_flags, UserFlags.premium_dismissed, new_flags.is_premium_dismissed)
+        toggle_flag(old_flags, UserFlags.unread_urgent_system, new_flags.is_unread_urgent_system)
+        toggle_flag(old_flags, UserFlags.disable_premium, new_flags.is_disable_premium)
 
         if old_flags.value != user["flags"]:
             await app.db.execute(

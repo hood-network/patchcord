@@ -53,7 +53,7 @@ async def create_channel(guild_id):
     channel_type = j.get("type", ChannelType.GUILD_TEXT)
     channel_type = ChannelType(channel_type)
 
-    if channel_type not in (ChannelType.GUILD_TEXT, ChannelType.GUILD_VOICE, ChannelType.GUILD_CATEGORY):
+    if channel_type not in (ChannelType.GUILD_TEXT, ChannelType.GUILD_VOICE, ChannelType.GUILD_CATEGORY, ChannelType.GUILD_NEWS):
         raise BadRequest("Invalid channel type")
 
     elif channel_type == ChannelType.GUILD_CATEGORY and j.get("parent_id"):

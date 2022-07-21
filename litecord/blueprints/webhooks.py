@@ -38,7 +38,7 @@ from litecord.schemas import (
     WEBHOOK_UPDATE,
     WEBHOOK_MESSAGE_CREATE,
 )
-from litecord.enums import ChannelType
+from litecord.enums import ChannelType, WebhookType
 
 from litecord.utils import async_map
 from litecord.errors import WebhookNotFound, Unauthorized, ChannelNotFound, BadRequest
@@ -66,7 +66,7 @@ async def get_webhook(
     row = await app.db.fetchrow(
         """
     SELECT id::text, guild_id::text, channel_id::text, creator_id,
-           name, avatar, token
+           name, avatar, token, type, source_id
     FROM webhooks
     WHERE id = $1
     """,
@@ -78,7 +78,34 @@ async def get_webhook(
 
     drow = dict(row)
 
-    drow["type"] = 1
+    type = drow["type"]
+    if type == WebhookType.FOLLOWER.value:
+        drow.pop("token")
+
+    # Get partial source data
+    source_id = drow.pop("source_id", None)
+    if source_id:
+        source_guild_id = await app.storage.guild_from_channel(source_id)
+
+        if source_guild_id:
+            drow["source_guild_id"] = source_guild_id
+        row = await app.db.fetchrow(
+            """SELECT id::text, name
+        FROM text_channels
+        WHERE id = $1
+        """,
+            source_id,
+        )
+        drow["source_channel"] = dict(row) if row else None
+
+        row = await app.db.fetchrow(
+            """SELECT id::text, name, icon
+        FROM guilds
+        WHERE id = $1
+        """,
+            source_guild_id,
+        )
+        drow["source_guild"] = dict(row) if row else None
 
     drow["user"] = await app.storage.get_user(row["creator_id"])
     drow.pop("creator_id")
@@ -93,7 +120,7 @@ async def get_webhook(
 async def _webhook_check(channel_id):
     user_id = await token_check()
 
-    await channel_check(user_id, channel_id, only=ChannelType.GUILD_TEXT)
+    await channel_check(user_id, channel_id)
     await channel_perm_check(user_id, channel_id, "manage_webhooks")
 
     return user_id
@@ -184,7 +211,7 @@ async def create_webhook(channel_id: int):
     token = secrets.token_urlsafe(40)
 
     webhook_icon = await app.icons.put(
-        "user", webhook_id, j.get("avatar"), always_icon=True, size=(128, 128)
+        "user_avatar", webhook_id, j.get("avatar"), always_icon=True, size=(128, 128)
     )
 
     await app.db.execute(
@@ -260,7 +287,7 @@ async def _update_webhook(webhook_id: int, j: dict):
 
     if "avatar" in j:
         new_icon = await app.icons.update(
-            "user", webhook_id, j["avatar"], always_icon=True, size=(128, 128)
+            "user_avatar", webhook_id, j["avatar"], always_icon=True, size=(128, 128)
         )
 
         await app.db.execute(

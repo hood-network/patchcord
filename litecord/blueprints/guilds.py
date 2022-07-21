@@ -302,6 +302,26 @@ async def _update_guild(guild_id):
 
         await _guild_update_icon("guild_discovery_splash", guild_id, j["discovery_splash"])
 
+    if "features" in j:
+        features = await app.storage.guild_features(guild_id)
+
+        if "COMMUNITY" in j["features"] and "COMMUNITY" not in features:
+            features.add("COMMUNITY")
+            features.add("NEWS")
+        elif "COMMUNITY" not in j["features"] and "COMMUNITY" in features:
+            features.remove("COMMUNITY")
+            features.remove("NEWS")
+
+        await app.db.execute(
+            """
+            UPDATE guilds
+            SET features = $1
+            WHERE id = $2
+            """,
+            features,
+            guild_id,
+        )
+
     fields = [
         "verification_level",
         "default_message_notifications",

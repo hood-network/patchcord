@@ -21,7 +21,7 @@ from typing import List, Dict, Any, Optional, Union, TypedDict
 
 from logbook import Logger
 
-from litecord.enums import ChannelType
+from litecord.enums import ChannelType, MessageFlags
 from litecord.schemas import USER_MENTION, ROLE_MENTION
 from litecord.blueprints.channel.reactions import (
     EmojiType,
@@ -385,9 +385,9 @@ class Storage:
         """
         channel_type = row["type"]
         chan_type = ChannelType(channel_type)
-        assert chan_type in (ChannelType.GUILD_TEXT, ChannelType.GUILD_VOICE, ChannelType.GUILD_CATEGORY)
+        assert chan_type in (ChannelType.GUILD_TEXT, ChannelType.GUILD_VOICE, ChannelType.GUILD_CATEGORY, ChannelType.GUILD_NEWS)
 
-        if chan_type == ChannelType.GUILD_TEXT:
+        if chan_type in (ChannelType.GUILD_TEXT, ChannelType.GUILD_NEWS):
             ext_row = await self.db.fetchrow(
                 """
             SELECT topic, rate_limit_per_user
@@ -417,8 +417,7 @@ class Storage:
         elif chan_type == ChannelType.GUILD_CATEGORY:
             return row
         else:
-            # this only exists to trick mypy. this codepath is unreachable
-            raise AssertionError("Unreachable code path.")
+            return row
 
     async def get_chan_type(self, channel_id: int) -> Optional[int]:
         """Get the channel type integer, given channel ID."""
@@ -518,6 +517,7 @@ class Storage:
             ChannelType.GUILD_TEXT,
             ChannelType.GUILD_VOICE,
             ChannelType.GUILD_CATEGORY,
+            ChannelType.GUILD_NEWS,
         ):
             base = await self.db.fetchrow(
                 """
@@ -978,7 +978,7 @@ class Storage:
                 "id": res["id"],
                 "bot": True,
                 "avatar": None,
-                "username": "<unknown webhook info>",
+                "username": "Unknown Webhook",
                 "discriminator": "0000",
             }
 
@@ -989,6 +989,7 @@ class Storage:
                 "avatar": wb_info["avatar"],
                 "discriminator": "0000",
             }
+            res["webhook_id"] = str(wb_info["id"])
         else:
             res["author"] = await self.get_user(res["author_id"])
 
@@ -1075,7 +1076,11 @@ class Storage:
 
         await self._inject_author(res)
 
-        res["attachments"] = await self.get_attachments(message_id)
+        # If we're a crosspost, we need to inject the original attachments
+        if (res.get("flags", 0) & MessageFlags.is_crosspost == MessageFlags.is_crosspost) and res.get("message_reference"):
+            res["attachments"] = await self.get_attachments(int(res["message_reference"]["message_id"]))
+        else:
+            res["attachments"] = await self.get_attachments(message_id)
 
         # if message is not from a dm, guild_id is None and so, _member_basic
         # will just return None

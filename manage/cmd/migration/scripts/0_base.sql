@@ -532,6 +532,7 @@ CREATE TABLE IF NOT EXISTS vanity_invites (
 
 CREATE TABLE IF NOT EXISTS webhooks (
     id bigint PRIMARY KEY,
+    type int NOT NULL DEFAULT 1,
 
     guild_id bigint REFERENCES guilds (id) ON DELETE CASCADE,
     channel_id bigint REFERENCES channels (id) ON DELETE CASCADE,
@@ -666,6 +667,7 @@ CREATE TABLE IF NOT EXISTS messages (
     mention_everyone bool default false,
 
     embeds jsonb DEFAULT '[]',
+    sticker_ids jsonb DEFAULT '[]',
 
     nonce bigint default 0,
 
@@ -677,9 +679,10 @@ CREATE TABLE IF NOT EXISTS message_webhook_info (
     message_id bigint REFERENCES messages (id) PRIMARY KEY,
 
     webhook_id bigint,
-    name text DEFAULT '<invalid>',
+    name text DEFAULT 'Unknown Webhook',
     avatar text DEFAULT NULL
 );
+
 
 CREATE TABLE IF NOT EXISTS message_reactions (
     message_id bigint REFERENCES messages (id),

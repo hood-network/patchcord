@@ -277,7 +277,7 @@ USER_UPDATE = {
         "nullable": True,
     },
     "flags": {
-        "type": "snowflake",
+        "coerce": int,
         "required": False,
     }
 }
@@ -480,29 +480,22 @@ SELF_MEMBER_UPDATE = {
 
 # NOTE: things such as payload_json are parsed at the handler
 # for creating a message.
-MESSAGE_CREATE = {
+
+MESSAGE_UPDATE = {
     "type": {"type": "snowflake", "required": False},
-    "channel_id": {"type": "snowflake", "required": False},
     "attachments": {"type": "list", "required": False, "schema": {"type": "dict"}},
-    "sticker_ids": {"type": "list", "required": False, "schema": {"type": "snowflake"}},
-    "content": {"type": "string", "minlength": 0, "maxlength": 2000},
-    "nonce": {"type": "snowflake", "required": False},
-    "tts": {"type": "boolean", "required": False},
+    "content": {"type": "string", "minlength": 0, "maxlength": 2000, "required": False},
     "embed": {
         "type": "dict",
         "schema": EMBED_OBJECT,
         "required": False,
         "nullable": True,
     },
-    "message_reference": {
-        "type": "dict",
+    "embeds": {
+        "type": "list",
         "required": False,
+        "schema": {"type": "dict", "schema": EMBED_OBJECT},
         "nullable": True,
-        "schema": {
-            "guild_id": {"type": "string", "required": False},
-            "channel_id": {"type": "string", "required": True},
-            "message_id": {"type": "string", "required": True},
-        },
     },
     "allowed_mentions": {
         "type": "dict",
@@ -511,6 +504,26 @@ MESSAGE_CREATE = {
         "schema": {
             "parse": {"type": "list", "required": False},
             "replied_user": {"type": "boolean", "required": False},
+        },
+    },
+    "flags": {"coerce": int, "required": False},
+}
+
+
+MESSAGE_CREATE = {
+    **MESSAGE_UPDATE,
+    "channel_id": {"type": "snowflake", "required": False},
+    "sticker_ids": {"type": "list", "required": False, "schema": {"type": "snowflake"}},
+    "nonce": {"type": "snowflake", "required": False},
+    "tts": {"type": "boolean", "required": False},
+    "message_reference": {
+        "type": "dict",
+        "required": False,
+        "nullable": True,
+        "schema": {
+            "guild_id": {"type": "string", "required": False},
+            "channel_id": {"type": "string", "required": True},
+            "message_id": {"type": "string", "required": True},
         },
     },
 }
@@ -730,4 +743,8 @@ BULK_ACK = {
             "message_id": {"coerce": int},
         },
     }
+}
+
+FOLLOW_CHANNEL = {
+    "webhook_channel_id": {"coerce": int, "required": True},
 }

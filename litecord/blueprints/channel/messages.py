@@ -25,11 +25,11 @@ from logbook import Logger
 
 from litecord.blueprints.auth import token_check
 from litecord.blueprints.checks import channel_check, channel_perm_check
-from litecord.errors import MessageNotFound, Forbidden
-from litecord.enums import MessageType, ChannelType, GUILD_CHANS
+from litecord.errors import BadRequest, MessageNotFound, Forbidden
+from litecord.enums import MessageFlags, MessageType, ChannelType, GUILD_CHANS
 
-from litecord.schemas import validate, MESSAGE_CREATE
-from litecord.utils import pg_set_json, query_tuple_from_args, extract_limit
+from litecord.schemas import validate, MESSAGE_CREATE, MESSAGE_UPDATE
+from litecord.utils import pg_set_json, query_tuple_from_args, extract_limit, to_update, toggle_flag
 from litecord.permissions import get_permissions
 
 from litecord.embed.sanitizer import fill_embed
@@ -196,9 +196,9 @@ async def create_message(
         await conn.execute(
             """
             INSERT INTO messages (id, channel_id, guild_id, author_id,
-                content, tts, mention_everyone, nonce, message_type,
-                embeds, message_reference, allowed_mentions)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+                content, tts, mention_everyone, nonce, message_type, flags,
+                embeds, message_reference, allowed_mentions, sticker_ids,)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
             """,
             message_id,
             channel_id,
@@ -209,9 +209,11 @@ async def create_message(
             data["everyone_mention"],
             data["nonce"],
             MessageType.DEFAULT.value,
+            data.get("flags") or 0,
             data.get("embeds") or [],
             data.get("message_reference") or None,
             data.get("allowed_mentions") or None,
+            data.get("sticker_ids") or [],
         )
 
     return message_id
@@ -239,8 +241,6 @@ async def _create_message(channel_id):
 
     msg_create_check_content(payload_json, files)
 
-    # TODO: check connection to the gateway
-
     if ctype == ChannelType.DM:
         # guild_id is the dm's peer_id
         await dm_pre_check(user_id, channel_id, guild_id)
@@ -256,22 +256,27 @@ async def _create_message(channel_id):
         user_id, channel_id, "send_tts_messages", False
     )
 
+    content = j["content"] or ""
+    embeds = [await fill_embed(embed) for embed in ((j.get("embeds") or []) or [j["embed"]] if "embed" in j and j["embed"] else [])]
+    sticker_ids = j.get("sticker_ids")
+    if not content and not embeds and not sticker_ids and not files:
+        raise BadRequest("One of content, embed(s), sticker_ids or files is required")
+
     message_id = await create_message(
         channel_id,
         actual_guild_id,
         user_id,
         {
-            "content": j["content"],
+            "content": content,
             "tts": is_tts,
             "nonce": int(j.get("nonce", 0)),
             "everyone_mention": mentions_everyone or mentions_here,
             # fill_embed takes care of filling proxy and width/height
-            "embeds": (
-                [await fill_embed(j["embed"])] if j.get("embed") is not None else []
-            ),
+            "embeds": embeds,
             "message_reference": j.get("message_reference"),
             "allowed_mentions": j.get("allowed_mentions"),
-            "sticker_ids": j.get("sticker_ids", []),
+            "sticker_ids": sticker_ids,
+            "flags": MessageFlags.suppress_embeds if (j.get("flags", 0) & MessageFlags.suppress_embeds == MessageFlags.suppress_embeds) else 0,
         },
     )
 
@@ -305,7 +310,7 @@ async def _create_message(channel_id):
         user_id,
     )
 
-    if ctype == ChannelType.GUILD_TEXT:
+    if ctype not in (ChannelType.DM, ChannelType.GROUP_DM):
         await msg_guild_text_mentions(
             payload, guild_id, mentions_everyone, mentions_here
         )
@@ -329,24 +334,55 @@ async def edit_message(channel_id, message_id):
     if not author_id == user_id:
         raise Forbidden("You can not edit this message")
 
-    j = await request.get_json()
-    updated = "content" in j or "embed" in j
+    j = validate(await request.get_json(), MESSAGE_UPDATE)
+    updated = False
     old_message = await app.storage.get_message(message_id)
+    embeds = None
 
-    if "content" in j:
+    if to_update(j, old_message, "allowed_mentions"):
+        updated = True
+        await app.db.execute(
+            """
+        UPDATE messages
+        SET allowed_mentions = $1
+        WHERE id = $2
+        """,
+            j["allowed_mentions"],
+            message_id,
+        )
+
+    if "flags" in j:
+        old_flags = MessageFlags.from_int(old_message.get("flags", 0))
+        new_flags = MessageFlags.from_int(int(j["flags"]))
+
+        toggle_flag(old_flags, MessageFlags.suppress_embeds, new_flags.is_suppress_embeds)
+
+        if old_flags.value != old_message["flags"]:
+            await app.db.execute(
+                """
+            UPDATE messages
+            SET flags = $1
+            WHERE id = $2
+            """,
+                old_flags.value,
+                message_id,
+            )
+
+    if to_update(j, old_message, "content"):
+        updated = True
         await app.db.execute(
             """
         UPDATE messages
         SET content=$1
         WHERE messages.id = $2
         """,
-            j["content"],
+            j["content"] or "",
             message_id,
         )
 
-    if "embed" in j:
-        embeds = [await fill_embed(j["embed"])]
-
+    if "embed" in j or "embeds" in j:
+        updated = True
+        embeds = [await fill_embed(embed) for embed in ((j.get("embeds") or []) or [j["embed"]] if "embed" in j and j["embed"] else [])]
         await app.db.execute(
             """
         UPDATE messages
@@ -358,7 +394,7 @@ async def edit_message(channel_id, message_id):
         )
 
         # do not spawn process_url_embed since we already have embeds.
-    elif "content" in j:
+    elif to_update(j, old_message, "content"):
         # if there weren't any embed changes BUT
         # we had a content change, we dispatch process_url_embed but with
         # an artificial delay.
@@ -396,10 +432,60 @@ async def edit_message(channel_id, message_id):
     if updated:
         await app.dispatcher.channel.dispatch(channel_id, ("MESSAGE_UPDATE", message))
 
+    # now we handle crossposted messages
+    if updated and (message.get("flags", 0) & MessageFlags.crossposted == MessageFlags.crossposted):
+        async with app.db.acquire() as conn:
+            await pg_set_json(conn)
+
+            guild_id = await app.storage.guild_from_channel(channel_id)
+            message_reference = {"guild_id": guild_id, "channel_id": channel_id, "message_id": message_id}
+
+            ids = await conn.fetch(
+                """
+            SELECT id, channel_id, flags
+            FROM messages
+            WHERE author_id = NULL AND message_reference = $1
+            """,
+                message_reference,
+            )
+            for row in ids:
+                id = row["id"]
+
+                # we must make sure we only update and refurl embeds if an update actually occurred
+                refurl = False
+                query = """
+                UPDATE messages
+                SET content=$2, flags=$3, {}edited_at=(now() at time zone 'utc')
+                WHERE messages.id = $1
+                """
+                args = [id, message["content"], message["flags"]]
+                if embeds is not None or to_update(j, old_message, "content"):
+                    refurl = True
+                    query = query.format("embeds=$4, ")
+                    args.append(embeds)
+
+                await conn.execute(query.format(""), *args)
+
+                if refurl:
+                    await _spawn_embed(
+                        {
+                            "id": id,
+                            "channel_id": row["channel_id"],
+                            "content": j["content"],
+                            "embeds": embeds if embeds is not None else old_message["embeds"],
+                        },
+                        delay=0.2,
+                    )
+
+                message = await app.storage.get_message(id)
+                await app.dispatcher.channel.dispatch(row["channel_id"], ("MESSAGE_UPDATE", message))
+
     return jsonify(message_view(message))
 
 
-async def _del_msg_fkeys(message_id: int):
+async def _del_msg_fkeys(message_id: int, channel_id: int):
+    guild_id = await app.storage.guild_from_channel(channel_id)
+
     attachs = await app.db.fetch(
         """
     SELECT id FROM attachments
@@ -420,6 +506,35 @@ async def _del_msg_fkeys(message_id: int):
 
     # after trying to delete all available attachments, delete
     # them from the database.
+
+    # handle crossposted messages >.<
+    async with app.db.acquire() as conn:
+        await pg_set_json(conn)
+
+        message_reference = {"guild_id": guild_id, "channel_id": channel_id, "message_id": message_id}
+
+        ids = await conn.fetch(
+            """
+        SELECT id, flags
+        FROM messages
+        WHERE author_id = NULL AND message_reference = $1
+        """,
+            message_reference,
+        )
+        for row in ids:
+            id = row["id"]
+            await conn.execute(
+                """
+            UPDATE messages
+            SET content='[Original Message Deleted]', embeds='[]', edited_at=(now() at time zone 'utc'), sticker_ids='[]', flags=$2
+            WHERE messages.id = $1
+            """,
+                id,
+                row["flags"] | MessageFlags.source_message_deleted,
+            )
+
+            message = await app.storage.get_message(id)
+            await app.dispatcher.channel.dispatch(channel_id, ("MESSAGE_UPDATE", message))
 
     # take the chance and delete all the data from the other tables too!
 
@@ -461,7 +576,7 @@ async def delete_message(channel_id, message_id):
     if not can_delete:
         raise Forbidden("You can not delete this message")
 
-    await _del_msg_fkeys(message_id)
+    await _del_msg_fkeys(message_id, channel_id)
 
     await app.db.execute(
         """

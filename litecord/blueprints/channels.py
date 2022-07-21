@@ -17,6 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
+import secrets
 import time
 from typing import List, Optional
 from dataclasses import dataclass
@@ -34,15 +35,19 @@ from litecord.schemas import (
     SEARCH_CHANNEL,
     GROUP_DM_UPDATE,
     BULK_DELETE,
+    FOLLOW_CHANNEL,
+    USER_MENTION,
 )
 
 from litecord.blueprints.checks import channel_check, channel_perm_check
 from litecord.system_messages import send_sys_message
 from litecord.blueprints.dm_channels import gdm_remove_recipient, gdm_destroy
-from litecord.utils import search_result_from_list, to_update
+from litecord.utils import search_result_from_list, to_update, pg_set_json
 from litecord.embed.messages import process_url_embed, msg_update_embeds
 from litecord.pubsub.user import dispatch_user
 from litecord.permissions import get_permissions, Permissions
+
+from .channel.messages import _del_msg_fkeys
 
 log = Logger(__name__)
 bp = Blueprint("channels", __name__)
@@ -152,6 +157,16 @@ async def _delete_messages(channel_id):
         channel_id,
     )
 
+    ids = await app.db.fetch(
+        """
+    SELECT id
+    FROM messages
+    WHERE channel_id = $1
+    """,
+        channel_id,
+    )
+    for id in ids:
+        await _del_msg_fkeys(id["id"], channel_id)
     await app.db.execute(
         """
     DELETE FROM messages
@@ -208,12 +223,14 @@ async def close_channel(channel_id):
             ChannelType.GUILD_TEXT: _update_guild_chan_text,
             ChannelType.GUILD_VOICE: _update_guild_chan_voice,
             ChannelType.GUILD_CATEGORY: _update_guild_chan_cat,
+            ChannelType.GUILD_NEWS: _update_guild_chan_text,
         }[ctype]
 
         main_tbl = {
             ChannelType.GUILD_TEXT: "guild_text_channels",
             ChannelType.GUILD_VOICE: "guild_voice_channels",
             ChannelType.GUILD_CATEGORY: None,
+            ChannelType.GUILD_NEWS: "guild_text_channels",
         }[ctype]
 
         await _update_func(guild_id, channel_id)
@@ -565,6 +582,8 @@ async def _common_guild_chan(channel_id, j: dict):
 
 
 async def _update_text_channel(channel_id: int, j: dict, _user_id: int):
+    channel = await app.storage.get_channel(channel_id, request.discord_api_version)
+
     # first do the specific ones related to guild_text_channels
     for field in [
         field for field in j.keys() if field in ("topic", "rate_limit_per_user")
@@ -576,6 +595,25 @@ async def _update_text_channel(channel_id: int, j: dict, _user_id: int):
         WHERE id = $2
         """,
             j[field],
+            channel_id,
+        )
+
+    if channel["type"] in (ChannelType.GUILD_TEXT.value, ChannelType.GUILD_NEWS.value) and j["type"] in (ChannelType.GUILD_TEXT.value, ChannelType.GUILD_NEWS.value):
+        await app.db.execute(
+            f"""
+        UPDATE channels
+        SET type = $1
+        WHERE id = $2
+        """,
+            j["type"],
+            channel_id,
+        )
+
+        await app.db.execute(
+            f"""
+        DELETE FROM webhooks
+        WHERE (channel_id = $1 OR source_id = $1)
+        """,
             channel_id,
         )
 
@@ -637,13 +675,6 @@ async def update_channel(channel_id: int):
     user_id = await token_check()
     ctype, guild_id = await channel_check(user_id, channel_id)
 
-    if ctype not in (
-        ChannelType.GUILD_TEXT,
-        ChannelType.GUILD_VOICE,
-        ChannelType.GROUP_DM,
-    ):
-        raise ChannelNotFound("unable to edit unsupported chan type")
-
     is_guild = ctype in GUILD_CHANS
 
     if is_guild:
@@ -651,17 +682,19 @@ async def update_channel(channel_id: int):
 
     j = validate(await request.get_json(), CHAN_UPDATE if is_guild else GROUP_DM_UPDATE)
 
-    # TODO: categories
     update_handler = {
         ChannelType.GUILD_TEXT: _update_text_channel,
         ChannelType.GUILD_VOICE: _update_voice_channel,
         ChannelType.GROUP_DM: _update_group_dm,
+        ChannelType.GUILD_CATEGORY: None,
+        ChannelType.GUILD_NEWS: _update_text_channel,
     }[ctype]
 
     if is_guild:
         await _update_channel_common(channel_id, guild_id, j)
 
-    await update_handler(channel_id, j, user_id)
+    if update_handler:
+        await update_handler(channel_id, j, user_id)
 
     chan = await app.storage.get_channel(channel_id, request.discord_api_version, user_id=user_id)
 
@@ -687,12 +720,62 @@ async def trigger_typing(channel_id):
                 "user_id": str(user_id),
                 "timestamp": int(time.time()),
                 # guild_id for lazy guilds
-                "guild_id": str(guild_id) if ctype == ChannelType.GUILD_TEXT else None,
+                "guild_id": str(guild_id) if ctype not in (ChannelType.DM, ChannelType.GROUP_DM) else None,
             },
         ),
     )
 
     return "", 204
+
+
+@bp.route("/<int:channel_id>/followers", methods=["POST"])
+async def _follow_channel(channel_id):
+    """Follow a news channel"""
+    user_id = await token_check()
+
+    j = validate(await request.get_json(), FOLLOW_CHANNEL)
+    destination_id = j["webhook_channel_id"]
+
+    await channel_check(user_id, channel_id, only=ChannelType.GUILD_NEWS)
+    await channel_check(user_id, destination_id, only=ChannelType.GUILD_TEXT)
+    await channel_perm_check(user_id, channel_id, "read_messages")
+    await channel_perm_check(user_id, destination_id, "manage_webhooks")
+
+    channel = await app.storage.get_channel(channel_id, request.discord_api_version)
+
+    guild_id = await app.storage.guild_from_channel(channel_id)
+    guild = await app.storage.get_guild(guild_id)
+
+    guild_icon = await app.icons.generic_get("guild_icon", guild_id, guild["icon"])
+    destination_id = j["webhook_channel_id"]
+    destination_guild_id = await app.storage.guild_from_channel(destination_id)
+
+    webhook_id = app.winter_factory.snowflake()
+    token = secrets.token_urlsafe(40)
+    webhook_icon = await app.icons.put(
+        "user_avatar", webhook_id, guild_icon.icon_hash, always_icon=True, size=(128, 128)
+    )
+
+    await app.db.execute(
+        """
+        INSERT INTO webhooks
+            (id, type, guild_id, channel_id, creator_id, name, avatar, token, source_id)
+        VALUES
+            ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        """,
+        webhook_id,
+        2,
+        destination_guild_id,
+        destination_id,
+        user_id,
+        f"{guild['name']} #{channel['name']}",
+        webhook_icon.icon_hash,
+        token,
+        channel_id,
+    )
+
+    await _dispatch_webhook_update(destination_guild_id, destination_id)
+    return jsonify({"channel_id": str(channel_id), "webhook_id": str(webhook_id)})
 
 
 @bp.route("/<int:channel_id>/messages/search", methods=["GET"])
@@ -839,6 +922,113 @@ async def suppress_embeds(channel_id: int, message_id: int):
     return "", 204
 
 
+@bp.route(
+    "/<int:channel_id>/messages/<int:message_id>/crosspost", methods=["POST"]
+)
+async def publish_message(channel_id: int, message_id: int):
+    user_id = await token_check()
+    await channel_check(user_id, channel_id, only=ChannelType.GUILD_NEWS)
+    await channel_perm_check(user_id, channel_id, "send_messages")
+
+    author_id = await app.db.fetchval(
+        """
+    SELECT author_id FROM messages
+    WHERE messages.id = $1
+    """,
+        message_id,
+    )
+
+    if author_id != user_id:
+        await channel_perm_check(user_id, channel_id, "manage_messages")
+
+    hooks = await app.db.fetch(
+        """
+    SELECT name, avatar, id, token, channel_id, guild_id
+    FROM webhooks
+    WHERE source_id = $1
+    """,
+        channel_id,
+    )
+    hooks = [dict(hook) for hook in hooks]
+    message = await app.storage.get_message(message_id)
+    flags = message.get("flags", 0)
+
+    if message["type"] != MessageType.DEFAULT:
+        raise BadRequest("Invalid message type")
+
+    # First we need to take care of the source message
+    if flags & MessageFlags.crossposted == MessageFlags.crossposted:
+        raise BadRequest("Message already crossposted")
+
+    await _msg_set_flags(message_id, MessageFlags.crossposted)
+    message["flags"] = flags | MessageFlags.crossposted
+    update_payload = {
+        "id": str(message_id),
+        "channel_id": str(channel_id),
+        "guild_id": message["guild_id"],
+        "flags": message["flags"],
+    }
+    await app.dispatcher.channel.dispatch(
+        channel_id, ("MESSAGE_UPDATE", update_payload)
+    )
+
+    # Now we execute all these hooks
+    content = message.get("content", "")
+    for match in USER_MENTION.finditer(content):
+        found_id = match.group(1)
+
+        try:
+            found_id = int(found_id)
+        except ValueError:
+            continue
+
+        user = await app.storage.get_user(found_id)
+        content = content.replace(match.group(0), user["username"] if user else "")
+
+    result = {"content": content, "embeds": message.get("embeds", []), "sticker_ids": list(map(int, message.get("sticker_ids", []))), "flags": flags | MessageFlags.is_crosspost, "message_reference": {"guild_id": int(message["guild_id"]), "channel_id": channel_id, "message_id": message_id}}
+
+    for hook in hooks:
+        result_id = app.winter_factory.snowflake()
+
+        async with app.db.acquire() as conn:
+            await pg_set_json(conn)
+
+            await conn.execute(
+                """
+                INSERT INTO messages (id, channel_id, guild_id,
+                    content, message_type, embeds, flags, sticker_ids, message_reference)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            """,
+                result_id,
+                hook["channel_id"],
+                hook["guild_id"],
+                result["content"],
+                MessageType.DEFAULT.value,
+                result["embeds"],
+                result["flags"],
+                result["sticker_ids"],
+                result["message_reference"]
+            )
+
+            await conn.execute(
+                """
+            INSERT INTO message_webhook_info
+                (message_id, webhook_id, name, avatar)
+            VALUES
+                ($1, $2, $3, $4)
+            """,
+                message_id,
+                hook["id"],
+                hook["name"],
+                hook["avatar"],
+            )
+
+            payload = await app.storage.get_message(result_id)
+            await app.dispatcher.channel.dispatch(hook["channel_id"], ("MESSAGE_CREATE", payload))
+            app.sched.spawn(process_url_embed(payload))
+
+
+@bp.route("/<int:channel_id>/messages/bulk_delete", methods=["POST"])
 @bp.route("/<int:channel_id>/messages/bulk-delete", methods=["POST"])
 async def bulk_delete(channel_id: int):
     user_id = await token_check()
@@ -870,6 +1060,9 @@ async def bulk_delete(channel_id: int):
     # payload.guild_id is optional in the event, not nullable.
     if guild_id is None:
         payload.pop("guild_id")
+
+    for id in message_ids:
+        await _del_msg_fkeys(id, channel_id)
 
     res = await app.db.execute(
         """
