@@ -1040,7 +1040,7 @@ async def publish_message(channel_id: int, message_id: int):
             VALUES
                 ($1, $2, $3, $4)
             """,
-                message_id,
+                result_id,
                 hook["id"],
                 hook["name"],
                 hook["avatar"],

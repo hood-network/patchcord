@@ -978,11 +978,9 @@ class Storage:
                 log.warning("webhook info not found for msg {}", res["id"])
 
             wb_info = wb_info or {
-                "id": res["id"],
-                "bot": True,
+                "webhook_id": res["id"],
                 "avatar": None,
-                "username": "Unknown Webhook",
-                "discriminator": "0000",
+                "name": "Unknown Webhook",
             }
 
             res["author"] = {
