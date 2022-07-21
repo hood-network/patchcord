@@ -26,6 +26,7 @@ from quart import Blueprint, request, current_app as app, jsonify
 from logbook import Logger
 
 from litecord.auth import token_check
+from litecord.common.messages import message_view
 from litecord.enums import ChannelType, GUILD_CHANS, MessageType, MessageFlags
 from litecord.errors import ChannelNotFound, Forbidden, BadRequest
 from litecord.schemas import (
@@ -950,7 +951,7 @@ async def publish_message(channel_id: int, message_id: int):
         channel_id,
     )
     hooks = [dict(hook) for hook in hooks]
-    message = await app.storage.get_message(message_id)
+    message = await app.storage.get_message(message_id, user_id)
     flags = message.get("flags", 0)
 
     if message["type"]:
@@ -1026,6 +1027,8 @@ async def publish_message(channel_id: int, message_id: int):
             payload = await app.storage.get_message(result_id)
             await app.dispatcher.channel.dispatch(hook["channel_id"], ("MESSAGE_CREATE", payload))
             app.sched.spawn(process_url_embed(payload))
+
+    return jsonify(message_view(message))
 
 
 @bp.route("/<int:channel_id>/messages/bulk_delete", methods=["POST"])
