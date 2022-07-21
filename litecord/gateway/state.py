@@ -25,7 +25,7 @@ import websockets
 from logbook import Logger
 
 from litecord.presence import BasePresence
-from litecord.enums import Intents
+from litecord.enums import Intents, MessageFlags
 from .opcodes import OP
 
 log = Logger(__name__)
@@ -132,6 +132,8 @@ class GatewayState:
                 if (
                     event_type.startswith("MESSAGE_")
                     and (payload.get("d") or {}).get("message_reference") is not None
+                    and (payload["d"].get("flags", 0) & MessageFlags.is_crosspost != MessageFlags.is_crosspost)
+                    and "type" in payload["d"]
                     and self.ws.ws_properties.version > 7
                 ):
                     payload["d"]["type"] = 19
