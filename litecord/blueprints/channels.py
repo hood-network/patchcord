@@ -953,7 +953,7 @@ async def publish_message(channel_id: int, message_id: int):
     message = await app.storage.get_message(message_id)
     flags = message.get("flags", 0)
 
-    if message["type"] != MessageType.DEFAULT:
+    if message["type"]:
         raise BadRequest("Invalid message type")
 
     # First we need to take care of the source message
