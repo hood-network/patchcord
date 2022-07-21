@@ -502,8 +502,6 @@ async def execute_webhook(webhook_id: int, webhook_token):
     mentions_everyone = "@everyone" in j["content"]
     mentions_here = "@here" in j["content"]
 
-    given_embeds = j.get("embeds", [])
-
     webhook = await get_webhook(webhook_id)
     assert webhook is not None
 
@@ -523,7 +521,7 @@ async def execute_webhook(webhook_id: int, webhook_token):
             "content": j.get("content", ""),
             "tts": j.get("tts", False),
             "everyone_mention": mentions_everyone or mentions_here,
-            "embeds": await async_map(fill_embed, given_embeds),
+            "embeds": [await fill_embed(embed) for embed in ((j.get("embeds") or []) or [j["embed"]] if "embed" in j and j["embed"] else [])],
             "info": {"name": j.get("username", webhook["name"]), "avatar": avatar},
         },
     )

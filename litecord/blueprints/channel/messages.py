@@ -256,18 +256,13 @@ async def _create_message(channel_id):
         user_id, channel_id, "send_tts_messages", False
     )
 
-    content = j["content"] or ""
     embeds = [await fill_embed(embed) for embed in ((j.get("embeds") or []) or [j["embed"]] if "embed" in j and j["embed"] else [])]
-    sticker_ids = j.get("sticker_ids")
-    if not content and not embeds and not sticker_ids and not files:
-        raise BadRequest("One of content, embed(s), sticker_ids or files is required")
-
     message_id = await create_message(
         channel_id,
         actual_guild_id,
         user_id,
         {
-            "content": content,
+            "content": j["content"] or "",
             "tts": is_tts,
             "nonce": int(j.get("nonce", 0)),
             "everyone_mention": mentions_everyone or mentions_here,
@@ -275,7 +270,7 @@ async def _create_message(channel_id):
             "embeds": embeds,
             "message_reference": j.get("message_reference"),
             "allowed_mentions": j.get("allowed_mentions"),
-            "sticker_ids": sticker_ids,
+            "sticker_ids": j.get("sticker_ids"),
             "flags": MessageFlags.suppress_embeds if (j.get("flags", 0) & MessageFlags.suppress_embeds == MessageFlags.suppress_embeds) else 0,
         },
     )

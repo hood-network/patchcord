@@ -41,18 +41,13 @@ async def msg_create_request() -> tuple:
     return json_from_form, [x for x in files.values()]
 
 
-def msg_create_check_content(payload: dict, files: list, *, use_embeds=False):
+def msg_create_check_content(payload: dict, files: list):
     """Check if there is actually any content being sent to us."""
-    has_content = bool(payload.get("content", ""))
-    has_files = len(files) > 0
-
-    embed_field = "embeds" if use_embeds else "embed"
-    has_embed = embed_field in payload and payload.get(embed_field) is not None
-
-    has_total_content = has_content or has_embed or has_files
-
-    if not has_total_content:
-        raise BadRequest("No content has been provided.")
+    content = payload["content"] or ""
+    embeds = (payload.get("embeds") or []) or [payload["embed"]] if "embed" in payload and payload["embed"] else []
+    sticker_ids = payload.get("sticker_ids")
+    if not content and not embeds and not sticker_ids and not files:
+        raise BadRequest("One of content, embed(s), sticker_ids or files is required")
 
 
 async def msg_add_attachment(message_id: int, channel_id: int, attachment_file) -> int:
