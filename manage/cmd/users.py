@@ -23,7 +23,7 @@ from litecord.enums import UserFlags
 from litecord.auth import hash_data
 
 
-async def find_user(username, discrim, ctx) -> int:
+async def find_user(username, discriminator, ctx) -> int:
     """Get a user ID via the username/discrim pair."""
     return await ctx.db.fetchval(
         """
@@ -32,7 +32,7 @@ async def find_user(username, discrim, ctx) -> int:
     WHERE username = $1 AND discriminator = $2
     """,
         username,
-        discrim,
+        discriminator,
     )
 
 
@@ -88,10 +88,10 @@ async def adduser(ctx, args):
 
     user = await ctx.storage.get_user(uid)
 
-    print("created!")
-    print(f"\tuid: {uid}")
-    print(f'\tusername: {user["username"]}')
-    print(f'\tdiscrim: {user["discriminator"]}')
+    print("Created!")
+    print(f"\tID: {uid}")
+    print(f'\tUsername: {user["username"]}')
+    print(f'\tDiscriminator: {user["discriminator"]}')
 
 
 async def addbot(ctx, args):
@@ -118,13 +118,13 @@ async def set_flag(ctx, args):
     Flag changes only apply to a user after a server restart so that
     all connected clients get to refresh their state.
     """
-    uid = await find_user(args.username, args.discrim, ctx)
+    uid = await find_user(args.username, args.discriminator, ctx)
 
     if not uid:
         return print("user not found")
 
     await set_any_user_flag(ctx, uid, args.flag_name)
-    print(f"OK: set {args.flag_name}")
+    print(f"Set {args.flag_name}")
 
 
 async def unset_flag(ctx, args):
@@ -133,13 +133,13 @@ async def unset_flag(ctx, args):
     Flag changes only apply to a user after a server restart so that
     all connected clients get to refresh their state.
     """
-    uid = await find_user(args.username, args.discrim, ctx)
+    uid = await find_user(args.username, args.discriminator, ctx)
 
     if not uid:
-        return print("user not found")
+        return print("User not found")
 
     await unset_any_user_flag(ctx, uid, args.flag_name)
-    print(f"OK: unset {args.flag_name}")
+    print(f"Unset {args.flag_name}")
 
 
 async def generate_bot_token(ctx, args):
@@ -155,7 +155,7 @@ async def generate_bot_token(ctx, args):
     )
 
     if not password_hash:
-        print("cannot find a bot with specified id")
+        print("Bot not found")
         return 1
 
     print(make_token(args.user_id, password_hash))
@@ -163,35 +163,35 @@ async def generate_bot_token(ctx, args):
 
 async def del_user(ctx, args):
     """Delete a user."""
-    uid = await find_user(args.username, args.discrim, ctx)
+    uid = await find_user(args.username, args.discriminator, ctx)
 
     if uid is None:
-        print("user not found")
+        print("User not found")
         return
 
     user = await ctx.storage.get_user(uid)
 
-    print(f'\tuid: {user["user_id"]}')
-    print(f'\tuname: {user["username"]}')
-    print(f'\tdiscrim: {user["discriminator"]}')
+    print(f'\tID: {user["user_id"]}')
+    print(f'\tUsername: {user["username"]}')
+    print(f'\tDiscriminator: {user["discriminator"]}')
 
-    print("\n you sure you want to delete user? press Y (uppercase)")
+    print("\n Are you sure you want to delete this user? (y/n)")
     confirm = input()
 
-    if confirm != "Y":
-        print("not confirmed")
+    if confirm.lower() != "y":
+        print("Aborted")
         return
 
     # we don't have pubsub context in the manage process to send update events
     await delete_user(uid, mass_update=False)
-    print("ok")
+    print("Deleted user")
 
 
 async def set_password_user(ctx, args):
     """set a user's password."""
-    uid = await find_user(args.username, args.discrim, ctx)
+    uid = await find_user(args.username, args.discriminator, ctx)
     if uid is None:
-        print("user not found")
+        print("User not found")
         return
 
     new_hash = await hash_data(args.password, loop=ctx.loop)
@@ -204,67 +204,118 @@ async def set_password_user(ctx, args):
         new_hash,
         uid,
     )
-    print("ok")
+    print("Set password")
+
+
+async def permanent_nitro(ctx, args):
+    """Give a user permanent nitro."""
+    uid = await find_user(args.username, args.discriminator, ctx)
+    if uid is None:
+        print("User not found")
+        return
+
+    await ctx.db.execute(
+        """
+        UPDATE users
+        SET premium_since = '2022-07-12 17:32:02'
+        WHERE id = $1
+        """,
+        uid,
+    )
+
+    payment_source = ctx.winter_factory.snowflake()
+    await ctx.db.execute(
+        """
+        INSERT into user_payment_sources
+            (id, user_id, source_type, invalid, default_, expires_month, expires_year, brand, cc_full, paypal_email, billing_address)
+        VALUES
+            ($1, $2, 1, false, true, 1, 2038, 'visa', '4242424242424242', 'john.doe@mail.com', '{"city":"Washington","name":"John Doe","state":"DC","line_1":"1 Nonexistent Lane","line_2":"","country":"US","postal_code":"98001"}')
+        """,
+        payment_source,
+        uid,
+    )
+
+    subscription = ctx.winter_factory.snowflake()
+    await ctx.db.execute(
+        """
+        INSERT into user_subscriptions
+            (id, source_id, user_id, s_type, payment_gateway, payment_gateway_plan_id, status, canceled_at, period_start, period_end)
+        VALUES
+            ($1, $2, $3, 1, 1, 'premium_year_tier_2', 1, NULL, '2022-07-12 17:32:02', '2038-01-01 01:00:00')
+        """,
+        subscription,
+        payment_source,
+        uid,
+    )
+
+    invoice = ctx.winter_factory.snowflake()
+    await ctx.db.execute(
+        """
+        INSERT into user_payments
+            (id, source_id, subscription_id, user_id, currency, status, amount, tax, tax_inclusive)
+        VALUES
+            ($1, $2, $3, $4, 'usd', 1, 9999, 0, true)
+        """,
+        invoice,
+        payment_source,
+        subscription,
+        uid,
+    )
+
+    print("Permanent nitro granted")
 
 
 def setup(subparser):
-    setup_test_parser = subparser.add_parser("adduser", help="create a user")
-
-    setup_test_parser.add_argument("username", help="username of the user")
-    setup_test_parser.add_argument("email", help="email of the user")
-    setup_test_parser.add_argument("password", help="password of the user")
-
+    setup_test_parser = subparser.add_parser("adduser", help="Create a user")
+    setup_test_parser.add_argument("username", help="Username of the user")
+    setup_test_parser.add_argument("email", help="Email of the user")
+    setup_test_parser.add_argument("password", help="Password of the user")
     setup_test_parser.set_defaults(func=adduser)
 
-    addbot_parser = subparser.add_parser("addbot", help="create a bot")
-
-    addbot_parser.add_argument("username", help="username of the bot")
-    addbot_parser.add_argument("email", help="email of the bot")
-    addbot_parser.add_argument("password", help="password of the bot")
-
+    addbot_parser = subparser.add_parser("addbot", help="Create a bot")
+    addbot_parser.add_argument("username", help="Username of the bot")
+    addbot_parser.add_argument("email", help="Email of the bot")
+    addbot_parser.add_argument("password", help="Password of the bot")
     addbot_parser.set_defaults(func=addbot)
 
     setflag_parser = subparser.add_parser(
-        "setflag", help="set a flag for a user", description=set_flag.__doc__
+        "setflag", help="Set a flag for a user", description=set_flag.__doc__
     )
-    setflag_parser.add_argument("username")
-    setflag_parser.add_argument("discrim", help="the discriminator of the user")
-    setflag_parser.add_argument("flag_name", help="flag to set"),
-
+    setflag_parser.add_argument("username", help="Username of the user")
+    setflag_parser.add_argument("discriminator", help="Discriminator of the user")
+    setflag_parser.add_argument("flag_name", help="The flag to set"),
     setflag_parser.set_defaults(func=set_flag)
 
     unsetflag_parser = subparser.add_parser(
-        "unsetflag", help="unset a flag for a user", description=unset_flag.__doc__
+        "unsetflag", help="Unset a flag for a user", description=unset_flag.__doc__
     )
-    unsetflag_parser.add_argument("username")
-    unsetflag_parser.add_argument("discrim", help="the discriminator of the user")
-    unsetflag_parser.add_argument("flag_name", help="flag to unset"),
-
+    unsetflag_parser.add_argument("username", help="Username of the user")
+    unsetflag_parser.add_argument("discriminator", help="Discriminator of the user")
+    unsetflag_parser.add_argument("flag_name", help="The flag to unset"),
     unsetflag_parser.set_defaults(func=unset_flag)
 
-    del_user_parser = subparser.add_parser("deluser", help="delete a single user")
-
-    del_user_parser.add_argument("username")
-    del_user_parser.add_argument("discrim")
-
+    del_user_parser = subparser.add_parser("deluser", help="Delete a single user")
+    del_user_parser.add_argument("username", help="Username of the user")
+    del_user_parser.add_argument("discriminator", help="Discriminator of the user")
     del_user_parser.set_defaults(func=del_user)
 
     token_parser = subparser.add_parser(
-        "generate_token",
-        help="generate a token for specified bot",
+        "gentoken",
+        help="Generate a token for specified bot",
         description=generate_bot_token.__doc__,
     )
-
-    token_parser.add_argument("user_id")
-
+    token_parser.add_argument("user_id", help="ID of the bot")
     token_parser.set_defaults(func=generate_bot_token)
 
     set_password_user_parser = subparser.add_parser(
-        "setpass", help="set password for a user"
+        "setpass", help="Set the password of a user"
     )
-
-    set_password_user_parser.add_argument("username")
-    set_password_user_parser.add_argument("discrim")
-    set_password_user_parser.add_argument("password")
-
+    set_password_user_parser.add_argument("username", help="Username of the user")
+    set_password_user_parser.add_argument("discriminator", help="Discriminator of the user")
+    set_password_user_parser.add_argument("password", help="New password for the user")
     set_password_user_parser.set_defaults(func=set_password_user)
+
+    nitro_parser = subparser.add_parser("addnitro", help="Give a user permanent nitro")
+    nitro_parser.add_argument("username", help="Username of the user")
+    nitro_parser.add_argument("discriminator", help="Discriminator of the user")
+    nitro_parser.set_defaults(func=permanent_nitro)
