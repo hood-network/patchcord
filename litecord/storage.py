@@ -1365,4 +1365,4 @@ class Storage:
             for pack in stickers["packs"]:
                 stickers.update({int(s["id"]): s for s in pack["stickers"]})
 
-        return self.stickers[sticker_id]
+        return self.stickers.get(sticker_id)
