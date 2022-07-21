@@ -1004,7 +1004,7 @@ class Storage:
         SELECT id::text, channel_id::text, author_id, content,
             created_at AS timestamp, edited_at AS edited_timestamp,
             tts, mention_everyone, nonce, message_type, embeds, flags,
-            message_reference, allowed_mentions
+            message_reference, allowed_mentions, sticker_ids
         FROM messages
         WHERE id = $1
         """,
