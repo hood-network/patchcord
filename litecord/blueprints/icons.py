@@ -19,7 +19,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from os.path import splitext
 
-from quart import Blueprint, current_app as app, send_file, redirect
+import aiohttp
+from quart import Blueprint, current_app as app, send_file, redirect, make_response
 
 from litecord.embed.sanitizer import make_md_req_url
 from litecord.embed.schemas import EmbedURL
@@ -145,3 +146,23 @@ async def _get_channel_banner(channel_id: int, banner_file: str):
 async def _get_discovery_splash(guild_id: int, icon_file: str):
     icon_hash, ext = splitext_(icon_file)
     return await send_icon("guild_discovery_splash", guild_id, icon_hash, ext=ext)
+
+
+@bp.route("/stickers/<sticker_id>", methods=["GET"])
+@bp.route("/api/stickers/<sticker_id>", methods=["GET"])  # Client bug
+async def sticker(sticker_id):
+    """Proxy static sticker"""
+    if sticker_id.endswith(".json"):
+        url = f"https://discord.com/stickers/{sticker_id}"
+    else:
+        url = f"https://cdn.discordapp.com/stickers/{sticker_id}"
+
+    async with aiohttp.request("GET", url) as resp:
+        if not 300 > resp.status >= 200:
+            return "Sticker not found", 404
+
+        response = await make_response(await resp.read())
+        response.status = resp.status
+        response.headers["content-type"] = resp.headers["content-type"]
+        if "etag" in resp.headers:
+            response.headers["etag"] = resp.headers["etag"]
