@@ -24,6 +24,6 @@
    </head>
    <body>
       <div id="app-mount"></div><div id="tooltip-mount"></div><div id="tutorial-mount"></div><div id="popout-mount"></div><div id="modal-mount"></div>
-      <script>window.__require = window.require</script><script>window.__OVERLAY__ = /overlay/.test(location.pathname)</script><script src="//d2wy8f7a9ursnm.cloudfront.net/bugsnag-3.min.js" data-apikey="261992831938f41f01ac83576bec95da"></script><script src="/assets/{{ loader }}"></script><script src="/assets/{{ classes }}"></script>
+      <script>window.__require = window.require</script><script>window.__OVERLAY__ = /overlay/.test(location.pathname)</script><script>window.GLOBAL_ENV = {{ GLOBAL_ENV|tojson|safe }}</script><script src="//d2wy8f7a9ursnm.cloudfront.net/bugsnag-3.min.js" data-apikey="261992831938f41f01ac83576bec95da"></script><script src="/assets/{{ loader }}"></script><script src="/assets/{{ classes }}"></script>
    </body>
 </html>
