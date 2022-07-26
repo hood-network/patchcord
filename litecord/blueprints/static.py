@@ -18,11 +18,16 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from quart import Blueprint, current_app as app, render_template, make_response, request, abort
-from pathlib import Path
 import aiohttp
+import json
 import time
 
 bp = Blueprint("static", __name__)
+try:
+    with open('static/builds.json') as f:
+        builds = json.load(f)
+except (FileNotFoundError, json.JSONDecodeError, UnicodeDecodeError):
+    builds = {}
 
 
 def _get_environment(app):
@@ -63,14 +68,18 @@ async def _load_build(hash: str = "latest", default: bool = False):
     if hash == "latest":
         async with aiohttp.request("GET", "https://api.discord.sale/builds") as resp:
             if not 300 > resp.status >= 200:
-                return "Build not found", 404
+                return "Bad Gateway", 502
             hash = (await resp.json())[0]["hash"]
 
     async with aiohttp.request("GET", f"https://api.discord.sale/builds/{hash}") as resp:
         if not 300 > resp.status >= 200:
-            return "Build not found", 404
+            try:
+                info = builds[hash]
+            except KeyError:
+                return "Build not found", 404
+        else:
+            info = await resp.json()
 
-        info = await resp.json()
         scripts = [f"{file}.js" for file in info["files"]["rootScripts"]]
         styles = [f"{file}.css" for file in info["files"]["css"]]
         version = info["number"]
@@ -83,11 +92,13 @@ async def _load_build(hash: str = "latest", default: bool = False):
             "classes": scripts[1]
         }
 
-        if len(scripts) == 3:
-            file = "old.html"
+        if len(scripts) == 2:
+            file = "2016.html"
+        elif len(scripts) == 3:
+            file = "2018.html"
             kwargs["app"] = scripts[2]
         elif len(scripts) == 4:
-            file = "new.html"
+            file = "2020.html"
             kwargs["webpack"] = scripts[2]
             kwargs["app"] = scripts[3]
         else:
@@ -120,13 +131,13 @@ async def load_build(hash = "latest"):
 async def send_client(path):
     if path.startswith("api/"):
         return await abort(404)
-    return await _load_build(request.cookies.get("build_id", app.config.get("DEFAULT_BUILD", "latest")), default=True)
+    return await _load_build(request.cookies.get("build_id", app.config.get("DEFAULT_BUILD", "latest"), type=str), default=True)
 
 
 @bp.route("/assets/<asset>", methods=["GET"])
 async def proxy_asset(asset):
     """Proxy asset requests to Discord."""
-    if asset == "version.staging.json":
+    if asset.startswith("version"):
         asset = "version.canary.json"
     async with aiohttp.request("GET", f"https://canary.discord.com/assets/{asset}") as resp:
         if not 300 > resp.status >= 200:  # Fallback to the Wayback Machine if the asset is not found
