@@ -141,14 +141,10 @@ async def proxy_asset(asset):
         asset = "version.canary.json"
     async with aiohttp.request("GET", f"https://canary.discord.com/assets/{asset}") as resp:
         if not 300 > resp.status >= 200:  # Fallback to the Wayback Machine if the asset is not found
-            async with aiohttp.request("GET", f"http://web.archive.org/web/discordapp.com/assets/{asset}", allow_redirects=False) as resp:
+            async with aiohttp.request("GET", f"http://web.archive.org/web/0_if/discordapp.com/assets/{asset}") as resp:
                 if not 400 > resp.status >= 200:
                     return "Asset not found", 404
-
-                # Insert if_ into the url after the date to get the actual file
-                url = str(resp).split("Location': \'")[1].split("\'")[0]
-                async with aiohttp.request("GET", url.replace("/http", "if_/http")) as resp:
-                    response = await make_response(await resp.read())
+                response = await make_response(await resp.read())
         else:
             response = await make_response(await resp.read())
 
