@@ -106,9 +106,9 @@ async def _load_build(hash: str = "latest", default: bool = False):
 
         resp = await make_response(await render_template(file, **kwargs))
         if not default:
-            resp.set_cookie("build_id", hash)
-        elif request.cookies.get("build_id"):
-            resp.set_cookie("build_id", "", expires=0)
+            resp.set_cookie("buildId", hash)
+        elif request.cookies.get("buildId"):
+            resp.set_cookie("buildId", "", expires=0)
         return resp
 
 
