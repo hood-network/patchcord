@@ -35,9 +35,9 @@ def _get_environment(app):
         "API_ENDPOINT": f"//{app.config['MAIN_URL']}/api",
         "API_VERSION": 9,
         "WEBAPP_ENDPOINT": f"//{app.config['MAIN_URL']}",
-        "GATEWAY_ENDPOINT": "wss://" if app.config["IS_SSL"] else "ws://" + app.config["WEBSOCKET_URL"],
+        "GATEWAY_ENDPOINT": ("wss://" if app.config["IS_SSL"] else "ws://") + app.config["WEBSOCKET_URL"],
         "CDN_HOST": f"//{app.config['MAIN_URL']}",
-        "ASSET_ENDPOINT": "https://" if app.config["IS_SSL"] else "http://" + app.config["MAIN_URL"],
+        "ASSET_ENDPOINT": ("https://" if app.config["IS_SSL"] else "http://") + app.config["MAIN_URL"],
         "MEDIA_PROXY_ENDPOINT": f"//{app.config['MEDIA_PROXY']}",
         "WIDGET_ENDPOINT": f"//{app.config['MAIN_URL']}/widget",
         "INVITE_HOST": f"{app.config['MAIN_URL']}/invite",
@@ -57,7 +57,7 @@ def _get_environment(app):
             "buildType": "normal"
         },
         "MIGRATION_SOURCE_ORIGIN": "https://discordapp.com",
-        "MIGRATION_DESTINATION_ORIGIN": "https://" if app.config["IS_SSL"] else "http://" + app.config["MAIN_URL"],
+        "MIGRATION_DESTINATION_ORIGIN": ("https://" if app.config["IS_SSL"] else "http://") + app.config["MAIN_URL"],
         "HTML_TIMESTAMP": int(time.time() * 1000),
         "ALGOLIA_KEY": "aca0d7082e4e63af5ba5917d5e96bed0"
     }
