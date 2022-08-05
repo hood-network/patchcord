@@ -71,7 +71,7 @@ def status_cmp(status: str, other_status: str) -> bool:
     in the status hierarchy.
     """
 
-    hierarchy = {"online": 3, "idle": 2, "dnd": 1, "offline": 0, None: -1}
+    hierarchy = {"online": 3, "idle": 2, "dnd": 1, "offline": 0, None: -1, "unknown": -2}
 
     return hierarchy[status] > hierarchy[other_status]
 

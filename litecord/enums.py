@@ -213,6 +213,7 @@ class StatusType(EasyEnum):
     IDLE = "idle"
     INVISIBLE = "invisible"
     OFFLINE = "offline"
+    UNKNOWN = "unknown"
 
 
 class ExplicitFilter(EasyEnum):

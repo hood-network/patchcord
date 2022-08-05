@@ -666,7 +666,7 @@ class GatewayWebsocket:
             self.state.user_id
         )
 
-        presence = BasePresence(status=settings["status"] or "online", game=None)
+        presence = BasePresence(status=(settings["status"] or "online") if settings["status"] != "unknown" else "online", game=None)
 
         custom_status = settings.get("custom_status") or None
         if isinstance(custom_status, dict) and custom_status is not None:
