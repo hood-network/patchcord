@@ -1040,7 +1040,7 @@ class GatewayWebsocket:
         else:
             members = await self.storage.query_members(guild_id, query, limit)
             mids = [m["user"]["id"] for m in members]
-            body = {"guild_id": str(guild_id), "members": members}
+            body = {"guild_id": str(guild_id), "members": members, "chunk_index": 0, "chunk_count": 1}
 
         if presences:
             presences = await self.presence.guild_presences(mids, guild_id)
