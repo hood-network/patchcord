@@ -786,7 +786,7 @@ class Storage:
         if guild is None:
             return None
 
-        if guild["unavailable"]:
+        if guild.get("unavailable", False):
             return guild
 
         extra = await self.get_guild_extra(guild_id, user_id, large_count, api_version)

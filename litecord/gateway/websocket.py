@@ -82,7 +82,7 @@ def _complete_users_list(user_id: str, base_ready, user_ready, ws_properties) ->
     users_to_send = {}
 
     for guild in base_ready["guilds"]:
-        if guild["unavailable"]:
+        if guild.get("unavailable", False):
             continue
 
         for member in guild["members"]:
@@ -150,7 +150,7 @@ async def _compute_supplemental(app, base_ready, user_ready, users_to_send: dict
         )
 
     for guild in base_ready["guilds"]:
-        if guild["unavailable"]:
+        if guild.get("unavailable", False):
             continue
 
         supplemental["guilds"].append(
