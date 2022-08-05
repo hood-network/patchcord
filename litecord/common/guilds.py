@@ -23,8 +23,8 @@ from quart import current_app as app, request
 
 from ..permissions import get_role_perms, get_permissions
 from ..utils import dict_get, maybe_lazy_guild_dispatch
-from ..enums import ChannelType, MessageType
-from ..errors import BadRequest
+from ..enums import ChannelType, MessageType, UserFlags
+from ..errors import BadRequest, InvitesDisabled, TheMaze
 from litecord.pubsub.member import dispatch_member
 from litecord.system_messages import send_sys_message
 
@@ -327,6 +327,17 @@ async def add_member(guild_id: int, user_id: int, *, basic=False):
     If `basic` is set to true, side-effects from member adding won't be
     propagated.
     """
+
+    if not basic:
+        features = await app.storage.guild_features(guild_id)
+        user = await app.storage.get_user(user_id)
+
+        if "INTERNAL_EMPLOYEE_ONLY" in features and user["flags"] & UserFlags.staff != UserFlags.staff:
+            raise TheMaze()
+
+        if "INVITES_DISABLED" in features:
+            raise InvitesDisabled()
+
     await app.db.execute(
         """
         INSERT INTO members (user_id, guild_id)
@@ -337,6 +348,16 @@ async def add_member(guild_id: int, user_id: int, *, basic=False):
     )
 
     await create_guild_settings(guild_id, user_id)
+
+    await app.db.execute(
+        """
+    INSERT INTO member_roles (user_id, guild_id, role_id)
+    VALUES ($1, $2, $3)
+    """,
+        user_id,
+        guild_id,
+        guild_id,
+    )
 
     if basic:
         return
@@ -352,16 +373,6 @@ async def add_member(guild_id: int, user_id: int, *, basic=False):
         await send_sys_message(
             system_channel_id, MessageType.GUILD_MEMBER_JOIN, user_id
         )
-
-    await app.db.execute(
-        """
-    INSERT INTO member_roles (user_id, guild_id, role_id)
-    VALUES ($1, $2, $3)
-    """,
-        user_id,
-        guild_id,
-        guild_id,
-    )
 
     # tell current members a new member came up
     member = await app.storage.get_member_data_one(guild_id, user_id)

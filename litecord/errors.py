@@ -35,6 +35,7 @@ ERR_MSG_MAP = {
     10015: "Unknown Webhook",
     20001: "Bots cannot use this endpoint",
     20002: "Only bots can use this endpoint",
+    20017: "The Maze isn't meant for you.",
     30001: "Maximum number of guilds reached (100)",
     30002: "Maximum number of friends reached (1000)",
     30003: "Maximum number of pins reached (50)",
@@ -44,6 +45,7 @@ ERR_MSG_MAP = {
     30016: "Maximum number of invites reached (1000)",
     40001: "Unauthorized",
     40007: "The user is banned from this guild",
+    40008: "Invites are currently paused for this server. Please try again later.",
     50001: "Missing access",
     50002: "Invalid account type",
     50003: "Cannot execute action on a DM channel",
@@ -153,6 +155,14 @@ class Ratelimited(LitecordError):
 
 class MissingPermissions(Forbidden):
     error_code = 50013
+
+
+class TheMaze(Forbidden):
+    error_code = 20017
+
+
+class InvitesDisabled(Forbidden):
+    error_code = 40008
 
 
 class WebsocketClose(Exception):
