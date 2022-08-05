@@ -349,6 +349,9 @@ async def add_member(guild_id: int, user_id: int, *, basic=False):
 
     await create_guild_settings(guild_id, user_id)
 
+    if basic:
+        return
+
     await app.db.execute(
         """
     INSERT INTO member_roles (user_id, guild_id, role_id)
@@ -358,9 +361,6 @@ async def add_member(guild_id: int, user_id: int, *, basic=False):
         guild_id,
         guild_id,
     )
-
-    if basic:
-        return
 
     system_channel_id = await app.db.fetchval(
         """
