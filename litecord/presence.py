@@ -158,6 +158,7 @@ class PresenceManager:
                     "avatar": member["avatar"],
                     "banner": member["banner"],
                     "bio": member["bio"],
+                    "pronouns": member["pronouns"],
                     "roles": member["roles"],
                     "status": presence.status,
                     "game": presence.game,

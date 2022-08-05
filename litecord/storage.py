@@ -118,6 +118,7 @@ class Storage:
             "accent_color",
             "pronouns",
             "avatar_decoration",
+            "theme_colors",
         ]
 
         if secure:
@@ -140,6 +141,8 @@ class Storage:
         duser["premium"] = duser["premium_since"] is not None
         duser["public_flags"] = duser["flags"]
         duser.pop("premium_since")
+
+        duser["banner_color"] = hex(duser["accent_color"]).replace("0x", "#") if duser["accent_color"] else None
 
         if secure:
             duser["mobile"] = False
@@ -219,9 +222,9 @@ class Storage:
 
         # a guild's unavailable state is kept in memory, and we remove every
         # other guild related field when its unavailable.
-        drow["unavailable"] = self.app.guild_store.get(guild_id, "unavailable", False)
+        unavailable = self.app.guild_store.get(guild_id, "unavailable", False)
 
-        if drow["unavailable"]:
+        if unavailable:
             drow = {"id": drow["id"], "unavailable": True}
 
         # guild.owner is dependant of the user doing the get_guild call.
@@ -281,7 +284,7 @@ class Storage:
         row = await self.db.fetchrow(
             """
         SELECT user_id, nickname AS nick, joined_at,
-               deafened AS deaf, muted AS mute, avatar, banner, bio
+               deafened AS deaf, muted AS mute, avatar, banner, bio, pronouns
         FROM members
         WHERE guild_id = $1 and user_id = $2
         """,

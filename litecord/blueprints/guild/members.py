@@ -205,6 +205,7 @@ async def modify_guild_member(guild_id, member_id):
 
 @bp.route("/<int:guild_id>/members/@me", methods=["PATCH"])
 @bp.route("/<int:guild_id>/members/@me/nick", methods=["PATCH"])
+@bp.route("/<int:guild_id>/profile/@me", methods=["PATCH"])
 async def update_nickname(guild_id):
     """Update a member's nickname in a guild."""
     user_id = await token_check()
@@ -279,6 +280,19 @@ async def update_nickname(guild_id):
             guild_id,
         )
         presence_dict["bio"] = j["bio"] or ""
+
+    if to_update(j, member, "pronouns"):
+        await app.db.execute(
+            """
+        UPDATE members
+        SET pronouns = $1
+        WHERE user_id = $2 AND guild_id = $3
+        """,
+            j["pronouns"] or "",
+            user_id,
+            guild_id,
+        )
+        presence_dict["pronouns"] = j["pronouns"] or ""
 
     member = await app.storage.get_member_data_one(guild_id, user_id)
 

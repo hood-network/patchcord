@@ -23,7 +23,7 @@ from asyncpg import UniqueViolationError
 from quart import Blueprint, jsonify, request, current_app as app
 from logbook import Logger
 
-from ..errors import BadRequest, Unauthorized
+from ..errors import BadRequest, Forbidden, Unauthorized, UserNotFound
 from ..schemas import validate, USER_UPDATE, GET_MENTIONS
 
 from .guilds import guild_check
@@ -145,6 +145,7 @@ async def _check_pass(j, user):
 
 
 @bp.route("/@me", methods=["PATCH"])
+@bp.route("/@me/profile", methods=["PATCH"])
 async def patch_me():
     """Patch the current user's information."""
     user_id = await token_check()
@@ -272,6 +273,15 @@ async def patch_me():
             user_id,
         )
 
+    if "banner_color" in j and "accent_color" not in j:
+        if not j["banner_color"]:
+            j["accent_color"] = None
+        else:
+            try:
+                j["accent_color"] = int(j["banner_color"].lstrip("#"), base=16)
+            except ValueError:
+                pass
+
     if to_update(j, user, "accent_color"):
         await app.db.execute(
             """
@@ -279,7 +289,18 @@ async def patch_me():
             SET accent_color = $1
             WHERE id = $2
             """,
-            j["accent_color"],
+            j["accent_color"] or None,
+            user_id,
+        )
+
+    if to_update(j, user, "theme_colors"):
+        await app.db.execute(
+            """
+            UPDATE users
+            SET theme_colors = $1
+            WHERE id = $2
+            """,
+            j["theme_colors"] or None,
             user_id,
         )
 
@@ -427,14 +448,14 @@ async def get_profile(peer_id: int):
     peer = await app.storage.get_user(peer_id)
 
     if not peer:
-        return "", 404
+        raise UserNotFound()
 
     mutual_guilds = await app.user_storage.get_mutual_guilds(user_id, peer_id)
     friends = await app.user_storage.are_friends_with(user_id, peer_id)
 
     # don't return a proper card if no guilds are being shared.
     if not mutual_guilds and not friends:
-        return "", 403
+        raise Forbidden("You are not allowed to fetch this user.")
 
     # actual premium status is determined by that
     # column being NULL or not
@@ -449,6 +470,7 @@ async def get_profile(peer_id: int):
 
     result = {
         "user": peer,
+        "user_profile": peer,
         "connected_accounts": [],
         "premium_since": peer_premium,
         "premium_guild_since": peer_premium,  # same for now
@@ -463,7 +485,7 @@ async def get_profile(peer_id: int):
         guild_id = int(request.args["guild_id"])
         member = await app.storage.get_member_data_one(guild_id, user_id)
         if member:
-            result["guild_member"] = await app.storage.get_member_data_one(guild_id, peer_id)
+            result["guild_member"] = result["guild_member_profile"] = await app.storage.get_member_data_one(guild_id, peer_id)
 
     return jsonify(result)
 

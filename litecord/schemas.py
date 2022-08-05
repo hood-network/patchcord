@@ -169,6 +169,14 @@ class LitecordValidator(Validator):
     def _validate_type_rgb_int_color(self, value: int) -> bool:
         return isinstance(value, int) and value > 0 and value < 0xFFFFFF
 
+    def _validate_type_rgb_str_color(self, value: str) -> bool:
+        try:
+            int(value.lstrip("#"), base=16)
+        except (TypeError, ValueError):
+            return False
+        else:
+            return True
+
     def _validate_type_recipients(self, value: Union[List[Union[int, str]], Union[int, str]]):
         return all(self._validate_type_snowflake(v) for v in value) if isinstance(value, list) else self._validate_type_snowflake(value)
 
@@ -271,10 +279,23 @@ USER_UPDATE = {
         "required": False,
         "nullable": True,
     },
+    "banner_color": {
+        "type": "rgb_str_color",
+        "required": False,
+        "nullable": True,
+    },
     "accent_color": {
         "type": "rgb_int_color",
         "required": False,
         "nullable": True,
+    },
+    "theme_colors": {
+        "type": "list",
+        "required": False,
+        "nullable": True,
+        "schema": {"type": "rgb_int_color", "nullable": False},
+        "minlength": 2,
+        "maxlength": 2,
     },
     "flags": {
         "coerce": int,
@@ -462,6 +483,7 @@ MEMBER_UPDATE = {
     "avatar": {"type": "string", "required": False, "nullable": True},
     "banner": {"type": "string", "required": False, "nullable": True},
     "bio": {"type": "string", "required": False, "nullable": True},
+    "pronouns": {"type": "string", "required": False, "nullable": True},
     "nick": {"type": "nickname", "required": False, "nullable": True},
     "roles": {"type": "list", "required": False, "schema": {"coerce": int}, "nullable": True},
     "mute": {"type": "boolean", "required": False},
@@ -474,6 +496,7 @@ SELF_MEMBER_UPDATE = {
     "avatar": {"type": "string", "required": False, "nullable": True},
     "banner": {"type": "string", "required": False, "nullable": True},
     "bio": {"type": "string", "required": False, "nullable": True},
+    "pronouns": {"type": "string", "required": False, "nullable": True},
     "nick": {"type": "nickname", "required": False, "nullable": True},
 }
 

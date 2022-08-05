@@ -438,7 +438,7 @@ class GatewayWebsocket:
             if guild is None:
                 continue
 
-            await self.dispatch_raw("GUILD_CREATE", guild)
+            await self.dispatch_raw("GUILD_CREATE", {**guild, "unavailable": False})
 
     async def _user_ready(self, *, settings=None) -> dict:
         """Fetch information about users in the READY packet.
@@ -489,7 +489,7 @@ class GatewayWebsocket:
             "analytics_token": "analytics",
             "users": [],
             "merged_members": [],
-            "merged_presences": {"friends": [], "guilds": []},
+            "merged_presences": {"friends": friend_presences, "guilds": []},
             "tutorial": None,
             "user_settings_proto": "CgIYAQ==",
         }
@@ -1034,6 +1034,8 @@ class GatewayWebsocket:
                 "guild_id": str(guild_id),
                 "members": members,
                 "not_found": not_found,
+                "chunk_index": 0,
+                "chunk_count": 1,
             }
         else:
             members = await self.storage.query_members(guild_id, query, limit)
@@ -1068,13 +1070,12 @@ class GatewayWebsocket:
             data.get("presences", False),
         )
 
-        if isinstance(gids, str):
+        if isinstance(gids, (str, int)):
             await self._req_guild_members(gids, uids, query, limit, presences)
             return
 
         for gid in gids:
-            # ignore uids on multiple guilds
-            await self._req_guild_members(gid, [], query, limit, presences)
+            await self._req_guild_members(gid, uids, query, limit, presences)
 
     async def _guild_sync(self, guild_id: int):
         """Synchronize a guild.

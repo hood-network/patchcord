@@ -138,15 +138,6 @@ class GatewayState:
                 ):
                     payload["d"]["type"] = 19
 
-                # guild delete compat on v7(?)+
-                if (
-                    event_type == "GUILD_DELETE"
-                    and (payload.get("d") or {}).get("guild_id") is not None
-                    and self.ws.ws_properties.version > 6
-                ):
-                    payload["d"]["id"] = payload["d"]["guild_id"]
-                    payload["d"].pop("guild_id")
-
                 await self.ws.send(payload)
         except websockets.exceptions.ConnectionClosed as exc:
             log.warning(

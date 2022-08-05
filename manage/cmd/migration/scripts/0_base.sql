@@ -76,8 +76,9 @@ CREATE TABLE IF NOT EXISTS users (
     avatar text REFERENCES icons (hash) ON DELETE SET NULL ON UPDATE CASCADE DEFAULT NULL,
     avatar_decoration text REFERENCES icons (hash) ON DELETE SET NULL ON UPDATE CASCADE DEFAULT NULL,
     banner text REFERENCES icons (hash) ON DELETE SET NULL ON UPDATE CASCADE DEFAULT NULL,
-    bio text DEFAULT "" NOT NULL,
-    pronouns text DEFAULT "" NOT NULL,
+    bio text DEFAULT '' NOT NULL,
+    pronouns text DEFAULT '' NOT NULL,
+    theme_colors integer[] DEFAULT NULL,
 
     -- user badges, discord dev, etc
     flags int DEFAULT 0,
@@ -557,7 +558,8 @@ CREATE TABLE IF NOT EXISTS members (
     avatar text REFERENCES icons (hash) ON DELETE SET NULL ON UPDATE CASCADE DEFAULT NULL,
     banner text REFERENCES icons (hash) ON DELETE SET NULL ON UPDATE CASCADE DEFAULT NULL,
     nickname text DEFAULT NULL,
-    bio text DEFAULT "" NOT NULL,
+    bio text DEFAULT '' NOT NULL,
+    pronouns text DEFAULT '' NOT NULL,
 
     PRIMARY KEY (user_id, guild_id)
 );
