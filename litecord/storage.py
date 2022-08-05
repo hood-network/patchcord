@@ -17,7 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from typing import List, Dict, Any, Optional, Set, Union, TypedDict
+from typing import List, Dict, Any, Optional, Union, TypedDict
 
 import aiohttp
 from logbook import Logger
@@ -177,7 +177,7 @@ class Storage:
             discriminator,
         )
 
-    async def guild_features(self, guild_id: int) -> Optional[Set[str]]:
+    async def guild_features(self, guild_id: int) -> Optional[List[str]]:
         """Get a list of guild features for the given guild."""
         return await self.db.fetchval(
             """

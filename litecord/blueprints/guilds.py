@@ -303,13 +303,13 @@ async def _update_guild(guild_id):
         await _guild_update_icon("guild_discovery_splash", guild_id, j["discovery_splash"])
 
     if "features" in j:
-        features = await app.storage.guild_features(guild_id) or set()
+        features = await app.storage.guild_features(guild_id) or []
 
         for feature in ("COMMUNITY", "INVITES_DISABLED", "INTERNAL_EMPLOYEE_ONLY"):
             if feature in j["features"] and feature not in features:
-                features.add(feature)
+                features.append(feature)
                 if feature == "COMMUNITY":
-                    features.add("NEWS")
+                    features.append("NEWS")
             elif feature not in j["features"] and feature in features:
                 features.remove(feature)
                 if feature == "COMMUNITY":
