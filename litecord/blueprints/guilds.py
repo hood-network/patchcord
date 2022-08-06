@@ -369,10 +369,27 @@ async def _update_guild(guild_id):
 
         chan = await app.storage.get_channel(j[field], request.discord_api_version)
 
-        if chan is None:
+        if j[field] in (1, "1"):
+            default_channel_map = {
+                "afk_channel_id": "Inactive",
+                "system_channel_id": "updates",
+                "rules_channel_id": "rules",
+                "public_updates_channel_id": "moderator-only",
+            }
+
+            chan = await create_guild_channel(
+                guild_id,
+                app.winter_factory.snowflake(),
+                ChannelType.GUILD_TEXT if field != "afk_channel_id" else ChannelType.GUILD_VOICE,
+                name=default_channel_map[field]
+            )
+
+            await app.dispatcher.guild.dispatch(guild_id, ("CHANNEL_CREATE", chan))
+
+        elif chan is None:
             raise BadRequest("invalid channel id")
 
-        if chan["guild_id"] != str(guild_id):
+        elif chan["guild_id"] != str(guild_id):
             raise BadRequest("channel id not linked to guild")
 
         await app.db.execute(

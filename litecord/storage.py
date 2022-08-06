@@ -244,7 +244,7 @@ class Storage:
         drow["preferred_locale"] = "en-US"
 
         # feature won't be impl'd
-        drow["guild_scheduled_events"] = []
+        drow["guild_scheduled_events"] = drow["embedded_activities"] = drow["connections"] = []
 
         return drow
 
