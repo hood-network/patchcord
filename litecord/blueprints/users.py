@@ -493,7 +493,7 @@ async def get_profile(peer_id: int):
         peer_id,
     )
 
-    plan_id = await self.db.fetchval(
+    plan_id = await app.db.fetchval(
         """
     SELECT payment_gateway_plan_id
     FROM user_subscriptions
