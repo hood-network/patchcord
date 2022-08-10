@@ -19,7 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import re
 
-# from datetime import datetime
+from datetime import datetime
 from typing import Union, Dict, List, Optional
 
 from cerberus import Validator
@@ -37,6 +37,7 @@ from .enums import (
     MessageNotifications,
     ChannelType,
     VerificationLevel,
+    NSFWLevel,
 )
 
 from litecord.embed.schemas import EMBED_OBJECT, EmbedURL
@@ -133,6 +134,14 @@ class LitecordValidator(Validator):
 
         return val in ExplicitFilter.values()
 
+    def _validate_type_nsfw(self, value: str) -> bool:
+        try:
+            val = int(value)
+        except (TypeError, ValueError):
+            return False
+
+        return val in NSFWLevel.values()
+
     def _validate_type_rel_type(self, value: str) -> bool:
         try:
             val = int(value)
@@ -179,6 +188,14 @@ class LitecordValidator(Validator):
 
     def _validate_type_recipients(self, value: Union[List[Union[int, str]], Union[int, str]]):
         return all(self._validate_type_snowflake(v) for v in value) if isinstance(value, list) else self._validate_type_snowflake(value)
+
+    def _validate_type_date(self, value: str) -> bool:
+        try:
+            datetime.strptime(value, "%Y-%m-%d")
+        except ValueError:
+            return False
+        else:
+            return True
 
 
 def validate(
@@ -300,7 +317,15 @@ USER_UPDATE = {
     "flags": {
         "coerce": int,
         "required": False,
-    }
+    },
+    "public_flags": {
+        "coerce": int,
+        "required": False,
+    },
+    "date_of_birth": {
+        "type": "date",
+        "required": False,
+    },
 }
 
 PARTIAL_ROLE_GUILD_CREATE = {
@@ -385,6 +410,7 @@ GUILD_UPDATE = {
     "preferred_locale": {"type": "string", "required": False, "nullable": True},
     "discovery_splash": {"type": "string", "required": False, "nullable": True},
     "premium_progress_bar_enabled": {"type": "boolean", "required": False},
+    "nsfw_level": {"type": "nsfw", "required": False},
 }
 
 
@@ -556,7 +582,7 @@ INVITE = {
     # max_age in seconds
     # 0 for infinite
     "max_age": {
-        "type": "number",
+        "cast": int,
         "min": 0,
         "max": 666666,  # TODO find correct max value
         # a day
@@ -564,11 +590,9 @@ INVITE = {
     },
     # max invite uses
     "max_uses": {
-        "type": "number",
+        "cast": int,
         "min": 0,
-        # idk
         "max": 1000,
-        # default infinite
         "default": 0,
     },
     "temporary": {"type": "boolean", "required": False, "default": False},
@@ -577,8 +601,7 @@ INVITE = {
         "type": "string",
         "required": False,
         "nullable": True,
-    },  # discord client sends invite code there
-    # sent by official client, unknown purpose
+    },
     "target_type": {"type": "string", "required": False, "nullable": True},
     "target_user_id": {"type": "snowflake", "required": False, "nullable": True},
     "target_user_type": {"type": "number", "required": False, "nullable": True},

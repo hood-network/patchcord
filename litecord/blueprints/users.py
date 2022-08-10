@@ -20,6 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 from typing import List
 
 from asyncpg import UniqueViolationError
+from datetime import datetime
 from quart import Blueprint, jsonify, request, current_app as app
 from logbook import Logger
 
@@ -35,6 +36,7 @@ from litecord.images import parse_data_uri
 from litecord.permissions import base_permissions
 
 from litecord.blueprints.auth import check_password
+from litecord.blueprints.user.billing import PLAN_ID_TO_TYPE
 from litecord.utils import to_update, toggle_flag
 from litecord.common.messages import message_view
 from litecord.common.users import (
@@ -341,6 +343,29 @@ async def patch_me():
                 user_id,
             )
 
+    if "date_of_birth" in j:
+        date_of_birth = await app.db.fetchval(
+            """
+        SELECT date_of_birth
+        FROM users
+        WHERE id = $1
+        """,
+            user_id,
+        )
+
+        if date_of_birth:
+            raise BadRequest("Cannot update date of birth")
+
+        await app.db.execute(
+            """
+        UPDATE users
+        SET date_of_birth = $1
+        WHERE id = $2
+        """,
+            datetime.strptime(j["date_of_birth"], "%Y-%m-%d"),
+            user_id,
+        )
+
     user.pop("password_hash")
 
     _, private_user = await mass_user_update(user_id)
@@ -468,10 +493,21 @@ async def get_profile(peer_id: int):
         peer_id,
     )
 
+    plan_id = await self.db.fetchval(
+        """
+    SELECT payment_gateway_plan_id
+    FROM user_subscriptions
+    WHERE status = 1
+        AND user_id = $1
+    """,
+        peer_id,
+    )
+
     result = {
         "user": peer,
         "user_profile": peer,
         "connected_accounts": [],
+        "premium_type": PLAN_ID_TO_TYPE.get(plan_id),
         "premium_since": peer_premium,
         "premium_guild_since": peer_premium,  # same for now
     }

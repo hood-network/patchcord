@@ -23,8 +23,8 @@ from quart import current_app as app, request
 
 from ..permissions import get_role_perms, get_permissions
 from ..utils import dict_get, maybe_lazy_guild_dispatch
-from ..enums import ChannelType, MessageType, UserFlags
-from ..errors import BadRequest, InvitesDisabled, TheMaze
+from ..enums import ChannelType, MessageType, NSFWLevel, UserFlags
+from ..errors import BadRequest, InvitesDisabled, TheMaze, UnderageUser
 from litecord.pubsub.member import dispatch_member
 from litecord.system_messages import send_sys_message
 
@@ -329,14 +329,27 @@ async def add_member(guild_id: int, user_id: int, *, basic=False):
     """
 
     if not basic:
-        features = await app.storage.guild_features(guild_id)
-        user = await app.storage.get_user(user_id)
+        nsfw_level = await app.db.fetchval(
+            """
+        SELECT nsfw_level
+        FROM guilds
+        WHERE id = $1
+        """,
+            guild_id,
+        )
+        nsfw_level = NSFWLevel(nsfw_level or NSFWLevel.DEFAULT.value)
+
+        features = await app.storage.guild_features(guild_id) or []
+        user = await app.storage.get_user(user_id, True)
 
         if "INTERNAL_EMPLOYEE_ONLY" in features and user["flags"] & UserFlags.staff != UserFlags.staff:
             raise TheMaze()
 
         if "INVITES_DISABLED" in features:
             raise InvitesDisabled()
+
+        if nsfw_level in (NSFWLevel.RESTRICTED, NSFWLevel.EXPLICIT) and not user["nsfw_allowed"]:
+            raise UnderageUser()
 
     await app.db.execute(
         """

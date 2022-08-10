@@ -17,6 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
+from datetime import datetime
 from random import randint
 from typing import Tuple, Optional, List
 
@@ -142,7 +143,7 @@ async def roll_discrim(username: str) -> Optional[str]:
     return None
 
 
-async def create_user(username: str, email: str, password: str) -> Tuple[int, str]:
+async def create_user(username: str, email: str, password: str, date_of_birth: Optional[datetime] = None) -> Tuple[int, str]:
     """Create a single user.
 
     Generates a distriminator and other information. You can fetch the user
@@ -163,15 +164,16 @@ async def create_user(username: str, email: str, password: str) -> Tuple[int, st
         await app.db.execute(
             """
             INSERT INTO users
-                (id, email, username, discriminator, password_hash)
+                (id, email, username, discriminator, password_hash, date_of_birth)
             VALUES
-                ($1, $2, $3, $4, $5)
+                ($1, $2, $3, $4, $5, $6)
             """,
             new_id,
             email,
             username,
             new_discrim,
             pwd_hash,
+            date_of_birth,
         )
     except UniqueViolationError:
         raise BadRequest("Email already used.")

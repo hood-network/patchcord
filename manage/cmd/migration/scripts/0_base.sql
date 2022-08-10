@@ -79,6 +79,7 @@ CREATE TABLE IF NOT EXISTS users (
     bio text DEFAULT '' NOT NULL,
     pronouns text DEFAULT '' NOT NULL,
     theme_colors integer[] DEFAULT NULL,
+    nsfw_allowed bool DEFAULT true,
 
     -- user badges, discord dev, etc
     flags int DEFAULT 0,
@@ -370,6 +371,8 @@ CREATE TABLE IF NOT EXISTS guilds (
 
     -- ????
     mfa_level int DEFAULT 0,
+
+    nsfw_level int DEFAULT 0,
 
     embed_enabled boolean DEFAULT false,
     embed_channel_id bigint REFERENCES channels (id) DEFAULT NULL,

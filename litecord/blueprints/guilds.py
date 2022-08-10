@@ -333,6 +333,7 @@ async def _update_guild(guild_id):
         "description",
         "preferred_locale",
         "premium_progress_bar_enabled",
+        "nsfw_level",
     ]
 
     for field in [f for f in fields if f in j]:

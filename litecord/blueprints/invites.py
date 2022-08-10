@@ -81,7 +81,7 @@ async def invite_precheck(user_id: int, guild_id: int):
     )
 
     if joined is not None:
-        raise AlreadyInvited("You are already in the guild")
+        raise AlreadyInvited()
 
     banned = await app.db.fetchval(
         """
@@ -102,7 +102,7 @@ async def invite_precheck_gdm(user_id: int, channel_id: int):
     is_member = await gdm_is_member(channel_id, user_id)
 
     if is_member:
-        raise AlreadyInvited("You are already in the Group DM")
+        raise AlreadyInvited()
 
 
 async def _inv_check_age(inv: dict):
@@ -123,7 +123,7 @@ async def _inv_check_age(inv: dict):
         raise InvalidInvite("Too many uses")
 
 
-async def use_invite(user_id, invite_code):
+async def use_invite(user_id, invite_code) -> bool:
     """Try using an invite"""
     inv = await app.db.fetchrow(
         """
@@ -161,7 +161,9 @@ async def use_invite(user_id, invite_code):
             invite_code,
         )
     except AlreadyInvited:
-        pass
+        return False
+    else:
+        return True
 
 
 async def _check_max_invites(guild_id, channel_id):
@@ -242,8 +244,8 @@ async def get_invite(invite_code: str):
     if not inv:
         return "", 404
 
-    if request.args.get("with_counts"):
-        extra = await app.storage.get_invite_extra(invite_code)
+    if request.args.get("with_counts", type=bool) or request.args.get("with_expiration", type=bool):
+        extra = await app.storage.get_invite_extra(invite_code, request.args.get("with_counts", type=bool), request.args.get("with_expiration", type=bool))
         inv.update(extra)
 
     return jsonify(inv)
@@ -341,10 +343,12 @@ async def _use_invite(invite_code):
     """Use an invite."""
     user_id = await token_check()
 
-    await use_invite(user_id, invite_code)
+    new = await use_invite(user_id, invite_code)
 
-    # the reply is an invite object for some reason.
     inv = await app.storage.get_invite(invite_code, request.discord_api_version)
-    inv_meta = await app.storage.get_invite_metadata(invite_code)
+    extra = await app.storage.get_invite_extra(invite_code, True, True)
+    inv.update(extra)
+    if new:
+        inv["new_member"] = True
 
-    return jsonify({**inv, **{"inviter": inv_meta["inviter"]}})
+    return jsonify(inv)

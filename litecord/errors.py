@@ -35,6 +35,7 @@ ERR_MSG_MAP = {
     10015: "Unknown Webhook",
     20001: "Bots cannot use this endpoint",
     20002: "Only bots can use this endpoint",
+    20024: "Under minimum age",
     20017: "The Maze isn't meant for you.",
     30001: "Maximum number of guilds reached (100)",
     30002: "Maximum number of friends reached (1000)",
@@ -163,6 +164,10 @@ class TheMaze(Forbidden):
 
 class InvitesDisabled(Forbidden):
     error_code = 40008
+
+
+class UnderageUser(Forbidden):
+    error_code = 20024
 
 
 class WebsocketClose(Exception):

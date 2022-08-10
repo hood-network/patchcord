@@ -19,7 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import base64
 import secrets
-
+from datetime import datetime, date
 import itsdangerous
 import bcrypt
 from quart import Blueprint, jsonify, request, current_app as app
@@ -79,7 +79,14 @@ async def register():
 
     username, password = j["username"], j["password"]
 
-    new_id, pwd_hash = await create_user(username, email, password)
+    date_of_birth = None
+    if j.get("date_of_birth"):
+        today = date.today()
+        date_of_birth = datetime.strptime(j["date_of_birth"], "%Y-%m-%d")
+        if (today.year - date_of_birth.year - ((today.month, today.day) < (date_of_birth.month, date_of_birth.day))) < 13:
+            raise BadRequest("Invalid Form Body", {"date_of_birth": "You must be at least 13 years old to register."})
+
+    new_id, pwd_hash = await create_user(username, email, password, date_of_birth)
 
     if invite:
         try:
@@ -112,6 +119,13 @@ async def _register_with_invite():
     if row["max_uses"] != -1 and row["uses"] >= row["max_uses"]:
         raise BadRequest("invite expired")
 
+    date_of_birth = None
+    if data.get("date_of_birth"):
+        today = date.today()
+        date_of_birth = datetime.strptime(data["date_of_birth"], "%Y-%m-%d")
+        if (today.year - date_of_birth.year - ((today.month, today.day) < (date_of_birth.month, date_of_birth.day))) < 13:
+            raise BadRequest("Invalid Form Body", {"date_of_birth": "You must be at least 13 years old to register."})
+
     await app.db.execute(
         """
     UPDATE instance_invites
@@ -122,7 +136,7 @@ async def _register_with_invite():
     )
 
     user_id, pwd_hash = await create_user(
-        data["username"], data["email"], data["password"]
+        data["username"], data["email"], data["password"], date_of_birth
     )
 
     return jsonify({"token": make_token(user_id, pwd_hash), "user_id": str(user_id)})
@@ -147,7 +161,7 @@ async def login():
     )
 
     if not row:
-        return jsonify({"email": ["User not found."]}), 401
+        return jsonify({"login": ["User not found."], "email": ["User not found."]}), 401
 
     user_id, pwd_hash = row
 

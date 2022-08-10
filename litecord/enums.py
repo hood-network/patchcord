@@ -256,6 +256,15 @@ class MessageNotifications(EasyEnum):
     NOTHING = 2
 
 
+class NSFWLevel(EasyEnum):
+    """NSFW levels for guilds."""
+
+    DEFAULT = 0
+    EXPLICIT = 1
+    SAFE = 2
+    RESTRICTED = 3
+
+
 class PremiumType:
     """Premium (Nitro) type."""
 

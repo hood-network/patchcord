@@ -20,10 +20,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 from typing import List, Dict, Any, Optional, Union, TypedDict
 
 import aiohttp
+from datetime import datetime, timedelta, date, tzinfo
 from logbook import Logger
 import json
 
-from litecord.enums import ChannelType, MessageFlags
+from litecord.enums import ChannelType, MessageFlags, NSFWLevel
 from litecord.schemas import USER_MENTION, ROLE_MENTION
 from litecord.blueprints.channel.reactions import (
     EmojiType,
@@ -122,7 +123,7 @@ class Storage:
         ]
 
         if secure:
-            fields.extend(["email", "verified", "mfa_enabled"])
+            fields.extend(["email", "verified", "mfa_enabled", "date_of_birth"])
 
         user_row = await self.db.fetchrow(
             f"""
@@ -147,6 +148,10 @@ class Storage:
         if secure:
             duser["mobile"] = False
             duser["phone"] = None
+
+            today = date.today()
+            born = duser.pop("date_of_birth")
+            duser["nsfw_allowed"] = ((today.year - born.year - ((today.month, today.day) < (born.month, born.day))) >= 18) if born else True
 
             plan_id = await self.db.fetchval(
                 """
@@ -203,7 +208,7 @@ class Storage:
             """
         SELECT id::text, owner_id::text, name, icon, splash,
                region, afk_channel_id::text, afk_timeout,
-               verification_level, default_message_notifications,
+               verification_level, default_message_notifications, nsfw_level,
                explicit_content_filter, mfa_level,
                embed_enabled, embed_channel_id::text,
                widget_enabled, widget_channel_id::text,
@@ -232,6 +237,7 @@ class Storage:
             drow["owner"] = drow["owner_id"] == str(user_id)
 
         drow["vanity_url_code"] = await self.vanity_invite(guild_id)
+        drow["nsfw"] = drow["nsfw_level"] in (NSFWLevel.RESTRICTED.value, NSFWLevel.EXPLICIT.value)
 
         # hardcoding these since:
         #  - we aren't discord
@@ -1151,13 +1157,13 @@ class Storage:
         if invite is None:
             return None
 
-        dinv = dict_(invite)
+        dinv = dict(invite)
 
         # fetch some guild info
         guild = await self.db.fetchrow(
             """
         SELECT id::text, name, icon, splash, banner, features,
-               verification_level, description
+               verification_level, description, nsfw_level
         FROM guilds
         WHERE id = $1
         """,
@@ -1165,46 +1171,69 @@ class Storage:
         )
 
         if guild:
+            guild["vanity_url_code"] = await self.vanity_invite(invite["guild_id"])
+            guild["nsfw"] = guild["nsfw_level"] in (NSFWLevel.RESTRICTED.value, NSFWLevel.EXPLICIT.value)
             dinv["guild"] = dict(guild)
         else:
-            dinv["guild"] = {}
+            dinv["guild"] = None
 
         chan = await self.get_channel(invite["channel_id"], api_version)
 
         if chan is None:
             return None
 
-        dinv["channel"] = {"id": chan["id"], "name": chan["name"], "type": chan["type"]}
+        dinv["channel"] = {"id": chan["id"], "name": chan["name"], "type": chan["type"]} if chan else None
+
+        dinv["type"] = 0 if guild else (1 if chan else 2)
 
         dinv.pop("guild_id")
         dinv.pop("channel_id")
 
         return dinv
 
-    async def get_invite_extra(self, invite_code: str) -> dict:
+    async def get_invite_extra(self, invite_code: str, counts: bool = True, expiry: bool = False) -> dict:
         """Extra information about the invite, such as
         approximate guild and presence counts."""
-        guild_id = await self.db.fetchval(
-            """
-        SELECT guild_id
-        FROM invites
-        WHERE code = $1
-        """,
-            invite_code,
-        )
+        data = {}
 
-        if guild_id is None:
-            return {}
+        if counts:
+            guild_id = await self.db.fetchval(
+                """
+            SELECT guild_id
+            FROM invites
+            WHERE code = $1
+            """,
+                invite_code,
+            )
 
-        mids = await self.get_member_ids(guild_id)
-        assert self.presence is not None
-        pres = await self.presence.guild_presences(mids, guild_id)
-        online_count = sum(1 for p in pres if p["status"] == "online")
+            if guild_id is None:
+                return {}
 
-        return {
-            "approximate_presence_count": online_count,
-            "approximate_member_count": len(mids),
-        }
+            mids = await self.get_member_ids(guild_id)
+            assert self.presence is not None
+            pres = await self.presence.guild_presences(mids, guild_id)
+            online_count = sum(1 for p in pres if p["status"] == "online")
+
+            data.update({
+                "approximate_presence_count": online_count,
+                "approximate_member_count": len(mids),
+            })
+        if expiry:
+            erow = await self.db.fetchrow(
+                """
+            SELECT created_at, max_age
+            FROM invites
+            WHERE code = $1
+            """,
+                invite_code,
+            )
+
+            if erow["max_age"] <= 0:
+                data["expires_at"] = None
+            else:
+                data["expires_at"] = (datetime.fromisoformat(erow["created_at"]) + timedelta(seconds=erow["max_age"])).isoformat()
+
+        return data
 
     async def get_invite_metadata(self, invite_code: str) -> Optional[Dict[str, Any]]:
         """Fetch invite metadata (max_age and friends)."""
