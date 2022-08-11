@@ -33,7 +33,6 @@ from litecord.schemas import (
     validate,
     CHAN_UPDATE,
     CHAN_OVERWRITE,
-    SEARCH_CHANNEL,
     GROUP_DM_UPDATE,
     BULK_DELETE,
     FOLLOW_CHANNEL,
@@ -43,13 +42,14 @@ from litecord.schemas import (
 from litecord.blueprints.checks import channel_check, channel_perm_check
 from litecord.system_messages import send_sys_message
 from litecord.blueprints.dm_channels import gdm_remove_recipient, gdm_destroy
-from litecord.utils import search_result_from_list, to_update, pg_set_json
+from litecord.utils import to_update, pg_set_json
 from litecord.embed.messages import process_url_embed, msg_update_embeds
 from litecord.pubsub.user import dispatch_user
 from litecord.permissions import get_permissions, Permissions
 
 from .channel.messages import _del_msg_fkeys
 from .webhooks import _dispatch_webhook_update
+from .guilds import handle_search
 
 log = Logger(__name__)
 bp = Blueprint("channels", __name__)
@@ -807,35 +807,9 @@ async def _search_channel(channel_id):
     user_id = await token_check()
     await channel_check(user_id, channel_id)
     await channel_perm_check(user_id, channel_id, "read_messages")
+    await channel_perm_check(user_id, channel_id, "read_message_history")
 
-    j = validate(dict(request.args), SEARCH_CHANNEL)
-
-    # main search query
-    # the context (before/after) columns are copied from the guilds blueprint.
-    rows = await app.db.fetch(
-        """
-    SELECT orig.id AS current_id,
-        COUNT(*) OVER() AS total_results,
-        array((SELECT messages.id AS before_id
-         FROM messages WHERE messages.id < orig.id
-         ORDER BY messages.id DESC LIMIT 2)) AS before,
-        array((SELECT messages.id AS after_id
-         FROM messages WHERE messages.id > orig.id
-         ORDER BY messages.id ASC LIMIT 2)) AS after
-
-    FROM messages AS orig
-    WHERE channel_id = $1
-      AND content LIKE '%'||$3||'%'
-    ORDER BY orig.id DESC
-    LIMIT 50
-    OFFSET $2
-    """,
-        channel_id,
-        j["offset"],
-        j["content"],
-    )
-
-    return jsonify(await search_result_from_list(rows))
+    return await handle_search(await app.storage.guild_from_channel(channel_id), channel_id)
 
 
 @bp.route("/<int:channel_id>/application-commands/search", methods=["GET"])
@@ -1046,7 +1020,7 @@ async def publish_message(channel_id: int, message_id: int):
                 hook["avatar"],
             )
 
-            payload = await app.storage.get_message(result_id)
+            payload = await app.storage.get_message(result_id, include_member=True)
             await app.dispatcher.channel.dispatch(hook["channel_id"], ("MESSAGE_CREATE", payload))
             app.sched.spawn(process_url_embed(payload))
 

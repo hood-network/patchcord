@@ -279,7 +279,7 @@ async def _create_message(channel_id):
     for pre_attachment in files:
         await msg_add_attachment(message_id, channel_id, pre_attachment)
 
-    payload = await app.storage.get_message(message_id, user_id)
+    payload = await app.storage.get_message(message_id, user_id, include_member=True)
 
     if ctype == ChannelType.DM:
         # guild id here is the peer's ID.

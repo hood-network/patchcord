@@ -197,6 +197,18 @@ class LitecordValidator(Validator):
         else:
             return True
 
+    def _validate_type_embed_type(self, value: str) -> bool:
+        return value in {"rich", "image", "video", "gifv", "article", "link"}
+
+    def _validate_type_author_type(self, value: str) -> bool:
+        return value in {"user", "-user", "bot", "-bot", "webhook", "-webhook"}
+
+    def _validate_type_sort_order(self, value: str) -> bool:
+        return value in {"asc", "desc"}
+
+    def _validate_type_has(self, value: str) -> bool:
+        return value in {"video", "-link", "file", "sticker", "-embed", "-file", "-video", "-sound", "link", "-image", "-sticker", "embed", "sound", "image"}
+
 
 def validate(
     reqjson: Optional[Union[Dict, List]],
@@ -290,11 +302,13 @@ USER_UPDATE = {
         "type": "string",
         "required": False,
         "nullable": True,
+        "maxlength": 190,
     },
     "pronouns": {
         "type": "string",
         "required": False,
         "nullable": True,
+        "maxlength": 40,
     },
     "banner_color": {
         "type": "rgb_str_color",
@@ -508,8 +522,8 @@ CHANNEL_UPDATE_POSITION = {
 MEMBER_UPDATE = {
     "avatar": {"type": "string", "required": False, "nullable": True},
     "banner": {"type": "string", "required": False, "nullable": True},
-    "bio": {"type": "string", "required": False, "nullable": True},
-    "pronouns": {"type": "string", "required": False, "nullable": True},
+    "bio": {"type": "string", "required": False, "nullable": True, "maxlength": 190},
+    "pronouns": {"type": "string", "required": False, "nullable": True, "maxlength": 40},
     "nick": {"type": "nickname", "required": False, "nullable": True},
     "roles": {"type": "list", "required": False, "schema": {"coerce": int}, "nullable": True},
     "mute": {"type": "boolean", "required": False},
@@ -521,8 +535,8 @@ MEMBER_UPDATE = {
 SELF_MEMBER_UPDATE = {
     "avatar": {"type": "string", "required": False, "nullable": True},
     "banner": {"type": "string", "required": False, "nullable": True},
-    "bio": {"type": "string", "required": False, "nullable": True},
-    "pronouns": {"type": "string", "required": False, "nullable": True},
+    "bio": {"type": "string", "required": False, "nullable": True, "maxlength": 190},
+    "pronouns": {"type": "string", "required": False, "nullable": True, "maxlength": 40},
     "nick": {"type": "nickname", "required": False, "nullable": True},
 }
 
@@ -582,7 +596,7 @@ INVITE = {
     # max_age in seconds
     # 0 for infinite
     "max_age": {
-        "cast": int,
+        "coerce": int,
         "min": 0,
         "max": 666666,  # TODO find correct max value
         # a day
@@ -590,7 +604,7 @@ INVITE = {
     },
     # max invite uses
     "max_uses": {
-        "cast": int,
+        "coerce": int,
         "min": 0,
         "max": 1000,
         "default": 0,
@@ -724,9 +738,26 @@ PATCH_EMOJI = {
 
 
 SEARCH_CHANNEL = {
-    "content": {"type": "string", "minlength": 1, "required": True},
-    "include_nsfw": {"coerce": bool, "default": False},
+    "content": {"type": "string", "minlength": 1, "maxlength": 4096, "required": False, "nullable": True},
+    "include_nsfw": {"coerce": bool, "default": True},
     "offset": {"coerce": int, "default": 0},
+    "min_id": {"coerce": int, "required": False},
+    "max_id": {"coerce": int, "required": False},
+    "channel_id": {"type": "list", "schema": {"coerce": int}, "required": False},
+    "author_id": {"type": "list", "schema": {"coerce": int}, "required": False},
+    "author_type": {"type": "list", "schema": {"type": "author_type"}, "required": False},
+    "has": {"type": "list", "schema": {"type": "has"}, "required": False},
+    "mentions": {"type": "list", "schema": {"coerce": int}, "required": False},
+    "embed_type": {"type": "list", "schema": {"type": "embed_type"}, "required": False},
+    "embed_provider": {"type": "list", "schema": {"type": "str"}, "required": False},
+    "link_hostname": {"type": "list", "schema": {"type": "str"}, "required": False},
+    "attachment_filename": {"type": "list", "schema": {"type": "str"}, "required": False},
+    "attachment_extension": {"type": "list", "schema": {"type": "str"}, "required": False},
+    "limit": {"coerce": int, "default": 25, "min": 1, "max": 25},
+    "sort_by": {"type": "string", "required": False},
+    "sort_order": {"type": "sort_order", "default": "desc"},
+    "mention_everyone": {"coerce": bool, "default": None},
+    "pinned": {"coerce": bool, "default": None},
 }
 
 

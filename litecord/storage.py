@@ -1006,7 +1006,7 @@ class Storage:
         res.pop("author_id")
 
     async def get_message(
-        self, message_id: int, user_id: Optional[int] = None
+        self, message_id: int, user_id: Optional[int] = None, include_member: bool = False
     ) -> Optional[Dict]:
         """Get a single message's payload."""
         row = await self.fetchrow_with_json(
@@ -1056,7 +1056,7 @@ class Storage:
         )
 
         if res.get("message_reference") and not is_crosspost:
-            message = await self.get_message(int(res["message_reference"]["message_id"]))
+            message = await self.get_message(int(res["message_reference"]["message_id"]), user_id, include_member)
             res["referenced_message"] = message
             if message and (not res.get("allowed_mentions") or res["allowed_mentions"].get("replied_user", False)):
                 res["mentions"].append(await _get_member(int(message["author"]["id"])))
@@ -1096,15 +1096,15 @@ class Storage:
         # if message is not from a dm, guild_id is None and so, _member_basic
         # will just return None
 
-        # user id can be none, though, and we need to watch out for that
-        if user_id is not None:
-            res["member"] = await self.get_member_data_one(guild_id, user_id, False)
+        if include_member:
+            if user_id is not None:
+                res["member"] = await self.get_member_data_one(guild_id, user_id, False)
 
-        if res.get("member") is None:
-            try:
-                res.pop("member")
-            except KeyError:
-                pass
+            if res.get("member") is None:
+                try:
+                    res.pop("member")
+                except KeyError:
+                    pass
 
         pin_id = await self.db.fetchval(
             """

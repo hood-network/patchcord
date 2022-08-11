@@ -216,25 +216,17 @@ async def search_result_from_list(rows: List) -> Dict[str, Any]:
     Each row must contain:
      - A bigint on `current_id`
      - An int (?) on `total_results`
-     - Two bigint[], each on `before` and `after` respectively.
+     - (removed for performance and because unused my later clients) Two bigint[], each on `before` and `after` respectively.
     """
     results = 0 if not rows else rows[0]["total_results"]
     res = []
 
     for row in rows:
-        before, after = [], []
-
-        for before_id in reversed(row["before"]):
-            before.append(await app.storage.get_message(before_id))
-
-        for after_id in row["after"]:
-            after.append(await app.storage.get_message(after_id))
-
         msg = await app.storage.get_message(row["current_id"])
         msg["hit"] = True
-        res.append(before + [message_view(msg)] + after)
+        res.append([message_view(msg)])
 
-    return {"total_results": results, "messages": res, "analytics_id": ""}
+    return {"total_results": results, "messages": res, "analytics_id": "analytics"}
 
 
 def maybe_int(val: Any) -> Union[int, Any]:
