@@ -209,7 +209,7 @@ async def handle_search(guild_id: Optional[int], channel_id: Optional[int] = Non
     rows = await app.db.fetch(
         f"""
     SELECT orig.id AS current_id,
-    COUNT(*) OVER() as total_results,
+    COUNT(*) OVER() as total_results
 
     FROM messages AS orig
     WHERE guild_id = $1
