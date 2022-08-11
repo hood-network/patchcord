@@ -61,7 +61,7 @@ async def message_search(
     if before:
         where_clause += f"AND id < {before}"
 
-    if after:
+    elif after:
         where_clause += f"AND id > {after}"
 
     return [

@@ -123,7 +123,7 @@ class Storage:
         ]
 
         if secure:
-            fields.extend(["email", "verified", "mfa_enabled", "date_of_birth"])
+            fields.extend(["email", "verified", "mfa_enabled", "date_of_birth", "phone"])
 
         user_row = await self.db.fetchrow(
             f"""
@@ -147,7 +147,7 @@ class Storage:
 
         if secure:
             duser["mobile"] = False
-            duser["phone"] = None
+            duser["phone"] = f"+{duser['phone']}" if duser["phone"] else None
 
             today = date.today()
             born = duser.pop("date_of_birth")
