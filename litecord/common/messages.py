@@ -195,5 +195,5 @@ def message_view(message_data: dict) -> dict:
     # Change message type to 19 if this is a reply to another message
     if message_data["message_reference"] and (message_data.get("flags", 0) & MessageFlags.is_crosspost != MessageFlags.is_crosspost) and request.discord_api_version > 7:
         return {**message_data, **{"type": 19}}
-    data.pop("member", None)
+    message_data.pop("member", None)
     return message_data
