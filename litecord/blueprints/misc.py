@@ -109,7 +109,7 @@ async def partners_apply():
 
     await guild_perm_check(user_id, guild_id, "manage_guild")
 
-    features = await app.storage.get_guild_features(guild_id) or []
+    features = await app.storage.guild_features(guild_id) or []
     if "PARTNERED" in features:
         return "", 204
 
