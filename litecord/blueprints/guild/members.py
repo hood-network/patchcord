@@ -20,15 +20,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 from quart import Blueprint, request, current_app as app, jsonify
 
 from litecord.blueprints.auth import token_check
-from litecord.errors import BadRequest
+from litecord.errors import BadRequest, NotFound
 
 from litecord.schemas import validate, MEMBER_UPDATE, SELF_MEMBER_UPDATE
-from litecord.images import parse_data_uri
 from litecord.utils import to_update
 
 from litecord.enums import PremiumType
 
-from litecord.blueprints.checks import guild_check, guild_owner_check, guild_perm_check
+from litecord.blueprints.checks import guild_check, guild_perm_check
 
 bp = Blueprint("guild_members", __name__)
 
@@ -127,7 +126,6 @@ async def _update_member_roles(guild_id: int, member_id: int, wanted_roles: set)
 async def modify_guild_member(guild_id, member_id):
     """Modify a members' information in a guild."""
     user_id = await token_check()
-    await guild_owner_check(user_id, guild_id)
 
     j = validate(await request.get_json(), MEMBER_UPDATE)
     nick_flag = False
@@ -200,7 +198,7 @@ async def modify_guild_member(guild_id, member_id):
         guild_id, ("GUILD_MEMBER_UPDATE", {**{"guild_id": str(guild_id)}, **member})
     )
 
-    return "", 204
+    return member
 
 
 @bp.route("/<int:guild_id>/members/@me", methods=["PATCH"])
@@ -304,3 +302,93 @@ async def update_nickname(guild_id):
     )
 
     return member
+
+
+@bp.route("/<int:guild_id>/members/<int:member_id>/roles/<int:role_id>", methods=["PUT"])
+async def add_member_role(guild_id, member_id, role_id):
+    user_id = await token_check()
+    await guild_perm_check(user_id, guild_id, "manage_roles")
+
+    member = await app.storage.get_member_data_one(guild_id, member_id)
+    if not member:
+        raise NotFound(error_code=10007)
+
+    val = await app.db.fetchval(
+        """
+    SELECT id
+    FROM guild_roles
+    WHERE guild_id = $1 AND id = $2
+    """,
+        guild_id,
+        role_id,
+    )
+    if not val:
+        raise NotFound(error_code=10011)
+
+    if str(role_id) not in member["roles"]:
+        await app.db.execute(
+            """
+        INSERT INTO member_roles (guild_id, user_id, role_id)
+        VALUES ($1, $2, $3)
+        """,
+            guild_id,
+            member_id,
+            role_id,
+        )
+
+        member["roles"].append(str(role_id))
+
+        # call pres_update for role changes.
+        partial = {"roles": member["roles"]}
+
+        await app.lazy_guild.pres_update(guild_id, member_id, partial)
+        await app.dispatcher.guild.dispatch(
+            guild_id, ("GUILD_MEMBER_UPDATE", {**{"guild_id": str(guild_id)}, **member})
+        )
+
+    return "", 204
+
+
+@bp.route("/<int:guild_id>/members/<int:member_id>/roles/<int:role_id>", methods=["DELETE"])
+async def remove_member_role(guild_id, member_id, role_id):
+    user_id = await token_check()
+    await guild_perm_check(user_id, guild_id, "manage_roles")
+
+    member = await app.storage.get_member_data_one(guild_id, member_id)
+    if not member:
+        raise NotFound(error_code=10007)
+
+    val = await app.db.fetchval(
+        """
+    SELECT id
+    FROM guild_roles
+    WHERE guild_id = $1 AND id = $2
+    """,
+        guild_id,
+        role_id,
+    )
+    if not val:
+        raise NotFound(error_code=10011)
+
+    if str(role_id) in member["roles"]:
+        await app.db.execute(
+            """
+        DELETE FROM member_roles
+        WHERE guild_id = $1 AND user_id = $2 AND role_id = $3
+        """,
+            guild_id,
+            member_id,
+            role_id,
+        )
+
+        member["roles"] = [x for x in member["roles"] if x != str(role_id)]
+
+        # call pres_update for role changes.
+        partial = {"roles": member["roles"]}
+
+        await app.lazy_guild.pres_update(guild_id, member_id, partial)
+        await app.dispatcher.guild.dispatch(
+            guild_id, ("GUILD_MEMBER_UPDATE", {**{"guild_id": str(guild_id)}, **member})
+        )
+
+    return "", 204

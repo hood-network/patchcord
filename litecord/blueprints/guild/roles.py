@@ -25,6 +25,7 @@ from logbook import Logger
 from litecord.auth import token_check
 
 from litecord.blueprints.checks import guild_check, guild_perm_check
+from litecord.errors import NotFound
 from litecord.schemas import validate, ROLE_CREATE, ROLE_UPDATE, ROLE_UPDATE_POSITION
 
 from litecord.utils import maybe_lazy_guild_dispatch
@@ -217,6 +218,18 @@ async def update_guild_role(guild_id, role_id):
 
     j = validate(await request.get_json(), ROLE_UPDATE)
 
+    val = await app.db.fetchval(
+        """
+    SELECT id
+    FROM guild_roles
+    WHERE guild_id = $1 AND id = $2
+    """,
+        guild_id,
+        role_id,
+    )
+    if not val:
+        raise NotFound(error_code=10011)
+
     # we only update ints on the db, not Permissions
     j["permissions"] = int(j["permissions"])
 
@@ -257,7 +270,7 @@ async def delete_guild_role(guild_id, role_id):
     )
 
     if res == "DELETE 0":
-        return "", 204
+        raise NotFound(error_code=10011)
 
     await maybe_lazy_guild_dispatch(guild_id, "role_delete", role_id, True)
 
@@ -270,3 +283,123 @@ async def delete_guild_role(guild_id, role_id):
     )
 
     return "", 204
+
+
+@bp.route("/<int:guild_id>/roles/member-counts", methods=["GET"])
+async def role_member_counts(guild_id):
+    """Get the member counts of all guild roles."""
+    user_id = await token_check()
+
+    await guild_check(user_id, guild_id)
+
+    roles = await app.db.fetch(
+        """
+    SELECT id
+    FROM roles
+    WHERE guild_id = $1
+    """,
+        guild_id,
+    )
+
+    counts = {str(guild_id): 0}
+    for role in roles:
+        if role["id"] == guild_id:
+            continue
+
+        counts[str(role["id"])] = await app.db.fetchval(
+            """
+        SELECT COUNT(*)
+        FROM member_roles
+        WHERE role_id = $1
+        """,
+            role["id"],
+        )
+
+    return jsonify(counts)
+
+
+@bp.route("/<int:guild_id>/roles/<int:role_id>/member-ids", methods=["GET"])
+async def role_member_ids(guild_id, role_id):
+    """Get a list of member IDs that have a given role."""
+    user_id = await token_check()
+
+    await guild_check(user_id, guild_id)
+
+    # maximum is 100 but i dont wanna do that
+    res = await app.db.fetch(
+        """
+    SELECT user_id
+    FROM member_roles
+    WHERE guild_id = $1 AND role_id = $2
+    """,
+        guild_id,
+        role_id,
+    )
+    if not res:
+        val = await app.db.fetchval(
+            """
+        SELECT id
+        FROM guild_roles
+        WHERE guild_id = $1 AND id = $2
+        """,
+            guild_id,
+            role_id,
+        )
+        if not val:
+            raise NotFound(error_code=10011)
+        res = []
+
+    return jsonify([str(r["user_id"]) for r in res])
+
+
+@bp.route("/<int:guild_id>/roles/<int:role_id>/members", methods=["PATCH"])
+async def add_members_to_role(guild_id, role_id):
+    """Add members to a role."""
+    user_id = await token_check()
+
+    await guild_perm_check(user_id, guild_id, "manage_roles")
+
+    j = validate(await request.get_json(), {"member_ids": {"type": "list", "schema": {"coerce": int}, "maxlength": 30, "required": True}})
+
+    val = await app.db.fetchval(
+        """
+    SELECT id
+    FROM guild_roles
+    WHERE guild_id = $1 AND id = $2
+    """,
+        guild_id,
+        role_id,
+    )
+    if not val:
+        raise NotFound(error_code=10011)
+
+    members = []
+    for id in j["member_ids"]:
+        member = await app.storage.get_member_data_one(guild_id, id)
+        if not member:
+            continue
+
+        if str(role_id) not in member["roles"]:
+            await app.db.execute(
+                """
+            INSERT INTO member_roles (guild_id, user_id, role_id)
+            VALUES ($1, $2, $3)
+            """,
+                guild_id,
+                id,
+                role_id,
+            )
+
+            member["roles"].append(str(role_id))
+
+            # call pres_update for role changes.
+            partial = {"roles": member["roles"]}
+
+            await app.lazy_guild.pres_update(guild_id, id, partial)
+            await app.dispatcher.guild.dispatch(
+                guild_id, ("GUILD_MEMBER_UPDATE", {**{"guild_id": str(guild_id)}, **member})
+            )
+
+        members.append(member)
+
+    return jsonify({m["id"]: m for m in members})

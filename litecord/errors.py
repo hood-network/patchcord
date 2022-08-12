@@ -17,6 +17,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
+from typing import Optional
+
 ERR_MSG_MAP = {
     10001: "Unknown account",
     10002: "Unknown application",
@@ -83,6 +85,10 @@ class LitecordError(Exception):
     """Base class for litecord errors"""
 
     status_code = 500
+
+    def __init__(self, *args, error_code: Optional[int] = None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.error_code = error_code
 
     def _get_err_msg(self, err_code: int) -> str:
         if err_code is not None:

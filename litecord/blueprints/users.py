@@ -296,6 +296,9 @@ async def patch_me():
         )
 
     if to_update(j, user, "theme_colors"):
+        if user["premium_type"] != PremiumType.TIER_2:
+            raise BadRequest("no theme colors without nitro")
+
         await app.db.execute(
             """
             UPDATE users
