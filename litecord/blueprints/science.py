@@ -17,7 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from quart import Blueprint, jsonify, request
+from quart import Blueprint, jsonify, request, current_app as app
 
 from litecord.auth import token_check
 from litecord.blueprints.checks import guild_perm_check
