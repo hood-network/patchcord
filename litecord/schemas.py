@@ -738,6 +738,8 @@ PATCH_EMOJI = {
 
 
 def maybebool(value):
+    if isinstance(value, bool):
+        return value
     if value is None:
         return None
     if value.lower() in {"true", "yes", "1", "on"}:
@@ -766,8 +768,8 @@ SEARCH_CHANNEL = {
     "limit": {"coerce": int, "default": 25, "min": 1, "max": 25},
     "sort_by": {"type": "string", "required": False},
     "sort_order": {"type": "sort_order", "default": "desc"},
-    "mention_everyone": {"coerce": maybebool, "default": None},
-    "pinned": {"coerce": maybebool, "default": None},
+    "mention_everyone": {"coerce": maybebool, "default": None, "nullable": True},
+    "pinned": {"coerce": maybebool, "default": None, "nullable": True},
 }
 
 
