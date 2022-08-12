@@ -68,6 +68,8 @@ from litecord.gateway.schemas import (
 
 from litecord.storage import int_
 
+from litecord.blueprints.gateway import get_gw
+
 log = Logger(__name__)
 
 WebsocketProperties = collections.namedtuple(
@@ -513,8 +515,12 @@ class GatewayWebsocket:
             "guilds": guilds,
             "session_id": self.state.session_id,
             "_trace": ["litecord"],
-            "shard": [self.state.current_shard, self.state.shard_count],
+            "resume_gateway_url": get_gw(),
         }
+
+        shard = [self.state.current_shard, self.state.shard_count]
+        if self.state.bot or self.state.shard_count > 1:
+            base_ready["shard"] = shard
 
         # base_ready and user_ready are normalized as v6. from here onwards
         # full_ready_data and ready_supplemental are version specific.
