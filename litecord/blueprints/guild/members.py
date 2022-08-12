@@ -316,7 +316,7 @@ async def add_member_role(guild_id, member_id, role_id):
     val = await app.db.fetchval(
         """
     SELECT id
-    FROM guild_roles
+    FROM roles
     WHERE guild_id = $1 AND id = $2
     """,
         guild_id,
@@ -361,7 +361,7 @@ async def remove_member_role(guild_id, member_id, role_id):
     val = await app.db.fetchval(
         """
     SELECT id
-    FROM guild_roles
+    FROM roles
     WHERE guild_id = $1 AND id = $2
     """,
         guild_id,

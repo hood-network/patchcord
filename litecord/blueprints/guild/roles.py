@@ -221,7 +221,7 @@ async def update_guild_role(guild_id, role_id):
     val = await app.db.fetchval(
         """
     SELECT id
-    FROM guild_roles
+    FROM roles
     WHERE guild_id = $1 AND id = $2
     """,
         guild_id,
@@ -339,7 +339,7 @@ async def role_member_ids(guild_id, role_id):
         val = await app.db.fetchval(
             """
         SELECT id
-        FROM guild_roles
+        FROM roles
         WHERE guild_id = $1 AND id = $2
         """,
             guild_id,
@@ -364,7 +364,7 @@ async def add_members_to_role(guild_id, role_id):
     val = await app.db.fetchval(
         """
     SELECT id
-    FROM guild_roles
+    FROM roles
     WHERE guild_id = $1 AND id = $2
     """,
         guild_id,
