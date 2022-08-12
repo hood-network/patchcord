@@ -737,9 +737,19 @@ PATCH_EMOJI = {
 }
 
 
+def maybebool(value):
+    if value is None:
+        return None
+    if value.lower() in {"true", "yes", "1", "on"}:
+        return True
+    if value.lower() in {"false", "no", "0", "off"}:
+        return False
+    return None
+
+
 SEARCH_CHANNEL = {
     "content": {"type": "string", "minlength": 1, "maxlength": 4096, "required": False, "nullable": True},
-    "include_nsfw": {"coerce": bool, "default": True},
+    "include_nsfw": {"coerce": maybebool, "default": True},
     "offset": {"coerce": int, "default": 0},
     "min_id": {"coerce": int, "required": False},
     "max_id": {"coerce": int, "required": False},
@@ -756,8 +766,8 @@ SEARCH_CHANNEL = {
     "limit": {"coerce": int, "default": 25, "min": 1, "max": 25},
     "sort_by": {"type": "string", "required": False},
     "sort_order": {"type": "sort_order", "default": "desc"},
-    "mention_everyone": {"coerce": bool, "default": None},
-    "pinned": {"coerce": bool, "default": None},
+    "mention_everyone": {"coerce": maybebool, "default": None},
+    "pinned": {"coerce": maybebool, "default": None},
 }
 
 

@@ -124,7 +124,7 @@ async def handle_search(guild_id: Optional[int], channel_id: Optional[int] = Non
         can_read = await fetch_readable_channels(guild_id, user_id)
 
     extra = ""
-    args = [guild_id, can_read, j["sort_order"], j["limit"], j["offset"]]
+    args = [guild_id, can_read, j["limit"], j["offset"]]
     if j.get("content"):
         extra += f" AND orig.content LIKE '%'||${len(args) + 1}||'%'"
         args.append(j["content"])
@@ -215,8 +215,8 @@ async def handle_search(guild_id: Optional[int], channel_id: Optional[int] = Non
     WHERE guild_id = $1
       AND ARRAY[orig.channel_id] <@ $2::bigint[]
       {extra}
-    ORDER BY orig.id $3
-    LIMIT $4 OFFSET $5
+    ORDER BY orig.id {j["sort_order"]}
+    LIMIT $3 OFFSET $4
     """,
         *args
     )
