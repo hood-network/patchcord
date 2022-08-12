@@ -17,7 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from typing import Optional, List
+from typing import Any, Dict, Optional, List, Union
 
 from quart import Blueprint, request, current_app as app, jsonify
 
@@ -116,7 +116,12 @@ async def handle_search(guild_id: Optional[int], channel_id: Optional[int] = Non
     """Search messages in a guild."""
     user_id = await token_check()
 
-    j = validate(request.args.to_dict(flat=False), SEARCH_CHANNEL)
+    j: Dict[str, Any] = request.args.to_dict(flat=False)
+    for k, v in j.items():
+        if SEARCH_CHANNEL[k].get("type") != "list":
+            j[k] = v[0] if v is list else v
+
+    j = validate(j, SEARCH_CHANNEL)
     if channel_id:
         can_read = [channel_id]
     else:
