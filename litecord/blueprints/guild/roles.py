@@ -402,4 +402,4 @@ async def add_members_to_role(guild_id, role_id):
 
         members.append(member)
 
-    return jsonify({m["id"]: m for m in members})
+    return jsonify({m["user_id"]: m for m in members})
