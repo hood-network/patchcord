@@ -18,16 +18,19 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from quart import Blueprint, current_app as app, render_template, make_response, request, abort
+from aiofile import async_open as aopen
 import aiohttp
 import json
 import time
 
 bp = Blueprint("static", __name__)
 try:
-    with open('static/builds.json') as f:
-        builds = json.load(f)
+    with open('assets/builds.json') as f:
+        BUILDS = json.load(f)
 except (FileNotFoundError, json.JSONDecodeError, UnicodeDecodeError):
-    builds = {}
+    BUILDS = {}
+
+ASSET_CACHE = {}
 
 
 def _get_environment(app):
@@ -42,7 +45,7 @@ def _get_environment(app):
         "WIDGET_ENDPOINT": f"//{app.config['MAIN_URL']}/widget",
         "INVITE_HOST": f"{app.config['MAIN_URL']}/invite",
         "GUILD_TEMPLATE_HOST": f"{app.config['MAIN_URL']}/template",
-        "GIFT_CODE_HOST": f"{app.config['MAIN_URL']}/gift",
+        "GIFT_CODE_HOST": f"{app.config['MAIN_URL']}/gifts",
         "RELEASE_CHANNEL": "staging",
         "MARKETING_ENDPOINT": f"//{app.config['MAIN_URL']}",
         "BRAINTREE_KEY": "production_5st77rrc_49pp2rp4phym7387",
@@ -63,6 +66,32 @@ def _get_environment(app):
     }
 
 
+def guess_content_type(file: str) -> str:
+    file = file.lower()
+    if file.endswith(".js"):
+        return "text/javascript"
+    elif file.endswith(".css"):
+        return "text/css"
+    elif file.endswith("json"):
+        return "application/json"
+    elif file.endswith(".svg"):
+        return "image/svg"
+    elif file.endswith(".png"):
+        return "image/png"
+    elif file.endswith(".jpg") or file.endswith(".jpeg"):
+        return "image/jpeg"
+    elif file.endswith(".gif"):
+        return "image/gif"
+    elif file.endswith(".woff"):
+        return "font/woff"
+    elif file.endswith(".woff2"):
+        return "font/woff2"
+    elif file.endswith(".wasm"):
+        return "application/wasm"
+    else:
+        return "application/octet-stream"
+
+
 async def _load_build(hash: str = "latest", default: bool = False):
     """Load a build from discord.sale."""
     if hash == "latest":
@@ -74,7 +103,7 @@ async def _load_build(hash: str = "latest", default: bool = False):
     async with aiohttp.request("GET", f"https://api.discord.sale/builds/{hash}") as resp:
         if not 300 > resp.status >= 200:
             try:
-                info = builds[hash]
+                info = BUILDS[hash]
             except KeyError:
                 return "Build not found", 404
         else:
@@ -104,18 +133,22 @@ async def _load_build(hash: str = "latest", default: bool = False):
         else:
             return "Build not supported", 404
 
+        if default:
+            for asset in (scripts + styles):
+                await _proxy_asset(asset, True)
+
         resp = await make_response(await render_template(file, **kwargs))
         if not default:
-            resp.set_cookie("buildId", hash)
-        elif request.cookies.get("buildId"):
-            resp.set_cookie("buildId", "", expires=0)
+            resp.set_cookie("buildOverride", hash)
+        elif request.cookies.get("buildOverride"):
+            resp.set_cookie("buildOverride", "", expires=0)
         return resp
 
 
 @bp.route("/launch", methods=["GET"])
 @bp.route("/build", methods=["GET"])
 async def load_latest_build():
-    """Load a specific build."""
+    """Load the latest build."""
     return await _load_build()
 
 
@@ -134,22 +167,90 @@ async def send_client(path):
     return await _load_build(request.cookies.get("build_id", app.config.get("DEFAULT_BUILD", "latest"), type=str), default=True)
 
 
-@bp.route("/assets/<asset>", methods=["GET"])
-async def proxy_asset(asset):
+async def _proxy_asset(asset, default: bool = False):
     """Proxy asset requests to Discord."""
     if asset.startswith("version"):
         asset = "version.canary.json"
-    async with aiohttp.request("GET", f"https://canary.discord.com/assets/{asset}") as resp:
-        if not 300 > resp.status >= 200:  # Fallback to the Wayback Machine if the asset is not found
-            async with aiohttp.request("GET", f"http://web.archive.org/web/0_if/discordapp.com/assets/{asset}") as resp:
-                if not 400 > resp.status >= 200:
-                    return "Asset not found", 404
-                response = await make_response(await resp.read())
-        else:
-            response = await make_response(await resp.read())
 
-        response.status = resp.status
-        response.headers["content-type"] = resp.headers["content-type"]
-        if "etag" in resp.headers:
-            response.headers["etag"] = resp.headers["etag"]
+    fs_cache = False
+    response = None
+    data = None
+    if asset in ASSET_CACHE:
+        data = ASSET_CACHE[asset]
+
+        response = await make_response(data["data"])
+        response.headers["content-type"] = data["content-type"]
+        if data.get("etag"):
+            response.headers["etag"] = data["etag"]
         return response
+    else:
+        try:
+            async with aopen(f"assets/{asset}") as f:
+                data = (await f.read()).decode("utf-8")
+
+                response = await make_response(data)
+                response.headers["content-type"] = guess_content_type(asset)
+        except FileNotFoundError:
+            pass
+        else:
+            async with aiohttp.request("GET", f"https://canary.discord.com/assets/{asset}") as resp:
+                if not 300 > resp.status >= 200:  # Fallback to the Wayback Machine if the asset is not found
+                    async with aiohttp.request("GET", f"http://web.archive.org/web/0_if/discordapp.com/assets/{asset}") as resp:
+                        if not 400 > resp.status >= 200:
+                            return "Asset not found", 404
+                        data = (await resp.read()).decode("utf-8")
+                        fs_cache = True
+                else:
+                    data = (await resp.read()).decode("utf-8")
+
+                # Here we patch the asset to replace various hardcoded values
+                host = app.config["MAIN_URL"]
+                main_url = ("https://" if app.config["IS_SSL"] else "http://") + host
+                data = (data
+                    # Hardcoded discord.com et al references
+                    .replace("https://discord.com", main_url)
+                    .replace('["discord.com/billing/promotions", "promos.discord.gg"]', f'["{host}/billing/promotions"]')
+                    .replace('["discordapp.com/gifts", "discord.com/gifts"]', f'["{host}/gifts"]')
+                    .replace('new Set(["canary.discord.com", "ptb.discord.com", "discord.com", "canary.discordapp.com", "ptb.discordapp.com", "discordapp.com"])', f'new Set(["{host}"])')
+                    .replace(r'new RegExp("^https://(?:ptb\\.|canary\\.)?(discordapp|discord)\\.com/__development/link?[\\S]+$"', r'new RegExp("^https://%s/__development/link?[\\S]+$"' % host.replace(".", r"\\."))
+                    .replace(r'/^((https:\/\/)?(discord\.gg\/)|(discord\.com\/)(invite\/)?)?[A-Za-z0-9]{8,8}$/', r'/^((https:\/\/)?(%s\/)(invite\/)?)?[A-Za-z0-9]{8,8}$/' % host.replace(".", r"\."))
+                )
+
+                response = await make_response(data)
+                response.status = resp.status
+                response.headers["content-type"] = resp.headers["content-type"]
+                if "etag" in resp.headers:
+                    response.headers["etag"] = resp.headers["etag"]
+
+        if not response or not data:
+            return "Asset not found", 404
+
+        if default:
+            for k, v in ASSET_CACHE.items():
+                if v["default"]:
+                    ASSET_CACHE.pop(k)
+
+        if len([k for k, v in ASSET_CACHE.items() if not v["default"]]) > 250:
+            for k, v in reversed(list(ASSET_CACHE.items())):
+                if not v["default"]:
+                    ASSET_CACHE.pop(k)
+                    break
+
+        ASSET_CACHE[asset] = {
+            "data": data,
+            "content-type": response.headers["content-type"],
+            "etag": response.headers.get("etag"),
+            "default": default,
+        }
+
+        if fs_cache:
+            async with aopen(f"assets/{asset}", "w") as f:
+                await f.write(data.encode("utf-8"))
+
+        return response
+
+
+@bp.route("/assets/<asset>", methods=["GET"])
+async def proxy_assets(asset):
+    """Proxy asset requests to Discord."""
+    return await _proxy_asset(asset)

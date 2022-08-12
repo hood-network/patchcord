@@ -20,6 +20,7 @@ aiohttp = "^3.7.4"
 zstandard = "^0.15.2"
 winter = {git = "https://gitlab.com/elixire/winter"}
 wsproto = "^1.0.0"
+aiofile = "^3.8.1"
 
 
 

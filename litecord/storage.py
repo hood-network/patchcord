@@ -20,7 +20,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 from typing import List, Dict, Any, Optional, Union, TypedDict
 
 import aiohttp
-from datetime import datetime, timedelta, date, tzinfo
+from aiofile import async_open as aopen
+from datetime import datetime, timedelta, date
 from logbook import Logger
 import json
 
@@ -78,7 +79,7 @@ class Storage:
         self.app = app
         self.db = app.db
         self.presence = None
-        self.stickers = None
+        self.stickers: Dict[int, dict] = {}
 
     async def fetchrow_with_json(self, query: str, *args) -> Any:
         """Fetch a single row with JSON/JSONB support."""
@@ -1377,28 +1378,29 @@ class Storage:
 
     async def get_sticker_packs(self) -> dict:
         try:
-            return self.load_sticker_packs()
+            return await self.load_sticker_packs()
         except Exception:
             pass
 
         async with aiohttp.request("GET", "https://discord.com/api/v9/sticker-packs", headers={"User-Agent": "DiscordBot (Litecord, Litecord)"}) as r:
             r.raise_for_status()
             data = await r.json()
-            self.save_sticker_packs(data)
+            await self.save_sticker_packs(data)
             return data
 
-    def load_sticker_packs(self):
-        with open("static/sticker_packs.json", "r") as f:
-            return json.load(f)
+    async def load_sticker_packs(self):
+        async with aopen("static/sticker_packs.json", "r") as f:
+            return json.loads(await f.read())
 
-    def save_sticker_packs(self, data):
-        with open("static/sticker_packs.json", "w") as f:
-            json.dump(data, f)
+    async def save_sticker_packs(self, data):
+        async with aopen("static/sticker_packs.json", "w") as f:
+            await f.write(json.dumps(data, seperators=(",", ":")))
 
-    async def get_default_sticker(self, sticker_id: int) -> dict:
+    async def get_default_sticker(self, sticker_id: int) -> Optional[dict]:
         if not self.stickers:
-            stickers = await self.get_sticker_packs()
-            self.stickers = stickers = {"packs": {int(s["id"]): s for s in stickers["sticker_packs"]}}
+            stickers: Dict[Any, Any] = await self.get_sticker_packs()
+            stickers = {"packs": {int(s["id"]): s for s in stickers["sticker_packs"]}}
+            self.stickers = stickers
             for pack in stickers["packs"].values():
                 stickers.update({int(s["id"]): s for s in pack["stickers"]})
 
