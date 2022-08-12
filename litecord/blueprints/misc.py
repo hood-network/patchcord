@@ -116,6 +116,7 @@ async def partners_apply():
     features.append("PARTNERED")
     features.append("VANITY_URL")
     features.append("INVITE_SPLASH")
+    features.append("ANIMATED_ICON")
     features.append("BANNER")
 
     await app.db.execute(
