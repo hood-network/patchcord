@@ -1170,6 +1170,7 @@ class Storage:
         """,
             invite["guild_id"],
         )
+        guild = dict(guild) if guild else None
 
         if guild:
             guild["vanity_url_code"] = await self.vanity_invite(invite["guild_id"])

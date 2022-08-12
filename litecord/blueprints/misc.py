@@ -20,6 +20,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 from quart import Blueprint, jsonify, request, current_app as app
 import json
 
+from ..utils import str_bool
+
 from litecord.auth import token_check
 from litecord.blueprints.checks import guild_perm_check
 from litecord.errors import BadRequest
@@ -53,9 +55,9 @@ async def experiments():
 @bp.route("/discovery/categories", methods=["GET"])
 async def get_discovery_categories():
     """Get discovery categories"""
-    primary_only = request.args.get("primary_only", False, type=bool)
+    primary_only = request.args.get("primary_only", False, type=str_bool)
     if primary_only:
-        return jsonify(cat for cat in DISCOVERY_CATEGORIES if cat["is_primary"])
+        return jsonify([cat for cat in DISCOVERY_CATEGORIES if cat["is_primary"]])
     return jsonify(DISCOVERY_CATEGORIES)
 
 

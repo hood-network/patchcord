@@ -26,6 +26,7 @@ from logbook import Logger
 
 from ..errors import BadRequest, Forbidden, Unauthorized, UserNotFound
 from ..schemas import validate, USER_UPDATE, GET_MENTIONS
+from ..utils import str_bool
 
 from .guilds import guild_check
 from litecord.auth import token_check, hash_data
@@ -515,7 +516,7 @@ async def get_profile(peer_id: int):
         "premium_guild_since": peer_premium,  # same for now
     }
 
-    if request.args.get("with_mutual_guilds", type=bool) in (None, True):
+    if request.args.get("with_mutual_guilds", type=str_bool) in (None, True):
         result["mutual_guilds"] = await map_guild_ids_to_mutual_list(
             mutual_guilds, peer_id
         )

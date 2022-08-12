@@ -374,3 +374,14 @@ def toggle_flag(flags: TF, value: int, state: bool) -> TF:
         flags.value &= ~value
 
     return flags
+
+
+def str_bool(val: Union[str, bool]) -> Optional[bool]:
+    if isinstance(val, bool):
+        return val
+    elif val.lower() in ("true", "yes", "y", "1"):
+        return True
+    elif val.lower() in ("false", "no", "n", "0"):
+        return False
+    else:
+        return None

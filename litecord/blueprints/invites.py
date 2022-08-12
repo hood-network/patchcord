@@ -28,7 +28,7 @@ from ..auth import token_check
 from ..schemas import validate, INVITE
 from ..enums import ChannelType
 from ..errors import BadRequest, Forbidden
-from ..utils import async_map
+from ..utils import async_map, str_bool
 
 from litecord.blueprints.checks import (
     channel_check,
@@ -244,8 +244,8 @@ async def get_invite(invite_code: str):
     if not inv:
         return "", 404
 
-    if request.args.get("with_counts", type=bool) or request.args.get("with_expiration", type=bool):
-        extra = await app.storage.get_invite_extra(invite_code, request.args.get("with_counts", type=bool), request.args.get("with_expiration", type=bool))
+    if request.args.get("with_counts", type=str_bool) or request.args.get("with_expiration", type=str_bool):
+        extra = await app.storage.get_invite_extra(invite_code, request.args.get("with_counts", type=str_bool), request.args.get("with_expiration", type=str_bool))
         inv.update(extra)
 
     return jsonify(inv)
