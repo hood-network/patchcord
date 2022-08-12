@@ -39,7 +39,7 @@ class BasePresence:
     @property
     def partial_dict(self) -> dict:
         return {
-            "status": self.status,
+            "status": self.status if self.status != "unknown" else "online",
             "game": self.game,
             "since": 0,
             # hardcode all presences as coming from web

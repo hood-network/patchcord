@@ -621,6 +621,9 @@ INVITE = {
     "target_user_type": {"type": "number", "required": False, "nullable": True},
 }
 
+def removeunknown(value: str):
+    return value if value.lower() != "unknown" else "online"
+
 USER_SETTINGS = {
     "afk_timeout": {"type": "number", "required": False, "min": 0, "max": 3000},
     "animate_emoji": {"type": "boolean", "required": False},
@@ -658,7 +661,7 @@ USER_SETTINGS = {
     "render_reactions": {"type": "boolean", "required": False},
     "show_current_game": {"type": "boolean", "required": False},
     "timezone_offset": {"type": "number", "required": False},
-    "status": {"type": "status_external", "required": False},
+    "status": {"type": "status_external", "required": False, "coerce": removeunknown},
     "theme": {"type": "theme", "required": False},
     "custom_status": {
         "type": "dict",

@@ -441,11 +441,7 @@ class GatewayWebsocket:
             await self.dispatch_raw("GUILD_CREATE", {**guild, "unavailable": False})
 
     async def _user_ready(self, *, settings=None) -> dict:
-        """Fetch information about users in the READY packet.
-
-        This part of the API is completly undocumented.
-        PLEAS DISCORD DO NOT BAN ME
-        """
+        """Fetch information about users in the READY packet."""
 
         user_id = self.state.user_id
 
@@ -491,7 +487,7 @@ class GatewayWebsocket:
             "merged_members": [],
             "merged_presences": {"friends": friend_presences, "guilds": []},
             "tutorial": None,
-            "user_settings_proto": "CgIYAQ==",
+            "sessions": [{"session_id": self.state.session_id, "status": self.state.presence.status, "activities": self.state.presence.activities, "client_info": {"client": "web", "os": "windows", "version": 0}}],
         }
 
     async def dispatch_ready(self, **kwargs):
@@ -708,6 +704,9 @@ class GatewayWebsocket:
         if presence.status == "invisible":
             presence.status = "offline"
 
+        if presence.status == "unknown":
+            presence.status = "online"
+
         self.state.presence = presence
 
         log.info(
@@ -716,6 +715,8 @@ class GatewayWebsocket:
             self.state.user_id,
         )
         log.debug("full presence = {}", presence)
+
+        await self.dispatch_raw("SESSIONS_REPLACE", [{"session_id": self.state.session_id, "status": presence.status, "activities": presence.activities, "client_info": {"client": "web", "os": "windows", "version": 0}}])
         await self.app.presence.dispatch_pres(self.state.user_id, self.state.presence)
 
     async def _custom_status_expire_check(self):
