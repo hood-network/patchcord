@@ -17,6 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
+from this import d
 from typing import Any, Dict, Optional, List, Union
 
 from quart import Blueprint, request, current_app as app, jsonify
@@ -506,8 +507,10 @@ async def _update_guild(guild_id):
                 ChannelType.GUILD_TEXT if field != "afk_channel_id" else ChannelType.GUILD_VOICE,
                 name=default_channel_map[field]
             )
-            chan = await app.storage.get_channel(chan_id, request.discord_api_version)
 
+            j[field] = chan_id
+
+            chan = await app.storage.get_channel(chan_id, request.discord_api_version)
             await app.dispatcher.guild.dispatch(guild_id, ("CHANNEL_CREATE", chan))
 
         elif chan is None:
