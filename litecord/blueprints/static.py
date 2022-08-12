@@ -227,14 +227,14 @@ async def _proxy_asset(asset, default: bool = False):
             return "Asset not found", 404
 
         if default:
-            for k, v in ASSET_CACHE.items():
+            for k, v in list(ASSET_CACHE.items()):
                 if v["default"]:
-                    ASSET_CACHE.pop(k)
+                    ASSET_CACHE.pop(k, None)
 
         if len([k for k, v in ASSET_CACHE.items() if not v["default"]]) > 250:
             for k, v in reversed(list(ASSET_CACHE.items())):
                 if not v["default"]:
-                    ASSET_CACHE.pop(k)
+                    ASSET_CACHE.pop(k, None)
                     break
 
         ASSET_CACHE[asset] = {
