@@ -82,6 +82,8 @@ def guess_content_type(file: str) -> str:
         return "image/jpeg"
     elif file.endswith(".gif"):
         return "image/gif"
+    elif file.endswith(".ico"):
+        return "image/x-icon"
     elif file.endswith(".woff"):
         return "font/woff"
     elif file.endswith(".woff2"):
@@ -186,7 +188,7 @@ async def _proxy_asset(asset, default: bool = False):
     else:
         try:
             async with aopen(f"assets/{asset}") as f:
-                data = (await f.read()).decode("utf-8")
+                data = await f.read()
 
                 response = await make_response(data)
                 response.headers["content-type"] = guess_content_type(asset)
@@ -196,23 +198,24 @@ async def _proxy_asset(asset, default: bool = False):
                     async with aiohttp.request("GET", f"http://web.archive.org/web/0_if/discordapp.com/assets/{asset}") as resp:
                         if not 400 > resp.status >= 200:
                             return "Asset not found", 404
-                        data = (await resp.read()).decode("utf-8")
+                        data = await resp.read()
                         fs_cache = True
                 else:
-                    data = (await resp.read()).decode("utf-8")
+                    data = await resp.read()
 
                 # Here we patch the asset to replace various hardcoded values
                 host = app.config["MAIN_URL"]
                 main_url = ("https://" if app.config["IS_SSL"] else "http://") + host
-                data = (data
-                    # Hardcoded discord.com et al references
-                    .replace("https://discord.com", main_url)
-                    .replace('["discord.com/billing/promotions", "promos.discord.gg"]', f'["{host}/billing/promotions"]')
-                    .replace('["discordapp.com/gifts", "discord.com/gifts"]', f'["{host}/gifts"]')
-                    .replace('new Set(["canary.discord.com", "ptb.discord.com", "discord.com", "canary.discordapp.com", "ptb.discordapp.com", "discordapp.com"])', f'new Set(["{host}"])')
-                    .replace(r'new RegExp("^https://(?:ptb\\.|canary\\.)?(discordapp|discord)\\.com/__development/link?[\\S]+$"', r'new RegExp("^https://%s/__development/link?[\\S]+$"' % host.replace(".", r"\\."))
-                    .replace(r'/^((https:\/\/)?(discord\.gg\/)|(discord\.com\/)(invite\/)?)?[A-Za-z0-9]{8,8}$/', r'/^((https:\/\/)?(%s\/)(invite\/)?)?[A-Za-z0-9]{8,8}$/' % host.replace(".", r"\."))
-                )
+                if asset.endswith(".js"):
+                    data = (data.decode("utf-8")
+                        # Hardcoded discord.com et al references
+                        .replace("https://discord.com", main_url)
+                        .replace('["discord.com/billing/promotions", "promos.discord.gg"]', f'["{host}/billing/promotions"]')
+                        .replace('["discordapp.com/gifts", "discord.com/gifts"]', f'["{host}/gifts"]')
+                        .replace('new Set(["canary.discord.com", "ptb.discord.com", "discord.com", "canary.discordapp.com", "ptb.discordapp.com", "discordapp.com"])', f'new Set(["{host}"])')
+                        .replace(r'new RegExp("^https://(?:ptb\\.|canary\\.)?(discordapp|discord)\\.com/__development/link?[\\S]+$"', r'new RegExp("^https://%s/__development/link?[\\S]+$"' % host.replace(".", r"\\."))
+                        .replace(r'/^((https:\/\/)?(discord\.gg\/)|(discord\.com\/)(invite\/)?)?[A-Za-z0-9]{8,8}$/', r'/^((https:\/\/)?(%s\/)(invite\/)?)?[A-Za-z0-9]{8,8}$/' % host.replace(".", r"\."))
+                    )
 
                 response = await make_response(data)
                 response.status = resp.status
@@ -243,7 +246,7 @@ async def _proxy_asset(asset, default: bool = False):
 
         if fs_cache:
             async with aopen(f"assets/{asset}", "w") as f:
-                await f.write(data.encode("utf-8"))
+                await f.write(data)
 
         return response
 
