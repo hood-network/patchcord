@@ -37,6 +37,7 @@ from ..schemas import (
     GUILD_UPDATE,
     SEARCH_CHANNEL,
     VANITY_URL_PATCH,
+    MFA_TOGGLE,
 )
 from .checks import guild_check, guild_owner_check, guild_perm_check
 from litecord.utils import to_update, search_result_from_list
@@ -646,6 +647,33 @@ async def change_vanity_url(guild_id: int):
     )
 
     return jsonify(await app.storage.get_invite(inv_code, request.discord_api_version))
+
+
+@bp.route("/<int:guild_id>/mfa", methods=["POST"])
+async def toggle_mfa(guild_id: int):
+    """Toggle a guild's MFA level. The value currently does nothing."""
+    user_id = await token_check()
+    await guild_owner_check(user_id, guild_id)
+
+    j = validate(await request.get_json(), MFA_TOGGLE)
+
+    guild = await app.storage.get_guild_full(guild_id, user_id, api_version=request.discord_api_version)
+
+    if guild["mfa_level"] != j["level"]:
+        await app.db.execute(
+            """
+        UPDATE guilds
+        SET mfa_level = $1
+        WHERE id = $2
+        """,
+            j["level"],
+            guild_id,
+        )
+
+        guild["mfa_level"] = j["level"]
+        await app.dispatcher.guild.dispatch(guild_id, ("GUILD_UPDATE", guild))
+
+    return "", 204
 
 
 @bp.route("/<int:guild_id>/templates", methods=["GET"])

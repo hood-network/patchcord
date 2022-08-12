@@ -25,7 +25,7 @@ import time
 
 bp = Blueprint("static", __name__)
 try:
-    with open('assets/builds.json') as f:
+    with open("assets/builds.json", "r") as f:
         BUILDS = json.load(f)
 except (FileNotFoundError, json.JSONDecodeError, UnicodeDecodeError):
     BUILDS = {}

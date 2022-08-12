@@ -209,6 +209,9 @@ class LitecordValidator(Validator):
     def _validate_type_has(self, value: str) -> bool:
         return value in {"video", "-link", "file", "sticker", "-embed", "-file", "-video", "-sound", "link", "-image", "-sticker", "embed", "sound", "image"}
 
+    def _validate_type_mfa_level(self, value: Union[int, bool]) -> bool:
+        return value in (0, 1, True, False)
+
 
 def validate(
     reqjson: Optional[Union[Dict, List]],
@@ -787,6 +790,10 @@ GET_MENTIONS = {
 VANITY_URL_PATCH = {
     # TODO: put proper values in maybe an invite data type
     "code": {"type": "string", "minlength": 2, "maxlength": 32}
+}
+
+MFA_TOGGLE = {
+    "level": {"type": "mfa_level", "coerce": int, "required": True},
 }
 
 WEBHOOK_CREATE = {

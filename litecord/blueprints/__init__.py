@@ -23,7 +23,7 @@ from .users import bp as users
 from .guilds import bp as guilds
 from .channels import bp as channels
 from .webhooks import bp as webhooks
-from .science import bp as science
+from .misc import bp as misc
 from .voice import bp as voice
 from .invites import bp as invites
 from .relationships import bp as relationships
@@ -44,7 +44,7 @@ __all__ = [
     "guilds",
     "channels",
     "webhooks",
-    "science",
+    "misc",
     "voice",
     "invites",
     "relationships",
