@@ -191,8 +191,6 @@ async def _proxy_asset(asset, default: bool = False):
                 response = await make_response(data)
                 response.headers["content-type"] = guess_content_type(asset)
         except FileNotFoundError:
-            pass
-        else:
             async with aiohttp.request("GET", f"https://canary.discord.com/assets/{asset}") as resp:
                 if not 300 > resp.status >= 200:  # Fallback to the Wayback Machine if the asset is not found
                     async with aiohttp.request("GET", f"http://web.archive.org/web/0_if/discordapp.com/assets/{asset}") as resp:
