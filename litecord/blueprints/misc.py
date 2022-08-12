@@ -65,7 +65,7 @@ async def get_partner_requirements(guild_id: int):
     user_id = await token_check()
     await guild_perm_check(user_id, guild_id, "manage_guild")
 
-    data = await app.db.fetch(
+    data = await app.db.fetchrow(
         """
     SELECT rules_channel_id, mfa_level
     FROM guilds
