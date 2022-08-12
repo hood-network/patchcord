@@ -29,7 +29,6 @@ from .invites import bp as invites
 from .relationships import bp as relationships
 from .dms import bp as dms
 from .icons import bp as icons
-from .nodeinfo import bp as nodeinfo
 from .static import bp as static
 from .attachments import bp as attachments
 from .dm_channels import bp as dm_channels
@@ -51,7 +50,6 @@ __all__ = [
     "relationships",
     "dms",
     "icons",
-    "nodeinfo",
     "static",
     "attachments",
     "dm_channels",

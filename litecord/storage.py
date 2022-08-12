@@ -1389,11 +1389,11 @@ class Storage:
             return data
 
     async def load_sticker_packs(self):
-        async with aopen("static/sticker_packs.json", "r") as f:
+        async with aopen("assets/sticker_packs.json", "r") as f:
             return json.loads(await f.read())
 
     async def save_sticker_packs(self, data):
-        async with aopen("static/sticker_packs.json", "w") as f:
+        async with aopen("assets/sticker_packs.json", "w") as f:
             await f.write(json.dumps(data, seperators=(",", ":")))
 
     async def get_default_sticker(self, sticker_id: int) -> Optional[dict]:
