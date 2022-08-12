@@ -119,7 +119,7 @@ async def handle_search(guild_id: Optional[int], channel_id: Optional[int] = Non
     j: Dict[str, Any] = request.args.to_dict(flat=False)
     for k, v in j.items():
         if SEARCH_CHANNEL[k].get("type") != "list":
-            j[k] = v[0] if v is list else v
+            j[k] = v[0] if v else v
 
     j = validate(j, SEARCH_CHANNEL)
     if channel_id:
