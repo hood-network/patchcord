@@ -497,12 +497,16 @@ async def _update_guild(guild_id):
                 "public_updates_channel_id": "moderator-only",
             }
 
-            chan = await create_guild_channel(
+            # TODO: permissinos
+
+            chan_id = app.winter_factory.snowflake()
+            await create_guild_channel(
                 guild_id,
-                app.winter_factory.snowflake(),
+                chan_id,
                 ChannelType.GUILD_TEXT if field != "afk_channel_id" else ChannelType.GUILD_VOICE,
                 name=default_channel_map[field]
             )
+            chan = await app.storage.get_channel(chan_id, request.discord_api_version)
 
             await app.dispatcher.guild.dispatch(guild_id, ("CHANNEL_CREATE", chan))
 
