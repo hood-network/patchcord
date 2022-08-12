@@ -1144,11 +1144,11 @@ class Storage:
 
         return res
 
-    async def get_invite(self, invite_code: str, api_version: int = 6) -> Optional[Dict]:
+    async def get_invite(self, invite_code: str) -> Optional[Dict]:
         """Fetch invite information given its code."""
         invite = await self.db.fetchrow(
             """
-        SELECT code, guild_id, channel_id
+        SELECT code, guild_id, channel_id, created_at, max_age
         FROM invites
         WHERE code = $1
         """,
@@ -1159,6 +1159,17 @@ class Storage:
             return None
 
         dinv = dict(invite)
+
+        created_at, max_age = dinv.pop("created_at"), dinv.pop("max_age")
+        if max_age > 0 and (created_at + timedelta(seconds=max_age)) < datetime.utcnow():
+            await self.db.execute(
+                """
+            DELETE FROM invites
+            WHERE code = $1
+            """,
+                invite_code,
+            )
+            return None
 
         # fetch some guild info
         guild = await self.db.fetchrow(
@@ -1179,7 +1190,7 @@ class Storage:
         else:
             dinv["guild"] = None
 
-        chan = await self.get_channel(invite["channel_id"], api_version)
+        chan = await self.get_channel(invite["channel_id"])
 
         if chan is None:
             return None
@@ -1230,10 +1241,7 @@ class Storage:
                 invite_code,
             )
 
-            if erow["max_age"] <= 0:
-                data["expires_at"] = None
-            else:
-                data["expires_at"] = (datetime.fromisoformat(erow["created_at"]) + timedelta(seconds=erow["max_age"])).isoformat()
+            data["expires_at"] = timestamp_(erow["created_at"] + timedelta(seconds=erow["max_age"])) if erow["max_age"] > 0 else None
 
         return data
 
@@ -1252,9 +1260,11 @@ class Storage:
         if invite is None:
             return None
 
-        dinv = dict_(invite)
+        dinv = dict(invite)
         inviter = await self.get_user(invite["inviter"])
         dinv["inviter"] = inviter
+        dinv["expires_at"] = timestamp_(invite["created_at"] + timedelta(seconds=invite["max_age"])) if invite["max_age"] > 0 else None
+        dinv["created_at"] = timestamp_(invite["created_at"])
 
         return dinv
 

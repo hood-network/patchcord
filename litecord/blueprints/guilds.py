@@ -576,7 +576,7 @@ async def get_vanity_url(guild_id: int):
     if inv_code is None:
         return jsonify({"code": None})
 
-    return jsonify(await app.storage.get_invite(inv_code, request.discord_api_version))
+    return jsonify(await app.storage.get_invite(inv_code))
 
 
 @bp.route("/<int:guild_id>/vanity-url", methods=["PATCH"])
@@ -604,7 +604,7 @@ async def change_vanity_url(guild_id: int):
     # sql gives us, but i havent really found a way to put
     # multiple ON CONFLICT clauses so we could UPDATE when
     # guild_id_fkey fails but INSERT when code_fkey fails..
-    inv = await app.storage.get_invite(inv_code, request.discord_api_version)
+    inv = await app.storage.get_invite(inv_code)
     if inv:
         raise BadRequest("invite already exists")
 
@@ -653,7 +653,7 @@ async def change_vanity_url(guild_id: int):
         inv_code,
     )
 
-    return jsonify(await app.storage.get_invite(inv_code, request.discord_api_version))
+    return jsonify(await app.storage.get_invite(inv_code))
 
 
 @bp.route("/<int:guild_id>/mfa", methods=["POST"])
