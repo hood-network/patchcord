@@ -289,14 +289,14 @@ async def update_relationship(peer_id: int):
     if info["rel_type"] != RelationshipType.FRIEND.value:
         raise BadRequest(error_code=80006)
 
-    if payload.get("nickname") or "" != info["nickname"]:
+    if payload.get("nickname") or None != info["nickname"]:
         await app.db.execute(
             """
         UPDATE relationships
         SET nickname = $1
         WHERE user_id = $2 AND peer_id = $3
         """,
-            payload.get("nickname") or "",
+            payload.get("nickname") or None,
             user_id,
             peer_id,
         )
@@ -308,7 +308,7 @@ async def update_relationship(peer_id: int):
                 {
                     "id": str(peer_id),
                     "type": info["rel_type"],
-                    "nickname": payload.get("nickname") or "",
+                    "nickname": payload.get("nickname") or None,
                 }
             )
         )

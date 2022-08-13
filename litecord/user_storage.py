@@ -87,7 +87,7 @@ class UserStorage:
         # check all outgoing friends
         friends = await self.db.fetch(
             """
-        SELECT user_id, peer_id, rel_type
+        SELECT user_id, peer_id, rel_type, nickname
         FROM relationships
         WHERE user_id = $1 AND rel_type = $2
         """,
@@ -137,7 +137,7 @@ class UserStorage:
         # not fetching the ones people did to us
         blocks = await self.db.fetch(
             """
-        SELECT user_id, peer_id, rel_type
+        SELECT user_id, peer_id, rel_type, nickname
         FROM relationships
         WHERE user_id = $1 AND rel_type = $2
         """,
@@ -170,6 +170,7 @@ class UserStorage:
                     "id": str(peer_id),
                     "user": await self.storage.get_user(peer_id),
                     "type": _incoming,
+                    "nickname": None,
                 }
             )
 
