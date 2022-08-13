@@ -423,7 +423,7 @@ async def get_connections():
     pass
 
 
-@bp.route("/@me/consent", methods=["GET", "POST"])
+@bp.route("/@me/consent", methods=["GET", "POST", "PATCH"])
 async def get_consent():
     """Always enable data collection."""
     return jsonify(

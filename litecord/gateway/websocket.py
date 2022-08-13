@@ -484,6 +484,7 @@ class GatewayWebsocket:
             "guild_experiments": await self.storage.get_guild_experiments(),
             "sessions": [{"session_id": self.state.session_id, "status": self.state.presence.status, "activities": self.state.presence.activities, "client_info": {"client": "web", "os": "windows", "version": 0}}],
             # those are unused default values.
+            "consents": {"personalization": {"consented": True}},
             "connected_accounts": [],
             "analytics_token": "analytics",
             "users": [],
