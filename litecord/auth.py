@@ -24,6 +24,7 @@ import bcrypt
 from itsdangerous import TimestampSigner, BadSignature
 from logbook import Logger
 from quart import request, current_app as app
+from typing import overload, Optional, Literal
 
 from litecord.errors import Forbidden, Unauthorized
 from litecord.enums import UserFlags
@@ -97,7 +98,17 @@ async def raw_token_check(token: str, db=None) -> int:
         raise Forbidden("Invalid token")
 
 
-async def token_check() -> int:
+@overload
+async def token_check(to_raise: Literal[True]) -> int:
+    ...
+
+
+@overload
+async def token_check(to_raise: Literal[False]) -> Optional[int]:
+    ...
+
+
+async def token_check(to_raise: bool = True) -> Optional[int]:
     """Check token information."""
     # first, check if the request info already has a uid
     try:
@@ -108,12 +119,20 @@ async def token_check() -> int:
     try:
         token = request.headers["Authorization"]
     except KeyError:
-        raise Unauthorized("No token provided")
+        if to_raise:
+            raise Unauthorized("No token provided")
+        return None
 
     if token.startswith("Bot "):
         token = token.replace("Bot ", "")
 
-    user_id = await raw_token_check(token)
+    try:
+        user_id = await raw_token_check(token)
+    except Exception:
+        if to_raise:
+            raise
+        return None
+
     request.user_id = user_id
     return user_id
 

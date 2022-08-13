@@ -1416,3 +1416,17 @@ class Storage:
                 stickers.update({int(s["id"]): s for s in pack["stickers"]})
 
         return self.stickers.get(sticker_id)
+
+    async def get_experiments(self) -> List[list]:
+        try:
+            async with aopen("assets/experiments.json", "r") as f:
+                return json.loads(await f.read())
+        except (FileNotFoundError, json.decoder.JSONDecodeError, UnicodeDecodeError):
+            return []
+
+    async def get_guild_experiments(self) -> List[list]:
+        try:
+            async with aopen("assets/guild_experiments.json", "r") as f:
+                return json.loads(await f.read())
+        except (FileNotFoundError, json.decoder.JSONDecodeError, UnicodeDecodeError):
+            return []

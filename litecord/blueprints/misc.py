@@ -19,6 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from quart import Blueprint, jsonify, request, current_app as app
 import json
+import secrets
 
 from ..utils import str_bool
 
@@ -49,7 +50,16 @@ async def applications():
 
 @bp.route("/experiments", methods=["GET"])
 async def experiments():
-    return jsonify({"assignments": []})
+    ret = {"assignments": await app.storage.get_experiments()}
+
+    user_id = await token_check(False)
+    if not user_id and not request.headers.get("X-Fingerprint"):
+        ret["fingerprint"] = f"{app.winter_factory.snowflake()}.{secrets.token_urlsafe(32)}"
+
+    if request.args.get("with_guild_experiments", type=str_bool):
+        ret["guild_experiments"] = await app.storage.get_guild_experiments()
+
+    return jsonify(ret)
 
 
 @bp.route("/discovery/categories", methods=["GET"])

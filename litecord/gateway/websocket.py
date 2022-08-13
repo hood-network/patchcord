@@ -480,16 +480,16 @@ class GatewayWebsocket:
             'country_code': 'US',
             'session_type': 'normal',
             'geo_ordered_rtc_regions': [],
+            "experiments": await self.storage.get_experiments(),
+            "guild_experiments": await self.storage.get_guild_experiments(),
+            "sessions": [{"session_id": self.state.session_id, "status": self.state.presence.status, "activities": self.state.presence.activities, "client_info": {"client": "web", "os": "windows", "version": 0}}],
             # those are unused default values.
             "connected_accounts": [],
-            "experiments": [],
-            "guild_experiments": [],
             "analytics_token": "analytics",
             "users": [],
             "merged_members": [],
             "merged_presences": {"friends": friend_presences, "guilds": []},
             "tutorial": None,
-            "sessions": [{"session_id": self.state.session_id, "status": self.state.presence.status, "activities": self.state.presence.activities, "client_info": {"client": "web", "os": "windows", "version": 0}}],
         }
 
     async def dispatch_ready(self, **kwargs):
