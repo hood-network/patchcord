@@ -210,11 +210,16 @@ async def _proxy_asset(asset, default: bool = False):
                     data = (data.decode("utf-8")
                         # Hardcoded discord.com et al references
                         .replace("https://discord.com", main_url)
-                        .replace('["discord.com/billing/promotions", "promos.discord.gg"]', f'["{host}/billing/promotions"]')
-                        .replace('["discordapp.com/gifts", "discord.com/gifts"]', f'["{host}/gifts"]')
-                        .replace('new Set(["canary.discord.com", "ptb.discord.com", "discord.com", "canary.discordapp.com", "ptb.discordapp.com", "discordapp.com"])', f'new Set(["{host}"])')
-                        .replace(r'new RegExp("^https://(?:ptb\\.|canary\\.)?(discordapp|discord)\\.com/__development/link?[\\S]+$"', r'new RegExp("^https://%s/__development/link?[\\S]+$"' % host.replace(".", r"\\."))
+                        .replace("https://discordapp.com", main_url)
+                        .replace('["discord.com/billing/promotions","promos.discord.gg"]', f'["{host}/billing/promotions"]')
+                        .replace('["discordapp.com/gifts","discord.com/gifts"]', f'["{host}/gifts"]')
+                        .replace('["canary.discord.com","ptb.discord.com","discord.com","canary.discordapp.com","ptb.discordapp.com","discordapp.com"]', f'["{host}"]')
+                        .replace('"discord.com"', f'"{host}"')
+                        .replace('"discordapp.com"', f'"{host}"')
+                        # Various regexes
+                        .replace(r'RegExp("^https://(?:ptb\\.|canary\\.)?(discordapp|discord)\\.com/__development/link?[\\S]+$"', r'RegExp("^https://%s/__development/link?[\\S]+$"' % host.replace(".", r"\\."))
                         .replace(r'/^((https:\/\/)?(discord\.gg\/)|(discord\.com\/)(invite\/)?)?[A-Za-z0-9]{8,8}$/', r'/^((https:\/\/)?(%s\/)(invite\/)?)?[A-Za-z0-9]{8,8}$/' % host.replace(".", r"\."))
+                        .replace('+"|discordapp.com|discord.com)$"', f'+"{host})$"')
                     )
 
                 response = await make_response(data)

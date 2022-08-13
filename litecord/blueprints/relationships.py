@@ -21,7 +21,7 @@ from quart import Blueprint, jsonify, request, current_app as app
 from asyncpg import UniqueViolationError
 
 from ..auth import token_check
-from ..schemas import validate, RELATIONSHIP, SPECIFIC_FRIEND
+from ..schemas import validate, RELATIONSHIP, RELATIONSHIP_UPDATE, SPECIFIC_FRIEND
 from ..enums import RelationshipType
 from litecord.errors import BadRequest
 from litecord.pubsub.user import dispatch_user
@@ -266,6 +266,52 @@ async def add_relationship(peer_id: int):
     )
 
     await _unsub_friend(user_id, peer_id)
+
+    return "", 204
+
+
+@bp.route("/@me/relationships/<int:peer_id>", methods=["PATCH"])
+async def update_relationship(peer_id: int):
+    user_id = await token_check()
+
+    payload = validate(await request.get_json(), RELATIONSHIP_UPDATE)
+
+    info = await app.db.fetchrow(
+        """
+    SELECT rel_type, nickname
+    FROM relationships
+    WHERE user_id = $1 AND peer_id = $2
+    """,
+        user_id,
+        peer_id,
+    )
+
+    if info["rel_type"] != RelationshipType.FRIEND.value:
+        raise BadRequest(error_code=80006)
+
+    if payload.get("nickname") or "" != info["nickname"]:
+        await app.db.execute(
+            """
+        UPDATE relationships
+        SET nickname = $1
+        WHERE user_id = $2 AND peer_id = $3
+        """,
+            payload.get("nickname") or "",
+            user_id,
+            peer_id,
+        )
+
+        await dispatch_user(
+            user_id,
+            (
+                "RELATIONSHIP_UPDATE",
+                {
+                    "id": str(peer_id),
+                    "type": info["rel_type"],
+                    "nickname": payload.get("nickname") or "",
+                }
+            )
+        )
 
     return "", 204
 

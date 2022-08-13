@@ -77,6 +77,7 @@ ERR_MSG_MAP = {
     50036: "An invite was accepted to a guild the application's bot is not in",
     50041: "Invalid API version",
     50055: "Invalid guild",
+    80006: "You need to be friends in order to make this change.",
     90001: "Reaction blocked",
 }
 
@@ -90,7 +91,7 @@ class LitecordError(Exception):
         super().__init__(*args, **kwargs)
         self.error_code = error_code
 
-    def _get_err_msg(self, err_code: int) -> str:
+    def _get_err_msg(self, err_code: Optional[int]) -> str:
         if err_code is not None:
             return ERR_MSG_MAP.get(err_code) or self.args[0]
 

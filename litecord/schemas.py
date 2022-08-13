@@ -689,6 +689,10 @@ RELATIONSHIP = {
     }
 }
 
+RELATIONSHIP_UPDATE = {
+    "nickname": {"type": "string", "required": False, "nullable": True, "maxlength": 32},
+}
+
 CREATE_DM = {"recipient_id": {"type": "recipients", "required": True}}
 
 CREATE_DM_V9 = {
