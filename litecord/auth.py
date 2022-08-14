@@ -99,12 +99,12 @@ async def raw_token_check(token: str, db=None) -> int:
 
 
 @overload
-async def token_check(to_raise: Literal[True]) -> int:
+async def token_check(to_raise: Literal[True] = ...) -> int:
     ...
 
 
 @overload
-async def token_check(to_raise: Literal[False]) -> Optional[int]:
+async def token_check(to_raise: Literal[False] = ...) -> Optional[int]:
     ...
 
 
@@ -140,7 +140,14 @@ async def token_check(to_raise: bool = True) -> Optional[int]:
 async def admin_check() -> int:
     """Check if the user is an admin."""
     user_id = await token_check()
+    if not await is_staff(user_id):
+        raise Unauthorized("you are not staff")
 
+    return user_id
+
+
+async def is_staff(user_id: int) -> bool:
+    """Check if the user is an admin."""
     flags = await app.db.fetchval(
         """
         SELECT flags
@@ -151,10 +158,7 @@ async def admin_check() -> int:
     )
 
     flags = UserFlags.from_int(flags)
-    if not flags.is_staff:
-        raise Unauthorized("you are not staff")
-
-    return user_id
+    return flags.is_staff
 
 
 async def hash_data(data: str, loop=None) -> str:

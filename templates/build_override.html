@@ -1,0 +1,23 @@
+<head>Working...</head>
+<body>
+  Just a second...
+</body>
+<script type="application/javascript">
+  var token = localStorage.getItem('token');
+  fetch('/__development/link', {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      token: JSON.parse(token),
+      payload: '{{ payload }}'
+    })
+  })
+  .then(response => response.text())
+  .then(text => {
+    document.location = document.location.protocol + '//' + document.location.hostname + '/app';
+  }, err => {
+    document.body.innerText = 'An error occurred.';
+  });
+</script>

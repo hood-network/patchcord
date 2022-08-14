@@ -21,7 +21,7 @@ from typing import List, Dict, Any, Optional, Union, TypedDict
 
 import aiohttp
 from aiofile import async_open as aopen
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, timezone
 from logbook import Logger
 import json
 
@@ -1161,7 +1161,7 @@ class Storage:
         dinv = dict(invite)
 
         created_at, max_age = dinv.pop("created_at"), dinv.pop("max_age")
-        if max_age > 0 and (created_at + timedelta(seconds=max_age)) < datetime.utcnow():
+        if max_age > 0 and (created_at + timedelta(seconds=max_age)) < datetime.now(tz=timezone.utc):
             await self.db.execute(
                 """
             DELETE FROM invites

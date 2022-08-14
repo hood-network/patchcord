@@ -21,13 +21,13 @@ MODE = "Development"
 
 
 class Config:
-    """Default configuration values for litecord."""
+    """Default configuration values for Patchcord."""
 
     #: Main URL of the instance.
     MAIN_URL = "discordapp.io"
 
     #: Name of the instance
-    NAME = "Litecord/Nya"
+    NAME = "Patchcord/Nya"
 
     #: Enable debug logging?
     DEBUG = False
@@ -37,7 +37,7 @@ class Config:
     #  urls depending of this config.
     IS_SSL = False
 
-    # enable registrations in this instance?
+    #: Enable registrations in this instance?
     REGISTRATIONS = False
 
     # what to give on gateway route?
@@ -72,15 +72,18 @@ class Config:
     #: Default client build
     DEFAULT_BUILD = "latest"
 
+    #: Secret for various things
+    SECRET_KEY = "secret"
+
 
 class Development(Config):
     DEBUG = True
 
     POSTGRES = {
         "host": "localhost",
-        "user": "litecord",
+        "user": "patchcord",
         "password": "123",
-        "database": "litecord",
+        "database": "patchcord",
     }
 
 
@@ -92,5 +95,5 @@ class Production(Config):
         "host": "some_production_postgres",
         "user": "some_production_user",
         "password": "some_production_password",
-        "database": "litecord_or_anything_else_really",
+        "database": "patchcord_or_anything_else_really",
     }

@@ -155,6 +155,9 @@ async def handle_search(guild_id: Optional[int], channel_id: Optional[int] = Non
     if j.get("embed_provider"):
         extra += f" AND orig.embeds::text == ANY(${len(args) + 1}::text[])"
         args.append(["%\"provider\": {\"name\": %s%" % provider for provider in j["embed_provider"]])
+    if j.get("embed_type"):
+        extra += f" AND orig.embeds::text == ANY(${len(args) + 1}::text[])"
+        args.append(["%\"type\": %s%" % type for type in j["embed_type"]])
     if j.get("attachment_filename"):
         extra += f" AND (SELECT COUNT(*) FROM attachments WHERE attachments.message_id = orig.id AND attachments.filename = ANY(${len(args) + 1}::text[])) > 0"
         args.append([f"%{filename}%" for filename in j["attachment_filename"]])

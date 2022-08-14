@@ -212,6 +212,9 @@ class LitecordValidator(Validator):
     def _validate_type_mfa_level(self, value: Union[int, bool]) -> bool:
         return value in (0, 1, True, False)
 
+    def _validate_type_override_type(self, value: str) -> bool:
+        return value in {"id", "branch"}
+
 
 def validate(
     reqjson: Optional[Union[Dict, List]],
@@ -265,6 +268,37 @@ REGISTER = {
 
 # only used by us, not discord, hence 'invcode' (to separate from discord)
 REGISTER_WITH_INVITE = {**REGISTER, **{"invcode": {"type": "string", "required": True}}}
+
+
+OVERRIDE_SPECIFIC = {"type": "dict", "required": False, "schema": {"id": {"type": "str", "required": True}, "type": {"type": "override_type", "required": True}}}
+
+OVERRIDE_STAFF = {
+    "overrides": {
+        "type": "dict",
+        "required": True,
+        "minlength": 1,
+        "schema": {
+            "discord_web": OVERRIDE_SPECIFIC,
+            "discord_ios": OVERRIDE_SPECIFIC,
+            "discord_android": OVERRIDE_SPECIFIC,
+            "discord_marketing": OVERRIDE_SPECIFIC,
+        },
+    },
+}
+
+OVERRIDE_LINK = {
+    **OVERRIDE_STAFF,
+    "meta": {
+        "type": "dict",
+        "required": True,
+        "schema": {
+            "allow_logged_out": {"type": "boolean", "required": False, "default": False},
+            "release_channel": {"type": "string", "required": False, "nullable": True},
+            "user_ids": {"type": "list", "required": False, "nullable": True, "schema": {"coerce": "int"}},
+            "ttl_seconds": {"type": "int", "required": False, "nullable": True, "default": 3600},
+        },
+    },
+}
 
 
 USER_UPDATE = {
@@ -770,7 +804,7 @@ SEARCH_CHANNEL = {
     "author_type": {"type": "list", "schema": {"type": "author_type"}, "required": False},
     "has": {"type": "list", "schema": {"type": "has"}, "required": False},
     "mentions": {"type": "list", "schema": {"coerce": int}, "required": False},
-    "embed_type": {"type": "list", "schema": {"type": "embed_type"}, "required": False},
+    "embed_type": {"type": "list", "schema": {"type": "string"}, "required": False},
     "embed_provider": {"type": "list", "schema": {"type": "string"}, "required": False},
     "link_hostname": {"type": "list", "schema": {"type": "string"}, "required": False},
     "attachment_filename": {"type": "list", "schema": {"type": "string"}, "required": False},

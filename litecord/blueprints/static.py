@@ -17,11 +17,26 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from quart import Blueprint, current_app as app, render_template, make_response, request, abort
-from aiofile import async_open as aopen
-import aiohttp
+import base64
+import hashlib
+import hmac
 import json
 import time
+from datetime import datetime, timedelta, timezone
+from email.utils import parsedate
+from typing import Optional
+from urllib.parse import quote, unquote
+from wsgiref.handlers import format_date_time
+
+import aiohttp
+from aiofile import async_open as aopen
+from litecord.auth import is_staff, token_check
+from litecord.schemas import OVERRIDE_LINK, OVERRIDE_STAFF, validate
+from quart import Blueprint, abort
+from quart import current_app as app
+from quart import jsonify, make_response, render_template, request
+
+from ..utils import str_bool
 
 bp = Blueprint("static", __name__)
 try:
@@ -94,13 +109,19 @@ def guess_content_type(file: str) -> str:
         return "application/octet-stream"
 
 
-async def _load_build(hash: str = "latest", default: bool = False):
+async def _load_build(*, name: Optional[str] = None, hash: Optional[str] = None, default: bool = False, clear_override: bool = False):
     """Load a build from discord.sale."""
-    if hash == "latest":
+    value = hash if hash else name
+    type = "branch" if hash else "id"
+
+    if value == "latest":
         async with aiohttp.request("GET", "https://api.discord.sale/builds") as resp:
             if not 300 > resp.status >= 200:
                 return "Bad Gateway", 502
             hash = (await resp.json())[0]["hash"]
+
+    if not hash:
+        return "Not Implemented", 501
 
     async with aiohttp.request("GET", f"https://api.discord.sale/builds/{hash}") as resp:
         if not 300 > resp.status >= 200:
@@ -140,15 +161,24 @@ async def _load_build(hash: str = "latest", default: bool = False):
                 await _proxy_asset(asset, True)
 
         resp = await make_response(await render_template(file, **kwargs))
-        if not default:
-            resp.set_cookie("buildOverride", hash)
-        elif request.cookies.get("buildOverride"):
+        if clear_override:
             resp.set_cookie("buildOverride", "", expires=0)
+        if not default and not (request.cookies.get("buildOverride") and not clear_override):
+            resp.set_cookie(
+                "buildOverride",
+                await generate_build_override_cookie(
+                    {"discord_web": {"type": type, "id": value}},
+                    format_date_time(2147483647),
+                ),
+                expires=2147483647,
+            )
         return resp
 
 
 @bp.route("/launch", methods=["GET"])
 @bp.route("/build", methods=["GET"])
+@bp.route("/launch/latest", methods=["GET"])
+@bp.route("/build/latest", methods=["GET"])
 async def load_latest_build():
     """Load the latest build."""
     return await _load_build()
@@ -156,9 +186,9 @@ async def load_latest_build():
 
 @bp.route("/launch/<hash>", methods=["GET"])
 @bp.route("/build/<hash>", methods=["GET"])
-async def load_build(hash = "latest"):
+async def load_build(hash):
     """Load a specific build."""
-    return await _load_build(hash)
+    return await _load_build(hash=hash)
 
 
 @bp.route("/", defaults={"path": ""}, methods=["GET"])
@@ -166,7 +196,23 @@ async def load_build(hash = "latest"):
 async def send_client(path):
     if path.startswith("api/"):
         return await abort(404)
-    return await _load_build(request.cookies.get("build_id", app.config.get("DEFAULT_BUILD", "latest"), type=str), default=True)
+
+    cookie = request.cookies.get("buildOverride")
+    if not cookie:
+        return await _load_build(hash=app.config.get("DEFAULT_BUILD"), default=True, clear_override=True)
+
+    signature, _, data = cookie.partition(".")
+    info = verify(data, signature)
+    if not info or datetime.now(tz=timezone.utc) > datetime(*parsedate(info["$meta"]["expiresAt"])[:6]):  # type: ignore
+        return await _load_build(hash=app.config.get("DEFAULT_BUILD"), default=True, clear_override=True)
+
+    if not info.get("discord_web"):
+        return await _load_build(hash=app.config.get("DEFAULT_BUILD"), default=True, clear_override=False)
+
+    if info["discord_web"]["type"] == "branch":
+        return await _load_build(hash=info["discord_web"]["id"])
+    elif info["discord_web"]["type"] == "id":
+        return await _load_build(name=info["discord_web"]["id"])
 
 
 async def _proxy_asset(asset, default: bool = False):
@@ -180,7 +226,7 @@ async def _proxy_asset(asset, default: bool = False):
     if asset in ASSET_CACHE:
         data = ASSET_CACHE[asset]
 
-        response = await make_response(data["data"])
+        response = await make_response(data["data"], 200)
         response.headers["content-type"] = data["content-type"]
         if data.get("etag"):
             response.headers["etag"] = data["etag"]
@@ -190,7 +236,7 @@ async def _proxy_asset(asset, default: bool = False):
             async with aopen(f"assets/{asset}") as f:
                 data = await f.read()
 
-                response = await make_response(data)
+                response = await make_response(data, 200)
                 response.headers["content-type"] = guess_content_type(asset)
         except FileNotFoundError:
             async with aiohttp.request("GET", f"https://canary.discord.com/assets/{asset}") as resp:
@@ -222,8 +268,7 @@ async def _proxy_asset(asset, default: bool = False):
                         .replace('+"|discordapp.com|discord.com)$"', f'+"{host})$"')
                     )
 
-                response = await make_response(data)
-                response.status = resp.status
+                response = await make_response(data, resp.status)
                 response.headers["content-type"] = resp.headers["content-type"]
                 if "etag" in resp.headers:
                     response.headers["etag"] = resp.headers["etag"]
@@ -260,3 +305,155 @@ async def _proxy_asset(asset, default: bool = False):
 async def proxy_assets(asset):
     """Proxy asset requests to Discord."""
     return await _proxy_asset(asset)
+
+
+def sign(data: dict) -> str:
+    """Sign a dict with the secret key."""
+    dumped = json.dumps(data, separators=(",", ":"), sort_keys=True)
+    return hmac.new(app.config.get("SECRET_KEY", "secret").encode("utf-8"), dumped.encode("utf-8"), hashlib.sha256).hexdigest()
+
+
+def verify(data: str, signature: str) -> Optional[dict]:
+    """Verify a signature."""
+    # Verify the data is proper JSON
+    try:
+        data = json.loads(base64.urlsafe_b64decode(unquote(data).encode() + b'==')).dumps(separators=(",", ":"), sort_keys=True)
+    except Exception:
+        return
+    if hmac.new(app.config.get("SECRET_KEY", "secret").encode("utf-8"), data.encode("utf-8"), hashlib.sha256).hexdigest() == unquote(signature):
+        return json.loads(data)
+
+
+async def generate_build_override_link(data: dict) -> str:
+    """Generate a build override link."""
+    j = validate(await request.get_json(), OVERRIDE_LINK)
+
+    expiration = datetime.fromtimestamp(2147483647) if not j["meta"]["ttl_seconds"] else (datetime.now(tz=timezone.utc) + timedelta(seconds=j["meta"]["ttl_seconds"]))
+    data = {"targetBuildOverride": j["overrides"], "releaseChannel": j["meta"]["release_channel"], "validForUserIds": [str(id) for id in j["meta"].get("valid_for_user_ids") or []], "allowLoggedOut": j["meta"]["allow_logged_out"], "expiresAt": format_date_time(time.mktime(expiration.timetuple()))}
+    signature = sign(data)
+
+    return ("https://" if app.config["IS_SSL"] else "http://") + f"{app.config['MAIN_URL']}/__development/link?s={quote(signature)}.{quote(base64.urlsafe_b64encode(json.dumps(data, seperators=(',', ';'), sort_keys=True).encode('utf-8')).decode('utf-8'))}"
+
+
+async def generate_build_override_cookie(data: dict, expiry: str) -> str:
+    data["$meta"] = {"expiresAt": expiry}
+    signature = sign(data)
+
+    return f"{quote(signature)}.{quote(base64.urlsafe_b64encode(json.dumps(data, seperators=(',', ';'), sort_keys=True).encode('utf-8')).decode('utf-8'))}"
+
+
+@bp.route("/__development/create_build_override_link", methods=["POST"])
+async def create_override_link():
+    """Create a build override link."""
+    user_id = await token_check()
+
+    if not await is_staff(user_id):
+        return "The maze wasn't meant for you", 403
+
+    return jsonify({"url": await generate_build_override_link(await request.get_json())})
+
+
+@bp.route("/__development/link", methods=["GET"])
+async def get_override_link():
+    """Get a build override."""
+    data = request.args.get("s")
+    meta = request.args.get("meta", type=str_bool)
+
+    if not data:
+        return "No payload provided.", 400
+
+    signature, _, data = data.partition(".")
+    info = verify(data, signature)
+    if not info:
+        return "Invalid payload!", 400
+
+    if datetime.now(tz=timezone.utc) > datetime(*parsedate(info["expiresAt"])[:6]):  # type: ignore
+        return "This link has expired. You will need to get a new one.", 400
+
+    if meta:
+        return jsonify(info)
+    return await render_template("build_override.html", payload=unquote(data))
+
+
+@bp.route("/__development/link", methods=["PUT"])
+async def use_overrride_link():
+    """Use a build override."""
+    j = await request.get_json(silent=True)
+    if not isinstance(j, dict) or not j.get("payload"):
+        return "You must give this endpoint some json.", 415
+
+    data = j["payload"]
+    signature, _, data = data.partition(".")
+    info = verify(data, signature)
+    if not info:
+        return {"message": "Invalid payload!"}, 400
+
+    expires_at = datetime(*parsedate(info["$meta"]["expiresAt"])[:6])  # type: ignore
+    if datetime.now(tz=timezone.utc) > expires_at:
+        return {"message": "This link has expired. You will need to get a new one."}, 400
+
+    if not info["allowLoggedOut"]:
+        token = j.get("token")
+        if not token:
+            return {"message": "A token is required."}, 400
+        request.headers["Authorization"] = token
+        user_id = await token_check(False)
+        if not user_id:
+            return {"message": f"Invalid token provided. You need to be logged into {app.config['NAME']} in this browser to use this link."}, 400
+        if info["validForUserIds"] and str(user_id) not in info["validForUserIds"]:
+            return {"message": "You are not authorized to use this link."}, 400
+
+    resp = jsonify({"message": "Build overrides have been successfully applied!"})
+    resp.set_cookie(
+        "buildOverride",
+        await generate_build_override_cookie(info["targetBuildOverride"], info["expiresAt"]),
+        expires=expires_at,
+    )
+
+
+@bp.route("/__development/build_overrides", methods=["GET"])
+def get_build_overrides():
+    """Get build overrides."""
+    cookie = request.cookies.get("buildOverride")
+    if not cookie:
+        return jsonify({})
+
+    signature, _, data = cookie.partition(".")
+    info = verify(data, signature)
+    if not info or datetime.now(tz=timezone.utc) > datetime(*parsedate(info["$meta"]["expiresAt"])[:6]):  # type: ignore
+        resp = jsonify({})
+        resp.set_cookie("buildOverride", "", expires=0)
+        return resp
+
+    info.pop("$meta")
+    return jsonify(info)
+
+
+@bp.route("/__development/build_overrides", methods=["PUT"])
+async def set_build_overrides():
+    """Set build overrides."""
+    user_id = await token_check()
+    if not await is_staff(user_id):
+        return "The maze wasn't meant for you", 403
+
+    j = validate(await request.get_json(), OVERRIDE_STAFF)
+    if not j.get("overrides"):
+        resp = await make_response("", 204)
+        resp.set_cookie("buildOverride", "", expires=0)
+        return resp
+
+    resp = jsonify({"message": "Build overrides have been successfully applied!"})
+    resp.set_cookie(
+        "buildOverride",
+        await generate_build_override_cookie(j["overrides"], format_date_time(2147483647)),
+        expires=2147483647,
+    )
+    return resp
+
+
+@bp.route("/__development/build_overrides", methods=["DELETE"])
+async def remove_build_overrides():
+    """Remove a build override."""
+    resp = await make_response("", 204)
+    resp.set_cookie("buildOverride", "", expires=0)
+    return resp
