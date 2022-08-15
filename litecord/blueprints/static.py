@@ -332,14 +332,14 @@ async def generate_build_override_link(data: dict) -> str:
     data = {"targetBuildOverride": j["overrides"], "releaseChannel": j["meta"]["release_channel"], "validForUserIds": [str(id) for id in j["meta"].get("valid_for_user_ids") or []], "allowLoggedOut": j["meta"]["allow_logged_out"], "expiresAt": format_date_time(time.mktime(expiration.timetuple()))}
     signature = sign(data)
 
-    return ("https://" if app.config["IS_SSL"] else "http://") + f"{app.config['MAIN_URL']}/__development/link?s={quote(signature)}.{quote(base64.urlsafe_b64encode(json.dumps(data, seperators=(',', ';'), sort_keys=True).encode('utf-8')).decode('utf-8'))}"
+    return ("https://" if app.config["IS_SSL"] else "http://") + f"{app.config['MAIN_URL']}/__development/link?s={quote(signature)}.{quote(base64.urlsafe_b64encode(json.dumps(data, separators=(',', ';'), sort_keys=True).encode('utf-8')).decode('utf-8'))}"
 
 
 async def generate_build_override_cookie(data: dict, expiry: str) -> str:
     data["$meta"] = {"expiresAt": expiry}
     signature = sign(data)
 
-    return f"{quote(signature)}.{quote(base64.urlsafe_b64encode(json.dumps(data, seperators=(',', ';'), sort_keys=True).encode('utf-8')).decode('utf-8'))}"
+    return f"{quote(signature)}.{quote(base64.urlsafe_b64encode(json.dumps(data, separators=(',', ';'), sort_keys=True).encode('utf-8')).decode('utf-8'))}"
 
 
 @bp.route("/__development/create_build_override_link", methods=["POST"])
