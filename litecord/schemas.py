@@ -294,8 +294,8 @@ OVERRIDE_LINK = {
         "schema": {
             "allow_logged_out": {"type": "boolean", "required": False, "default": False},
             "release_channel": {"type": "string", "required": False, "nullable": True},
-            "user_ids": {"type": "list", "required": False, "nullable": True, "schema": {"coerce": "int"}},
-            "ttl_seconds": {"type": "int", "required": False, "nullable": True, "default": 3600},
+            "user_ids": {"type": "list", "required": False, "nullable": True, "schema": {"coerce": int}},
+            "ttl_seconds": {"type": "number", "required": False, "nullable": True, "default": 3600},
         },
     },
 }
