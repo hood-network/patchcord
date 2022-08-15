@@ -61,15 +61,15 @@ def emoji_info_from_str(emoji: str) -> tuple:
 
 
 class PartialEmoji(TypedDict):
-    id: Optional[int]
+    id: Optional[Union[str, int]]
     name: str
 
 
 def partial_emoji(emoji_type, emoji_id, emoji_name) -> PartialEmoji:
     print(emoji_type, emoji_id, emoji_name)
     return {
-        "id": None if emoji_type == EmojiType.UNICODE else emoji_id,
-        "name": emoji_name if emoji_type == EmojiType.UNICODE else emoji_id,
+        "id": None if emoji_type == EmojiType.UNICODE else str(emoji_id),
+        "name": emoji_name or str(emoji_id),
     }
 
 
