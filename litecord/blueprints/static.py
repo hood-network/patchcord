@@ -317,7 +317,7 @@ def verify(data: str, signature: str) -> Optional[dict]:
     """Verify a signature."""
     # Verify the data is proper JSON
     try:
-        data = json.loads(base64.b64decode(unquote(data).encode() + b'==')).dumps(separators=(",", ":"), sort_keys=True)
+        data = json.dumps(json.loads(base64.b64decode(unquote(data) + '==')), separators=(",", ":"), sort_keys=True)
     except Exception:
         return
     if hmac.new(app.config.get("SECRET_KEY", "secret").encode("utf-8"), data.encode("utf-8"), hashlib.sha256).hexdigest() == unquote(signature):
