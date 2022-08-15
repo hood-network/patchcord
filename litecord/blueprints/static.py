@@ -409,6 +409,7 @@ async def use_overrride_link():
         await generate_build_override_cookie(info["targetBuildOverride"], info["expiresAt"]),
         expires=expires_at,
     )
+    return resp
 
 
 @bp.route("/__development/build_overrides", methods=["GET"])
