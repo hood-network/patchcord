@@ -388,7 +388,7 @@ async def use_overrride_link():
     if not info:
         return {"message": "Invalid payload!"}, 400
 
-    expires_at = datetime(*parsedate(info["$meta"]["expiresAt"])[:6], tzinfo=timezone.utc)  # type: ignore
+    expires_at = datetime(*parsedate(info["expiresAt"])[:6], tzinfo=timezone.utc)  # type: ignore
     if datetime.now(tz=timezone.utc) > expires_at:
         return {"message": "This link has expired. You will need to get a new one."}, 400
 
