@@ -443,7 +443,7 @@ async def set_build_overrides():
 
     j = validate(await request.get_json(), OVERRIDE_STAFF)
     if not j.get("overrides"):
-        resp = await make_response("", 204)
+        resp = jsonify({"message": "Build overrides have been successfully applied!"})
         resp.set_cookie("buildOverride", "", expires=0)
         return resp
 

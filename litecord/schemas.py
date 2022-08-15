@@ -275,8 +275,7 @@ OVERRIDE_SPECIFIC = {"type": "dict", "required": False, "schema": {"id": {"type"
 OVERRIDE_STAFF = {
     "overrides": {
         "type": "dict",
-        "required": True,
-        "minlength": 1,
+        "required": False,
         "schema": {
             "discord_web": OVERRIDE_SPECIFIC,
             "discord_ios": OVERRIDE_SPECIFIC,
@@ -287,7 +286,11 @@ OVERRIDE_STAFF = {
 }
 
 OVERRIDE_LINK = {
-    **OVERRIDE_STAFF,
+    "overrides": {
+        **OVERRIDE_STAFF["overrides"],
+        "required": True,
+        "minlength": 1,
+    },
     "meta": {
         "type": "dict",
         "required": True,
