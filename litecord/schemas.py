@@ -270,7 +270,7 @@ REGISTER = {
 REGISTER_WITH_INVITE = {**REGISTER, **{"invcode": {"type": "string", "required": True}}}
 
 
-OVERRIDE_SPECIFIC = {"type": "dict", "required": False, "schema": {"id": {"type": "str", "required": True}, "type": {"type": "override_type", "required": True}}}
+OVERRIDE_SPECIFIC = {"type": "dict", "required": False, "schema": {"id": {"type": "string", "required": True}, "type": {"type": "override_type", "required": True}}}
 
 OVERRIDE_STAFF = {
     "overrides": {

@@ -72,7 +72,7 @@ async def remove_member(guild_id: int, member_id: int):
         guild_id,
         (
             "GUILD_MEMBER_REMOVE",
-            {"guild_id": str(guild_id), "user": user},
+            {"guild_id": str(guild_id), "user": {"id": user["id"]}},
         ),
     )
 
