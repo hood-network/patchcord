@@ -203,7 +203,7 @@ async def send_client(path):
 
     signature, _, data = cookie.partition(".")
     info = verify(data, signature)
-    if not info or datetime.now(tz=timezone.utc) > datetime(*parsedate(info["$meta"]["expiresAt"])[:6]):  # type: ignore
+    if not info or datetime.now(tz=timezone.utc) > datetime(*parsedate(info["$meta"]["expiresAt"])[:6], tzinfo=timezone.utc):  # type: ignore
         return await _load_build(hash=app.config.get("DEFAULT_BUILD"), default=True, clear_override=True)
 
     if not info.get("discord_web"):
@@ -367,7 +367,7 @@ async def get_override_link():
     if not info:
         return "Invalid payload!", 400
 
-    if datetime.now(tz=timezone.utc) > datetime(*parsedate(info["expiresAt"])[:6]):  # type: ignore
+    if datetime.now(tz=timezone.utc) > datetime(*parsedate(info["expiresAt"])[:6], tzinfo=timezone.utc):  # type: ignore
         return "This link has expired. You will need to get a new one.", 400
 
     if meta:
@@ -388,7 +388,7 @@ async def use_overrride_link():
     if not info:
         return {"message": "Invalid payload!"}, 400
 
-    expires_at = datetime(*parsedate(info["$meta"]["expiresAt"])[:6])  # type: ignore
+    expires_at = datetime(*parsedate(info["$meta"]["expiresAt"])[:6], tzinfo=timezone.utc)  # type: ignore
     if datetime.now(tz=timezone.utc) > expires_at:
         return {"message": "This link has expired. You will need to get a new one."}, 400
 
@@ -420,7 +420,7 @@ def get_build_overrides():
 
     signature, _, data = cookie.partition(".")
     info = verify(data, signature)
-    if not info or datetime.now(tz=timezone.utc) > datetime(*parsedate(info["$meta"]["expiresAt"])[:6]):  # type: ignore
+    if not info or datetime.now(tz=timezone.utc) > datetime(*parsedate(info["$meta"]["expiresAt"])[:6], tzinfo=timezone.utc):  # type: ignore
         resp = jsonify({})
         resp.set_cookie("buildOverride", "", expires=0)
         return resp

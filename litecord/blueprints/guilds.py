@@ -17,7 +17,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from this import d
 from typing import Any, Dict, Optional, List, Union
 
 from quart import Blueprint, request, current_app as app, jsonify
