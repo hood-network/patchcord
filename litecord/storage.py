@@ -1161,7 +1161,7 @@ class Storage:
         dinv = dict(invite)
 
         created_at, max_age = dinv.pop("created_at"), dinv.pop("max_age")
-        if max_age > 0 and (created_at + timedelta(seconds=max_age)) < datetime.now(tz=timezone.utc):
+        if max_age > 0 and (created_at + timedelta(seconds=max_age)) < datetime.utcnow():
             await self.db.execute(
                 """
             DELETE FROM invites
