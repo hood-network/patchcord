@@ -139,7 +139,7 @@ def make_app():
     return app
 
 
-PREFIXES = ("/api/v6", "/api/v7", "/api/v8", "/api/v9")
+PREFIXES = ("/api", "/api/v6", "/api/v7", "/api/v8", "/api/v9")
 
 
 def set_blueprints(app_):
