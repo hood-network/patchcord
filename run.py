@@ -124,6 +124,7 @@ def make_app():
     app.config.from_object(f"config.{config.MODE}")
     is_debug = app.config.get("DEBUG", False)
     app.debug = is_debug
+    app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024
 
     if is_debug:
         log.info("on debug")

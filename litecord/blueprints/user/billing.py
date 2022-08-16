@@ -447,10 +447,15 @@ async def _create_subscription():
         raise BadRequest("invalid source id")
 
     plan_id = j["payment_gateway_plan_id"]
+    if plan_id == "premium_year":
+        plan_id = "premium_year_tier_1"
+    elif plan_id == "premium_month":
+        plan_id = "premium_month_tier_1"
 
     # tier 0 is new nitro basic
     # tier 1 is lightro / classic
     # tier 2 is nitro
+    # no tier means old client that doesnt have tiers (so classic)
 
     period_end = {
         "premium_month_tier_0": "1 month",

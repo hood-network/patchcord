@@ -1,12 +1,13 @@
 import json
 import logging
 import os
+from typing import Optional
+from litecord.blueprints.user.billing import PLAN_ID_TO_TYPE
 
 from litecord.enums import MessageFlags
-from litecord.errors import BadRequest
+from litecord.errors import BadRequest, TooLarge
 from PIL import Image
-from quart import current_app as app
-from quart import request
+from quart import current_app as app, request
 
 log = logging.getLogger(__name__)
 
@@ -23,7 +24,7 @@ async def msg_create_request() -> tuple:
     # NOTE: embed isn't set on form data
     json_from_form = {
         "content": form.get("content", ""),
-        "nonce": form.get("nonce", "0"),
+        "nonce": form.get("nonce", ""),
         "tts": json.loads(form.get("tts", "false")),
     }
 
@@ -34,7 +35,7 @@ async def msg_create_request() -> tuple:
 
     files = await request.files
 
-    for form_key, given_file in files.items():
+    for _, given_file in files.items():
         if given_file.content_length is None:
             raise BadRequest("Given file does not have content length.")
 
@@ -52,7 +53,7 @@ def msg_create_check_content(payload: dict, files: list):
         raise BadRequest("One of content, embed(s), sticker_ids or files is required")
 
 
-async def msg_add_attachment(message_id: int, channel_id: int, attachment_file) -> int:
+async def msg_add_attachment(message_id: int, channel_id: int, author_id: Optional[int], attachment_file) -> int:
     """Add an attachment to a message.
 
     Parameters
@@ -65,6 +66,8 @@ async def msg_add_attachment(message_id: int, channel_id: int, attachment_file) 
         Exists because the attachment URL scheme contains
         a channel id. The purpose is unknown, but we are
         implementing Discord's behavior.
+    author_id: Optional[int]
+        The ID of the author of the message.
     attachment_file: quart.FileStorage
         quart FileStorage instance of the file.
     """
@@ -94,14 +97,32 @@ async def msg_add_attachment(message_id: int, channel_id: int, attachment_file) 
         # reset it to 0 for later usage
         attachment_file.stream.seek(0)
 
-    ext = filename.split(".")[-1]
+    if not file_size:
+        attachment_file.stream.seek(0, os.SEEK_END)
+        file_size = attachment_file.stream.tell()
+        attachment_file.stream.seek(0)
 
-    with open(f"attachments/{attachment_id}.{ext}", "wb") as attach_file:
-        attach_file.write(attachment_file.stream.read())
+    max_size = 8 * 1024 * 1024
+    if author_id:
+        plan_id = await app.db.fetchval(
+            """
+        SELECT payment_gateway_plan_id
+        FROM user_subscriptions
+        WHERE status = 1
+            AND user_id = $1
+        """,
+            author_id,
+        )
+        premium_type = PLAN_ID_TO_TYPE.get(plan_id)
+        if premium_type == 0:
+            max_size = 20 * 1024 * 1024
+        elif premium_type == 1:
+            max_size = 50 * 1024 * 1024
+        elif premium_type == 2:
+            max_size = 500 * 1024 * 1024
 
-        if not file_size:
-            attach_file.seek(0, os.SEEK_END)
-            file_size = attach_file.tell()
+    if file_size > max_size:
+        raise TooLarge()
 
     await app.db.execute(
         """
@@ -121,6 +142,10 @@ async def msg_add_attachment(message_id: int, channel_id: int, attachment_file) 
         img_width,
         img_height,
     )
+
+    ext = filename.split(".")[-1]
+    with open(f"attachments/{attachment_id}.{ext}", "wb") as attach_file:
+        attach_file.write(attachment_file.stream.read())
 
     log.debug("written {} bytes for attachment id {}", file_size, attachment_id)
 

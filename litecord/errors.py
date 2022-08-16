@@ -177,6 +177,11 @@ class UnderageUser(Forbidden):
     error_code = 20024
 
 
+class TooLarge(LitecordError):
+    status_code = 413
+
+
+
 class WebsocketClose(Exception):
     @property
     def code(self):
