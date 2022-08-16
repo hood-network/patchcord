@@ -1142,6 +1142,9 @@ class Storage:
         if not res["nonce"]:
             res.pop("nonce")
 
+        if not res["message_reference"]:
+            res.pop("message_reference")
+
         return res
 
     async def get_invite(self, invite_code: str) -> Optional[Dict]:
