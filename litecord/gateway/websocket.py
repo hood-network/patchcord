@@ -969,7 +969,7 @@ class GatewayWebsocket:
             await self.dispatch_raw("PRESENCE_REPLACE", presences)
             await self.dispatch_raw("PRESENCES_REPLACE", presences)
 
-        await self.dispatch_raw("RESUMED", None)
+        await self.dispatch_raw("RESUMED", {"_trace": ["litecord"]})
 
     async def handle_6(self, payload: Dict[str, Any]):
         """Handle OP 6 Resume."""
