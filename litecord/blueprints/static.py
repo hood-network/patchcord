@@ -360,13 +360,13 @@ async def create_override_link():
 @bp.route("/__development/link", methods=["GET"])
 async def get_override_link():
     """Get a build override."""
-    data = request.args.get("s")
+    payload = request.args.get("s")
     meta = request.args.get("meta", type=str_bool)
 
-    if not data:
+    if not payload:
         return "No payload provided.", 400
 
-    signature, _, data = data.partition(".")
+    signature, _, data = payload.partition(".")
     info = verify(data, signature)
     if not info:
         return "Invalid payload!", 400
@@ -376,7 +376,7 @@ async def get_override_link():
 
     if meta:
         return jsonify(info)
-    return await render_template("build_override.html", payload=unquote(data))
+    return await render_template("build_override.html", payload=unquote(payload))
 
 
 @bp.route("/__development/link", methods=["PUT"])
