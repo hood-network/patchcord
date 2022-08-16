@@ -253,24 +253,28 @@ async def _proxy_asset(asset, default: bool = False):
                 host = app.config["MAIN_URL"]
                 main_url = ("https://" if app.config["IS_SSL"] else "http://") + host
                 if asset.endswith(".js"):
-                    data = (data.decode("utf-8")
-                        # Hardcoded discord.com et al references
-                        .replace("https://discord.com", main_url)
-                        .replace("https://discordapp.com", main_url)
-                        .replace('["discord.com/billing/promotions","promos.discord.gg"]', f'["{host}/billing/promotions"]')
-                        .replace('["discordapp.com/gifts","discord.com/gifts"]', f'["{host}/gifts"]')
-                        .replace('["canary.discord.com","ptb.discord.com","discord.com","canary.discordapp.com","ptb.discordapp.com","discordapp.com"]', f'["{host}"]')
-                        .replace('"discord.com"', f'"{host}"')
-                        .replace('"discordapp.com"', f'"{host}"')
-                        .replace('"discordapp.com/invite"', f'"{host}/invite"')
-                        # Various regexes
-                        .replace(r'RegExp("^https://(?:ptb\\.|canary\\.)?(discordapp|discord)\\.com/__development/link?[\\S]+$"', r'RegExp("^https://%s/__development/link?[\\S]+$"' % host.replace(".", r"\\."))
-                        .replace(r'/^((https:\/\/)?(discord\.gg\/)|(discord\.com\/)(invite\/)?)?[A-Za-z0-9]{8,8}$/', r'/^((https:\/\/)?(%s\/)(invite\/)?)?[A-Za-z0-9]{8,8}$/' % host.replace(".", r"\."))
-                        .replace('+"|discordapp.com|discord.com)$"', f'+"{host})$"')
-                        .replace(r"/(?:^|\.)discordapp\.com$/i", r"/(?:^|\.)%s$/i" % host.replace(".", r"\."))
-                        # Older build compatibility
-                        .replace("r[t.type].push", "r[t.type]?.push")
-                    )
+
+                    try:
+                        data = (data.decode("utf-8")
+                            # Hardcoded discord.com et al references
+                            .replace("https://discord.com", main_url)
+                            .replace("https://discordapp.com", main_url)
+                            .replace('["discord.com/billing/promotions","promos.discord.gg"]', f'["{host}/billing/promotions"]')
+                            .replace('["discordapp.com/gifts","discord.com/gifts"]', f'["{host}/gifts"]')
+                            .replace('["canary.discord.com","ptb.discord.com","discord.com","canary.discordapp.com","ptb.discordapp.com","discordapp.com"]', f'["{host}"]')
+                            .replace('"discord.com"', f'"{host}"')
+                            .replace('"discordapp.com"', f'"{host}"')
+                            .replace('"discordapp.com/invite"', f'"{host}/invite"')
+                            # Various regexes
+                            .replace(r'RegExp("^https://(?:ptb\\.|canary\\.)?(discordapp|discord)\\.com/__development/link?[\\S]+$"', r'RegExp("^https://%s/__development/link?[\\S]+$"' % host.replace(".", r"\\."))
+                            .replace(r'/^((https:\/\/)?(discord\.gg\/)|(discord\.com\/)(invite\/)?)?[A-Za-z0-9]{8,8}$/', r'/^((https:\/\/)?(%s\/)(invite\/)?)?[A-Za-z0-9]{8,8}$/' % host.replace(".", r"\."))
+                            .replace('+"|discordapp.com|discord.com)$"', f'+"{host})$"')
+                            .replace(r"/(?:^|\.)discordapp\.com$/i", r"/(?:^|\.)%s$/i" % host.replace(".", r"\."))
+                            # Older build compatibility
+                            .replace("r[t.type].push", "r[t.type]?.push")
+                        )
+                    except Exception:
+                        pass
 
                 response = await make_response(data, resp.status)
                 response.headers["content-type"] = resp.headers["content-type"]
