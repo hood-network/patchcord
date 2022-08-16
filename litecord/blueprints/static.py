@@ -121,16 +121,17 @@ async def _load_build(type: str = "branch", value: str = "latest", *, default: b
     if type != "branch":
         return "Not Implemented", 501
 
-    async with aiohttp.request("GET", f"https://api.discord.sale/builds/{hash}") as resp:
+    async with aiohttp.request("GET", f"https://api.discord.sale/builds/{value}") as resp:
         if not 300 > resp.status >= 200:
             try:
-                info = BUILDS[hash]
+                info = BUILDS[value]
             except KeyError:
                 if not default:
                     try:
-                        info = BUILDS[BUILDS["overrides"][hash]]
+                        info = BUILDS[BUILDS["overrides"][value]]
                     except KeyError:
-                        return "Build not found", 404
+                        pass
+                return "Build not found", 404
         else:
             info = await resp.json()
 
