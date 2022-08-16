@@ -303,8 +303,8 @@ async def _proxy_asset(asset, default: bool = False):
         }
 
         if fs_cache:
-            async with aopen(f"assets/{asset}", "w") as f:
-                await f.write(data)
+            async with aopen(f"assets/{asset}", "wb") as f:
+                await f.write(data.encode("utf-8") if isinstance(data, str) else data)
 
         return response
 
