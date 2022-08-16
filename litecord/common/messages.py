@@ -3,13 +3,20 @@ import logging
 import os
 from typing import Optional
 
-from litecord.common.users import PLAN_ID_TO_TYPE
-from litecord.enums import MessageFlags
+from litecord.enums import MessageFlags, PremiumType
 from litecord.errors import BadRequest, TooLarge
 from PIL import Image
 from quart import current_app as app, request
 
 log = logging.getLogger(__name__)
+
+PLAN_ID_TO_TYPE = {
+    "premium_month_tier_0": PremiumType.TIER_0,
+    "premium_month_tier_1": PremiumType.TIER_1,
+    "premium_month_tier_2": PremiumType.TIER_2,
+    "premium_year_tier_1": PremiumType.TIER_1,
+    "premium_year_tier_2": PremiumType.TIER_2,
+}
 
 
 async def msg_create_request() -> tuple:
