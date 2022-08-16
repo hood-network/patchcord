@@ -109,18 +109,16 @@ def guess_content_type(file: str) -> str:
         return "application/octet-stream"
 
 
-async def _load_build(*, name: Optional[str] = None, hash: Optional[str] = None, default: bool = False, clear_override: bool = False):
+async def _load_build(type: str = "branch", value: str = "latest", *, default: bool = False, clear_override: bool = False):
     """Load a build from discord.sale."""
-    value = hash if hash else name
-    type = "branch" if hash else "id"
-
     if value == "latest":
         async with aiohttp.request("GET", "https://api.discord.sale/builds") as resp:
             if not 300 > resp.status >= 200:
                 return "Bad Gateway", 502
-            hash = (await resp.json())[0]["hash"]
+            type = "branch"
+            value = (await resp.json())[0]["hash"]
 
-    if not hash:
+    if type != "branch":
         return "Not Implemented", 501
 
     async with aiohttp.request("GET", f"https://api.discord.sale/builds/{hash}") as resp:
@@ -128,7 +126,11 @@ async def _load_build(*, name: Optional[str] = None, hash: Optional[str] = None,
             try:
                 info = BUILDS[hash]
             except KeyError:
-                return "Build not found", 404
+                if not default:
+                    try:
+                        info = BUILDS[BUILDS["overrides"][hash]]
+                    except KeyError:
+                        return "Build not found", 404
         else:
             info = await resp.json()
 
@@ -190,7 +192,7 @@ async def load_latest_build():
 @bp.route("/build/<hash>", methods=["GET"])
 async def load_build(hash):
     """Load a specific build."""
-    return await _load_build(hash=hash)
+    return await _load_build(value=hash)
 
 
 @bp.route("/", defaults={"path": ""}, methods=["GET"])
@@ -201,20 +203,17 @@ async def send_client(path):
 
     cookie = request.cookies.get("buildOverride")
     if not cookie:
-        return await _load_build(hash=app.config.get("DEFAULT_BUILD"), default=True, clear_override=True)
+        return await _load_build(value=app.config.get("DEFAULT_BUILD", "latest"), default=True, clear_override=True)
 
     signature, _, data = cookie.partition(".")
     info = verify(data, signature)
     if not info or datetime.now(tz=timezone.utc) > datetime(*parsedate(info["$meta"]["expiresAt"])[:6], tzinfo=timezone.utc):  # type: ignore
-        return await _load_build(hash=app.config.get("DEFAULT_BUILD"), default=True, clear_override=True)
+        return await _load_build(value=app.config.get("DEFAULT_BUILD", "latest"), default=True, clear_override=True)
 
     if not info.get("discord_web"):
-        return await _load_build(hash=app.config.get("DEFAULT_BUILD"), default=True, clear_override=False)
+        return await _load_build(value=app.config.get("DEFAULT_BUILD", "latest"), default=True, clear_override=False)
 
-    if info["discord_web"]["type"] == "branch":
-        return await _load_build(hash=info["discord_web"]["id"])
-    elif info["discord_web"]["type"] == "id":
-        return await _load_build(name=info["discord_web"]["id"])
+    return await _load_build(info["discord_web"]["type"], info["discord_web"]["id"])
 
 
 async def _proxy_asset(asset, default: bool = False):

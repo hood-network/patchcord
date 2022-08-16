@@ -405,5 +405,26 @@
         "552b30127c909d86273357325ae1f1dc"
       ]
     }
+  },
+  "1226f699480454a160ebe6fdfad14d0c129b722e": {
+    "hash": "1226f699480454a160ebe6fdfad14d0c129b722e",
+    "number": 141284,
+    "GLOBAL_ENV": {
+      "API_VERSION": 9
+    },
+    "files": {
+      "rootScripts": [
+        "3d618a25793fe3690310",
+        "4e0c474a1c4845c78e37",
+        "be08443647d883c6ebaf",
+        "cd13bcb4f9eb0a53e753"
+      ],
+      "css": [
+        "40532.3948e17106d64cbbacb8"
+      ]
+    }
+  },
+  "overrides": {
+    "ian/fluent-emojis": "1226f699480454a160ebe6fdfad14d0c129b722e"
   }
 }
