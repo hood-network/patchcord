@@ -259,6 +259,8 @@ async def _proxy_asset(asset, default: bool = False):
                             # Hardcoded discord.com et al references
                             .replace("https://discord.com", main_url)
                             .replace("https://discordapp.com", main_url)
+                            .replace("//discordapp.com", f"//{host}")
+                            .replace("cdn.discordapp.com", host)
                             .replace('["discord.com/billing/promotions","promos.discord.gg"]', f'["{host}/billing/promotions"]')
                             .replace('["discordapp.com/gifts","discord.com/gifts"]', f'["{host}/gifts"]')
                             .replace('["canary.discord.com","ptb.discord.com","discord.com","canary.discordapp.com","ptb.discordapp.com","discordapp.com"]', f'["{host}"]')
