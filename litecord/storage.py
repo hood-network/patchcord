@@ -943,7 +943,7 @@ class Storage:
             drow.pop("channel_id")
 
             drow["size"] = drow["filesize"]
-            drow.pop("size")
+            drow.pop("filesize")
 
             # construct attachment url
             proto = "https" if self.app.config["IS_SSL"] else "http"

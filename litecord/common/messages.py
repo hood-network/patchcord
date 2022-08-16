@@ -1,11 +1,12 @@
 import json
 import logging
+import os
 
-from PIL import Image
-from quart import request, current_app as app
-
-from litecord.errors import BadRequest
 from litecord.enums import MessageFlags
+from litecord.errors import BadRequest
+from PIL import Image
+from quart import current_app as app
+from quart import request
 
 log = logging.getLogger(__name__)
 
@@ -81,7 +82,6 @@ async def msg_add_attachment(message_id: int, channel_id: int, attachment_file) 
     # it's possible a part does not contain content length.
     # do not let that pass on.
     file_size = attachment_file.content_length
-    assert file_size is not None
 
     if is_image:
         # open with pillow, extract image size
@@ -93,6 +93,15 @@ async def msg_add_attachment(message_id: int, channel_id: int, attachment_file) 
 
         # reset it to 0 for later usage
         attachment_file.stream.seek(0)
+
+    ext = filename.split(".")[-1]
+
+    with open(f"attachments/{attachment_id}.{ext}", "wb") as attach_file:
+        attach_file.write(attachment_file.stream.read())
+
+        if not file_size:
+            attach_file.seek(0, os.SEEK_END)
+            file_size = attach_file.tell()
 
     await app.db.execute(
         """
@@ -112,11 +121,6 @@ async def msg_add_attachment(message_id: int, channel_id: int, attachment_file) 
         img_width,
         img_height,
     )
-
-    ext = filename.split(".")[-1]
-
-    with open(f"attachments/{attachment_id}.{ext}", "wb") as attach_file:
-        attach_file.write(attachment_file.stream.read())
 
     log.debug("written {} bytes for attachment id {}", file_size, attachment_id)
 
