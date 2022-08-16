@@ -135,9 +135,11 @@ async def _load_build(*, name: Optional[str] = None, hash: Optional[str] = None,
         scripts = [f"{file}.js" for file in info["files"]["rootScripts"]]
         styles = [f"{file}.css" for file in info["files"]["css"]]
         version = info["number"]
+        global_env = _get_environment(app)
+        global_env["API_VERSION"] = info.get("GLOBAL_ENV", {}).get("API_VERSION", 9)
 
         kwargs = {
-            "GLOBAL_ENV": _get_environment(app),
+            "GLOBAL_ENV": global_env,
             "build_id": f" v{version}" if not default else "",
             "style": styles[0],
             "loader": scripts[0],
