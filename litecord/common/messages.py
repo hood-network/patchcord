@@ -2,7 +2,6 @@ import json
 import logging
 import os
 from typing import Optional
-from litecord.blueprints.user.billing import PLAN_ID_TO_TYPE
 
 from litecord.enums import MessageFlags
 from litecord.errors import BadRequest, TooLarge
@@ -38,6 +37,9 @@ async def msg_create_request() -> tuple:
     for _, given_file in files.items():
         if given_file.content_length is None:
             raise BadRequest("Given file does not have content length.")
+
+    if len(files) > 10:
+        raise BadRequest("Only 10 files are allowed per message.")
 
     # we don't really care about the given fields on the files dict, so
     # we only extract the values

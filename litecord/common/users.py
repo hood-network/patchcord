@@ -19,19 +19,29 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from datetime import datetime
 from random import randint
-from typing import Tuple, Optional, List
+from typing import List, Optional, Tuple
 
-from quart import current_app as app
 from asyncpg import UniqueViolationError
 from logbook import Logger
+from quart import current_app as app
 
-from ..presence import BasePresence
-from ..errors import BadRequest
 from ..auth import hash_data
-from ..utils import rand_hex
+from ..enums import PremiumType
+from ..errors import BadRequest
+from ..presence import BasePresence
 from ..pubsub.user import dispatch_user
+from ..utils import rand_hex
 
 log = Logger(__name__)
+
+
+PLAN_ID_TO_TYPE = {
+    "premium_month_tier_0": PremiumType.TIER_0,
+    "premium_month_tier_1": PremiumType.TIER_1,
+    "premium_month_tier_2": PremiumType.TIER_2,
+    "premium_year_tier_1": PremiumType.TIER_1,
+    "premium_year_tier_2": PremiumType.TIER_2,
+}
 
 
 async def mass_user_update(user_id: int) -> Tuple[dict, dict]:

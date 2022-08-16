@@ -277,7 +277,7 @@ async def _create_message(channel_id):
 
     # for each file given, we add it as an attachment
     for pre_attachment in files:
-        await msg_add_attachment(message_id, channel_id, pre_attachment)
+        await msg_add_attachment(message_id, channel_id, user_id, pre_attachment)
 
     payload = await app.storage.get_message(message_id, user_id, include_member=True)
 

@@ -21,11 +21,12 @@ from typing import List, Dict, Any, Optional, Union, TypedDict
 
 import aiohttp
 from aiofile import async_open as aopen
-from datetime import datetime, timedelta, date, timezone
+from datetime import datetime, timedelta, date
 from logbook import Logger
 import json
 
 from litecord.enums import ChannelType, MessageFlags, NSFWLevel
+from litecord.common.users import PLAN_ID_TO_TYPE
 from litecord.schemas import USER_MENTION, ROLE_MENTION
 from litecord.blueprints.channel.reactions import (
     EmojiType,
@@ -33,8 +34,6 @@ from litecord.blueprints.channel.reactions import (
     partial_emoji,
     PartialEmoji,
 )
-
-from litecord.blueprints.user.billing import PLAN_ID_TO_TYPE
 
 from litecord.types import timestamp_
 from litecord.utils import pg_set_json

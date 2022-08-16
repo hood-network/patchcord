@@ -524,7 +524,7 @@ async def execute_webhook(webhook_id: int, webhook_token):
     )
 
     for pre_attachment in files:
-        await msg_add_attachment(message_id, channel_id, pre_attachment)
+        await msg_add_attachment(message_id, channel_id, None, pre_attachment)
 
     payload = await app.storage.get_message(message_id, include_member=True)
 

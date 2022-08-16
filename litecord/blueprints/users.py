@@ -37,10 +37,10 @@ from litecord.images import parse_data_uri
 from litecord.permissions import base_permissions
 
 from litecord.blueprints.auth import check_password
-from litecord.blueprints.user.billing import PLAN_ID_TO_TYPE
 from litecord.utils import to_update, toggle_flag
 from litecord.common.messages import message_view
 from litecord.common.users import (
+    PLAN_ID_TO_TYPE,
     mass_user_update,
     delete_user,
     check_username_usage,

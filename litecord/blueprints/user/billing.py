@@ -17,20 +17,21 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-import json
 import datetime
+import json
 from enum import Enum
 
-from quart import Blueprint, jsonify, request, current_app as app
-from logbook import Logger
-
 from litecord.auth import token_check
-from litecord.schemas import validate
+from litecord.common.users import PLAN_ID_TO_TYPE, mass_user_update
+from litecord.enums import UserFlags
 from litecord.errors import BadRequest
-from litecord.types import timestamp_, HOURS
-from litecord.enums import UserFlags, PremiumType
-from litecord.common.users import mass_user_update
+from litecord.schemas import validate
+from litecord.types import HOURS, timestamp_
 from litecord.utils import snowflake_timestamp
+from logbook import Logger
+from quart import Blueprint
+from quart import current_app as app
+from quart import jsonify, request
 
 log = Logger(__name__)
 bp = Blueprint("users_billing", __name__)
@@ -65,15 +66,6 @@ class PaymentGateway:
 class PaymentStatus:
     SUCCESS = 1
     FAILED = 2
-
-
-PLAN_ID_TO_TYPE = {
-    "premium_month_tier_0": PremiumType.TIER_0,
-    "premium_month_tier_1": PremiumType.TIER_1,
-    "premium_month_tier_2": PremiumType.TIER_2,
-    "premium_year_tier_1": PremiumType.TIER_1,
-    "premium_year_tier_2": PremiumType.TIER_2,
-}
 
 
 # how much should a payment be, depending
