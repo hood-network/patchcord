@@ -22,7 +22,7 @@ import json
 from enum import Enum
 
 from litecord.auth import token_check
-from litecord.common.users import PLAN_ID_TO_TYPE, mass_user_update
+from litecord.common.users import mass_user_update
 from litecord.enums import UserFlags
 from litecord.errors import BadRequest
 from litecord.schemas import validate

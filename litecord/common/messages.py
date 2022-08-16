@@ -3,6 +3,7 @@ import logging
 import os
 from typing import Optional
 
+from litecord.common.users import PLAN_ID_TO_TYPE
 from litecord.enums import MessageFlags
 from litecord.errors import BadRequest, TooLarge
 from PIL import Image
