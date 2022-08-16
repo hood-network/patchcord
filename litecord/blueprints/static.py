@@ -126,12 +126,10 @@ async def _load_build(type: str = "branch", value: str = "latest", *, default: b
             try:
                 info = BUILDS[value]
             except KeyError:
-                if not default:
-                    try:
-                        info = BUILDS[BUILDS["overrides"][value]]
-                    except KeyError:
-                        pass
-                return "Build not found", 404
+                try:
+                    info = BUILDS[BUILDS["overrides"][value]]
+                except KeyError:
+                    return "Build not found", 404
         else:
             info = await resp.json()
 

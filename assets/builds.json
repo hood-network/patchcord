@@ -425,6 +425,6 @@
     }
   },
   "overrides": {
-    "ian/fluent-emojis": "1226f699480454a160ebe6fdfad14d0c129b722e"
+    "ian/fluent-emoji": "1226f699480454a160ebe6fdfad14d0c129b722e"
   }
 }
