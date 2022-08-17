@@ -446,36 +446,26 @@ async def _process_overwrites(guild_id: int, channel_id: int, overwrites: list) 
         col_name = "target_user" if target.is_user else "target_role"
         constraint_name = f"channel_overwrites_{col_name}_uniq"
 
-        if overwrite["allow"].binary == 0 and overwrite["deny"].binary == 0:
-            await app.db.execute(
-                f"""
-            DELETE FROM channel_overwrites
-            WHERE channel_id = $1 AND {col_name} = $2
+        await app.db.execute(
+            f"""
+            INSERT INTO channel_overwrites
+                (guild_id, channel_id, target_type, target_role,
+                target_user, allow, deny)
+            VALUES
+                ($1, $2, $3, $4, $5, $6, $7)
+            ON CONFLICT ON CONSTRAINT {constraint_name}
+            DO
+            UPDATE
+                SET allow = $6, deny = $7
             """,
-                channel_id,
-                target_user if target.is_user else target_role,
-            )
-        else:
-            await app.db.execute(
-                f"""
-                INSERT INTO channel_overwrites
-                    (guild_id, channel_id, target_type, target_role,
-                    target_user, allow, deny)
-                VALUES
-                    ($1, $2, $3, $4, $5, $6, $7)
-                ON CONFLICT ON CONSTRAINT {constraint_name}
-                DO
-                UPDATE
-                    SET allow = $6, deny = $7
-                """,
-                guild_id,
-                channel_id,
-                target_type,
-                target_role,
-                target_user,
-                overwrite["allow"],
-                overwrite["deny"],
-            )
+            guild_id,
+            channel_id,
+            target_type,
+            target_role,
+            target_user,
+            overwrite["allow"],
+            overwrite["deny"],
+        )
 
         if target.is_user:
             assert target.user_id is not None
