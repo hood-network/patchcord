@@ -38,7 +38,7 @@ async def websocket_handler(app, ws, url):
     except (KeyError, IndexError):
         gw_encoding = "json"
 
-    if gw_version not in ("6", "7", "8", "9"):
+    if gw_version not in ("5", "6", "7", "8", "9", "10"):
         return await ws.close(4000, f"Invalid gateway version (got {gw_version})")
 
     if gw_encoding not in ("json", "etf"):
