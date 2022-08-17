@@ -28,7 +28,7 @@ ERR_MSG_MAP = {
     10006: "Unknown invite",
     10007: "Unknown member",
     10008: "Unknown message",
-    10009: "Unknown overwrite",
+    10009: "Unknown Overwrite",
     10010: "Unknown provider",
     10011: "Unknown role",
     10012: "Unknown token",
@@ -87,10 +87,6 @@ class LitecordError(Exception):
     """Base class for litecord errors"""
 
     status_code = 500
-
-    def __init__(self, *args, error_code: Optional[int] = None, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.error_code = error_code
 
     def _get_err_msg(self, err_code: Optional[int]) -> str:
         if err_code is not None:

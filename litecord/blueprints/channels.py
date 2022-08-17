@@ -28,7 +28,7 @@ from logbook import Logger
 from litecord.auth import token_check
 from litecord.common.interop import message_view, channel_view
 from litecord.enums import ChannelType, GUILD_CHANS, MessageType, MessageFlags
-from litecord.errors import ChannelNotFound, Forbidden, BadRequest
+from litecord.errors import ChannelNotFound, Forbidden, BadRequest, NotFound
 from litecord.schemas import (
     validate,
     CHAN_UPDATE,
@@ -409,7 +409,6 @@ async def _process_overwrites(guild_id: int, channel_id: int, overwrites: list) 
     user_ids: List[int] = []
 
     for overwrite in overwrites:
-
         # 0 for role overwrite, 1 for member overwrite
         try:
             target_type = int(overwrite["type"])
@@ -417,6 +416,30 @@ async def _process_overwrites(guild_id: int, channel_id: int, overwrites: list) 
             target_type = 0 if overwrite["type"] == "role" else 1
         target_user = None if target_type == 0 else overwrite["id"]
         target_role = overwrite["id"] if target_type == 0 else None
+
+        val = None
+        if target_type == 0:
+            val = await app.db.fetchval(
+                """
+            SELECT id
+            FROM roles
+            WHERE guild_id = $1 AND id = $2
+            """,
+                guild_id,
+                target_role,
+            )
+        elif target_type == 1:
+            val = await app.db.fetchval(
+                """
+            SELECT id
+            FROM members
+            WHERE id = $1 AND guild_id = $2
+            """,
+                target_user,
+                guild_id,
+            )
+        if not val:
+            raise NotFound(10009)
 
         target = Target(target_type, target_user, target_role)
 
@@ -445,9 +468,8 @@ async def _process_overwrites(guild_id: int, channel_id: int, overwrites: list) 
         )
 
         if target.is_user:
-            perms = Permissions(overwrite["allow"] & ~overwrite["deny"])
             assert target.user_id is not None
-            await _dispatch_action(guild_id, channel_id, target.user_id, perms)
+            user_ids.append(target.user_id)
 
         elif target.is_role:
             assert target.role_id is not None
@@ -487,6 +509,53 @@ async def put_channel_overwrite(channel_id: int, overwrite_id: int):
             }
         ],
     )
+
+    await _mass_chan_update(guild_id, [channel_id])
+    return "", 204
+
+
+@bp.route("/<int:channel_id>/permissions/<int:overwrite_id>", methods=["DELETE"])
+async def delete_channel_overwrite(channel_id: int, overwrite_id: int):
+    """Delete a channel overwrite."""
+    user_id = await token_check()
+    ctype, guild_id = await channel_check(user_id, channel_id)
+
+    if ctype not in GUILD_CHANS:
+        raise ChannelNotFound("Only usable for guild channels.")
+
+    await channel_perm_check(user_id, guild_id, "manage_roles")
+
+    target_type = await app.db.fetchval(
+        """
+    SELECT target_type
+    FROM channel_overwrites
+    WHERE channel_id = $1 AND id = $2
+        """,
+        channel_id,
+        overwrite_id,
+    )
+    if not target_type:
+        return "", 204
+
+    await app.db.execute(
+        """
+    DELETE FROM channel_overwrites
+    WHERE channel_id = $1 AND id = $2
+        """,
+        channel_id,
+        overwrite_id,
+    )
+
+    user_ids = []
+    target = Target(target_type, overwrite_id, overwrite_id)
+    if target.is_user:
+        user_ids.append(target.user_id)
+    elif target.is_role:
+        user_ids.extend(await app.storage.get_role_members(target.role_id))
+
+    for user_id in user_ids:
+        perms = await get_permissions(user_id, channel_id)
+        await _dispatch_action(guild_id, channel_id, user_id, perms)
 
     await _mass_chan_update(guild_id, [channel_id])
     return "", 204

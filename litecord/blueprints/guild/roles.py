@@ -229,7 +229,7 @@ async def update_guild_role(guild_id, role_id):
         role_id,
     )
     if not val:
-        raise NotFound(error_code=10011)
+        raise NotFound(10011)
 
     # we only update ints on the db, not Permissions
     j["permissions"] = int(j["permissions"])
@@ -271,7 +271,7 @@ async def delete_guild_role(guild_id, role_id):
     )
 
     if res == "DELETE 0":
-        raise NotFound(error_code=10011)
+        raise NotFound(10011)
 
     await maybe_lazy_guild_dispatch(guild_id, "role_delete", role_id, True)
 
@@ -347,7 +347,7 @@ async def role_member_ids(guild_id, role_id):
             role_id,
         )
         if not val:
-            raise NotFound(error_code=10011)
+            raise NotFound(10011)
         res = []
 
     return jsonify([str(r["user_id"]) for r in res])
@@ -372,7 +372,7 @@ async def add_members_to_role(guild_id, role_id):
         role_id,
     )
     if not val:
-        raise NotFound(error_code=10011)
+        raise NotFound(10011)
 
     members = []
     for id in j["member_ids"]:

@@ -311,7 +311,7 @@ async def add_member_role(guild_id, member_id, role_id):
 
     member = await app.storage.get_member_data_one(guild_id, member_id)
     if not member:
-        raise NotFound(error_code=10007)
+        raise NotFound(10007)
 
     val = await app.db.fetchval(
         """
@@ -323,7 +323,7 @@ async def add_member_role(guild_id, member_id, role_id):
         role_id,
     )
     if not val:
-        raise NotFound(error_code=10011)
+        raise NotFound(10011)
 
     if str(role_id) not in member["roles"]:
         await app.db.execute(
@@ -356,7 +356,7 @@ async def remove_member_role(guild_id, member_id, role_id):
 
     member = await app.storage.get_member_data_one(guild_id, member_id)
     if not member:
-        raise NotFound(error_code=10007)
+        raise NotFound(10007)
 
     val = await app.db.fetchval(
         """
@@ -368,7 +368,7 @@ async def remove_member_role(guild_id, member_id, role_id):
         role_id,
     )
     if not val:
-        raise NotFound(error_code=10011)
+        raise NotFound(10011)
 
     if str(role_id) in member["roles"]:
         await app.db.execute(

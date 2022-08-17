@@ -331,7 +331,7 @@ class Storage:
         members_basic = await self.db.fetch(
             """
         SELECT user_id, nickname AS nick, joined_at,
-               deafened AS deaf, muted AS mute, avatar, banner, bio
+               deafened AS deaf, muted AS mute, avatar, banner, bio, pronouns
         FROM members
         WHERE guild_id = $1
         """,
