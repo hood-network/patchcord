@@ -418,7 +418,7 @@ async def _process_overwrites(guild_id: int, channel_id: int, overwrites: list) 
         target_user = None if target_type == 0 else overwrite["id"]
         target_role = overwrite["id"] if target_type == 0 else None
 
-        target = Target(target_type, target_role, target_user)
+        target = Target(target_type, target_user, target_role)
 
         col_name = "target_user" if target.is_user else "target_role"
         constraint_name = f"channel_overwrites_{col_name}_uniq"
