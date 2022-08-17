@@ -446,7 +446,7 @@ class Storage:
     async def chan_overwrites(self, channel_id: int) -> List[Dict[str, Any]]:
         overwrite_rows = await self.db.fetch(
             """
-        SELECT target_type, target_role, target_user, allow::str, deny::str
+        SELECT target_type, target_role, target_user, allow::text, deny::text
         FROM channel_overwrites
         WHERE channel_id = $1
         """,
