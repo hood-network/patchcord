@@ -25,7 +25,7 @@ from logbook import Logger
 
 from litecord.blueprints.auth import token_check
 from litecord.blueprints.checks import channel_check, channel_perm_check
-from litecord.errors import BadRequest, MessageNotFound, Forbidden
+from litecord.errors import MessageNotFound, Forbidden
 from litecord.enums import MessageFlags, MessageType, ChannelType, GUILD_CHANS
 
 from litecord.schemas import validate, MESSAGE_CREATE, MESSAGE_UPDATE
@@ -41,8 +41,8 @@ from litecord.common.messages import (
     msg_create_check_content,
     msg_add_attachment,
     msg_guild_text_mentions,
-    message_view,
 )
+from litecord.common.interop import message_view
 from litecord.pubsub.user import dispatch_user
 
 
@@ -171,7 +171,7 @@ async def _dm_pre_dispatch(channel_id, peer_id):
         # opened, so we don't need to do anything
         return
 
-    dm_chan = await app.storage.get_channel(channel_id, request.discord_api_version)
+    dm_chan = await app.storage.get_channel(channel_id)
 
     # dispatch CHANNEL_CREATE so the client knows which
     # channel the future event is about
@@ -208,7 +208,7 @@ async def create_message(
             data["tts"],
             data["everyone_mention"],
             data["nonce"],
-            MessageType.DEFAULT.value,
+            MessageType.DEFAULT.value if not data.get("message_reference") else MessageType.REPLY.value,
             data.get("flags") or 0,
             data.get("embeds") or [],
             data.get("message_reference") or None,

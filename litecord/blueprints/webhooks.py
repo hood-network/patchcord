@@ -306,7 +306,7 @@ async def modify_webhook(webhook_id: int):
 
     if "channel_id" in j:
         # pre checks
-        chan = await app.storage.get_channel(j["channel_id"], request.discord_api_version)
+        chan = await app.storage.get_channel(j["channel_id"])
 
         # short-circuiting should ensure chan isn't none
         # by the time we do chan['guild_id']

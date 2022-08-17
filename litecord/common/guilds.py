@@ -19,12 +19,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from typing import List
 from logbook import Logger
-from quart import current_app as app, request
+from quart import current_app as app
+
 
 from ..permissions import get_role_perms, get_permissions
 from ..utils import dict_get, maybe_lazy_guild_dispatch
 from ..enums import ChannelType, MessageType, NSFWLevel, UserFlags
 from ..errors import BadRequest, InvitesDisabled, TheMaze, UnderageUser
+from litecord.common.interop import role_view
 from litecord.pubsub.member import dispatch_member
 from litecord.system_messages import send_sys_message
 
@@ -124,7 +126,7 @@ async def create_role(guild_id, name: str, **kwargs):
         guild_id, ("GUILD_ROLE_CREATE", {"guild_id": str(guild_id), "role": role})
     )
 
-    return role
+    return role_view(role)
 
 
 async def _specific_chan_create(channel_id, ctype, **kwargs):
@@ -402,6 +404,6 @@ async def add_member(guild_id: int, user_id: int, *, basic=False):
         for state in states:
             await app.dispatcher.channel.sub(channel_id, state.session_id)
 
-    guild = await app.storage.get_guild_full(guild_id, user_id, 250, api_version=request.discord_api_version)
+    guild = await app.storage.get_guild_full(guild_id, user_id, 250)
     for state in states:
         await state.dispatch("GUILD_CREATE", guild)

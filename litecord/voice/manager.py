@@ -57,7 +57,7 @@ class VoiceManager:
     async def can_join(self, user_id: int, channel_id: int) -> int:
         """Return if a user can join a channel."""
 
-        channel = await self.app.storage.get_channel(channel_id, request.discord_api_version)
+        channel = await self.app.storage.get_channel(channel_id)
         ctype = ChannelType(channel["type"])
 
         if ctype not in VOICE_CHANNELS:
@@ -286,7 +286,7 @@ class VoiceManager:
 
         # slow, but it be like that, also copied from other users...
         for guild_id in guild_ids:
-            guild = await self.app.storage.get_guild_full(guild_id, None, api_version=request.discord_api_version)
+            guild = await self.app.storage.get_guild_full(guild_id, None)
             await app.dispatcher.guild.dispatch(guild_id, ("GUILD_UPDATE", guild))
 
         # TODO propagate the channel deprecation to LVSP connections

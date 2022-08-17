@@ -38,7 +38,8 @@ from litecord.permissions import base_permissions
 
 from litecord.blueprints.auth import check_password
 from litecord.utils import to_update, toggle_flag
-from litecord.common.messages import PLAN_ID_TO_TYPE, message_view
+from litecord.common.messages import PLAN_ID_TO_TYPE
+from litecord.common.interop import message_view
 from litecord.common.users import (
     mass_user_update,
     delete_user,
@@ -171,27 +172,29 @@ async def patch_me():
         user["discriminator"] = discrim
 
     if to_update(j, user, "discriminator"):
-        # the API treats discriminators as integers,
-        # but I work with strings on the database.
-        new_discrim = str(j["discriminator"])
-
-        await _try_discrim_patch(user_id, new_discrim)
-        user["discriminator"] = new_discrim
+        try:
+            new_discrim = "%04d" % int(j["discriminator"])
+        except (ValueError, TypeError):
+            pass
+        else:
+            if new_discrim != user["discriminator"]:
+                await _try_discrim_patch(user_id, new_discrim)
+                user["discriminator"] = new_discrim
 
     if to_update(j, user, "email"):
         await _check_pass(j, user)
 
-        # TODO: reverify the new email?
         await app.db.execute(
             """
         UPDATE users
-        SET email = $1
+        SET email = $1, verified = false
         WHERE id = $2
         """,
             j["email"],
             user_id,
         )
         user["email"] = j["email"]
+        user["verified"] = False
 
     # only update if values are different
     # from what the user gave.
@@ -396,10 +399,13 @@ async def get_me_guilds():
         partial = dict(partial)
 
         user_perms = await base_permissions(user_id, guild_id)
-        partial["permissions"] = user_perms.binary
+        if request.discord_api_version > 7:
+            partial["permissions"] = str(user_perms.binary)
+        else:
+            partial["permissions"] = user_perms.binary & ((2 << 31) - 1)
+            partial["permissions_new"] = str(user_perms.binary)
 
         partial["owner"] = partial["owner_id"] == user_id
-
         partial.pop("owner_id")
 
         partials.append(partial)

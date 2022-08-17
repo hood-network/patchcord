@@ -238,6 +238,7 @@ class GatewayWebsocket:
             zstd.ZstdCompressor(),
             {},
         )
+        self.ready = asyncio.Event()
 
         log.debug("websocket properties: {!r}", self.ws_properties)
 
@@ -434,7 +435,7 @@ class GatewayWebsocket:
         for guild_obj in unavailable_guilds:
             # fetch full guild object including the 'large' field
             guild = await self.storage.get_guild_full(
-                int(guild_obj["id"]), self.state.user_id, self.state.large, api_version=self.state.ws.ws_properties.version
+                int(guild_obj["id"]), self.state.user_id, self.state.large
             )
 
             if guild is None:
@@ -478,7 +479,6 @@ class GatewayWebsocket:
             "user_guild_settings": user_guild_settings,
             "friend_suggestion_count": 0,
             'country_code': 'US',
-            'session_type': 'normal',
             'geo_ordered_rtc_regions': [],
             "experiments": await self.storage.get_experiments(),
             "guild_experiments": await self.storage.get_guild_experiments(),
@@ -517,6 +517,7 @@ class GatewayWebsocket:
             "session_id": self.state.session_id,
             "_trace": ["litecord"],
             "resume_gateway_url": get_gw(),
+            "session_type": "normal",
         }
 
         shard = [self.state.current_shard, self.state.shard_count]
@@ -542,8 +543,8 @@ class GatewayWebsocket:
         #         guild["members"] = []
 
         await self.dispatch_raw("READY", full_ready_data)
-        if self.ws_properties.version > 6:
-            await self.dispatch_raw("READY_SUPPLEMENTAL", ready_supplemental)
+        await self.dispatch_raw("READY_SUPPLEMENTAL", ready_supplemental)
+        self.ready.set()
         app.sched.spawn(self._guild_dispatch(guilds))
 
     async def _check_shards(self, shard, user_id):

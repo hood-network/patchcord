@@ -20,6 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 from quart import Blueprint, jsonify, current_app as app, request
 
 from litecord.auth import admin_check
+from litecord.common.interop import guild_view
 from litecord.schemas import validate
 from litecord.admin_schemas import GUILD_UPDATE
 from litecord.common.guilds import delete_guild
@@ -38,7 +39,7 @@ async def get_guild(guild_id: int):
     if not guild:
         raise GuildNotFound()
 
-    return jsonify(guild)
+    return jsonify(guild_view(guild))
 
 
 @bp.route("/<int:guild_id>", methods=["PATCH"])
@@ -68,7 +69,7 @@ async def update_guild(guild_id: int):
         # guild became unavailable
         await app.dispatcher.guild.dispatch(guild_id, ("GUILD_DELETE", {**guild, "id": guild["id"]}))
 
-    return jsonify(guild)
+    return jsonify(guild_view(guild))
 
 
 @bp.route("/<int:guild_id>/delete", methods=["POST"])

@@ -47,7 +47,7 @@ ERR_MSG_MAP = {
     30013: "Maximum number of guild channels reached (500)",
     30016: "Maximum number of invites reached (1000)",
     40001: "Unauthorized",
-    40007: "The user is banned from this guild",
+    40005: "Request entity too large",
     40008: "Invites are currently paused for this server. Please try again later.",
     50001: "Missing access",
     50002: "Invalid account type",
@@ -179,7 +179,7 @@ class UnderageUser(Forbidden):
 
 class TooLarge(LitecordError):
     status_code = 413
-
+    error_code = 40005
 
 
 class WebsocketClose(Exception):

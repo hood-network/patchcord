@@ -26,7 +26,7 @@ from quart import Blueprint, request, current_app as app, jsonify
 from logbook import Logger
 
 from litecord.auth import token_check
-from litecord.common.messages import message_view
+from litecord.common.interop import message_view, channel_view
 from litecord.enums import ChannelType, GUILD_CHANS, MessageType, MessageFlags
 from litecord.errors import ChannelNotFound, Forbidden, BadRequest
 from litecord.schemas import (
@@ -63,12 +63,12 @@ async def get_channel(channel_id):
     # channel_check takes care of checking
     # DMs and group DMs
     await channel_check(user_id, channel_id)
-    chan = await app.storage.get_channel(channel_id, request.discord_api_version, user_id=user_id)
+    chan = await app.storage.get_channel(channel_id, user_id=user_id)
 
     if not chan:
         raise ChannelNotFound("single channel not found")
 
-    return jsonify(chan)
+    return jsonify(channel_view(chan))
 
 
 async def __guild_chan_sql(guild_id, channel_id, field: str) -> str:
@@ -97,7 +97,7 @@ async def _update_guild_chan_text(guild_id: int, channel_id: int):
 
     # at least one of the fields were updated,
     # dispatch GUILD_UPDATE
-    guild = await app.storage.get_guild_full(guild_id, api_version=request.discord_api_version)
+    guild = await app.storage.get_guild_full(guild_id)
     await app.dispatcher.guild.dispatch(guild_id, ("GUILD_UPDATE", guild))
 
 
@@ -108,7 +108,7 @@ async def _update_guild_chan_voice(guild_id: int, channel_id: int):
     if res == "UPDATE 0":
         return
 
-    guild = await app.storage.get_guild_full(guild_id, api_version=request.discord_api_version)
+    guild = await app.storage.get_guild_full(guild_id)
     await app.dispatcher.dispatch(guild_id, ("GUILD_UPDATE", guild))
 
 
@@ -138,7 +138,7 @@ async def _update_guild_chan_cat(guild_id: int, channel_id: int):
 
     # tell all people in the guild of the category removal
     for child_id in childs:
-        child = await app.storage.get_channel(child_id, request.discord_api_version)
+        child = await app.storage.get_channel(child_id)
         await app.dispatcher.guild.dispatch(guild_id, ("CHANNEL_UPDATE", child))
 
 
@@ -217,7 +217,8 @@ async def close_channel(channel_id):
 
     if ctype in GUILD_CHANS:
         _, guild_id = await channel_check(user_id, channel_id)
-        chan = await app.storage.get_channel(channel_id, request.discord_api_version, user_id=user_id)
+        await channel_perm_check(user_id, channel_id, "manage_channels")
+        chan = await app.storage.get_channel(channel_id, user_id=user_id)
 
         # the selected function will take care of checking
         # the sanity of tables once the channel becomes deleted.
@@ -294,13 +295,13 @@ async def close_channel(channel_id):
 
         await app.dispatcher.guild.dispatch(guild_id, ("CHANNEL_DELETE", chan))
         for id in updated_ids:
-            channel = await app.storage.get_channel(id, request.discord_api_version)
+            channel = await app.storage.get_channel(id)
             await app.dispatcher.guild.dispatch(guild_id, ("CHANNEL_UPDATE", channel))
 
         await app.dispatcher.channel.drop(channel_id)
-        return jsonify(chan)
+        return jsonify(channel_view(chan))
     elif ctype == ChannelType.DM:
-        chan = await app.storage.get_channel(channel_id, request.discord_api_version)
+        chan = await app.storage.get_channel(channel_id)
 
         # we don't ever actually delete DM channels off the database.
         # instead, we close the channel for the user that is making
@@ -321,7 +322,7 @@ async def close_channel(channel_id):
 
         return jsonify(chan)
     elif ctype == ChannelType.GROUP_DM:
-        chan = await app.storage.get_channel(channel_id, request.discord_api_version, user_id=user_id)
+        chan = await app.storage.get_channel(channel_id, user_id=user_id)
         await gdm_remove_recipient(channel_id, user_id)
 
         gdm_count = await app.db.fetchval(
@@ -358,7 +359,7 @@ async def _mass_chan_update(guild_id, channel_ids: List[Optional[int]]):
         if channel_id is None:
             continue
 
-        chan = await app.storage.get_channel(channel_id, request.discord_api_version)
+        chan = await app.storage.get_channel(channel_id)
         await app.dispatcher.guild.dispatch(guild_id, ("CHANNEL_UPDATE", chan))
 
 
@@ -492,7 +493,7 @@ async def put_channel_overwrite(channel_id: int, overwrite_id: int):
 
 
 async def _update_channel_common(channel_id: int, guild_id: int, j: dict):
-    chan = await app.storage.get_channel(channel_id, request.discord_api_version)
+    chan = await app.storage.get_channel(channel_id)
 
     if "name" in j:
         await app.db.execute(
@@ -519,7 +520,7 @@ async def _update_channel_common(channel_id: int, guild_id: int, j: dict):
         )
 
     if "position" in j:
-        channel_data = await app.storage.get_channel_data(guild_id, request.discord_api_version)
+        channel_data = await app.storage.get_channel_data(guild_id)
         # get an ordered list of the chans array by position
         # TODO bad impl. can break easily. maybe dict?
         chans: List[Optional[int]] = [None] * len(channel_data)
@@ -584,7 +585,7 @@ async def _common_guild_chan(channel_id, j: dict):
 
 
 async def _update_text_channel(channel_id: int, j: dict, _user_id: int):
-    channel = await app.storage.get_channel(channel_id, request.discord_api_version)
+    channel = await app.storage.get_channel(channel_id)
 
     # first do the specific ones related to guild_text_channels
     for field in [
@@ -698,14 +699,14 @@ async def update_channel(channel_id: int):
     if update_handler:
         await update_handler(channel_id, j, user_id)
 
-    chan = await app.storage.get_channel(channel_id, request.discord_api_version, user_id=user_id)
+    chan = await app.storage.get_channel(channel_id, user_id=user_id)
 
     if is_guild:
         await app.dispatcher.guild.dispatch(guild_id, ("CHANNEL_UPDATE", chan))
     else:
         await app.dispatcher.channel.dispatch(channel_id, ("CHANNEL_UPDATE", chan))
 
-    return jsonify(chan)
+    return jsonify(channel_view(chan))
 
 
 @bp.route("/<int:channel_id>/typing", methods=["POST"])
@@ -743,7 +744,7 @@ async def _follow_channel(channel_id):
     await channel_perm_check(user_id, channel_id, "read_messages")
     await channel_perm_check(user_id, destination_id, "manage_webhooks")
 
-    channel = await app.storage.get_channel(channel_id, request.discord_api_version)
+    channel = await app.storage.get_channel(channel_id)
 
     guild_id = await app.storage.guild_from_channel(channel_id)
     guild = await app.storage.get_guild(guild_id)

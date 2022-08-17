@@ -3,7 +3,7 @@ import logging
 import os
 from typing import Optional
 
-from litecord.enums import MessageFlags, PremiumType
+from litecord.enums import PremiumType
 from litecord.errors import BadRequest, TooLarge
 from PIL import Image
 from quart import current_app as app, request
@@ -228,11 +228,3 @@ async def msg_guild_text_mentions(
             user_id,
             channel_id,
         )
-
-
-def message_view(message_data: dict) -> dict:
-    # Change message type to 19 if this is a reply to another message
-    if message_data.get("message_reference") and (message_data.get("flags", 0) & MessageFlags.is_crosspost != MessageFlags.is_crosspost) and request.discord_api_version > 7:
-        return {**message_data, **{"type": 19}}
-    message_data.pop("member", None)
-    return message_data

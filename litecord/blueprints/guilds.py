@@ -27,6 +27,7 @@ from litecord.common.guilds import (
     delete_guild,
     add_member,
 )
+from litecord.common.interop import guild_view
 
 from ..auth import token_check
 
@@ -310,12 +311,12 @@ async def create_guild():
     if j.get("channels"):
         await guild_create_channels_prep(guild_id, j["channels"])
 
-    guild_total = await app.storage.get_guild_full(guild_id, user_id, 250, api_version=request.discord_api_version)
+    guild_total = await app.storage.get_guild_full(guild_id, user_id, 250)
 
     await app.dispatcher.guild.sub_user(guild_id, user_id)
 
     await app.dispatcher.guild.dispatch(guild_id, ("GUILD_CREATE", guild_total))
-    return jsonify(guild_total)
+    return jsonify(guild_view(guild_total))
 
 
 @bp.route("/<int:guild_id>", methods=["GET"])
@@ -324,7 +325,7 @@ async def get_guild(guild_id):
     user_id = await token_check()
     await guild_check(user_id, guild_id)
 
-    return jsonify(await app.storage.get_guild_full(guild_id, user_id, 250, api_version=request.discord_api_version))
+    return jsonify(guild_view(await app.storage.get_guild_full(guild_id, user_id, 250)))
 
 
 async def _guild_update_icon(scope: str, guild_id: int, icon: Optional[str], **kwargs):
@@ -490,7 +491,7 @@ async def _update_guild(guild_id):
 
             continue
 
-        chan = await app.storage.get_channel(j[field], request.discord_api_version)
+        chan = await app.storage.get_channel(j[field])
 
         if j[field] in (1, "1"):
             default_channel_map = {
@@ -512,7 +513,7 @@ async def _update_guild(guild_id):
 
             j[field] = chan_id
 
-            chan = await app.storage.get_channel(chan_id, request.discord_api_version)
+            chan = await app.storage.get_channel(chan_id)
             await app.dispatcher.guild.dispatch(guild_id, ("CHANNEL_CREATE", chan))
 
         elif chan is None:
@@ -531,9 +532,9 @@ async def _update_guild(guild_id):
             guild_id,
         )
 
-    guild = await app.storage.get_guild_full(guild_id, user_id, api_version=request.discord_api_version)
+    guild = await app.storage.get_guild_full(guild_id, user_id)
     await app.dispatcher.guild.dispatch(guild_id, ("GUILD_UPDATE", guild))
-    return jsonify(guild)
+    return jsonify(guild_view(guild))
 
 
 @bp.route("/<int:guild_id>", methods=["DELETE"])
@@ -566,6 +567,7 @@ async def search_guild(guild_id):
     await guild_check(user_id, guild_id)
 
     return await handle_search(guild_id)
+
 
 @bp.route("/<int:guild_id>/vanity-url", methods=["GET"])
 async def get_vanity_url(guild_id: int):
@@ -613,7 +615,7 @@ async def change_vanity_url(guild_id: int):
     # TODO: this is bad, what if a guild has no channels?
     # we should probably choose the first channel that has
     # @everyone read messages
-    channels = await app.storage.get_channel_data(guild_id, api_version=request.discord_api_version)
+    channels = await app.storage.get_channel_data(guild_id)
     channel_id = int(channels[0]["id"])
 
     # delete the old invite, insert new one
@@ -666,7 +668,7 @@ async def toggle_mfa(guild_id: int):
 
     j = validate(await request.get_json(), MFA_TOGGLE)
 
-    guild = await app.storage.get_guild_full(guild_id, user_id, api_version=request.discord_api_version)
+    guild = await app.storage.get_guild_full(guild_id, user_id)
 
     if guild["mfa_level"] != j["level"]:
         await app.db.execute(

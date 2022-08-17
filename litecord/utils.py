@@ -28,7 +28,7 @@ from logbook import Logger
 from quart.json import JSONEncoder
 from quart import current_app as app
 
-from litecord.common.messages import message_view
+from litecord.common.interop import message_view
 
 from .errors import BadRequest
 from .enums import Flags

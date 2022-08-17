@@ -27,6 +27,7 @@ import json
 
 from litecord.enums import ChannelType, MessageFlags, NSFWLevel
 from litecord.common.messages import PLAN_ID_TO_TYPE
+from litecord.permissions import get_permissions
 from litecord.schemas import USER_MENTION, ROLE_MENTION
 from litecord.blueprints.channel.reactions import (
     EmojiType,
@@ -442,10 +443,10 @@ class Storage:
             channel_id,
         )
 
-    async def chan_overwrites(self, channel_id: int, api_version: int = 6) -> List[Dict[str, Any]]:
+    async def chan_overwrites(self, channel_id: int) -> List[Dict[str, Any]]:
         overwrite_rows = await self.db.fetch(
             """
-        SELECT target_type, target_role, target_user, allow, deny
+        SELECT target_type, target_role, target_user, allow::str, deny::str
         FROM channel_overwrites
         WHERE channel_id = $1
         """,
@@ -454,26 +455,8 @@ class Storage:
 
         def _overwrite_convert(row):
             drow = dict(row)
-            drow["allow_new"] = str(drow["allow"])
-            drow["deny_new"] = str(drow["deny"])
-            drow["allow"] = drow["allow"] & ((2 << 31) - 1)
-            drow["deny"] = drow["deny"] & ((2 << 31) - 1)
-
-            target_type = drow["target_type"]
-            if api_version > 7:
-                drow["type"] = target_type
-            else:
-                drow["type"] = "member" if target_type == 0 else "role"
-
-            # if type is 0, the overwrite is for a member
-            # if type is 1, the overwrite is for a role
-            drow["id"] = {0: drow["target_user"], 1: drow["target_role"]}[target_type]
-
-            drow["id"] = str(drow["id"])
-
-            drow.pop("target_type")
-            drow.pop("target_user")
-            drow.pop("target_role")
+            drow["type"] = drow.pop("target_type")
+            drow["id"] = str(drow.pop("target_role") or drow.pop("target_user"))
 
             return drow
 
@@ -517,7 +500,7 @@ class Storage:
 
         return res
 
-    async def get_channel(self, channel_id: int, api_version: int = 6, **kwargs) -> Optional[Dict[str, Any]]:
+    async def get_channel(self, channel_id: int) -> Optional[Dict[str, Any]]:
         """Fetch a single channel's information."""
         chan_type = await self.get_chan_type(channel_id)
         if chan_type is None:
@@ -544,7 +527,7 @@ class Storage:
             dbase["type"] = chan_type
 
             res = await self._channels_extra(dbase)
-            res["permission_overwrites"] = await self.chan_overwrites(channel_id, api_version)
+            res["permission_overwrites"] = await self.chan_overwrites(channel_id)
 
             res["id"] = str(res["id"])
             if (res["parent_id"]):
@@ -612,7 +595,7 @@ class Storage:
 
         return [r["id"] for r in rows]
 
-    async def get_channel_data(self, guild_id, api_version: int = 6) -> List[Dict]:
+    async def get_channel_data(self, guild_id) -> List[Dict]:
         """Get channel list information on a guild"""
         channel_basics = await self.db.fetch(
             """
@@ -639,7 +622,7 @@ class Storage:
 
             res = await self._channels_extra(drow)
 
-            res["permission_overwrites"] = await self.chan_overwrites(row["id"], api_version)
+            res["permission_overwrites"] = await self.chan_overwrites(row["id"])
 
             # Making sure.
             res["id"] = str(res["id"])
@@ -663,7 +646,7 @@ class Storage:
         row = await self.db.fetchrow(
             f"""
         SELECT id::text, name, color, hoist, position,
-               permissions, managed, mentionable
+               permissions::text, managed, mentionable
         FROM roles
         WHERE id = $1 {guild_field}
         LIMIT 1
@@ -676,9 +659,6 @@ class Storage:
 
         drow = dict(row)
 
-        drow["permissions_new"] = str(drow["permissions"])
-        drow["permissions"] = drow["permissions"] & ((2 << 31) - 1)
-
         return drow
 
     async def get_role_data(self, guild_id: int) -> List[Dict[str, Any]]:
@@ -686,7 +666,7 @@ class Storage:
         roledata = await self.db.fetch(
             """
         SELECT id::text, name, color, hoist, position,
-               permissions, managed, mentionable
+               permissions::text, managed, mentionable
         FROM roles
         WHERE guild_id = $1
         ORDER BY position ASC
@@ -694,14 +674,7 @@ class Storage:
             guild_id,
         )
 
-        def _to_dict(row):
-            # TODO: remove repetition here
-            drow = dict(row)
-            drow["permissions_new"] = str(drow["permissions"])
-            drow["permissions"] = drow["permissions"] & ((2 << 31) - 1)
-            return drow
-
-        return list(map(_to_dict, roledata))
+        return list(map(dict, roledata))
 
     async def guild_voice_states(
         self, guild_id: int, user_id=None
@@ -726,7 +699,7 @@ class Storage:
         return res
 
     async def get_guild_extra(
-        self, guild_id: int, user_id: Optional[int] = None, large: Optional[int] = None, api_version: int = 6
+        self, guild_id: int, user_id: Optional[int] = None, large: Optional[int] = None
     ) -> Dict:
         """Get extra information about a guild."""
         res = {}
@@ -757,7 +730,7 @@ class Storage:
             res["joined_at"] = timestamp_(joined_at)
 
         members = await self.get_member_data(guild_id)
-        channels = await self.get_channel_data(guild_id, api_version)
+        channels = await self.get_channel_data(guild_id)
         roles = await self.get_role_data(guild_id)
 
         # prevent data inconsistencies
@@ -781,7 +754,7 @@ class Storage:
         }
 
     async def get_guild_full(
-        self, guild_id: int, user_id: Optional[int] = None, large_count: int = 250, api_version: int = 6
+        self, guild_id: int, user_id: Optional[int] = None, large_count: int = 250
     ) -> Optional[Dict]:
         """Get full information on a guild.
 
@@ -795,7 +768,7 @@ class Storage:
         if guild.get("unavailable", False):
             return guild
 
-        extra = await self.get_guild_extra(guild_id, user_id, large_count, api_version)
+        extra = await self.get_guild_extra(guild_id, user_id, large_count)
 
         return {**guild, **extra}
 
@@ -1034,6 +1007,9 @@ class Storage:
         if res["content"] is None:
             res["content"] = ""
 
+        perms = await get_permissions(res["author_id"], int(res["channel_id"])) if res["author_id"] else None
+        await self._inject_author(res)
+
         channel_id = int(row["channel_id"])
         content = row["content"]
         guild_id = await self.guild_from_channel(channel_id)
@@ -1070,11 +1046,18 @@ class Storage:
             if role_id == guild_id:
                 return str(role_id)
 
-            role = await self.get_role(role_id, guild_id)
+            role = await self.db.fetchval(
+                """
+            SELECT id
+            FROM roles
+            WHERE id = $1
+            """,
+                role_id,
+            )
             if not role:
                 return
 
-            if not role["mentionable"]:
+            if not (not perms or perms.bits.mention_everyone) and not role["mentionable"]:
                 return
 
             return str(role_id)
@@ -1084,8 +1067,6 @@ class Storage:
         )
 
         res["reactions"] = await self.get_reactions(message_id, user_id)
-
-        await self._inject_author(res)
 
         # If we're a crosspost, we need to inject the original attachments
         if is_crosspost and res.get("message_reference"):

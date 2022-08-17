@@ -20,7 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 from pathlib import Path
 
 from quart import Blueprint, send_file, current_app as app, request
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
 
 from litecord.images import resize_gif
 
@@ -40,7 +40,7 @@ async def _resize_gif(
     # give them and the target size to the
     # image module's resize_gif
 
-    _data_fd, raw_data = await resize_gif(orig_bytes, (width, height))
+    _, raw_data = await resize_gif(orig_bytes, (width, height))
 
     # write raw_data to the destination
     resized_path.write_bytes(raw_data)
@@ -89,7 +89,7 @@ async def _resize(image, attach_id: int, ext: str, width: int, height: int) -> s
 
 
 @bp.route(
-    "/attachments" "/<int:channel_id>/<int:message_id>/<filename>", methods=["GET"]
+    "/attachments/<int:channel_id>/<int:message_id>/<filename>", methods=["GET"]
 )
 async def _get_attachment(channel_id: int, message_id: int, filename: str):
 
@@ -112,8 +112,11 @@ async def _get_attachment(channel_id: int, message_id: int, filename: str):
     ext = filename.split(".")[-1]
     filepath = f"./attachments/{attach_id}.{ext}"
 
-    image = Image.open(filepath)
-    im_width, im_height = image.size
+    try:
+        image = Image.open(filepath)
+        im_width, im_height = image.size
+    except UnidentifiedImageError:
+        return await send_file(filepath)
 
     try:
         width = int(request.args.get("width", 0)) or im_width

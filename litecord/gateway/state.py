@@ -128,15 +128,55 @@ class GatewayState:
 
         try:
             if self.ws:
-                # replies compat on v8+
+                # Various old API version compatibility crap
+                data = payload.get("d") or {}
+
                 if (
                     event_type.startswith("MESSAGE_")
-                    and (payload.get("d") or {}).get("message_reference") is not None
-                    and (payload["d"].get("flags", 0) & MessageFlags.is_crosspost != MessageFlags.is_crosspost)
-                    and "type" in payload["d"]
-                    and self.ws.ws_properties.version > 7
+                    and data.get("message_reference") is not None
+                    and (data.get("flags", 0) & MessageFlags.is_crosspost != MessageFlags.is_crosspost)
+                    and data.get("type") in (19, 20, 23)
+                    and self.ws.ws_properties.version < 8
                 ):
-                    payload["d"]["type"] = 19
+                    data["type"] = 0
+
+                elif (
+                    event_type.startswith("GUILD_ROLE_")
+                    and "role" in data
+                    and data.get("permissions") is not None
+                    and self.ws.ws_properties.version < 8
+                ):
+                    data["permissions_new"] = data["permissions"]
+                    data["permissions"] = int(data["permissions"]) & ((2 << 31) - 1)
+
+                elif (
+                    event_type.startswith("CHANNEL_")
+                    and data.get("permission_overwrites")
+                    and self.ws.ws_properties.version < 8
+                ):
+                    for overwrite in data["permission_overwrites"]:
+                        overwrite["type"] = "member" if overwrite["type"] == 0 else "role"
+                        overwrite["allow_new"] = overwrite.get("allow", "0")
+                        overwrite["allow"] = (int(overwrite["allow"]) & ((2 << 31) - 1)) if overwrite.get("allow") else 0
+                        overwrite["deny_new"] = overwrite.get("deny", "0")
+                        overwrite["deny"] = (int(overwrite["deny"]) & ((2 << 31) - 1)) if overwrite.get("deny") else 0
+
+                elif event_type in ("GUILD_CREATE", "GUILD_UPDATE") and self.ws.ws_properties.version < 8:
+                    for role in data.get("roles", []):
+                        role["permissions_new"] = role["permissions"]
+                        role["permissions"] = int(role["permissions"]) & ((2 << 31) - 1)
+                    for channel in data.get("channels", []):
+                        channel["permission_overwrites"] = [
+                            {
+                                "id": overwrite["id"],
+                                "type": "member" if overwrite["type"] == 0 else "role",
+                                "allow_new": overwrite.get("allow", "0"),
+                                "allow": (int(overwrite["allow"]) & ((2 << 31) - 1)) if overwrite.get("allow") else 0,
+                                "deny_new": overwrite.get("deny", "0"),
+                                "deny": (int(overwrite["deny"]) & ((2 << 31) - 1)) if overwrite.get("deny") else 0,
+                            }
+                            for overwrite in channel["permission_overwrites"]
+                        ]
 
                 await self.ws.send(payload)
         except websockets.exceptions.ConnectionClosed as exc:

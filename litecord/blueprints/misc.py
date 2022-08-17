@@ -139,7 +139,7 @@ async def partners_apply():
         guild_id,
     )
 
-    guild = await app.storage.get_guild_full(guild_id, user_id, api_version=request.discord_api_version)
+    guild = await app.storage.get_guild_full(guild_id, user_id)
     await app.dispatcher.guild.dispatch(guild_id, ("GUILD_UPDATE", guild))
 
     return "", 204

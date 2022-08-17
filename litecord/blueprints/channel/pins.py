@@ -26,7 +26,7 @@ from litecord.types import timestamp_
 from litecord.system_messages import send_sys_message
 from litecord.enums import MessageType, SYS_MESSAGES
 from litecord.errors import BadRequest
-from litecord.common.messages import message_view
+from litecord.common.interop import message_view
 
 bp = Blueprint("channel_pins", __name__)
 

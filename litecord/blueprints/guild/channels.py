@@ -20,6 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 from quart import Blueprint, request, current_app as app, jsonify
 
 from litecord.blueprints.auth import token_check
+from litecord.common.interop import channel_view
 
 from litecord.errors import BadRequest
 from litecord.enums import ChannelType
@@ -38,7 +39,7 @@ async def get_guild_channels(guild_id):
     user_id = await token_check()
     await guild_check(user_id, guild_id)
 
-    return jsonify(await app.storage.get_channel_data(guild_id, request.discord_api_version))
+    return jsonify(await app.storage.get_channel_data(guild_id))
 
 
 @bp.route("/<int:guild_id>/channels", methods=["POST"])
@@ -62,16 +63,16 @@ async def create_channel(guild_id):
     new_channel_id = app.winter_factory.snowflake()
     await create_guild_channel(guild_id, new_channel_id, channel_type, **j)
 
-    chan = await app.storage.get_channel(new_channel_id, request.discord_api_version)
+    chan = await app.storage.get_channel(new_channel_id)
     await app.dispatcher.guild.dispatch(guild_id, ("CHANNEL_CREATE", chan))
 
-    return jsonify(chan), 201
+    return jsonify(channel_view(chan)), 201
 
 
 async def _chan_update_dispatch(guild_id: int, channel_id: int):
     """Fetch new information about the channel and dispatch
     a single CHANNEL_UPDATE event to the guild."""
-    chan = await app.storage.get_channel(channel_id, request.discord_api_version)
+    chan = await app.storage.get_channel(channel_id)
     await app.dispatcher.guild.dispatch(guild_id, ("CHANNEL_UPDATE", chan))
 
 

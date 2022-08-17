@@ -25,6 +25,7 @@ from logbook import Logger
 from litecord.auth import token_check
 
 from litecord.blueprints.checks import guild_check, guild_perm_check
+from litecord.common.interop import role_view
 from litecord.errors import NotFound
 from litecord.schemas import validate, ROLE_CREATE, ROLE_UPDATE, ROLE_UPDATE_POSITION
 
@@ -41,7 +42,7 @@ async def get_guild_roles(guild_id):
     user_id = await token_check()
     await guild_check(user_id, guild_id)
 
-    return jsonify(await app.storage.get_role_data(guild_id))
+    return jsonify(list(map(role_view, await app.storage.get_role_data(guild_id))))
 
 
 @bp.route("/<int:guild_id>/roles", methods=["POST"])
@@ -72,7 +73,7 @@ async def _role_update_dispatch(role_id: int, guild_id: int):
         guild_id, ("GUILD_ROLE_UPDATE", {"guild_id": str(guild_id), "role": role})
     )
 
-    return role
+    return role_view(role)
 
 
 async def _role_pairs_update(guild_id: int, pairs: list):
@@ -206,7 +207,7 @@ async def update_guild_role_positions(guild_id):
     await _role_pairs_update(guild_id, pairs)
 
     # return the list of all roles back
-    return jsonify(await app.storage.get_role_data(guild_id))
+    return jsonify(list(map(role_view, await app.storage.get_role_data(guild_id))))
 
 
 @bp.route("/<int:guild_id>/roles/<int:role_id>", methods=["PATCH"])
