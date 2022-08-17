@@ -398,10 +398,10 @@ class IconManager:
 
             log.info("resizing from {} to {}", image.size, want)
 
-            resized = image.resize(want, resample=Image.LANCZOS)
+            image.thumbnail(want, resample=Image.LANCZOS)
 
             data_fd = BytesIO()
-            resized.save(data_fd, format=extension)
+            image.save(data_fd, format=extension)
 
             # reseek to copy it to raw_data
             data_fd.seek(0)
