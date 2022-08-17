@@ -426,15 +426,16 @@ async def _process_overwrites(guild_id: int, channel_id: int, overwrites: list) 
         await app.db.execute(
             f"""
             INSERT INTO channel_overwrites
-                (channel_id, target_type, target_role,
+                (guild_id, channel_id, target_type, target_role,
                 target_user, allow, deny)
             VALUES
-                ($1, $2, $3, $4, $5, $6)
+                ($1, $2, $3, $4, $5, $6, $7)
             ON CONFLICT ON CONSTRAINT {constraint_name}
             DO
             UPDATE
                 SET allow = $5, deny = $6
             """,
+            guild_id,
             channel_id,
             target_type,
             target_role,
