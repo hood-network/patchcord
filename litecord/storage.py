@@ -1344,7 +1344,7 @@ class Storage:
             role_id,
         )
 
-        return [r["id"] for r in rows]
+        return [r["user_id"] for r in rows]
 
     async def all_voice_regions(self) -> List[Dict[str, Any]]:
         """Return a list of all voice regions."""
