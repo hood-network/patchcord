@@ -446,26 +446,36 @@ async def _process_overwrites(guild_id: int, channel_id: int, overwrites: list) 
         col_name = "target_user" if target.is_user else "target_role"
         constraint_name = f"channel_overwrites_{col_name}_uniq"
 
-        await app.db.execute(
-            f"""
-            INSERT INTO channel_overwrites
-                (guild_id, channel_id, target_type, target_role,
-                target_user, allow, deny)
-            VALUES
-                ($1, $2, $3, $4, $5, $6, $7)
-            ON CONFLICT ON CONSTRAINT {constraint_name}
-            DO
-            UPDATE
-                SET allow = $6, deny = $7
+        if overwrite["allow"].binary == 0 and overwrite["deny"].binary == 0:
+            await app.db.execute(
+                f"""
+            DELETE FROM channel_overwrites
+            WHERE channel_id = $1 AND {col_name} = $2
             """,
-            guild_id,
-            channel_id,
-            target_type,
-            target_role,
-            target_user,
-            overwrite["allow"],
-            overwrite["deny"],
-        )
+                channel_id,
+                target_user if target.is_user else target_role,
+            )
+        else:
+            await app.db.execute(
+                f"""
+                INSERT INTO channel_overwrites
+                    (guild_id, channel_id, target_type, target_role,
+                    target_user, allow, deny)
+                VALUES
+                    ($1, $2, $3, $4, $5, $6, $7)
+                ON CONFLICT ON CONSTRAINT {constraint_name}
+                DO
+                UPDATE
+                    SET allow = $6, deny = $7
+                """,
+                guild_id,
+                channel_id,
+                target_type,
+                target_role,
+                target_user,
+                overwrite["allow"],
+                overwrite["deny"],
+            )
 
         if target.is_user:
             assert target.user_id is not None
@@ -537,17 +547,19 @@ async def delete_channel_overwrite(channel_id: int, overwrite_id: int):
     if not target_type:
         return "", 204
 
+    target = Target(target_type, overwrite_id, overwrite_id)
+    col_name = "target_user" if target.is_user else "target_role"
+
     await app.db.execute(
-        """
+        f"""
     DELETE FROM channel_overwrites
-    WHERE channel_id = $1 AND (target_user = $2 OR target_role = $2)
+    WHERE channel_id = $1 AND {col_name} = $2
         """,
         channel_id,
         overwrite_id,
     )
 
     user_ids = []
-    target = Target(target_type, overwrite_id, overwrite_id)
     if target.is_user:
         user_ids.append(target.user_id)
     elif target.is_role:
