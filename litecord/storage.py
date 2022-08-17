@@ -457,6 +457,7 @@ class Storage:
             drow = dict(row)
             drow["type"] = drow.pop("target_type")
             drow["id"] = str(drow.pop("target_role") or drow.pop("target_user"))
+            drow.pop("target_user", None)
 
             return drow
 
