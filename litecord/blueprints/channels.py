@@ -455,8 +455,7 @@ async def _process_overwrites(guild_id: int, channel_id: int, overwrites: list) 
 
     for user_id in user_ids:
         perms = await get_permissions(user_id, channel_id)
-        assert target.user_id is not None
-        await _dispatch_action(guild_id, channel_id, target.user_id, perms)
+        await _dispatch_action(guild_id, channel_id, user_id, perms)
 
 
 @bp.route("/<int:channel_id>/permissions/<int:overwrite_id>", methods=["PUT"])
