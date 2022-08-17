@@ -456,7 +456,7 @@ async def _process_overwrites(guild_id: int, channel_id: int, overwrites: list) 
             ON CONFLICT ON CONSTRAINT {constraint_name}
             DO
             UPDATE
-                SET allow = $5, deny = $6
+                SET allow = $6, deny = $7
             """,
             guild_id,
             channel_id,
