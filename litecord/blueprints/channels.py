@@ -378,11 +378,11 @@ class Target:
         return self.type == 0
 
 
-async def _dispatch_action(guild_id: int, channel_id: int, user_id: int, perms) -> None:
+async def _dispatch_action(guild_id: int, channel_id: int, user_id: int, perms: Permissions) -> None:
     """Apply an action of sub/unsub to all states of a user."""
     states = app.state_manager.fetch_states(user_id, guild_id)
     for state in states:
-        if perms.read_messages:
+        if perms.bits.read_messages:
             await app.dispatcher.channel.sub(channel_id, state.session_id)
         else:
             await app.dispatcher.channel.unsub(channel_id, state.session_id)
