@@ -155,7 +155,7 @@ class GatewayState:
                     and self.ws.ws_properties.version < 8
                 ):
                     for overwrite in data["permission_overwrites"]:
-                        overwrite["type"] = "member" if overwrite["type"] == 0 else "role"
+                        overwrite["type"] = "role" if overwrite["type"] == 0 else "member"
                         overwrite["allow_new"] = overwrite.get("allow", "0")
                         overwrite["allow"] = (int(overwrite["allow"]) & ((2 << 31) - 1)) if overwrite.get("allow") else 0
                         overwrite["deny_new"] = overwrite.get("deny", "0")
@@ -169,7 +169,7 @@ class GatewayState:
                         channel["permission_overwrites"] = [
                             {
                                 "id": overwrite["id"],
-                                "type": "member" if overwrite["type"] == 0 else "role",
+                                "type": "role" if overwrite["type"] == 0 else "member",
                                 "allow_new": overwrite.get("allow", "0"),
                                 "allow": (int(overwrite["allow"]) & ((2 << 31) - 1)) if overwrite.get("allow") else 0,
                                 "deny_new": overwrite.get("deny", "0"),

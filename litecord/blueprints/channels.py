@@ -371,11 +371,11 @@ class Target:
 
     @property
     def is_user(self):
-        return self.type == 0
+        return self.type == 1
 
     @property
     def is_role(self):
-        return self.type == 1
+        return self.type == 0
 
 
 async def _dispatch_action(guild_id: int, channel_id: int, user_id: int, perms) -> None:
@@ -410,13 +410,13 @@ async def _process_overwrites(guild_id: int, channel_id: int, overwrites: list) 
 
     for overwrite in overwrites:
 
-        # 0 for member overwrite, 1 for role overwrite
+        # 0 for role overwrite, 1 for member overwrite
         try:
             target_type = int(overwrite["type"])
         except Exception:
-            target_type = 0 if overwrite["type"] == "member" else 1
-        target_role = None if target_type == 0 else overwrite["id"]
-        target_user = overwrite["id"] if target_type == 0 else None
+            target_type = 0 if overwrite["type"] == "role" else 1
+        target_user = None if target_type == 0 else overwrite["id"]
+        target_role = overwrite["id"] if target_type == 0 else None
 
         target = Target(target_type, target_role, target_user)
 
