@@ -471,8 +471,8 @@ GUILD_UPDATE = {
 CHAN_OVERWRITE = {
     "id": {"coerce": int},
     "type": {"type": "snowflake", "allowed": ["role", "member", "0", "1", 0, 1]},
-    "allow": {"coerce": Permissions},
-    "deny": {"coerce": Permissions},
+    "allow": {"coerce": Permissions, "default": 0},
+    "deny": {"coerce": Permissions, "default": 0},
 }
 
 
