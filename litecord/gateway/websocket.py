@@ -418,7 +418,7 @@ class GatewayWebsocket:
             {
                 **await self.storage.get_guild(guild_id, user_id),
                 **await self.storage.get_guild_extra(
-                    guild_id, user_id, self.state.large, self.state.ws.ws_properties.version
+                    guild_id, user_id, self.state.large
                 ),
             }
             for guild_id in guild_ids
