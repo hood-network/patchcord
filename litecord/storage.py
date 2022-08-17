@@ -500,7 +500,7 @@ class Storage:
 
         return res
 
-    async def get_channel(self, channel_id: int) -> Optional[Dict[str, Any]]:
+    async def get_channel(self, channel_id: int, **kwargs) -> Optional[Dict[str, Any]]:
         """Fetch a single channel's information."""
         chan_type = await self.get_chan_type(channel_id)
         if chan_type is None:

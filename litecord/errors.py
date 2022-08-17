@@ -48,6 +48,7 @@ ERR_MSG_MAP = {
     30016: "Maximum number of invites reached (1000)",
     40001: "Unauthorized",
     40005: "Request entity too large",
+    40007: "The user is banned from this guild",
     40008: "Invites are currently paused for this server. Please try again later.",
     50001: "Missing access",
     50002: "Invalid account type",
