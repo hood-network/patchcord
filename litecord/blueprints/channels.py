@@ -529,7 +529,7 @@ async def delete_channel_overwrite(channel_id: int, overwrite_id: int):
         """
     SELECT target_type
     FROM channel_overwrites
-    WHERE channel_id = $1 AND id = $2
+    WHERE channel_id = $1 AND (target_user = $2 OR target_role = $2)
         """,
         channel_id,
         overwrite_id,
