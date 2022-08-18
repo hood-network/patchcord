@@ -686,9 +686,6 @@ class GatewayWebsocket:
             log.warning(f"Invalid status update: {err}")
             return
 
-        if given_presence["status"] == "unknown":
-            return
-
         presence.update_from_incoming_dict(given_presence)
 
         # always try to use activities.0 to replace game when possible
