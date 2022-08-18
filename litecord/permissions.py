@@ -280,7 +280,7 @@ async def compute_overwrites(
     perms = base_perms
 
     # list of overwrites
-    overwrites = await storage.chan_overwrites(channel_id)
+    overwrites = await storage.chan_overwrites(channel_id, safe=False)
 
     # if the channel isn't a guild, we should just return
     # ALL_PERMISSIONS. the old approach was calling guild_from_channel

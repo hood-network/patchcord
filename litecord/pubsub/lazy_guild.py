@@ -341,7 +341,7 @@ class GuildMemberList:
             await self._init_member_list()
 
     async def _fetch_overwrites(self):
-        overwrites = await self.storage.chan_overwrites(self.channel_id)
+        overwrites = await self.storage.chan_overwrites(self.channel_id, safe=False)
         overwrites = {int(ov["id"]): ov for ov in overwrites}
         self.list.overwrites = overwrites
 
