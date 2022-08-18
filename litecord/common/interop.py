@@ -42,7 +42,7 @@ def channel_view(channel_data: dict) -> dict:
     # Seperate permissions into permissions and permissions_new
     if request.discord_api_version < 8 and channel_data.get("permission_overwrites"):
         for overwrite in channel_data["permission_overwrites"]:
-            overwrite["type"] = "member" if overwrite["type"] == 0 else "role"
+            overwrite["type"] = "role" if overwrite["type"] == 0 else "member"
             overwrite["allow_new"] = overwrite.get("allow", "0")
             overwrite["allow"] = (int(overwrite["allow"]) & ((2 << 31) - 1)) if overwrite.get("allow") else 0
             overwrite["deny_new"] = overwrite.get("deny", "0")
