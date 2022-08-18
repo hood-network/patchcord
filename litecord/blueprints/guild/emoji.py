@@ -25,7 +25,7 @@ from litecord.schemas import validate, NEW_EMOJI, PATCH_EMOJI
 
 from litecord.types import KILOBYTES
 from litecord.images import parse_data_uri
-from litecord.errors import BadRequest
+from litecord.errors import BadRequest, NotFound
 
 bp = Blueprint("guild_emoji", __name__)
 
@@ -168,14 +168,15 @@ async def _del_emoji(guild_id, emoji_id):
     await guild_check(user_id, guild_id)
     await guild_perm_check(user_id, guild_id, "manage_emojis")
 
-    # TODO: check if actually deleted
-    await app.db.execute(
+    res = await app.db.execute(
         """
     DELETE FROM guild_emoji
     WHERE id = $1
     """,
         emoji_id,
     )
+    if res == "DELETE 0":
+        raise NotFound(10014)
 
     await _dispatch_emojis(guild_id)
     return "", 204

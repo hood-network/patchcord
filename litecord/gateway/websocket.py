@@ -670,7 +670,7 @@ class GatewayWebsocket:
             self.state.user_id
         )
 
-        presence = BasePresence(status=(settings["status"] or "online") if settings["status"] != "unknown" else "online", game=None)
+        presence = BasePresence(status=(settings["status"] or "online"), game=None)
 
         custom_status = settings.get("custom_status") or None
         if isinstance(custom_status, dict) and custom_status is not None:
@@ -684,6 +684,9 @@ class GatewayWebsocket:
             given_presence = validate(given_presence, GW_STATUS_UPDATE)
         except BadRequest as err:
             log.warning(f"Invalid status update: {err}")
+            return
+
+        if given_presence["status"] == "unknown":
             return
 
         presence.update_from_incoming_dict(given_presence)
