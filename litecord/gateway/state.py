@@ -133,8 +133,6 @@ class GatewayState:
 
                 if (
                     event_type.startswith("MESSAGE_")
-                    and data.get("message_reference") is not None
-                    and (data.get("flags", 0) & MessageFlags.is_crosspost != MessageFlags.is_crosspost)
                     and data.get("type") in (19, 20, 23)
                     and self.ws.ws_properties.version < 8
                 ):

@@ -32,7 +32,7 @@ def guild_view(guild_data: dict) -> dict:
 
 def message_view(message_data: dict) -> dict:
     # Change message type to 0 for unsupported types
-    if message_data["type"] in (19, 20, 23) and request.discord_api_version < 8:
+    if request.discord_api_version < 8 and message_data["type"] in (19, 20, 23):
         message_data["type"] = 0
     message_data.pop("member", None)
     return message_data
