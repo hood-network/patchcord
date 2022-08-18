@@ -20,15 +20,15 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import secrets
 import time
 from typing import List, Optional
-from dataclasses import dataclass
 
 from quart import Blueprint, request, current_app as app, jsonify
 from logbook import Logger
 
 from litecord.auth import token_check
 from litecord.common.interop import message_view, channel_view
+from litecord.common.guilds import process_overwrites, _dispatch_action
 from litecord.enums import ChannelType, GUILD_CHANS, MessageType, MessageFlags
-from litecord.errors import ChannelNotFound, Forbidden, BadRequest, NotFound
+from litecord.errors import ChannelNotFound, Forbidden, BadRequest
 from litecord.schemas import (
     validate,
     CHAN_UPDATE,
@@ -45,7 +45,7 @@ from litecord.blueprints.dm_channels import gdm_remove_recipient, gdm_destroy
 from litecord.utils import to_update, pg_set_json
 from litecord.embed.messages import process_url_embed, msg_update_embeds
 from litecord.pubsub.user import dispatch_user
-from litecord.permissions import get_permissions, Permissions
+from litecord.permissions import get_permissions, Target
 
 from .channel.messages import _del_msg_fkeys
 from .webhooks import _dispatch_webhook_update
@@ -363,123 +363,6 @@ async def _mass_chan_update(guild_id, channel_ids: List[Optional[int]]):
         await app.dispatcher.guild.dispatch(guild_id, ("CHANNEL_UPDATE", chan))
 
 
-@dataclass
-class Target:
-    type: int
-    user_id: Optional[int]
-    role_id: Optional[int]
-
-    @property
-    def is_user(self):
-        return self.type == 1
-
-    @property
-    def is_role(self):
-        return self.type == 0
-
-
-async def _dispatch_action(guild_id: int, channel_id: int, user_id: int, perms: Permissions) -> None:
-    """Apply an action of sub/unsub to all states of a user."""
-    states = app.state_manager.fetch_states(user_id, guild_id)
-    for state in states:
-        if perms.bits.read_messages:
-            await app.dispatcher.channel.sub(channel_id, state.session_id)
-        else:
-            await app.dispatcher.channel.unsub(channel_id, state.session_id)
-
-
-async def _process_overwrites(guild_id: int, channel_id: int, overwrites: list) -> None:
-    # user_ids serves as a "prospect" user id list.
-    # for each overwrite we apply, we fill this list with user ids we
-    # want to check later to subscribe/unsubscribe from the channel.
-    # (users without read_messages are automatically unsubbed since we
-    #  don't want to leak messages to them when they dont have perms anymore)
-
-    # the expensiveness of large overwrite/role chains shines here.
-    # since each user id we fill in implies an entire get_permissions call
-    # (because we don't have the answer if a user is to be subbed/unsubbed
-    #  with only overwrites, an overwrite for a user allowing them might be
-    #  overwritten by a role overwrite denying them if they have the role),
-    # we get a lot of tension on that, causing channel updates to lag a bit.
-
-    # there may be some good optimizations to do here, such as doing some
-    # precalculations like fetching get_permissions for everyone first, then
-    # applying the new overwrites one by one, then subbing/unsubbing at the
-    # end, but it would be very memory intensive.
-    user_ids: List[int] = []
-
-    for overwrite in overwrites:
-        # 0 for role overwrite, 1 for member overwrite
-        try:
-            target_type = int(overwrite["type"])
-        except Exception:
-            target_type = 0 if overwrite["type"] == "role" else 1
-        target_user = None if target_type == 0 else overwrite["id"]
-        target_role = overwrite["id"] if target_type == 0 else None
-
-        val = None
-        if target_type == 0:
-            val = await app.db.fetchval(
-                """
-            SELECT id
-            FROM roles
-            WHERE guild_id = $1 AND id = $2
-            """,
-                guild_id,
-                target_role,
-            )
-        elif target_type == 1:
-            val = await app.db.fetchval(
-                """
-            SELECT id
-            FROM members
-            WHERE id = $1 AND guild_id = $2
-            """,
-                target_user,
-                guild_id,
-            )
-        if not val:
-            raise NotFound(10009)
-
-        target = Target(target_type, target_user, target_role)
-
-        col_name = "target_user" if target.is_user else "target_role"
-        constraint_name = f"channel_overwrites_{col_name}_uniq"
-
-        await app.db.execute(
-            f"""
-            INSERT INTO channel_overwrites
-                (guild_id, channel_id, target_type, target_role,
-                target_user, allow, deny)
-            VALUES
-                ($1, $2, $3, $4, $5, $6, $7)
-            ON CONFLICT ON CONSTRAINT {constraint_name}
-            DO
-            UPDATE
-                SET allow = $6, deny = $7
-            """,
-            guild_id,
-            channel_id,
-            target_type,
-            target_role,
-            target_user,
-            overwrite["allow"],
-            overwrite["deny"],
-        )
-
-        if target.is_user:
-            assert target.user_id is not None
-            user_ids.append(target.user_id)
-
-        elif target.is_role:
-            assert target.role_id is not None
-            user_ids.extend(await app.storage.get_role_members(target.role_id))
-
-    for user_id in user_ids:
-        perms = await get_permissions(user_id, channel_id)
-        await _dispatch_action(guild_id, channel_id, user_id, perms)
-
-
 @bp.route("/<int:channel_id>/permissions/<int:overwrite_id>", methods=["PUT"])
 async def put_channel_overwrite(channel_id: int, overwrite_id: int):
     """Insert or modify a channel overwrite."""
@@ -497,7 +380,7 @@ async def put_channel_overwrite(channel_id: int, overwrite_id: int):
         CHAN_OVERWRITE,
     )
 
-    await _process_overwrites(
+    await process_overwrites(
         guild_id,
         channel_id,
         [
@@ -638,7 +521,7 @@ async def _update_channel_common(channel_id: int, guild_id: int, j: dict):
 
     if "channel_overwrites" in j:
         overwrites = j["channel_overwrites"]
-        await _process_overwrites(guild_id, channel_id, overwrites)
+        await process_overwrites(guild_id, channel_id, overwrites)
 
 
 async def _common_guild_chan(channel_id, j: dict):

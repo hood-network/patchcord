@@ -22,10 +22,10 @@ from logbook import Logger
 from quart import current_app as app
 
 
-from ..permissions import get_role_perms, get_permissions
+from ..permissions import get_role_perms, get_permissions, Target
 from ..utils import dict_get, maybe_lazy_guild_dispatch
 from ..enums import ChannelType, MessageType, NSFWLevel, UserFlags
-from ..errors import BadRequest, InvitesDisabled, TheMaze, UnderageUser
+from ..errors import BadRequest, InvitesDisabled, TheMaze, UnderageUser, NotFound
 from litecord.common.interop import role_view
 from litecord.pubsub.member import dispatch_member
 from litecord.system_messages import send_sys_message
@@ -152,7 +152,6 @@ async def _specific_chan_create(channel_id, ctype, **kwargs):
 
 
 async def _subscribe_users_new_channel(guild_id: int, channel_id: int) -> None:
-
     # for each state currently subscribed to guild, we check on the database
     # which states can also subscribe to the new channel at its creation.
 
@@ -234,6 +233,10 @@ async def create_guild_channel(
     await _specific_chan_create(channel_id, ctype, **kwargs)
 
     await _subscribe_users_new_channel(guild_id, channel_id)
+
+    # This needs to be last, because it depends on users being already sub'd
+    if "permission_overwrites" in kwargs:
+        await process_overwrites(guild_id, channel_id, kwargs["permission_overwrites"] or [])
 
 
 async def _del_from_table(table: str, user_id: int):
@@ -407,3 +410,105 @@ async def add_member(guild_id: int, user_id: int, *, basic=False):
     guild = await app.storage.get_guild_full(guild_id, user_id, 250)
     for state in states:
         await state.dispatch("GUILD_CREATE", guild)
+
+
+async def _dispatch_action(guild_id: int, channel_id: int, user_id: int, perms) -> None:
+    """Apply an action of sub/unsub to all states of a user."""
+    states = app.state_manager.fetch_states(user_id, guild_id)
+    for state in states:
+        if perms.bits.read_messages:
+            await app.dispatcher.channel.sub(channel_id, state.session_id)
+        else:
+            await app.dispatcher.channel.unsub(channel_id, state.session_id)
+
+
+async def process_overwrites(guild_id: int, channel_id: int, overwrites: list) -> None:
+    # user_ids serves as a "prospect" user id list.
+    # for each overwrite we apply, we fill this list with user ids we
+    # want to check later to subscribe/unsubscribe from the channel.
+    # (users without read_messages are automatically unsubbed since we
+    #  don't want to leak messages to them when they dont have perms anymore)
+
+    # the expensiveness of large overwrite/role chains shines here.
+    # since each user id we fill in implies an entire get_permissions call
+    # (because we don't have the answer if a user is to be subbed/unsubbed
+    #  with only overwrites, an overwrite for a user allowing them might be
+    #  overwritten by a role overwrite denying them if they have the role),
+    # we get a lot of tension on that, causing channel updates to lag a bit.
+
+    # there may be some good optimizations to do here, such as doing some
+    # precalculations like fetching get_permissions for everyone first, then
+    # applying the new overwrites one by one, then subbing/unsubbing at the
+    # end, but it would be very memory intensive.
+    user_ids: List[int] = []
+
+    for overwrite in overwrites:
+        # 0 for role overwrite, 1 for member overwrite
+        try:
+            target_type = int(overwrite["type"])
+        except Exception:
+            target_type = 0 if overwrite["type"] == "role" else 1
+        target_user = None if target_type == 0 else overwrite["id"]
+        target_role = overwrite["id"] if target_type == 0 else None
+
+        val = None
+        if target_type == 0:
+            val = await app.db.fetchval(
+                """
+            SELECT id
+            FROM roles
+            WHERE guild_id = $1 AND id = $2
+            """,
+                guild_id,
+                target_role,
+            )
+        elif target_type == 1:
+            val = await app.db.fetchval(
+                """
+            SELECT id
+            FROM members
+            WHERE id = $1 AND guild_id = $2
+            """,
+                target_user,
+                guild_id,
+            )
+        if not val:
+            raise NotFound(10009)
+
+        target = Target(target_type, target_user, target_role)
+
+        col_name = "target_user" if target.is_user else "target_role"
+        constraint_name = f"channel_overwrites_{col_name}_uniq"
+
+        await app.db.execute(
+            f"""
+            INSERT INTO channel_overwrites
+                (guild_id, channel_id, target_type, target_role,
+                target_user, allow, deny)
+            VALUES
+                ($1, $2, $3, $4, $5, $6, $7)
+            ON CONFLICT ON CONSTRAINT {constraint_name}
+            DO
+            UPDATE
+                SET allow = $6, deny = $7
+            """,
+            guild_id,
+            channel_id,
+            target_type,
+            target_role,
+            target_user,
+            overwrite["allow"],
+            overwrite["deny"],
+        )
+
+        if target.is_user:
+            assert target.user_id is not None
+            user_ids.append(target.user_id)
+
+        elif target.is_role:
+            assert target.role_id is not None
+            user_ids.extend(await app.storage.get_role_members(target.role_id))
+
+    for user_id in user_ids:
+        perms = await get_permissions(user_id, channel_id)
+        await _dispatch_action(guild_id, channel_id, user_id, perms)

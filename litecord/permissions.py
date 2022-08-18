@@ -18,6 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import ctypes
+from dataclasses import dataclass
 from typing import Optional, Union
 
 from quart import current_app as app
@@ -91,6 +92,21 @@ class Permissions(ctypes.Union):
 
 ALL_PERMISSIONS = Permissions(0b01111111111111111111111111111111)
 EMPTY_PERMISSIONS = Permissions(0)
+
+
+@dataclass
+class Target:
+    type: int
+    user_id: Optional[int]
+    role_id: Optional[int]
+
+    @property
+    def is_user(self):
+        return self.type == 1
+
+    @property
+    def is_role(self):
+        return self.type == 0
 
 
 async def get_role_perms(guild_id, role_id, storage=None) -> Permissions:
