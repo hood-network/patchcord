@@ -28,7 +28,7 @@ from litecord.auth import token_check
 from litecord.common.interop import message_view, channel_view
 from litecord.common.guilds import process_overwrites, _dispatch_action
 from litecord.enums import ChannelType, GUILD_CHANS, MessageType, MessageFlags
-from litecord.errors import ChannelNotFound, Forbidden, BadRequest
+from litecord.errors import Forbidden, NotFound, BadRequest, MissingPermissions
 from litecord.schemas import (
     validate,
     CHAN_UPDATE,
@@ -66,7 +66,7 @@ async def get_channel(channel_id):
     chan = await app.storage.get_channel(channel_id, user_id=user_id)
 
     if not chan:
-        raise ChannelNotFound("single channel not found")
+        raise NotFound(10003)
 
     return jsonify(channel_view(chan))
 
@@ -211,7 +211,7 @@ async def close_channel(channel_id):
 
     chan_type = await app.storage.get_chan_type(channel_id)
     if chan_type is None:
-        raise ChannelNotFound("Channel not found")
+        raise NotFound(10003)
 
     ctype = ChannelType(chan_type)
 
@@ -370,7 +370,7 @@ async def put_channel_overwrite(channel_id: int, overwrite_id: int):
     ctype, guild_id = await channel_check(user_id, channel_id)
 
     if ctype not in GUILD_CHANS:
-        raise ChannelNotFound("Only usable for guild channels.")
+        raise Forbidden(50003)
 
     await channel_perm_check(user_id, guild_id, "manage_roles")
 
@@ -404,7 +404,7 @@ async def delete_channel_overwrite(channel_id: int, overwrite_id: int):
     ctype, guild_id = await channel_check(user_id, channel_id)
 
     if ctype not in GUILD_CHANS:
-        raise ChannelNotFound("Only usable for guild channels.")
+        raise Forbidden(50003)
 
     await channel_perm_check(user_id, guild_id, "manage_roles")
 
@@ -841,7 +841,7 @@ async def suppress_embeds(channel_id: int, message_id: int):
 
     can_suppress = by_perms or by_author
     if not can_suppress:
-        raise Forbidden("Not enough permissions.")
+        raise MissingPermissions()
 
     j = validate(await request.get_json(), {"suppress": {"type": "boolean"}})
 
@@ -906,11 +906,11 @@ async def publish_message(channel_id: int, message_id: int):
     flags = message.get("flags", 0)
 
     if message["type"]:
-        raise BadRequest("Invalid message type")
+        raise BadRequest(50068)
 
     # First we need to take care of the source message
     if flags & MessageFlags.crossposted == MessageFlags.crossposted:
-        raise BadRequest("Message already crossposted")
+        raise BadRequest(40033)
 
     await _msg_set_flags(message_id, MessageFlags.crossposted)
     message["flags"] = flags | MessageFlags.crossposted
@@ -994,16 +994,15 @@ async def bulk_delete(channel_id: int):
     j = validate(await request.get_json(), BULK_DELETE)
     message_ids = set(j["messages"])
 
-    # as per discord behavior, if any id here is older than two weeks,
-    # we must error. a cuter behavior would be returning the message ids
-    # that were deleted, ignoring the 2 week+ old ones.
-    # i dont want to do that
-    # for message_id in message_ids:
-    #     message_dt = app.winter_factory.to_datetime(message_id)
-    #     delta = datetime.datetime.utcnow() - message_dt
+    if len(message_ids) > 100 or len(message_ids) < 2:
+        raise BadRequest(50016)
 
-    #     if delta.days > 14:
-    #         raise BadRequest(50034)
+    for message_id in message_ids:
+        message_dt = app.winter_factory.to_datetime(message_id)
+        delta = datetime.datetime.utcnow() - message_dt
+
+        if delta.days > 14:
+            raise BadRequest(50034)
 
     payload = {
         "guild_id": str(guild_id),
@@ -1028,9 +1027,6 @@ async def bulk_delete(channel_id: int):
         channel_id,
         list(message_ids),
     )
-
-    if res == "DELETE 0":
-        raise BadRequest("No messages were removed")
 
     await app.dispatcher.channel.dispatch(channel_id, ("MESSAGE_DELETE_BULK", payload))
     return "", 204

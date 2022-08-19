@@ -21,7 +21,7 @@ from typing import Dict
 
 from logbook import Logger
 
-from litecord.gateway.errors import DecodeError
+from litecord.gateway.errors import UnknownOPCode
 from litecord.schemas import LitecordValidator
 
 log = Logger(__name__)
@@ -37,12 +37,11 @@ def validate(
         valid = validator.validate(reqjson)
     except Exception:
         log.exception("Error while validating")
-        raise DecodeError(f"Error while validating: {reqjson}")
-
+        raise UnknownOPCode("Bad payload.")
     if not valid:
         errs = validator.errors
         log.warning("Error validating doc {!r}: {!r}", reqjson, errs)
-        raise DecodeError(f"Error validating message : {errs!r}")
+        raise UnknownOPCode("Bad payload.")
 
     return validator.document
 

@@ -20,7 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 from quart import Blueprint, request, current_app as app, jsonify
 
 from litecord.blueprints.auth import token_check
-from litecord.errors import BadRequest, NotFound
+from litecord.errors import BadRequest, ManualFormError, NotFound
 
 from litecord.schemas import validate, MEMBER_UPDATE, SELF_MEMBER_UPDATE
 from litecord.utils import to_update
@@ -47,12 +47,9 @@ async def get_members(guild_id):
     user_id = await token_check()
     await guild_check(user_id, guild_id)
 
-    j = await request.get_json()
+    j = validate(request.args.to_dict(), {"limit": {"coerce": int, "min": 1, "max": 1000, "default": 1}, "offset": {"coerce": int, "default": 0}})
 
-    limit, after = int(j.get("limit", 1)), j.get("after", 0)
-
-    if limit < 1 or limit > 1000:
-        raise BadRequest("limit not in 1-1000 range")
+    limit, after = j["limit"], j["after"]
 
     user_ids = await app.db.fetch(
         f"""
@@ -228,56 +225,50 @@ async def update_nickname(guild_id):
         presence_dict["nick"] = j["nick"] or None
 
     if to_update(j, member, "avatar"):
-        if user["premium_type"] != PremiumType.TIER_2:
-            raise BadRequest("no member avatar without nitro")
+        if not j["avatar"] or user["premium_type"] == PremiumType.TIER_2:
+            new_icon = await app.icons.update("member_avatar", f"{guild_id}_{user_id}", j["avatar"], size=(128, 128))
 
-        new_icon = await app.icons.update("member_avatar", f"{guild_id}_{user_id}", j["avatar"], size=(128, 128))
-
-        await app.db.execute(
-            """
-        UPDATE members
-        SET avatar = $1
-        WHERE user_id = $2 AND guild_id = $3
-        """,
-            new_icon.icon_hash,
-            user_id,
-            guild_id,
-        )
-        presence_dict["avatar"] = new_icon.icon_hash
+            await app.db.execute(
+                """
+            UPDATE members
+            SET avatar = $1
+            WHERE user_id = $2 AND guild_id = $3
+            """,
+                new_icon.icon_hash,
+                user_id,
+                guild_id,
+            )
+            presence_dict["avatar"] = new_icon.icon_hash
 
     if to_update(j, member, "banner"):
-        if user["premium_type"] != PremiumType.TIER_2:
-            raise BadRequest("no member banner without nitro")
+        if not j["banner"] or user["premium_type"] == PremiumType.TIER_2:
+            new_icon = await app.icons.update("member_banner", f"{guild_id}_{user_id}", j["banner"])
 
-        new_icon = await app.icons.update("member_banner", f"{guild_id}_{user_id}", j["banner"])
-
-        await app.db.execute(
-            """
-        UPDATE members
-        SET banner = $1
-        WHERE user_id = $2 AND guild_id = $3
-        """,
-            new_icon.icon_hash,
-            user_id,
-            guild_id,
-        )
-        presence_dict["banner"] = new_icon.icon_hash
+            await app.db.execute(
+                """
+            UPDATE members
+            SET banner = $1
+            WHERE user_id = $2 AND guild_id = $3
+            """,
+                new_icon.icon_hash,
+                user_id,
+                guild_id,
+            )
+            presence_dict["banner"] = new_icon.icon_hash
 
     if to_update(j, member, "bio"):
-        if j["bio"] and user["premium_type"] != PremiumType.TIER_2:
-            raise BadRequest("no member bio without nitro")
-
-        await app.db.execute(
-            """
-        UPDATE members
-        SET bio = $1
-        WHERE user_id = $2 AND guild_id = $3
-        """,
-            j["bio"] or "",
-            user_id,
-            guild_id,
-        )
-        presence_dict["bio"] = j["bio"] or ""
+        if not j["bio"] or user["premium_type"] == PremiumType.TIER_2:
+            await app.db.execute(
+                """
+            UPDATE members
+            SET bio = $1
+            WHERE user_id = $2 AND guild_id = $3
+            """,
+                j["bio"] or "",
+                user_id,
+                guild_id,
+            )
+            presence_dict["bio"] = j["bio"] or ""
 
     if to_update(j, member, "pronouns"):
         await app.db.execute(

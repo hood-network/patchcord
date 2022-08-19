@@ -39,10 +39,10 @@ async def websocket_handler(app, ws, url):
         gw_encoding = "json"
 
     if gw_version not in ("5", "6", "7", "8", "9", "10"):
-        return await ws.close(4000, f"Invalid gateway version (got {gw_version})")
+        return await ws.close(4012, "Invalid gateway version.")
 
     if gw_encoding not in ("json", "etf"):
-        return await ws.close(4000, f"Invalid gateway encoding (got {gw_encoding})")
+        gw_encoding = "json"
 
     try:
         gw_compress: Optional[str] = args["compress"][0]
@@ -50,13 +50,13 @@ async def websocket_handler(app, ws, url):
         gw_compress = None
 
     if gw_compress and gw_compress not in ("zlib-stream", "zstd-stream"):
-        return await ws.close(1000, "Invalid gateway compress")
+        gw_compress = None
 
     async with app.app_context():
         gws = GatewayWebsocket(
             ws,
             version=int(gw_version),
-            encoding=gw_encoding or "json",
+            encoding=gw_encoding,
             compress=gw_compress,
         )
 

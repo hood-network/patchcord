@@ -23,7 +23,7 @@ from litecord.auth import token_check
 from litecord.schemas import validate, USER_SETTINGS, GUILD_SETTINGS
 from litecord.blueprints.checks import guild_check
 from litecord.pubsub.user import dispatch_user
-from litecord.errors import UserNotFound
+from litecord.errors import NotFound
 
 bp = Blueprint("users_settings", __name__)
 
@@ -151,7 +151,7 @@ async def get_note(target_id: int):
     )
 
     if note is None:
-        raise UserNotFound()
+        raise NotFound(10013)
 
     return jsonify({"user_id": user_id, "note_user_id": target_id, "note": note})
 

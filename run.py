@@ -20,12 +20,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import asyncio
 import ssl
 import sys
+from typing import Any
 
 import asyncpg
 import logbook
 import logging
 import websockets
-from quart import Quart, jsonify, request
+from quart import Quart as _Quart, Request as _Request, jsonify, request
 from logbook import StreamHandler, Logger
 from logbook.compat import redirect_logging
 from aiohttp import ClientSession
@@ -90,7 +91,7 @@ from litecord.blueprints.admin_api.voice import guild_region_check
 from litecord.ratelimits.handler import ratelimit_handler
 from litecord.ratelimits.main import RatelimitManager
 
-from litecord.errors import LitecordError
+from litecord.errors import BadRequest, LitecordError
 from litecord.gateway.state_manager import StateManager
 from litecord.storage import Storage
 from litecord.user_storage import UserStorage
@@ -117,6 +118,16 @@ handler = StreamHandler(sys.stdout, level=logbook.INFO)
 handler.push_application()
 log = Logger("litecord.boot")
 redirect_logging()
+
+
+# Custom subclasses
+class Request(_Request):
+    def on_json_loading_failed(self, error: Exception) -> Any:
+        raise BadRequest(50109)
+
+
+class Quart(_Quart):
+    request_class = Request
 
 
 def make_app():
@@ -227,16 +238,14 @@ async def app_after_request(resp):
 
 def _set_rtl_reset(bucket, resp):
     reset = bucket._window + bucket.second
-    precision = request.headers.get("x-ratelimit-precision", "second")
+    precision = request.headers.get("x-ratelimit-precision", "millisecond")
 
     if precision == "second":
         resp.headers["X-RateLimit-Reset"] = str(round(reset))
     elif precision == "millisecond":
         resp.headers["X-RateLimit-Reset"] = str(reset)
     else:
-        resp.headers["X-RateLimit-Reset"] = (
-            "Invalid X-RateLimit-Precision, " "valid options are (second, millisecond)"
-        )
+        resp.headers["X-RateLimit-Reset"] = str(reset)
 
 
 @app.after_request
@@ -246,7 +255,7 @@ async def app_set_ratelimit_headers(resp):
         bucket = request.bucket
 
         if bucket is None:
-            raise AttributeError()
+            return resp
 
         resp.headers["X-RateLimit-Limit"] = str(bucket.requests)
         resp.headers["X-RateLimit-Remaining"] = str(bucket._tokens)
@@ -425,30 +434,41 @@ async def app_after_serving():
 
 
 @app.errorhandler(LitecordError)
-async def handle_litecord_err(err):
+async def handle_litecord_err(error: Exception):
+    assert isinstance(error, LitecordError)
+
     try:
-        ejson = err.json
+        ejson = error.json
     except IndexError:
         ejson = {}
 
-    try:
-        ejson["code"] = err.error_code
-    except AttributeError:
-        pass
+    log.warning("error: {} {!r}", error.status_code, error.message)
 
-    log.warning("error: {} {!r}", err.status_code, err.message)
+    data = {"code": error.error_code, "message": error.message, **ejson}
+    if data["code"] == -1:
+        data.pop("code")
+    return jsonify(data), error.status_code
 
-    return (
-        jsonify(
-            {"error": True, "status": err.status_code, "message": err.message, **ejson}
-        ),
-        err.status_code,
-    )
+
+@app.errorhandler(404)
+def handle_404(_):
+    if request.path.startswith("/api") and request.discord_api_version == -1:
+        return jsonify({"message": "Invalid API version", "code": 50041}), 404
+    elif request.path.startswith("/api"):
+        return jsonify({"message": "404: Not Found", "code": 0}), 404
+    return "Not Found", 404
+
+
+@app.errorhandler(405)
+def handle_405(_):
+    return jsonify({"message": "405: Method Not Allowed", "code": 0}), 405
+
+
+@app.errorhandler(413)
+def handle_413(_):
+    return jsonify({"message": "Request entity too large", "code": 40005}), 413
 
 
 @app.errorhandler(500)
-async def handle_500(err):
-    return (
-        jsonify({"error": True, "message": repr(err), "internal_server_error": True}),
-        500,
-    )
+async def handle_500(_):
+    jsonify({"message": "500: Internal Server Error", "code": 0}), 500

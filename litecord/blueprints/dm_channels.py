@@ -25,7 +25,7 @@ from logbook import Logger
 from litecord.blueprints.auth import token_check
 from litecord.blueprints.checks import channel_check
 from litecord.enums import ChannelType, MessageType
-from litecord.errors import BadRequest, Forbidden
+from litecord.errors import BadRequest, Forbidden, MissingPermissions
 
 from litecord.system_messages import send_sys_message
 from litecord.pubsub.channel import gdm_recipient_view
@@ -232,7 +232,7 @@ async def add_to_group_dm(dm_chan, peer_id):
     friends = await app.user_storage.are_friends_with(user_id, peer_id)
 
     if not friends:
-        raise BadRequest("Cant insert peer into dm")
+        raise Forbidden(50007)
 
     if ctype == ChannelType.DM:
         dm_chan = await gdm_create(user_id, other_id)
@@ -246,10 +246,10 @@ async def add_to_group_dm(dm_chan, peer_id):
 async def remove_from_group_dm(dm_chan, peer_id):
     """Remove users from group dm."""
     user_id = await token_check()
-    _ctype, owner_id = await channel_check(user_id, dm_chan, only=ChannelType.GROUP_DM)
+    _, owner_id = await channel_check(user_id, dm_chan, only=ChannelType.GROUP_DM)
 
     if owner_id != user_id:
-        raise Forbidden("You are now the owner of the group DM")
+        raise MissingPermissions()
 
     await gdm_remove_recipient(dm_chan, peer_id)
     return "", 204

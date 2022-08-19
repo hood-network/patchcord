@@ -77,7 +77,7 @@ async def _guild_emoji_size_check(guild_id: int, mime: str):
 
     if total_emoji >= limit:
         # TODO: really return a BadRequest? needs more looking.
-        raise BadRequest(f"too many emoji ({limit})")
+        raise BadRequest(30008, limit)
 
 
 @bp.route("/<int:guild_id>/emojis", methods=["POST"])

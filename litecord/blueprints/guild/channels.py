@@ -22,7 +22,7 @@ from quart import Blueprint, request, current_app as app, jsonify
 from litecord.blueprints.auth import token_check
 from litecord.common.interop import channel_view
 
-from litecord.errors import BadRequest
+from litecord.errors import BadRequest, ManualFormError
 from litecord.enums import ChannelType
 from litecord.blueprints.guild.roles import gen_pairs
 
@@ -54,11 +54,11 @@ async def create_channel(guild_id):
     channel_type = j.get("type", ChannelType.GUILD_TEXT)
     channel_type = ChannelType(channel_type)
 
-    if channel_type not in (ChannelType.GUILD_TEXT, ChannelType.GUILD_VOICE, ChannelType.GUILD_CATEGORY, ChannelType.GUILD_NEWS):
-        raise BadRequest("Invalid channel type")
+    if channel_type == ChannelType.GUILD_CATEGORY and j.get("parent_id"):
+        raise ManualFormError(parent_id={"code": "CHANNEL_PARENT_INVALID_PARENT", "message": "Categories cannot have subcategories"})
 
-    elif channel_type == ChannelType.GUILD_CATEGORY and j.get("parent_id"):
-        raise BadRequest("Category cannot have a parent")
+    if channel_type == ChannelType.GUILD_NEWS and not app.storage.has_feature("NEWS"):
+        raise ManualFormError(type={"code": "BASE_TYPE_CHOICES", "message": f"Value must be one of {CHAN_CREATE['type']['allo']}."})
 
     new_channel_id = app.winter_factory.snowflake()
     await create_guild_channel(guild_id, new_channel_id, channel_type, **j)

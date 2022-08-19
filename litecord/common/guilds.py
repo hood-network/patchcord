@@ -21,11 +21,13 @@ from typing import List
 from logbook import Logger
 from quart import current_app as app
 
+from .messages import PLAN_ID_TO_TYPE
+
 
 from ..permissions import get_role_perms, get_permissions, Target
 from ..utils import dict_get, maybe_lazy_guild_dispatch
-from ..enums import ChannelType, MessageType, NSFWLevel, UserFlags
-from ..errors import BadRequest, InvitesDisabled, TheMaze, UnderageUser, NotFound
+from ..enums import ChannelType, MessageType, NSFWLevel, PremiumType, UserFlags
+from ..errors import BadRequest, Forbidden, MissingAccess, MissingPermissions, NotFound
 from litecord.common.interop import role_view
 from litecord.pubsub.member import dispatch_member
 from litecord.system_messages import send_sys_message
@@ -33,7 +35,7 @@ from litecord.system_messages import send_sys_message
 log = Logger(__name__)
 
 
-async def remove_member(guild_id: int, member_id: int):
+async def remove_member(guild_id: int, member_id: int, raise_err: bool = True) -> None:
     """Do common tasks related to deleting a member from the guild,
     such as dispatching GUILD_DELETE and GUILD_MEMBER_REMOVE."""
     owner_id = await app.db.fetchval(
@@ -45,9 +47,9 @@ async def remove_member(guild_id: int, member_id: int):
         guild_id,
     )
     if owner_id == member_id:
-        raise BadRequest(50055)
+        raise MissingPermissions()
 
-    await app.db.execute(
+    res = await app.db.execute(
         """
         DELETE FROM members
         WHERE guild_id = $1 AND user_id = $2
@@ -55,6 +57,10 @@ async def remove_member(guild_id: int, member_id: int):
         guild_id,
         member_id,
     )
+    if res == "DELETE 0" and raise_err:
+        raise NotFound(10007)
+    elif res == "DELETE 0":
+        return
 
     await dispatch_member(
         guild_id,
@@ -62,19 +68,17 @@ async def remove_member(guild_id: int, member_id: int):
         ("GUILD_DELETE", {"guild_id": str(guild_id), "id": str(guild_id)}),
     )
 
-    user = await app.storage.get_user(member_id)
-
     states, channels = await app.dispatcher.guild.unsub_user(guild_id, member_id)
     for channel_id in channels:
         for state in states:
             await app.dispatcher.channel.unsub(channel_id, state.session_id)
 
-    await app.lazy_guild.remove_member(guild_id, int(user["id"]))
+    await app.lazy_guild.remove_member(guild_id, member_id)
     await app.dispatcher.guild.dispatch(
         guild_id,
         (
             "GUILD_MEMBER_REMOVE",
-            {"guild_id": str(guild_id), "user": {"id": user["id"]}},
+            {"guild_id": str(guild_id), "user": {"id": member_id}},
         ),
     )
 
@@ -326,12 +330,28 @@ async def create_guild_settings(guild_id: int, user_id: int):
     )
 
 
-async def add_member(guild_id: int, user_id: int, *, basic=False):
+async def add_member(guild_id: int, user_id: int, *, basic: bool = False, skip_check: bool = False):
     """Add a user to a guild.
 
     If `basic` is set to true, side-effects from member adding won't be
     propagated.
     """
+
+    if not skip_check:
+        plan_id = await app.db.fetchval(
+            """
+        SELECT payment_gateway_plan_id
+        FROM user_subscriptions
+        WHERE status = 1
+            AND user_id = $1
+        """,
+            user_id,
+        )
+        premium_type = PLAN_ID_TO_TYPE.get(plan_id)
+        guild_ids = await app.user_storage.get_user_guilds(user_id)
+        max_guilds = 200 if premium_type == PremiumType.TIER_2 else 100
+        if len(guild_ids) >= max_guilds:
+            raise BadRequest(30001, max_guilds)
 
     if not basic:
         nsfw_level = await app.db.fetchval(
@@ -348,13 +368,13 @@ async def add_member(guild_id: int, user_id: int, *, basic=False):
         user = await app.storage.get_user(user_id, True)
 
         if "INTERNAL_EMPLOYEE_ONLY" in features and user["flags"] & UserFlags.staff != UserFlags.staff:
-            raise TheMaze()
+            raise Forbidden(20017)
 
         if "INVITES_DISABLED" in features:
-            raise InvitesDisabled()
+            raise Forbidden(40008)
 
         if nsfw_level in (NSFWLevel.RESTRICTED, NSFWLevel.EXPLICIT) and not user["nsfw_allowed"]:
-            raise UnderageUser()
+            raise Forbidden(20024)
 
     await app.db.execute(
         """

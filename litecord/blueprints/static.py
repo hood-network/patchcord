@@ -194,8 +194,8 @@ async def load_build(hash):
     return await _load_build(value=hash)
 
 
-@bp.route("/", defaults={"path": ""}, methods=["GET"])
-@bp.route("/<path:path>", methods=["GET"])
+@bp.route("/", defaults={"path": ""})
+@bp.route("/<path:path>")
 async def send_client(path):
     if path.startswith("api/"):
         return await abort(404)
@@ -390,7 +390,7 @@ async def use_overrride_link():
     """Use a build override."""
     j = await request.get_json(silent=True)
     if not isinstance(j, dict) or not j.get("payload"):
-        return "You must give this endpoint some json.", 415
+        return "You must give this endpoint some JSON.", 415
 
     data = j["payload"]
     signature, _, data = data.partition(".")

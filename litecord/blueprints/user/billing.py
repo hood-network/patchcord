@@ -436,7 +436,7 @@ async def _create_subscription():
 
     source = await get_payment_source(user_id, j["payment_source_id"])
     if not source:
-        raise BadRequest("invalid source id")
+        raise BadRequest(100002)
 
     plan_id = j["payment_gateway_plan_id"]
     if plan_id == "premium_year":

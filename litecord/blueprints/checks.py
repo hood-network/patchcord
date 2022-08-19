@@ -23,19 +23,19 @@ from quart import current_app as app
 
 from litecord.enums import ChannelType, GUILD_CHANS
 from litecord.errors import (
-    GuildNotFound,
-    ChannelNotFound,
     Forbidden,
+    NotFound,
+    MissingAccess,
     MissingPermissions,
 )
 from litecord.permissions import base_permissions, get_permissions
 
 
-async def guild_check(user_id: int, guild_id: int):
+async def guild_check(user_id: int, guild_id: int, raise_err: bool = True) -> bool:
     """Check if a user is in a guild."""
     joined_at = await app.db.fetchval(
         """
-    SELECT joined_at
+    SELECT user_id
     FROM members
     WHERE user_id = $1 AND guild_id = $2
     """,
@@ -43,26 +43,32 @@ async def guild_check(user_id: int, guild_id: int):
         guild_id,
     )
 
-    if not joined_at:
-        raise GuildNotFound("guild not found")
+    if not joined_at and raise_err:
+        raise MissingAccess()
+    elif not joined_at:
+        return False
+    return True
 
 
-async def guild_owner_check(user_id: int, guild_id: int):
+async def guild_owner_check(user_id: int, guild_id: int, raise_err: bool = True) -> bool:
     """Check if a user is the owner of the guild."""
-    owner_id = await app.db.fetchval(
+    data = await app.db.fetchrow(
         """
-    SELECT owner_id
+    SELECT id, owner_id
     FROM guilds
     WHERE guilds.id = $1
     """,
         guild_id,
     )
 
-    if not owner_id:
-        raise GuildNotFound()
+    if not data["id"]:
+        raise NotFound(10004)
 
-    if user_id != owner_id:
-        raise Forbidden("You are not the owner of the guild")
+    if user_id != data["owner_id"]:
+        if raise_err:
+            raise MissingAccess()
+        return False
+    return True
 
 
 async def channel_check(
@@ -73,7 +79,7 @@ async def channel_check(
     chan_type = await app.storage.get_chan_type(channel_id)
 
     if chan_type is None:
-        raise ChannelNotFound("channel type not found")
+        raise NotFound(10003)
 
     ctype = ChannelType(chan_type)
 
@@ -81,7 +87,9 @@ async def channel_check(
         only = [only]
 
     if (only is not None) and ctype not in only:
-        raise ChannelNotFound("invalid channel type")
+        if ctype in (ChannelType.GROUP_DM, ChannelType.DM):
+            raise Forbidden(50003)
+        raise NotFound(50024)
 
     if ctype in GUILD_CHANS:
         guild_id = await app.db.fetchval(
@@ -93,7 +101,9 @@ async def channel_check(
             channel_id,
         )
         assert guild_id is not None
-        await guild_check(user_id, guild_id)
+        result = await guild_check(user_id, guild_id, raise_err=False)
+        if not result:
+            raise MissingAccess()
         return ctype, guild_id
 
     if ctype == ChannelType.DM:
@@ -111,6 +121,8 @@ async def channel_check(
         )
 
         return ctype, owner_id
+
+    raise RuntimeError("Unreachable code")
 
 
 async def _max_role_position(guild_id, member_id) -> Optional[int]:
@@ -183,7 +195,7 @@ async def guild_perm_check(
         hasperm = await _validate_target_member(guild_id, user_id, target_member_id)
 
     if not hasperm and raise_err:
-        raise MissingPermissions("Missing permissions.")
+        raise MissingPermissions()
 
     return bool(hasperm)
 
@@ -200,6 +212,6 @@ async def channel_perm_check(
     hasperm = getattr(base_perms.bits, permission)
 
     if not hasperm and raise_err:
-        raise MissingPermissions("Missing permissions.")
+        raise MissingPermissions()
 
     return bool(hasperm)

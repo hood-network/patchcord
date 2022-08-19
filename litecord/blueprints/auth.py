@@ -29,7 +29,7 @@ from logbook import Logger
 from litecord.auth import token_check
 from litecord.common.users import create_user
 from litecord.schemas import validate, REGISTER, REGISTER_WITH_INVITE
-from litecord.errors import BadRequest
+from litecord.errors import BadRequest, ManualFormError
 from litecord.pubsub.user import dispatch_user
 from .invites import use_invite
 
@@ -60,9 +60,8 @@ async def register():
     """Register a single user."""
     enabled = app.config.get("REGISTRATIONS")
     if not enabled:
-        raise BadRequest(
-            "Registrations disabled", {"email": "Registrations are disabled."}
-        )
+        error = {"code": "REGISTRATIONS_DISABLED", "message": "Registrations are disabled."}
+        raise ManualFormError(email=error, username=error)
 
     j = await request.get_json()
 
@@ -84,7 +83,7 @@ async def register():
         today = date.today()
         date_of_birth = datetime.strptime(j["date_of_birth"], "%Y-%m-%d")
         if (today.year - date_of_birth.year - ((today.month, today.day) < (date_of_birth.month, date_of_birth.day))) < 13:
-            raise BadRequest("Invalid Form Body", {"date_of_birth": "You must be at least 13 years old to register."})
+            raise ManualFormError(date_of_birth={"code": "DATE_OF_BIRTH_UNDERAGE", "message": "You must be at least 13 years old to register."})
 
     new_id, pwd_hash = await create_user(username, email, password, date_of_birth)
 
@@ -114,17 +113,17 @@ async def _register_with_invite():
     )
 
     if row is None:
-        raise BadRequest("unknown instance invite")
+        raise ManualFormError(invcode={"code": "INVITATION_CODE_INVALID", "message": "Invalid instance invite."})
 
     if row["max_uses"] != -1 and row["uses"] >= row["max_uses"]:
-        raise BadRequest("invite expired")
+        raise ManualFormError(invcode={"code": "INVITATION_CODE_INVALID", "message": "Invalid instance invite."})
 
     date_of_birth = None
     if data.get("date_of_birth"):
         today = date.today()
         date_of_birth = datetime.strptime(data["date_of_birth"], "%Y-%m-%d")
         if (today.year - date_of_birth.year - ((today.month, today.day) < (date_of_birth.month, date_of_birth.day))) < 13:
-            raise BadRequest("Invalid Form Body", {"date_of_birth": "You must be at least 13 years old to register."})
+            raise ManualFormError(date_of_birth={"code": "DATE_OF_BIRTH_UNDERAGE", "message": "You must be at least 13 years old to register."})
 
     await app.db.execute(
         """

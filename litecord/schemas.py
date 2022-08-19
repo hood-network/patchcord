@@ -23,10 +23,11 @@ from datetime import datetime
 from typing import Union, Dict, List, Optional
 
 from cerberus import Validator
+from cerberus.errors import BasicErrorHandler
 from logbook import Logger
 from quart import current_app as app
 
-from .errors import BadRequest
+from .errors import BadRequest, FormError
 from .permissions import Permissions
 from .types import Color
 from .enums import (
@@ -72,16 +73,18 @@ def _in_enum(enum, value) -> bool:
 class LitecordValidator(Validator):
     """Main validator class for Litecord, containing custom types."""
 
+    def __init__(self, *args, **kwargs):
+        kwargs["allow_unknown"] = True
+        kwargs["error_handler"] = BasicErrorHandler
+        super().__init__(*args, **kwargs)
+
     def _validate_type_username(self, value: str) -> bool:
         """Validate against the username regex."""
         return bool(USERNAME_REGEX.match(value))
 
     def _validate_type_password(self, value: str) -> bool:
-        """Validate a password. Max 1024 chars.
-
-        The valid password length on Discord's client might be different.
-        """
-        return 8 <= len(value) <= 1024
+        """Validate a password. Max 72 chars."""
+        return 6 <= len(value) <= 72
 
     def _validate_type_email(self, value: str) -> bool:
         """Validate against the email regex."""
@@ -105,7 +108,7 @@ class LitecordValidator(Validator):
         try:
             int(value)
             return True
-        except ValueError:
+        except (TypeError, ValueError):
             return False
 
     def _validate_type_voice_region(self, value: str) -> bool:
@@ -142,15 +145,6 @@ class LitecordValidator(Validator):
 
         return val in NSFWLevel.values()
 
-    def _validate_type_rel_type(self, value: str) -> bool:
-        try:
-            val = int(value)
-        except (TypeError, ValueError):
-            return False
-
-        # nobody is allowed to use the INCOMING and OUTGOING rel types
-        return val in (RelationshipType.FRIEND.value, RelationshipType.BLOCK.value)
-
     def _validate_type_msg_notifications(self, value: str):
         try:
             val = int(value)
@@ -168,9 +162,6 @@ class LitecordValidator(Validator):
     def _validate_type_channel_name(self, value: str) -> bool:
         # for now, we'll use the same validation for guild_name
         return self._validate_type_guild_name(value)
-
-    def _validate_type_theme(self, value: str) -> bool:
-        return value in ["light", "dark"]
 
     def _validate_type_nickname(self, value: str) -> bool:
         return isinstance(value, str) and (len(value) < 32)
@@ -203,17 +194,41 @@ class LitecordValidator(Validator):
     def _validate_type_author_type(self, value: str) -> bool:
         return value in {"user", "-user", "bot", "-bot", "webhook", "-webhook"}
 
-    def _validate_type_sort_order(self, value: str) -> bool:
-        return value in {"asc", "desc"}
-
     def _validate_type_has(self, value: str) -> bool:
         return value in {"video", "-link", "file", "sticker", "-embed", "-file", "-video", "-sound", "link", "-image", "-sticker", "embed", "sound", "image"}
 
-    def _validate_type_mfa_level(self, value: Union[int, bool]) -> bool:
-        return value in (0, 1, True, False)
 
-    def _validate_type_override_type(self, value: str) -> bool:
-        return value in {"id", "branch"}
+class LitecordErrorHandler(BasicErrorHandler):
+
+    messages = {
+        0x00: {"code": "CUSTOM", "message": "{0}"},
+        0x02: {"code": "BASE_TYPE_REQUIRED", "message": "This field is required."},
+        0x06: {"code": "BASE_TYPE_REQUIRED", "message": "This field is required."},
+        0x22: {"code": "BASE_TYPE_REQUIRED", "message": "This field is required."},
+        0x23: {"code": "BASE_TYPE_REQUIRED", "message": "This field is required."},
+        0x24: {"code": "{constraint}_TYPE_COERCE", "message": "Value \"{0}\" is not {constraint}."},
+        0x25: {"code": "DICT_TYPE_CONVERT", "message": "Only dictionaries may be used in a DictType."},
+        0x27: {"code": "BASE_TYPE_BAD_LENGTH", "message": "Must be between {0} and {1} in length."},
+        0x27: {"code": "BASE_TYPE_MIN_LENGTH", "message": "Must be {constraint} or more in length."},
+        0x28: {"code": "BASE_TYPE_MAX_LENGTH", "message": "Must be {constraint} or fewer in length."},
+        0x41: {"code": "REGEX_VALIDATE", "message": "Value cannot be \"{0}\"."},
+        0x42: {"code": "NUMBER_TYPE_MIN", "message": "Value should be greater than or equal to {constraint}."},
+        0x43: {"code": "NUMBER_TYPE_MAX", "message": "Value should be less than or equal to {constraint}."},
+        0x44: {"code": "BASE_TYPE_CHOICES", "message": "Value must be one of {constraint}."},
+        0x45: {"code": "BASE_TYPE_CHOICES", "message": "Values must be one of {constraint}."},
+        0x46: {"code": "BASE_TYPE_CHOICES", "message": "Value cannot be one of {constraint}."},
+        0x47: {"code": "BASE_TYPE_CHOICES", "message": "Values cannot be one of {constraint}."},
+        0x47: {"code": "BASE_TYPE_CHOICES", "message": "Values must contain {constraint}."},
+        0x61: {"code": "{constraint}_TYPE_COERCE", "message": "Value \"{0}\" is not {constraint}."},
+    }
+
+    def _format_message(self, field, error):
+        info = self.messages.get(error.code, self.messages[0x00])
+        info["code"] = info["code"].format(constraint=error.constraint).upper()
+        info["message"] = info["message"].format(
+            *error.info, constraint=error.constraint, field=field, value=error.value
+        )
+        return info
 
 
 def validate(
@@ -235,7 +250,7 @@ def validate(
     validator = LitecordValidator(schema)
 
     if reqjson is None:
-        raise BadRequest("No JSON provided")
+        raise BadRequest(50109)
 
     try:
         valid = validator.validate(reqjson)
@@ -244,9 +259,9 @@ def validate(
         raise Exception(f"Error while validating: {reqjson}")
 
     if not valid:
-        errs = validator.errors
-        log.warning("Error validating doc {!r}: {!r}", reqjson, errs)
-        raise BadRequest("bad payload", errs)
+        errors = validator.errors
+        log.warning("Error validating doc {!r}: {!r}", reqjson, errors)
+        raise FormError(**errors)
 
     return validator.document
 
@@ -257,20 +272,24 @@ REGISTER = {
     "password": {"type": "password", "required": False},
     # invite stands for a guild invite, not an instance invite (that's on
     # the register_with_invite handler).
-    "invite": {"type": "string", "required": False, "nullable": True},
+    "invite": {"coerce": str, "required": False, "nullable": True},
     # following fields only sent by official client, unused by us
-    "fingerprint": {"type": "string", "required": False, "nullable": True},
-    "captcha_key": {"type": "string", "required": False, "nullable": True},
-    "gift_code_sku_id": {"type": "string", "required": False, "nullable": True},
+    "fingerprint": {"coerce": str, "required": False, "nullable": True},
+    "captcha_key": {"coerce": str, "required": False, "nullable": True},
+    "gift_code_sku_id": {"coerce": str, "required": False, "nullable": True},
     "consent": {"type": "boolean", "required": False},
-    "date_of_birth": {"type": "string", "required": False, "nullable": True},
+    "date_of_birth": {"coerce": str, "required": False, "nullable": True},
 }
 
 # only used by us, not discord, hence 'invcode' (to separate from discord)
-REGISTER_WITH_INVITE = {**REGISTER, **{"invcode": {"type": "string", "required": True}}}
+REGISTER_WITH_INVITE = {**REGISTER, **{"invcode": {"coerce": str, "required": True}}}
 
 
-OVERRIDE_SPECIFIC = {"type": "dict", "required": False, "schema": {"id": {"type": "string", "required": True}, "type": {"type": "override_type", "required": True}}}
+OVERRIDE_SPECIFIC = {
+    "type": "dict",
+    "required": False,
+    "schema": {"id": {"coerce": str, "required": True}, "type": {"coerce": str, "required": True, "allowed": ("id", "branch")}},
+}
 
 OVERRIDE_STAFF = {
     "overrides": {
@@ -296,7 +315,7 @@ OVERRIDE_LINK = {
         "required": True,
         "schema": {
             "allow_logged_out": {"type": "boolean", "required": False, "default": False},
-            "release_channel": {"type": "string", "required": False, "nullable": True},
+            "release_channel": {"coerce": str, "required": False, "nullable": True},
             "user_ids": {"type": "list", "required": False, "nullable": True, "schema": {"coerce": int}},
             "ttl_seconds": {"type": "number", "required": False, "nullable": True, "default": 3600},
         },
@@ -322,30 +341,30 @@ USER_UPDATE = {
     "email": {"type": "email", "required": False, "dependencies": "password"},
     "avatar": {
         # can be both b64_icon or string (just the hash)
-        "type": "string",
+        "coerce": str,
         "required": False,
         "nullable": True,
     },
     "avatar_decoration": {
         # can be both b64_icon or string (just the hash)
-        "type": "string",
+        "coerce": str,
         "required": False,
         "nullable": True,
     },
     "banner": {
         # can be both b64_icon or string (just the hash)
-        "type": "string",
+        "coerce": str,
         "required": False,
         "nullable": True,
     },
     "bio": {
-        "type": "string",
+        "coerce": str,
         "required": False,
         "nullable": True,
         "maxlength": 190,
     },
     "pronouns": {
-        "type": "string",
+        "coerce": str,
         "required": False,
         "nullable": True,
         "maxlength": 40,
@@ -411,7 +430,7 @@ GUILD_CREATE = {
     # not supported
     "system_channel_id": {"coerce": int, "required": False, "nullable": True},
     "guild_template_code": {
-        "type": "string",
+        "coerce": str,
         "required": False,
     },
 }
@@ -421,11 +440,11 @@ GUILD_UPDATE = {
     "name": {"type": "guild_name", "required": False},
     "region": {"type": "voice_region", "required": False, "nullable": True},
     # all three can have hashes
-    "icon": {"type": "string", "required": False, "nullable": True},
-    "banner": {"type": "string", "required": False, "nullable": True},
-    "splash": {"type": "string", "required": False, "nullable": True},
+    "icon": {"coerce": str, "required": False, "nullable": True},
+    "banner": {"coerce": str, "required": False, "nullable": True},
+    "splash": {"coerce": str, "required": False, "nullable": True},
     "description": {
-        "type": "string",
+        "coerce": str,
         "required": False,
         "minlength": 1,
         "maxlength": 120,
@@ -448,7 +467,7 @@ GUILD_UPDATE = {
         "required": False,
         "nullable": True,
     },
-    "features": {"type": "list", "required": False, "schema": {"type": "string"}},
+    "features": {"type": "list", "required": False, "schema": {"coerce": str}},
     "rules_channel_id": {
         "type": "snowflake",
         "coerce": int,
@@ -461,8 +480,8 @@ GUILD_UPDATE = {
         "required": False,
         "nullable": True,
     },
-    "preferred_locale": {"type": "string", "required": False, "nullable": True},
-    "discovery_splash": {"type": "string", "required": False, "nullable": True},
+    "preferred_locale": {"coerce": str, "required": False, "nullable": True},
+    "discovery_splash": {"coerce": str, "required": False, "nullable": True},
     "premium_progress_bar_enabled": {"type": "boolean", "required": False},
     "nsfw_level": {"type": "nsfw", "required": False},
 }
@@ -477,15 +496,19 @@ CHAN_OVERWRITE = {
 
 
 CHAN_CREATE = {
-    "name": {"type": "string", "minlength": 1, "maxlength": 100, "required": True},
-    "banner": {"type": "string", "required": False, "nullable": True},
-    "type": {"type": "channel_type", "default": ChannelType.GUILD_TEXT.value},
+    "name": {"coerce": str, "minlength": 1, "maxlength": 100, "required": True},
+    "banner": {"coerce": str, "required": False, "nullable": True},
+    "type": {
+        "coerce": int,
+        "default": ChannelType.GUILD_TEXT.value,
+        "allowed": (ChannelType.GUILD_TEXT.value, ChannelType.GUILD_VOICE.value, ChannelType.GUILD_CATEGORY.value, ChannelType.GUILD_NEWS.value),
+    },
     "position": {"coerce": int, "required": False},
-    "topic": {"type": "string", "minlength": 0, "maxlength": 1024, "required": False},
+    "topic": {"coerce": str, "minlength": 0, "maxlength": 1024, "required": False},
     "nsfw": {"type": "boolean", "required": False},
     "rate_limit_per_user": {"coerce": int, "min": 0, "max": 120, "required": False},
     "default_auto_archive_duration": {"coerce": int, "required": False, "nullable": True},
-    "rtc_region": {"type": "string", "required": False, "nullable": True},
+    "rtc_region": {"coerce": str, "required": False, "nullable": True},
     "bitrate": {
         "coerce": int,
         "min": 8000,
@@ -511,12 +534,12 @@ CHAN_CREATE = {
 
 CHAN_UPDATE = {
     **CHAN_CREATE,
-    **{"name": {"type": "string", "minlength": 1, "maxlength": 100, "required": False}},
+    **{"name": {"coerce": str, "minlength": 1, "maxlength": 100, "required": False}},
 }
 
 
 ROLE_CREATE = {
-    "name": {"type": "string", "default": "new role"},
+    "name": {"coerce": str, "default": "new role"},
     "permissions": {"coerce": Permissions, "nullable": True},
     "color": {"coerce": Color, "default": 0},
     "hoist": {"type": "boolean", "default": False},
@@ -524,7 +547,7 @@ ROLE_CREATE = {
 }
 
 ROLE_UPDATE = {
-    "name": {"type": "string", "required": False},
+    "name": {"coerce": str, "required": False},
     "permissions": {"coerce": Permissions, "required": False},
     "color": {"coerce": Color, "required": False},
     "hoist": {"type": "boolean", "required": False},
@@ -560,10 +583,10 @@ CHANNEL_UPDATE_POSITION = {
 
 
 MEMBER_UPDATE = {
-    "avatar": {"type": "string", "required": False, "nullable": True},
-    "banner": {"type": "string", "required": False, "nullable": True},
-    "bio": {"type": "string", "required": False, "nullable": True, "maxlength": 190},
-    "pronouns": {"type": "string", "required": False, "nullable": True, "maxlength": 40},
+    "avatar": {"coerce": str, "required": False, "nullable": True},
+    "banner": {"coerce": str, "required": False, "nullable": True},
+    "bio": {"coerce": str, "required": False, "nullable": True, "maxlength": 190},
+    "pronouns": {"coerce": str, "required": False, "nullable": True, "maxlength": 40},
     "nick": {"type": "nickname", "required": False, "nullable": True},
     "roles": {"type": "list", "required": False, "schema": {"coerce": int}, "nullable": True},
     "mute": {"type": "boolean", "required": False},
@@ -573,10 +596,10 @@ MEMBER_UPDATE = {
 
 
 SELF_MEMBER_UPDATE = {
-    "avatar": {"type": "string", "required": False, "nullable": True},
-    "banner": {"type": "string", "required": False, "nullable": True},
-    "bio": {"type": "string", "required": False, "nullable": True, "maxlength": 190},
-    "pronouns": {"type": "string", "required": False, "nullable": True, "maxlength": 40},
+    "avatar": {"coerce": str, "required": False, "nullable": True},
+    "banner": {"coerce": str, "required": False, "nullable": True},
+    "bio": {"coerce": str, "required": False, "nullable": True, "maxlength": 190},
+    "pronouns": {"coerce": str, "required": False, "nullable": True, "maxlength": 40},
     "nick": {"type": "nickname", "required": False, "nullable": True},
 }
 
@@ -587,7 +610,7 @@ SELF_MEMBER_UPDATE = {
 MESSAGE_UPDATE = {
     "type": {"type": "snowflake", "required": False},
     "attachments": {"type": "list", "required": False, "schema": {"type": "dict"}},
-    "content": {"type": "string", "minlength": 0, "maxlength": 2000, "required": False},
+    "content": {"coerce": str, "minlength": 0, "maxlength": 4000, "required": False},
     "embed": {
         "type": "dict",
         "schema": EMBED_OBJECT,
@@ -624,9 +647,9 @@ MESSAGE_CREATE = {
         "required": False,
         "nullable": True,
         "schema": {
-            "guild_id": {"type": "string", "required": False},
-            "channel_id": {"type": "string", "required": True},
-            "message_id": {"type": "string", "required": True},
+            "guild_id": {"coerce": str, "required": False},
+            "channel_id": {"coerce": str, "required": True},
+            "message_id": {"coerce": str, "required": True},
         },
     },
 }
@@ -652,11 +675,11 @@ INVITE = {
     "temporary": {"type": "boolean", "required": False, "default": False},
     "unique": {"type": "boolean", "required": False, "default": True},
     "validate": {
-        "type": "string",
+        "coerce": str,
         "required": False,
         "nullable": True,
     },
-    "target_type": {"type": "string", "required": False, "nullable": True},
+    "target_type": {"coerce": str, "required": False, "nullable": True},
     "target_user_id": {"type": "snowflake", "required": False, "nullable": True},
     "target_user_type": {"type": "number", "required": False, "nullable": True},
 }
@@ -702,32 +725,32 @@ USER_SETTINGS = {
     "show_current_game": {"type": "boolean", "required": False},
     "timezone_offset": {"type": "number", "required": False},
     "status": {"type": "status_external", "required": False, "coerce": removeunknown},
-    "theme": {"type": "theme", "required": False},
+    "theme": {"coerce": str, "allowed": ("light", "dark"), "required": False},
     "custom_status": {
         "type": "dict",
         "required": False,
         "nullable": True,
         "schema": {
             "emoji_id": {"coerce": int, "nullable": True},
-            "emoji_name": {"type": "string", "nullable": True},
+            "emoji_name": {"coerce": str, "nullable": True},
             # discord's timestamps dont seem to work well with
             # datetime.fromisoformat, so for now, we trust the client
-            "expires_at": {"type": "string", "nullable": True},
-            "text": {"type": "string", "nullable": True},
+            "expires_at": {"coerce": str, "nullable": True},
+            "text": {"coerce": str, "nullable": True},
         },
     },
 }
 
 RELATIONSHIP = {
     "type": {
-        "type": "rel_type",
-        "required": False,
+        "coerce": str,
+        "allowed": (RelationshipType.FRIEND.value, RelationshipType.BLOCK.value),
         "default": RelationshipType.FRIEND.value,
     }
 }
 
 RELATIONSHIP_UPDATE = {
-    "nickname": {"type": "string", "required": False, "nullable": True, "maxlength": 32},
+    "nickname": {"coerce": str, "required": False, "nullable": True, "maxlength": 32},
 }
 
 CREATE_DM = {"recipient_id": {"type": "recipients", "required": True}}
@@ -769,17 +792,17 @@ GUILD_SETTINGS = {
 
 GUILD_PRUNE = {
     "days": {"type": "number", "coerce": int, "min": 1, "max": 30, "default": 7},
-    "compute_prune_count": {"type": "string", "default": "true"},
+    "compute_prune_count": {"coerce": str, "default": "true"},
 }
 
 NEW_EMOJI = {
-    "name": {"type": "string", "minlength": 1, "maxlength": 256, "required": True},
+    "name": {"coerce": str, "minlength": 1, "maxlength": 256, "required": True},
     "image": {"type": "b64_icon", "required": True},
     "roles": {"type": "list", "schema": {"coerce": int}},
 }
 
 PATCH_EMOJI = {
-    "name": {"type": "string", "minlength": 1, "maxlength": 256, "required": True},
+    "name": {"coerce": str, "minlength": 1, "maxlength": 256, "required": True},
     "roles": {"type": "list", "schema": {"coerce": int}},
 }
 
@@ -789,15 +812,15 @@ def maybebool(value):
         return value
     if value is None:
         return None
-    if value.lower() in {"true", "yes", "1", "on"}:
+    if value.lower() in {"true", "1"}:
         return True
-    if value.lower() in {"false", "no", "0", "off"}:
+    if value.lower() in {"false", "0"}:
         return False
     return None
 
 
 SEARCH_CHANNEL = {
-    "content": {"type": "string", "minlength": 1, "maxlength": 4096, "required": False, "nullable": True},
+    "content": {"coerce": str, "minlength": 1, "maxlength": 4096, "required": False, "nullable": True},
     "include_nsfw": {"coerce": maybebool, "default": True},
     "offset": {"coerce": int, "default": 0},
     "min_id": {"coerce": int, "required": False},
@@ -807,14 +830,14 @@ SEARCH_CHANNEL = {
     "author_type": {"type": "list", "schema": {"type": "author_type"}, "required": False},
     "has": {"type": "list", "schema": {"type": "has"}, "required": False},
     "mentions": {"type": "list", "schema": {"coerce": int}, "required": False},
-    "embed_type": {"type": "list", "schema": {"type": "string"}, "required": False},
-    "embed_provider": {"type": "list", "schema": {"type": "string"}, "required": False},
-    "link_hostname": {"type": "list", "schema": {"type": "string"}, "required": False},
-    "attachment_filename": {"type": "list", "schema": {"type": "string"}, "required": False},
-    "attachment_extension": {"type": "list", "schema": {"type": "string"}, "required": False},
+    "embed_type": {"type": "list", "schema": {"coerce": str}, "required": False},
+    "embed_provider": {"type": "list", "schema": {"coerce": str}, "required": False},
+    "link_hostname": {"type": "list", "schema": {"coerce": str}, "required": False},
+    "attachment_filename": {"type": "list", "schema": {"coerce": str}, "required": False},
+    "attachment_extension": {"type": "list", "schema": {"coerce": str}, "required": False},
     "limit": {"coerce": int, "default": 25, "min": 1, "max": 25},
-    "sort_by": {"type": "string", "required": False},
-    "sort_order": {"type": "sort_order", "default": "desc"},
+    "sort_by": {"coerce": str, "required": False},
+    "sort_order": {"coerce": str, "allowed": ("asc", "desc"), "default": "desc"},
     "mention_everyone": {"coerce": maybebool, "default": None, "nullable": True},
     "pinned": {"coerce": maybebool, "default": None, "nullable": True},
 }
@@ -830,30 +853,27 @@ GET_MENTIONS = {
 
 VANITY_URL_PATCH = {
     # TODO: put proper values in maybe an invite data type
-    "code": {"type": "string", "minlength": 2, "maxlength": 32}
+    "code": {"coerce": str, "required": True, "minlength": 2, "maxlength": 32}
 }
 
 MFA_TOGGLE = {
-    "level": {"type": "mfa_level", "coerce": int, "required": True},
+    "level": {"coerce": int, "required": True, "allowed": (0, 1)},
 }
 
 WEBHOOK_CREATE = {
-    "name": {"type": "string", "minlength": 2, "maxlength": 32, "required": True},
-    "avatar": {"type": "b64_icon", "required": False, "nullable": False},
+    "name": {"coerce": str, "minlength": 2, "maxlength": 32, "required": True},
+    "avatar": {"type": "b64_icon", "required": False, "nullable": True},
 }
 
 WEBHOOK_UPDATE = {
-    "name": {"type": "string", "minlength": 2, "maxlength": 32, "required": False},
-    # TODO: check if its b64_icon or string since the client
-    # could pass an icon hash instead.
-    "avatar": {"type": "b64_icon", "required": False, "nullable": False},
+    **WEBHOOK_CREATE,
     "channel_id": {"coerce": int, "required": False, "nullable": False},
 }
 
 WEBHOOK_MESSAGE_CREATE = {
-    "content": {"type": "string", "minlength": 0, "maxlength": 2000, "required": False},
+    "content": {"coerce": str, "minlength": 0, "maxlength": 2000, "required": False},
     "tts": {"type": "boolean", "required": False},
-    "username": {"type": "string", "minlength": 2, "maxlength": 32, "required": False},
+    "username": {"coerce": str, "minlength": 2, "maxlength": 32, "required": False},
     "avatar_url": {"coerce": EmbedURL, "required": False},
     "embeds": {
         "type": "list",

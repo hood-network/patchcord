@@ -112,7 +112,7 @@ async def remove_features(guild_id: int):
         try:
             features.remove(feature)
         except ValueError:
-            raise BadRequest("Trying to remove already removed feature.")
+            pass
 
     await _update_features(guild_id, features)
     return await _features(guild_id)

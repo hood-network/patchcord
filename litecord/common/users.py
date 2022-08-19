@@ -26,7 +26,7 @@ from logbook import Logger
 from quart import current_app as app
 
 from ..auth import hash_data
-from ..errors import BadRequest
+from ..errors import BadRequest, ManualFormError
 from ..presence import BasePresence
 from ..pubsub.user import dispatch_user
 from ..utils import rand_hex
@@ -93,13 +93,7 @@ async def check_username_usage(username: str):
     )
 
     if same_username > 9000:
-        raise BadRequest(
-            "Too many people.",
-            {
-                "username": "Too many people used the same username. "
-                "Please choose another"
-            },
-        )
+        raise BadRequest(30006)
 
 
 def _raw_discrim() -> str:
@@ -153,10 +147,7 @@ async def create_user(username: str, email: str, password: str, date_of_birth: O
     new_discrim = await roll_discrim(username)
 
     if new_discrim is None:
-        raise BadRequest(
-            "Unable to register.",
-            {"username": "Too many people are with this username."},
-        )
+        raise BadRequest(30006)
 
     pwd_hash = await hash_data(password)
 
@@ -176,7 +167,7 @@ async def create_user(username: str, email: str, password: str, date_of_birth: O
             date_of_birth,
         )
     except UniqueViolationError:
-        raise BadRequest("Email already used.")
+        raise ManualFormError(email={"code": "EMAIL_ALREADY_REGISTERED", "message": "Email is already registered."})
 
     return new_id, pwd_hash
 

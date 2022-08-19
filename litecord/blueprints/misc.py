@@ -25,7 +25,7 @@ from ..utils import str_bool
 
 from litecord.auth import token_check
 from litecord.blueprints.checks import guild_perm_check
-from litecord.errors import BadRequest
+from litecord.errors import BadRequest, ManualFormError
 
 bp = Blueprint("science", __name__)
 
@@ -115,7 +115,7 @@ async def partners_apply():
     try:
         guild_id = int((await request.get_json())["guild_id"])
     except (KeyError, ValueError):
-        raise BadRequest("guild_id is required")
+        raise ManualFormError(guild_id={"code": "BASE_TYPE_REQUIRED", "message": "This field is required."})
 
     await guild_perm_check(user_id, guild_id, "manage_guild")
 

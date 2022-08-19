@@ -51,6 +51,7 @@ from litecord.gateway.state import GatewayState
 from litecord.errors import WebsocketClose, Unauthorized, Forbidden, BadRequest
 from litecord.gateway.errors import (
     DecodeError,
+    GatewayError,
     UnknownOPCode,
     InvalidShard,
     ShardingRequired,
@@ -563,13 +564,13 @@ class GatewayWebsocket:
         recommended = max(int(guilds / 1200), 1)
 
         if shard_count < recommended:
-            raise ShardingRequired("Too many guilds for shard " f"{current_shard}")
+            raise ShardingRequired(f"Too many guilds for shard {current_shard}.")
 
         if guilds > 2500 and guilds / shard_count > 0.8:
-            raise ShardingRequired("Too many shards. " f"(g={guilds} sc={shard_count})")
+            raise ShardingRequired("Too many shards.")
 
         if current_shard > shard_count:
-            raise InvalidShard("Shard count > Total shards")
+            raise InvalidShard("Invalid shards.")
 
     async def _guild_ids(self) -> list:
         """Get a list of Guild IDs that are tied to this connection.
@@ -769,7 +770,7 @@ class GatewayWebsocket:
 
         if self._check_ratelimit("session", user_id) and self.state.bot:
             await self.invalidate_session(False)
-            raise WebsocketClose(4004, "Websocket Session Ratelimit reached.")
+            raise WebsocketClose(4004, "Gateway session ratelimit reached.")
 
     async def handle_2(self, payload: Dict[str, Any]):
         """Handle the OP 2 Identify packet."""
@@ -977,8 +978,6 @@ class GatewayWebsocket:
         payload = validate(payload, RESUME_SCHEMA)
         data = payload["d"]
 
-        # HACK: this is a hack for discord.js that attempts to resume
-        # with a null sequence.
         if data["seq"] is None:
             return await self.invalidate_session(False)
 
@@ -987,7 +986,7 @@ class GatewayWebsocket:
         try:
             user_id = await raw_token_check(token, self.app.db)
         except (Unauthorized, Forbidden):
-            raise WebsocketClose(4004, "Invalid token")
+            raise WebsocketClose(4004, "Invalid token.")
 
         try:
             state = self.app.state_manager.fetch(user_id, sess_id)
@@ -995,7 +994,7 @@ class GatewayWebsocket:
             return await self.invalidate_session(False)
 
         if seq > state.seq:
-            raise WebsocketClose(4007, "Invalid seq")
+            raise WebsocketClose(4007, "Invalid sequence.")
 
         # check if a websocket isnt on that state already
         if state.ws is not None:
@@ -1036,9 +1035,9 @@ class GatewayWebsocket:
                 "req guild members: getting {} users in gid {}", len(user_ids), guild_id
             )
             members = await self.storage.get_member_multi(guild_id, user_ids)
-            mids = [m["user"]["id"] for m in members]
+            mids = [int(m["user"]["id"]) for m in members]
 
-            not_found = [uid for uid in user_ids if uid not in mids]
+            not_found = [str(uid) for uid in user_ids if uid not in mids]
             body = {
                 "guild_id": str(guild_id),
                 "members": members,
@@ -1268,19 +1267,19 @@ class GatewayWebsocket:
         try:
             op_code = payload["op"]
         except KeyError:
-            raise UnknownOPCode("No OP code")
+            raise UnknownOPCode("Bad payload.")
 
         try:
             handler = getattr(self, f"handle_{op_code}")
         except AttributeError:
             log.warning("Payload with bad op: {}", pprint.pformat(payload))
-            raise UnknownOPCode(f"Bad OP code: {op_code}")
+            raise UnknownOPCode(f"Unknown OP code.")
 
         await handler(payload)
 
     async def _msg_ratelimit(self):
         if self._check_ratelimit("messages", self.state.session_id):
-            raise WebsocketClose(4008, "You are being ratelimited.")
+            raise WebsocketClose(4008, "You are being rate limited.")
 
     async def _listen_messages(self):
         """Listen for messages coming in from the websocket."""
@@ -1288,15 +1287,15 @@ class GatewayWebsocket:
         # close anyone trying to login while the
         # server is shutting down
         if self.app.state_manager.closed:
-            raise WebsocketClose(4000, "state manager closed")
+            raise GatewayError("State manager closed.")
 
         if not self.app.state_manager.accept_new:
-            raise WebsocketClose(4000, "state manager closed for new")
+            raise GatewayError("State manager not accepting logins.")
 
         while True:
             message = await self.ws.recv()
             if len(message) > 4096:
-                raise DecodeError("Payload length exceeded")
+                raise DecodeError("Maximum payload length exceeded.")
 
             if self.state:
                 await self._msg_ratelimit()

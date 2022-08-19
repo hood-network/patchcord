@@ -38,10 +38,10 @@ from litecord.schemas import (
     WEBHOOK_UPDATE,
     WEBHOOK_MESSAGE_CREATE,
 )
-from litecord.enums import ChannelType, WebhookType
+from litecord.enums import WebhookType
 
 from litecord.utils import async_map
-from litecord.errors import WebhookNotFound, Unauthorized, ChannelNotFound, BadRequest
+from litecord.errors import NotFound, Unauthorized
 
 from litecord.common.messages import (
     msg_create_request,
@@ -143,7 +143,7 @@ async def _webhook_check_fw(webhook_id):
     )
 
     if guild_id is None:
-        raise WebhookNotFound()
+        raise NotFound(10015)
 
     return (await _webhook_check_guild(guild_id)), guild_id
 
@@ -353,7 +353,7 @@ async def delete_webhook(webhook_id: int):
     )
 
     if res.lower() == "delete 0":
-        raise WebhookNotFound()
+        raise NotFound(10015)
 
     # only casting the guild id since that's whats used
     # on the dispatcher call.
@@ -437,7 +437,7 @@ async def _webhook_avy_redir(webhook_id: int, avatar_url: EmbedURL):
     return url_hash
 
 
-async def _create_avatar(webhook_id: int, avatar_url: EmbedURL) -> str:
+async def _create_avatar(webhook_id: int, avatar_url: EmbedURL) -> Optional[str]:
     """Create an avatar for a webhook out of an avatar URL,
     given when executing the webhook.
 
@@ -445,17 +445,17 @@ async def _create_avatar(webhook_id: int, avatar_url: EmbedURL) -> str:
     using mediaproxy.
     """
     if avatar_url.scheme not in ("http", "https"):
-        raise BadRequest("invalid avatar url scheme")
+        return None
 
     if not is_media_url(avatar_url):
-        raise BadRequest("url is not media url")
+        return None
 
     # we still fetch the URL to check its validity, mimetypes, etc
     # but in the end, we will store it under the webhook_avatars table,
     # not IconManager.
     res = await fetch_mediaproxy_img(avatar_url)
     if res is None:
-        raise BadRequest("Failed to fetch URL.")
+        return None
     resp, raw = res
     # raw_b64 = base64.b64encode(raw).decode()
 
@@ -463,15 +463,7 @@ async def _create_avatar(webhook_id: int, avatar_url: EmbedURL) -> str:
 
     # TODO: apng checks are missing (for this and everywhere else)
     if mime not in STATIC_IMAGE_MIMES:
-        raise BadRequest("invalid mime type for given url")
-
-    # b64_data = f'data:{mime};base64,{raw_b64}'
-
-    # TODO: replace this by webhook_avatars
-    # icon = await app.icons.put(
-    #    'user', webhook_id, b64_data,
-    #    always_icon=True, size=(128, 128)
-    # )
+        return None
 
     return await _webhook_avy_redir(webhook_id, avatar_url)
 
@@ -508,7 +500,9 @@ async def execute_webhook(webhook_id: int, webhook_token):
     avatar = webhook["avatar"]
 
     if "avatar_url" in j and j["avatar_url"] is not None:
-        avatar = await _create_avatar(webhook_id, j["avatar_url"])
+        parsed = await _create_avatar(webhook_id, j["avatar_url"])
+        if parsed:
+            avatar = parsed
 
     message_id = await create_message_webhook(
         guild_id,

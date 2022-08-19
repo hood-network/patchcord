@@ -31,10 +31,7 @@ async def _check_bucket(bucket):
     if retry_after:
         request.retry_after = retry_after
 
-        raise Ratelimited(
-            "You are being rate limited.",
-            {"retry_after": int(retry_after * 1000), "global": request.bucket_global},
-        )
+        raise Ratelimited(**{"retry_after": int(retry_after * 1000), "global": request.bucket_global})
 
 
 async def _handle_global(ratelimit):
@@ -78,7 +75,7 @@ async def ratelimit_handler():
     rule = request.url_rule
 
     if rule is None:
-        return await _handle_global(app.ratelimiter.global_bucket)
+        return
 
     # rule.endpoint is composed of '<blueprint>.<function>'
     # and so we can use that to make routes with different
@@ -103,12 +100,14 @@ async def ratelimit_handler():
         request.discord_api_version = 9
     elif rule.rule.startswith("/api/v10"):
         request.discord_api_version = 10
-    else:
-        # default v6 lol
+    elif rule.rule.startswith("/api") and not rule.rule.startswith("/api/v"):
         request.discord_api_version = 6
+    else:  # Invalid api version
+        request.discord_api_version = -1
 
-    try:
-        ratelimit = app.ratelimiter.get_ratelimit(rule_path)
-        await _handle_specific(ratelimit)
-    except KeyError:
-        await _handle_global(app.ratelimiter.global_bucket)
+    if rule.rule.startswith("/api"):
+        try:
+            ratelimit = app.ratelimiter.get_ratelimit(rule_path)
+            await _handle_specific(ratelimit)
+        except KeyError:
+            await _handle_global(app.ratelimiter.global_bucket)

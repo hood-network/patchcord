@@ -94,7 +94,7 @@ async def put_region_server(region):
             region,
         )
     except asyncpg.UniqueViolationError:
-        raise BadRequest("voice server already exists with given hostname")
+        raise BadRequest(message="voice server already exists with given hostname")
 
     return "", 204
 

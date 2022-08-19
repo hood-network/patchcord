@@ -161,7 +161,7 @@ def emoji_sql(
         # fun fact, emojis are length 1 in python? i'll use this to the
         # best of my ability, lol
         if len(emoji_name) != 1:
-            raise BadRequest("Invalid emoji name")
+            raise BadRequest(10014)
 
         where_ext = f"AND emoji_text = {param}"
         main_emoji = emoji_name

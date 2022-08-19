@@ -17,32 +17,32 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from typing import Optional
-
 ERR_MSG_MAP = {
-    10001: "Unknown account",
-    10002: "Unknown application",
-    10003: "Unknown channel",
-    10004: "Unknown guild",
-    10005: "Unknown integration",
-    10006: "Unknown invite",
-    10007: "Unknown member",
-    10008: "Unknown message",
+    10001: "Unknown Account",
+    10002: "Unknown Application",
+    10003: "Unknown Channel",
+    10004: "Unknown Guild",
+    10005: "Unknown Integration",
+    10006: "Unknown Invite",
+    10007: "Unknown Member",
+    10008: "Unknown Message",
     10009: "Unknown Overwrite",
-    10010: "Unknown provider",
-    10011: "Unknown role",
-    10012: "Unknown token",
-    10013: "Unknown user",
+    10010: "Unknown Provider",
+    10011: "Unknown Role",
+    10012: "Unknown Token",
+    10013: "Unknown User",
     10014: "Unknown Emoji",
     10015: "Unknown Webhook",
     20001: "Bots cannot use this endpoint",
     20002: "Only bots can use this endpoint",
     20024: "Under minimum age",
     20017: "The Maze isn't meant for you.",
-    30001: "Maximum number of guilds reached (100)",
+    30001: "Maximum number of guilds reached ({})",
     30002: "Maximum number of friends reached (1000)",
     30003: "Maximum number of pins reached (50)",
     30005: "Maximum number of guild roles reached (250)",
+    30006: "Too many users have this username, please try another.",
+    30008: "Maximum number of emojis reached ({})",
     30010: "Maximum number of reactions reached (20)",
     30013: "Maximum number of guild channels reached (500)",
     30016: "Maximum number of invites reached (1000)",
@@ -50,6 +50,9 @@ ERR_MSG_MAP = {
     40005: "Request entity too large",
     40007: "The user is banned from this guild",
     40008: "Invites are currently paused for this server. Please try again later.",
+    40011: "You must transfer ownership of any owned guilds before deleting your account",
+    40015: "You must transfer ownership of any owned guilds before disabling your account",
+    40033: "This message has already been crossposted.",
     50001: "Missing access",
     50002: "Invalid account type",
     50003: "Cannot execute action on a DM channel",
@@ -57,7 +60,7 @@ ERR_MSG_MAP = {
     50005: "Cannot edit a message authored by another user",
     50006: "Cannot send an empty message",
     50007: "Cannot send messages to this user",
-    50008: "Cannot send messages in a voice channel",
+    50008: "Cannot send messages in a non-text channel",
     50009: "Channel verification level is too high",
     50010: "OAuth2 application does not have a bot",
     50011: "OAuth2 application limit reached",
@@ -70,16 +73,21 @@ ERR_MSG_MAP = {
         "least 2 and fewer than 100 messages to delete."
     ),
     50019: "A message can only be pinned to the channel it was sent in",
-    50020: "Invite code is either invalid or taken.",
+    50020: "Invite code is either invalid or taken",
     50021: "Cannot execute action on a system message",
+    50024: "Cannot execute action on this channel type",
     50025: "Invalid OAuth2 access token",
     50034: "A message provided was too old to bulk delete",
     50035: "Invalid Form Body",
     50036: "An invite was accepted to a guild the application's bot is not in",
     50041: "Invalid API version",
     50055: "Invalid guild",
+    50068: "Invalid message type",
+    50109: "The request body contains invalid JSON.",
     80006: "You need to be friends in order to make this change.",
     90001: "Reaction blocked",
+    100002: "Invalid payment source",
+    100037: "Subscription items are required",
 }
 
 
@@ -87,96 +95,94 @@ class LitecordError(Exception):
     """Base class for litecord errors"""
 
     status_code = 500
+    error_code = 0
+    default_message = "Unknown error"
 
-    def _get_err_msg(self, err_code: Optional[int]) -> str:
-        if err_code is not None:
-            return ERR_MSG_MAP.get(err_code) or self.args[0]
-
-        return repr(self)
+    def __init__(self, error_code: int = 0, *args, **kwargs):
+        if error_code:
+            self.error_code = error_code
+        self.args = args
+        self.json = kwargs
 
     @property
     def message(self) -> str:
         """Get an error's message string."""
-        try:
-            message = self.args[0]
-
-            if isinstance(message, int):
-                return self._get_err_msg(message)
-
-            return message
-        except IndexError:
-            return self._get_err_msg(getattr(self, "error_code", None))
-
-    @property
-    def json(self):
-        """Get any specific extra JSON keys to insert
-        on the error response."""
-        return self.args[1]
+        return ERR_MSG_MAP.get(self.error_code, self.default_message).format(*self.args)
 
 
 class BadRequest(LitecordError):
     status_code = 400
+    default_message = "400: Bad Request"
 
 
 class Unauthorized(LitecordError):
     status_code = 401
+    error_code = 0
+    default_message = "401: Unauthorized"
 
 
 class Forbidden(LitecordError):
     status_code = 403
-
-
-class ForbiddenDM(Forbidden):
-    error_code = 50007
+    default_message = "403: Forbidden"
 
 
 class NotFound(LitecordError):
     status_code = 404
-
-
-class GuildNotFound(NotFound):
-    error_code = 10004
-
-
-class ChannelNotFound(NotFound):
-    error_code = 10003
-
-
-class MessageNotFound(NotFound):
-    error_code = 10008
-
-
-class WebhookNotFound(NotFound):
-    error_code = 10015
-
-
-class UserNotFound(NotFound):
-    error_code = 10013
+    default_message = "404: Not Found"
 
 
 class Ratelimited(LitecordError):
     status_code = 429
-
-
-class MissingPermissions(Forbidden):
-    error_code = 50013
-
-
-class TheMaze(Forbidden):
-    error_code = 20017
-
-
-class InvitesDisabled(Forbidden):
-    error_code = 40008
-
-
-class UnderageUser(Forbidden):
-    error_code = 20024
+    error_code = -1
+    default_message = "You are being rate limited."
 
 
 class TooLarge(LitecordError):
     status_code = 413
     error_code = 40005
+    default_message = "Request entity too large"
+
+
+class FormError(LitecordError):
+    status_code = 400
+    error_code = 50035
+
+    def __init__(self, **kwargs):
+        self.json = {"errors": self._wrap_errors(kwargs)}
+
+    def _wrap_errors(self, errors: dict) -> dict:
+        res = {}
+        for k, v in errors.items():
+            if isinstance(v, list):
+                res[k] = {"_errors": v}
+            else:
+                res[k] = self._wrap_errors(v)
+        return res
+
+
+class ManualFormError(LitecordError):
+    status_code = 400
+    error_code = 50035
+
+    def __init__(self, **kwargs):
+        self.json = {"errors": self._wrap_errors(kwargs)}
+
+    def _wrap_errors(self, errors: dict) -> dict:
+        res = {}
+        for k, v in errors.items():
+            if "code" in v and "message" in v:
+                res[k] = {"_errors": [v]}
+            else:
+                res[k] = self._wrap_errors(v)
+        return res
+
+
+class MissingAccess(Forbidden):
+    error_code = 50001
+
+
+class MissingPermissions(Forbidden):
+    error_code = 50013
 
 
 class WebsocketClose(Exception):

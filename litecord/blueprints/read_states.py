@@ -21,7 +21,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 from quart import Blueprint, current_app as app, jsonify, request
 from litecord.auth import token_check
 from litecord.common.channels import channel_ack
-from litecord.errors import GuildNotFound
 from litecord.blueprints.checks import channel_check, guild_check
 from litecord.schemas import validate, BULK_ACK
 from litecord.enums import GUILD_CHANS

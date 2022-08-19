@@ -4,7 +4,7 @@ import os
 from typing import Optional
 
 from litecord.enums import PremiumType
-from litecord.errors import BadRequest, TooLarge
+from litecord.errors import BadRequest, ManualFormError, TooLarge
 from PIL import Image
 from quart import current_app as app, request
 
@@ -42,12 +42,12 @@ async def msg_create_request() -> tuple:
 
     files = await request.files
 
-    for _, given_file in files.items():
+    for num, (_, given_file) in enumerate(files.items()):
         if given_file.content_length is None:
-            raise BadRequest("Given file does not have content length.")
+            raise ManualFormError(files={num: {"content_length": {"code": "BASE_TYPE_REQUIRED", "message": "This field is required."}}})
 
     if len(files) > 10:
-        raise BadRequest("Only 10 files are allowed per message.")
+        raise ManualFormError(files={"code": "BASE_TYPE_MAX_LENGTH", "message": "Must be 10 or fewer in length."})
 
     # we don't really care about the given fields on the files dict, so
     # we only extract the values
@@ -60,7 +60,7 @@ def msg_create_check_content(payload: dict, files: list):
     embeds = (payload.get("embeds") or []) or [payload["embed"]] if "embed" in payload and payload["embed"] else []
     sticker_ids = payload.get("sticker_ids")
     if not content and not embeds and not sticker_ids and not files:
-        raise BadRequest("One of content, embed(s), sticker_ids or files is required")
+        raise BadRequest(50006)
 
 
 async def msg_add_attachment(message_id: int, channel_id: int, author_id: Optional[int], attachment_file) -> int:

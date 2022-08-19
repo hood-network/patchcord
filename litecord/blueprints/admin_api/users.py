@@ -23,7 +23,7 @@ from litecord.auth import admin_check
 from litecord.schemas import validate
 from litecord.admin_schemas import USER_CREATE, USER_UPDATE
 from litecord.errors import BadRequest, Forbidden
-from litecord.utils import async_map
+from litecord.utils import async_map, toggle_flag
 from litecord.enums import UserFlags
 from litecord.common.users import (
     create_user,
@@ -49,7 +49,7 @@ def args_try(args: dict, typ, field: str, default):
     try:
         return typ(args.get(field, default))
     except (TypeError, ValueError):
-        raise BadRequest(f"invalid {field} value")
+        raise BadRequest(message=f"invalid {field} value")
 
 
 @bp.route("", methods=["GET"], strict_slashes=False)
@@ -64,14 +64,14 @@ async def _search_users():
     page = args_try(args, int, "page", 0)
 
     if page < 0:
-        raise BadRequest("invalid page number")
+        raise BadRequest(message="invalid page number")
 
     if per_page > 50:
-        raise BadRequest("invalid per page number")
+        raise BadRequest(message="invalid per page number")
 
     # any of those must be available.
     if not any((username, discrim)):
-        raise BadRequest("must insert username or discrim")
+        raise BadRequest(message="must insert username or discrim")
 
     wheres, args = [], []
 
@@ -132,9 +132,8 @@ async def patch_user(user_id: int):
     if "flags" in j:
         new_flags = j["flags"]
 
-        # disallow any changes to the staff badge
-        if new_flags.is_staff != old_flags.is_staff:
-            raise Forbidden("you can not change a users staff badge")
+        # make sure the staff flag is the same as old_flags.value
+        toggle_flag(new_flags, UserFlags.staff, old_flags.is_staff)
 
         await app.db.execute(
             """

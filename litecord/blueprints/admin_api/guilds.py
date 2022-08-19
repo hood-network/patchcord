@@ -24,7 +24,7 @@ from litecord.common.interop import guild_view
 from litecord.schemas import validate
 from litecord.admin_schemas import GUILD_UPDATE
 from litecord.common.guilds import delete_guild
-from litecord.errors import GuildNotFound
+from litecord.errors import NotFound
 
 bp = Blueprint("guilds_admin", __name__)
 
@@ -37,7 +37,7 @@ async def get_guild(guild_id: int):
     guild = await app.storage.get_guild(guild_id)
 
     if not guild:
-        raise GuildNotFound()
+        raise NotFound(10004)
 
     return jsonify(guild_view(guild))
 

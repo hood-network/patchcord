@@ -30,7 +30,7 @@ from quart import current_app as app
 
 from litecord.common.interop import message_view
 
-from .errors import BadRequest
+from .errors import BadRequest, ManualFormError
 from .enums import Flags
 
 log = Logger(__name__)
@@ -259,11 +259,13 @@ def extract_limit(request_, default: int = 50, max_val: int = 100):
     """Extract a limit kwarg."""
     try:
         limit = int(request_.args.get("limit", default))
-
-        if limit not in range(0, max_val + 1):
-            raise ValueError()
     except (TypeError, ValueError):
-        raise BadRequest("limit not int")
+        raise ManualFormError(limit={"code": "NUMBER_TYPE_COERCE", "message": f"Value \"{request_.args['limit']}\" is not int."})
+
+    if limit < 0:
+        raise ManualFormError(limit={"code": "NUMBER_TYPE_MIN", "message": f"Value should be greater than or equal to 0."})
+    if limit > max_val:
+        raise ManualFormError(limit={"code": "NUMBER_TYPE_MAX", "message": f"Value should be less than or equal to {max_val}."})
 
     return limit
 

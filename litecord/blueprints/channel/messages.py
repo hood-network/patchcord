@@ -25,8 +25,8 @@ from logbook import Logger
 
 from litecord.blueprints.auth import token_check
 from litecord.blueprints.checks import channel_check, channel_perm_check
-from litecord.errors import MessageNotFound, Forbidden
-from litecord.enums import MessageFlags, MessageType, ChannelType, GUILD_CHANS
+from litecord.errors import Forbidden, ManualFormError, MissingPermissions
+from litecord.enums import MessageFlags, MessageType, ChannelType, GUILD_CHANS, PremiumType
 
 from litecord.schemas import validate, MESSAGE_CREATE, MESSAGE_UPDATE
 from litecord.utils import pg_set_json, query_tuple_from_args, extract_limit, to_update, toggle_flag
@@ -37,6 +37,7 @@ from litecord.embed.messages import process_url_embed
 from litecord.common.channels import dm_pre_check, try_dm_state
 from litecord.images import try_unlink
 from litecord.common.messages import (
+    PLAN_ID_TO_TYPE,
     msg_create_request,
     msg_create_check_content,
     msg_add_attachment,
@@ -145,7 +146,7 @@ async def get_single_message(channel_id, message_id):
     message = await app.storage.get_message(message_id, user_id)
 
     if not message:
-        raise MessageNotFound()
+        raise NotFound(10008)
 
     return jsonify(message_view(message))
 
@@ -239,6 +240,19 @@ async def _create_message(channel_id):
     payload_json, files = await msg_create_request()
     j = validate(payload_json, MESSAGE_CREATE)
 
+    plan_id = await app.db.fetchval(
+        """
+    SELECT payment_gateway_plan_id
+    FROM user_subscriptions
+    WHERE status = 1
+        AND user_id = $1
+    """,
+        author_id,
+    )
+    premium_type = PLAN_ID_TO_TYPE.get(plan_id)
+    if premium_type != PremiumType.TIER_2 and len(j["content"] or "") > 2000:
+        raise ManualFormError(content={"code": "BASE_TYPE_MAX_LENGTH", "message": "Must be 2000 or fewer in length."})
+
     msg_create_check_content(payload_json, files)
 
     if ctype == ChannelType.DM:
@@ -327,7 +341,7 @@ async def edit_message(channel_id, message_id):
     )
 
     if not author_id == user_id:
-        raise Forbidden("You can not edit this message")
+        raise Forbidden(50005)
 
     j = validate(await request.get_json(), MESSAGE_UPDATE)
     updated = False
@@ -566,7 +580,7 @@ async def delete_message(channel_id, message_id):
 
     can_delete = by_perm or by_ownership
     if not can_delete:
-        raise Forbidden("You can not delete this message")
+        raise MissingPermissions()
 
     await _del_msg_fkeys(message_id, channel_id)
 

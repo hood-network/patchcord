@@ -24,7 +24,7 @@ from datetime import datetime
 from quart import Blueprint, jsonify, request, current_app as app
 from logbook import Logger
 
-from ..errors import BadRequest, Forbidden, Unauthorized, UserNotFound
+from ..errors import BadRequest, ManualFormError, MissingAccess, NotFound
 from ..schemas import validate, USER_UPDATE, GET_MENTIONS
 from ..utils import str_bool
 
@@ -96,10 +96,7 @@ async def _try_username_patch(user_id, new_username: str) -> str:
         discrim = await roll_discrim(new_username)
 
         if not discrim:
-            raise BadRequest(
-                "Unable to change username",
-                {"username": "Too many people are with this username."},
-            )
+            raise BadRequest(30006)
 
         await app.db.execute(
             """
@@ -127,10 +124,7 @@ async def _try_discrim_patch(user_id, new_discrim: str):
             user_id,
         )
     except UniqueViolationError:
-        raise BadRequest(
-            "Invalid discriminator",
-            {"discriminator": "Someone already used this discriminator."},
-        )
+        raise BadRequest(30006)
 
 
 async def _check_pass(j, user):
@@ -139,12 +133,11 @@ async def _check_pass(j, user):
         return
 
     if not j["password"]:
-        raise BadRequest("password required", {"password": "password required"})
+        raise ManualFormError(password={"code": "PASSWORD_DOES_NOT_MATCH", "message": "Password does not match."})
 
     phash = user["password_hash"]
-
     if not await check_password(phash, j["password"]):
-        raise BadRequest("password incorrect", {"password": "password does not match."})
+        raise ManualFormError(password={"code": "PASSWORD_DOES_NOT_MATCH", "message": "Password does not match."})
 
 
 @bp.route("/@me", methods=["PATCH"])
@@ -166,12 +159,15 @@ async def patch_me():
     )
 
     if to_update(j, user, "username"):
-        # this will take care of regenning a new discriminator
+        await _check_pass(j, user)
+
         discrim = await _try_username_patch(user_id, j["username"])
         user["username"] = j["username"]
         user["discriminator"] = discrim
 
     if to_update(j, user, "discriminator"):
+        await _check_pass(j, user)
+
         try:
             new_discrim = "%04d" % int(j["discriminator"])
         except (ValueError, TypeError):
@@ -209,8 +205,9 @@ async def patch_me():
     if to_update(j, user, "avatar"):
         mime, _ = parse_data_uri(j["avatar"])
 
+        no_gif = False
         if mime == "image/gif" and user["premium_type"] == PremiumType.NONE:
-            raise BadRequest("no gif without nitro")
+            no_gif = True
 
         new_icon = await app.icons.update("user_avatar", user_id, j["avatar"], size=(128, 128))
 
@@ -220,41 +217,37 @@ async def patch_me():
         SET avatar = $1
         WHERE id = $2
         """,
-            new_icon.icon_hash,
+            new_icon.icon_hash.lstrip("a_") if no_gif else new_icon.icon_hash,
             user_id,
         )
 
     if to_update(j, user, "avatar_decoration"):
-        if user["premium_type"] != PremiumType.TIER_2:
-            raise BadRequest("no avatar_decoration without nitro")
+        if not j["avatar_decoration"] or user["premium_type"] == PremiumType.TIER_2:
+            new_icon = await app.icons.update("user_avatar_decoration", user_id, j["avatar_decoration"])
 
-        new_icon = await app.icons.update("user_avatar_decoration", user_id, j["avatar_decoration"])
-
-        await app.db.execute(
-            """
-        UPDATE users
-        SET avatar_decoration = $1
-        WHERE id = $2
-        """,
-            new_icon.icon_hash,
-            user_id,
-        )
+            await app.db.execute(
+                """
+            UPDATE users
+            SET avatar_decoration = $1
+            WHERE id = $2
+            """,
+                new_icon.icon_hash,
+                user_id,
+            )
 
     if to_update(j, user, "banner"):
-        if user["premium_type"] != PremiumType.TIER_2:
-            raise BadRequest("no banner without nitro")
+        if not j["banner"] or user["premium_type"] == PremiumType.TIER_2:
+            new_icon = await app.icons.update("user_banner", user_id, j["banner"])
 
-        new_icon = await app.icons.update("user_banner", user_id, j["banner"])
-
-        await app.db.execute(
-            """
-        UPDATE users
-        SET banner = $1
-        WHERE id = $2
-        """,
-            new_icon.icon_hash,
-            user_id,
-        )
+            await app.db.execute(
+                """
+            UPDATE users
+            SET banner = $1
+            WHERE id = $2
+            """,
+                new_icon.icon_hash,
+                user_id,
+            )
 
     if to_update(j, user, "bio"):
         await app.db.execute(
@@ -299,27 +292,23 @@ async def patch_me():
         )
 
     if to_update(j, user, "theme_colors"):
-        if user["premium_type"] != PremiumType.TIER_2:
-            raise BadRequest("no theme colors without nitro")
+        if not j["theme_colors"] or user["premium_type"] == PremiumType.TIER_2:
+            await app.db.execute(
+                """
+                UPDATE users
+                SET theme_colors = $1
+                WHERE id = $2
+                """,
+                j["theme_colors"] or None,
+                user_id,
+            )
 
-        await app.db.execute(
-            """
-            UPDATE users
-            SET theme_colors = $1
-            WHERE id = $2
-            """,
-            j["theme_colors"] or None,
-            user_id,
-        )
-
-    if user["email"] is None and "new_password" not in j:
-        raise BadRequest("missing password", {"password": "Please set a password."})
+    # TODO: Unclaimed accounts
 
     if "new_password" in j and j["new_password"]:
         await _check_pass(j, user)
 
         new_hash = await hash_data(j["new_password"])
-
         await app.db.execute(
             """
         UPDATE users
@@ -360,7 +349,7 @@ async def patch_me():
         )
 
         if date_of_birth:
-            raise BadRequest("Cannot update date of birth")
+            raise ManualFormError(date_of_birth={"code": "DATE_OF_BIRTH_IMMUTABLE", "message": "You cannot update your date of birth."})
 
         await app.db.execute(
             """
@@ -482,14 +471,14 @@ async def get_profile(peer_id: int):
     peer = await app.storage.get_user(peer_id)
 
     if not peer:
-        raise UserNotFound()
+        raise NotFound(10013)
 
     mutual_guilds = await app.user_storage.get_mutual_guilds(user_id, peer_id)
     friends = await app.user_storage.are_friends_with(user_id, peer_id)
 
     # don't return a proper card if no guilds are being shared.
     if not mutual_guilds and not friends:
-        raise Forbidden("You are not allowed to fetch this user.")
+        raise MissingAccess()
 
     # actual premium status is determined by that
     # column being NULL or not
@@ -596,11 +585,18 @@ async def delete_account():
     user_id = await token_check()
 
     j = await request.get_json()
+    password = j.get("password", "")
 
-    try:
-        password = j["password"]
-    except KeyError:
-        raise BadRequest("password required")
+    pwd_hash = await app.db.fetchval(
+        """
+    SELECT password_hash
+    FROM users
+    WHERE id = $1
+    """,
+        user_id,
+    )
+    if not await check_password(pwd_hash, password):
+        raise ManualFormError(password={"code": "PASSWORD_DOES_NOT_MATCH", "message": "Password does not match."})
 
     owned_guilds = await app.db.fetchval(
         """
@@ -612,19 +608,7 @@ async def delete_account():
     )
 
     if owned_guilds > 0:
-        raise BadRequest("You still own guilds.")
-
-    pwd_hash = await app.db.fetchval(
-        """
-    SELECT password_hash
-    FROM users
-    WHERE id = $1
-    """,
-        user_id,
-    )
-
-    if not await check_password(pwd_hash, password):
-        raise Unauthorized("password does not match")
+        raise BadRequest(40011)
 
     await delete_user(user_id)
     await user_disconnect(user_id)
@@ -634,11 +618,19 @@ async def delete_account():
 
 @bp.route("/@me/affinities/users", methods=["GET"])
 async def _get_tinder_score_affinity_users():
-    return jsonify({"user_affinities": [], "inverse_user_affinities": []})
+    user_id = await token_check()
+
+    # We make semi-accurate affinities by using relationships and private channels
+    friends = await app.user_storage.get_friend_ids(user_id)
+    dms = await app.user_storage.get_dms(user_id)
+    dm_recipients = [r["id"] for dm in dms for r in dm["recipients"] if int(r["id"]) != user_id]
+    return jsonify({"user_affinities": list(set(map(str, friends + dm_recipients))), "inverse_user_affinities": []})
 
 
 @bp.route("/@me/affinities/guilds", methods=["GET"])
 async def _get_tinder_score_affinity_guilds():
+    user_id = await token_check()
+    # TODO: implement this
     return jsonify({"guild_affinities": []})
 
 

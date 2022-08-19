@@ -42,7 +42,7 @@ from ..schemas import (
 )
 from .checks import guild_check, guild_owner_check, guild_perm_check
 from litecord.utils import to_update, search_result_from_list
-from litecord.errors import BadRequest
+from litecord.errors import BadRequest, ManualFormError, MissingAccess
 from litecord.permissions import get_permissions
 
 DEFAULT_EVERYONE_PERMS = 104324161
@@ -345,24 +345,6 @@ async def _guild_update_icon(scope: str, guild_id: int, icon: Optional[str], **k
     )
 
 
-async def _guild_update_region(guild_id, region):
-    is_vip = region.vip
-    can_vip = await app.storage.has_feature(guild_id, "VIP_REGIONS")
-
-    if is_vip and not can_vip:
-        raise BadRequest("can not assign guild to vip-only region")
-
-    await app.db.execute(
-        """
-    UPDATE guilds
-    SET region = $1
-    WHERE id = $2
-    """,
-        region.id,
-        guild_id,
-    )
-
-
 @bp.route("/<int:guild_id>", methods=["PATCH"])
 async def _update_guild(guild_id):
     user_id = await token_check()
@@ -395,34 +377,19 @@ async def _update_guild(guild_id):
             guild_id,
         )
 
-    if "region" in j:
-        region = app.voice.lvsp.region(j["region"])
-
-        if region is not None:
-            await _guild_update_region(guild_id, region)
-
     # small guild to work with to_update()
     guild = await app.storage.get_guild(guild_id)
 
     if to_update(j, guild, "icon"):
         await _guild_update_icon("guild_icon", guild_id, j["icon"], size=(128, 128))
 
-    if to_update(j, guild, "splash"):
-        if not await app.storage.has_feature(guild_id, "INVITE_SPLASH"):
-            raise BadRequest("guild does not have INVITE_SPLASH feature")
-
+    if to_update(j, guild, "splash") and await app.storage.has_feature(guild_id, "INVITE_SPLASH"):
         await _guild_update_icon("guild_splash", guild_id, j["splash"])
 
-    if to_update(j, guild, "banner"):
-        if not await app.storage.has_feature(guild_id, "VERIFIED"):
-            raise BadRequest("guild is not verified")
-
+    if to_update(j, guild, "banner") and await app.storage.has_feature(guild_id, "BANNER"):
         await _guild_update_icon("guild_banner", guild_id, j["banner"])
 
-    if to_update(j, guild, "discovery_splash"):
-        if not await app.storage.has_feature(guild_id, "PUBLIC"):
-            raise BadRequest("guild does not have PUBLIC feature")
-
+    if to_update(j, guild, "discovery_splash") and await app.storage.has_feature(guild_id, "DISCOVERABLE"):
         await _guild_update_icon("guild_discovery_splash", guild_id, j["discovery_splash"])
 
     if "features" in j:
@@ -516,11 +483,19 @@ async def _update_guild(guild_id):
             chan = await app.storage.get_channel(chan_id)
             await app.dispatcher.guild.dispatch(guild_id, ("CHANNEL_CREATE", chan))
 
-        elif chan is None:
-            raise BadRequest("invalid channel id")
-
         elif chan["guild_id"] != str(guild_id):
-            raise BadRequest("channel id not linked to guild")
+            raise ManualFormError(**{field: {"code": "INVALID_CHANNEL", "message": "Channel is invalid."}})
+
+        elif chan is None:
+            await app.db.execute(
+                f"""
+            UPDATE guilds
+            SET {field} = NULL
+            WHERE id = $1
+            """,
+                guild_id,
+            )
+            continue
 
         await app.db.execute(
             f"""
@@ -589,8 +564,7 @@ async def change_vanity_url(guild_id: int):
     user_id = await token_check()
 
     if not await app.storage.has_feature(guild_id, "VANITY_URL"):
-        # TODO: is this the right error
-        raise BadRequest("guild has no vanity url support")
+        raise MissingAccess()
 
     await guild_perm_check(user_id, guild_id, "manage_guild")
 
@@ -602,7 +576,7 @@ async def change_vanity_url(guild_id: int):
     old_vanity = await app.storage.vanity_invite(guild_id)
 
     if old_vanity == inv_code:
-        raise BadRequest("can not change to same invite")
+        return jsonify(await app.storage.get_invite(inv_code))
 
     # this is sad because we don't really use the things
     # sql gives us, but i havent really found a way to put
@@ -610,7 +584,7 @@ async def change_vanity_url(guild_id: int):
     # guild_id_fkey fails but INSERT when code_fkey fails..
     inv = await app.storage.get_invite(inv_code)
     if inv:
-        raise BadRequest("invite already exists")
+        raise BadRequest(50020)
 
     # TODO: this is bad, what if a guild has no channels?
     # we should probably choose the first channel that has

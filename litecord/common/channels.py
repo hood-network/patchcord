@@ -20,7 +20,7 @@ from typing import Optional
 from quart import current_app as app
 
 
-from litecord.errors import ForbiddenDM
+from litecord.errors import Forbidden
 from litecord.enums import RelationshipType
 from litecord.pubsub.member import dispatch_member
 from litecord.pubsub.user import dispatch_user
@@ -97,7 +97,7 @@ async def dm_pre_check(user_id: int, channel_id: int, peer_id: int):
     )
 
     if blockrow is not None:
-        raise ForbiddenDM()
+        raise Forbidden(50007)
 
     # check if theyre friends
     friends = await app.user_storage.are_friends_with(user_id, peer_id)
@@ -127,7 +127,7 @@ async def dm_pre_check(user_id: int, channel_id: int, peer_id: int):
 
     # if after this filtering we don't have any more guilds, error
     if not mutual_guilds:
-        raise ForbiddenDM()
+        raise Forbidden(50007)
 
 
 async def try_dm_state(user_id: int, dm_id: int):

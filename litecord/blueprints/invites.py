@@ -27,7 +27,7 @@ from logbook import Logger
 from ..auth import token_check
 from ..schemas import validate, INVITE
 from ..enums import ChannelType
-from ..errors import BadRequest, Forbidden
+from ..errors import BadRequest, Forbidden, NotFound
 from ..utils import async_map, str_bool
 
 from litecord.blueprints.checks import (
@@ -46,10 +46,6 @@ bp = Blueprint("invites", __name__)
 
 class UnknownInvite(BadRequest):
     error_code = 10006
-
-
-class InvalidInvite(Forbidden):
-    error_code = 50020
 
 
 class AlreadyInvited(BaseException):
@@ -94,7 +90,7 @@ async def invite_precheck(user_id: int, guild_id: int):
     )
 
     if banned is not None:
-        raise InvalidInvite(40007)
+        raise UnknownInvite(40007)
 
 
 async def invite_precheck_gdm(user_id: int, channel_id: int):
@@ -106,21 +102,15 @@ async def invite_precheck_gdm(user_id: int, channel_id: int):
 
 
 async def _inv_check_age(inv: dict):
-    if inv["max_age"] == 0:
-        return
+    delta_sec = (datetime.datetime.utcnow() - inv["created_at"]).total_seconds()
 
-    # TODO: also verify when max_uses is 0
-
-    now = datetime.datetime.utcnow()
-    delta_sec = (now - inv["created_at"]).total_seconds()
-
-    if delta_sec > inv["max_age"]:
+    if inv["max_age"] > 0 and delta_sec > inv["max_age"]:
         await delete_invite(inv["code"])
-        raise InvalidInvite("Invite is expired")
+        raise UnknownInvite()
 
-    if inv["max_uses"] != 0 and inv["uses"] >= inv["max_uses"]:
+    if inv["max_uses"] > 0 and inv["uses"] >= inv["max_uses"]:
         await delete_invite(inv["code"])
-        raise InvalidInvite("Too many uses")
+        raise UnknownInvite()
 
 
 async def use_invite(user_id, invite_code) -> bool:
@@ -134,10 +124,8 @@ async def use_invite(user_id, invite_code) -> bool:
     """,
         invite_code,
     )
-
-    if inv is None:
-        raise UnknownInvite(10006)
-
+    if not inv:
+        raise UnknownInvite()
     await _inv_check_age(inv)
 
     # NOTE: if group dm invite, guild_id is null.
@@ -205,7 +193,7 @@ async def create_invite(channel_id):
     await channel_perm_check(user_id, channel_id, "create_invites")
 
     if chantype == ChannelType.DM:
-        raise BadRequest("Invalid channel type")
+        raise NotFound(10003)
 
     invite_code = gen_inv_code()
 
@@ -240,9 +228,8 @@ async def create_invite(channel_id):
 @bp.route("/invites/<invite_code>", methods=["GET"])
 async def get_invite(invite_code: str):
     inv = await app.storage.get_invite(invite_code)
-
     if not inv:
-        return "", 404
+        return UnknownInvite()
 
     if request.args.get("with_counts", type=str_bool) or request.args.get("with_expiration", type=str_bool):
         extra = await app.storage.get_invite_extra(invite_code, request.args.get("with_counts", type=str_bool), request.args.get("with_expiration", type=str_bool))
@@ -277,7 +264,7 @@ async def _delete_invite(invite_code: str):
     )
 
     if guild_id is None:
-        raise BadRequest("Unknown invite")
+        raise BadRequest(10006)
 
     await guild_perm_check(user_id, guild_id, "manage_channels")
 

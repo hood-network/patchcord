@@ -59,7 +59,7 @@ async def raw_token_check(token: str, db=None) -> int:
         user_id_decoded = base64.b64decode(user_id_str.encode())
         user_id = int(user_id_decoded)
     except (ValueError, binascii.Error):
-        raise Unauthorized("Invalid user ID type")
+        raise Unauthorized()
 
     pwd_hash = await db.fetchval(
         """
@@ -71,7 +71,7 @@ async def raw_token_check(token: str, db=None) -> int:
     )
 
     if not pwd_hash:
-        raise Unauthorized("User ID not found")
+        raise Unauthorized()
 
     signer = TimestampSigner(pwd_hash)
 
@@ -95,7 +95,7 @@ async def raw_token_check(token: str, db=None) -> int:
         return user_id
     except BadSignature:
         log.warning("token failed for uid {}", user_id)
-        raise Forbidden("Invalid token")
+        raise Unauthorized()
 
 
 @overload
@@ -120,7 +120,7 @@ async def token_check(to_raise: bool = True) -> Optional[int]:
         token = request.headers["Authorization"]
     except KeyError:
         if to_raise:
-            raise Unauthorized("No token provided")
+            raise Unauthorized()
         return None
 
     if token.startswith("Bot "):
@@ -141,7 +141,7 @@ async def admin_check() -> int:
     """Check if the user is an admin."""
     user_id = await token_check()
     if not await is_staff(user_id):
-        raise Unauthorized("you are not staff")
+        raise Forbidden(20017)
 
     return user_id
 

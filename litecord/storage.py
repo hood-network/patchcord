@@ -148,7 +148,6 @@ class Storage:
 
         if secure:
             duser["mobile"] = False
-            duser["phone"] = f"+{duser['phone']}" if duser["phone"] else None
 
             today = date.today()
             born = duser.pop("date_of_birth")
@@ -1132,7 +1131,7 @@ class Storage:
         """Fetch invite information given its code."""
         invite = await self.db.fetchrow(
             """
-        SELECT code, guild_id, channel_id, created_at, max_age
+        SELECT code, guild_id, channel_id, max_age, max_uses, uses
         FROM invites
         WHERE code = $1
         """,
@@ -1143,9 +1142,10 @@ class Storage:
             return None
 
         dinv = dict(invite)
+        uses, max_age, max_uses = dinv.pop("uses"), dinv.pop("max_age"), dinv.pop("max_uses")
+        delta_sec = (datetime.utcnow() - invite["created_at"]).total_seconds()
 
-        created_at, max_age = dinv.pop("created_at"), dinv.pop("max_age")
-        if max_age > 0 and (created_at + timedelta(seconds=max_age)) < datetime.utcnow():
+        if (max_age > 0 and delta_sec > max_age) or (max_uses > 0 and uses >= max_uses):
             await self.db.execute(
                 """
             DELETE FROM invites
