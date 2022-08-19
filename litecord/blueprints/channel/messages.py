@@ -247,7 +247,7 @@ async def _create_message(channel_id):
     WHERE status = 1
         AND user_id = $1
     """,
-        author_id,
+        user_id,
     )
     premium_type = PLAN_ID_TO_TYPE.get(plan_id)
     if premium_type != PremiumType.TIER_2 and len(j["content"] or "") > 2000:

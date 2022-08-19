@@ -212,6 +212,16 @@ set_blueprints(app)
 async def app_before_request():
     """Functions to call before the request actually
     takes place."""
+
+    try:
+        request.discord_api_version = int(request.url_rule.rule.split("/api/v")[1].split("/")[0])
+    except Exception:
+        request.discord_api_version = 6
+    finally:
+        # check if api version is smaller than 5 or bigger than 10
+        if 10 < request.discord_api_version < 5:
+            raise BadRequest(50041)
+
     await ratelimit_handler()
 
 
@@ -452,9 +462,7 @@ async def handle_litecord_err(error: Exception):
 
 @app.errorhandler(404)
 def handle_404(_):
-    if request.path.startswith("/api") and request.discord_api_version == -1:
-        return jsonify({"message": "Invalid API version", "code": 50041}), 404
-    elif request.path.startswith("/api"):
+    if request.path.startswith("/api"):
         return jsonify({"message": "404: Not Found", "code": 0}), 404
     return "Not Found", 404
 

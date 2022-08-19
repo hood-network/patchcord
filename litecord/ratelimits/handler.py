@@ -88,23 +88,6 @@ async def ratelimit_handler():
     request.retry_after = None
     request.bucket_global = False
 
-    if rule.rule.startswith("/api/v5"):
-        request.discord_api_version = 5
-    elif rule.rule.startswith("/api/v6"):
-        request.discord_api_version = 6
-    elif rule.rule.startswith("/api/v7"):
-        request.discord_api_version = 7
-    elif rule.rule.startswith("/api/v8"):
-        request.discord_api_version = 8
-    elif rule.rule.startswith("/api/v9"):
-        request.discord_api_version = 9
-    elif rule.rule.startswith("/api/v10"):
-        request.discord_api_version = 10
-    elif rule.rule.startswith("/api") and not rule.rule.startswith("/api/v"):
-        request.discord_api_version = 6
-    else:  # Invalid api version
-        request.discord_api_version = -1
-
     if rule.rule.startswith("/api"):
         try:
             ratelimit = app.ratelimiter.get_ratelimit(rule_path)
