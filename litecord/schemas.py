@@ -206,12 +206,12 @@ class LitecordErrorHandler(BasicErrorHandler):
         0x06: {"code": "BASE_TYPE_REQUIRED", "message": "This field is required."},
         0x22: {"code": "BASE_TYPE_REQUIRED", "message": "This field is required."},
         0x23: {"code": "BASE_TYPE_REQUIRED", "message": "This field is required."},
-        0x24: {"code": "{constraint}_TYPE_COERCE", "message": "Value \"{0}\" is not {constraint}."},
+        0x24: {"code": "{constraint}_TYPE_COERCE", "message": "Value \"{value}\" is not {constraint}."},
         0x25: {"code": "DICT_TYPE_CONVERT", "message": "Only dictionaries may be used in a DictType."},
         0x27: {"code": "BASE_TYPE_BAD_LENGTH", "message": "Must be between {0} and {1} in length."},
         0x27: {"code": "BASE_TYPE_MIN_LENGTH", "message": "Must be {constraint} or more in length."},
         0x28: {"code": "BASE_TYPE_MAX_LENGTH", "message": "Must be {constraint} or fewer in length."},
-        0x41: {"code": "REGEX_VALIDATE", "message": "Value cannot be \"{0}\"."},
+        0x41: {"code": "REGEX_VALIDATE", "message": "Value cannot be \"{value}\"."},
         0x42: {"code": "NUMBER_TYPE_MIN", "message": "Value should be greater than or equal to {constraint}."},
         0x43: {"code": "NUMBER_TYPE_MAX", "message": "Value should be less than or equal to {constraint}."},
         0x44: {"code": "BASE_TYPE_CHOICES", "message": "Value must be one of {constraint}."},
@@ -219,7 +219,7 @@ class LitecordErrorHandler(BasicErrorHandler):
         0x46: {"code": "BASE_TYPE_CHOICES", "message": "Value cannot be one of {constraint}."},
         0x47: {"code": "BASE_TYPE_CHOICES", "message": "Values cannot be one of {constraint}."},
         0x47: {"code": "BASE_TYPE_CHOICES", "message": "Values must contain {constraint}."},
-        0x61: {"code": "{constraint}_TYPE_COERCE", "message": "Value \"{0}\" is not {constraint}."},
+        0x61: {"code": "{constraint}_TYPE_COERCE", "message": "Value \"{value}\" is not {constraint}."},
     }
 
     def _format_message(self, field, error):
