@@ -507,7 +507,8 @@ async def get_profile(peer_id: int):
         "connected_accounts": [],
         "premium_type": PLAN_ID_TO_TYPE.get(plan_id),
         "premium_since": peer_premium,
-        "premium_guild_since": peer_premium,  # same for now
+        "premium_guild_since": peer_premium,  # Same for now
+        "profile_themes_experiment_bucket": 1,  # I have no words
     }
 
     if request.args.get("with_mutual_guilds", type=str_bool) in (None, True):
