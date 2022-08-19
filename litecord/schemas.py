@@ -224,11 +224,10 @@ class LitecordErrorHandler(BasicErrorHandler):
 
     def _format_message(self, field, error):
         info = self.messages.get(error.code, self.messages[0x00])
-        info["code"] = info["code"].format(constraint=error.constraint).upper()
-        info["message"] = info["message"].format(
-            *error.info, constraint=error.constraint, field=field, value=error.value
-        )
-        return info
+        return {
+            "code": info["code"].format(constraint=error.constraint).upper(),
+            "message": info["message"].format(*error.info, constraint=error.constraint, field=field, value=error.value),
+        }
 
 
 def validate(
