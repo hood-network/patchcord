@@ -75,7 +75,7 @@ class LitecordValidator(Validator):
 
     def __init__(self, *args, **kwargs):
         kwargs["allow_unknown"] = True
-        kwargs["error_handler"] = BasicErrorHandler
+        kwargs["error_handler"] = LitecordErrorHandler
         super().__init__(*args, **kwargs)
 
     def _validate_type_username(self, value: str) -> bool:
