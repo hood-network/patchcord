@@ -330,7 +330,7 @@ async def _create_message(channel_id):
 @bp.route("/<int:channel_id>/messages/<int:message_id>", methods=["PATCH"])
 async def edit_message(channel_id, message_id):
     user_id = await token_check()
-    _ctype, _guild_id = await channel_check(user_id, channel_id)
+    await channel_check(user_id, channel_id)
 
     author_id = await app.db.fetchval(
         """

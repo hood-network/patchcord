@@ -1017,7 +1017,7 @@ async def bulk_delete(channel_id: int):
     for id in message_ids:
         await _del_msg_fkeys(id, channel_id)
 
-    res = await app.db.execute(
+    await app.db.execute(
         """
     DELETE FROM messages
     WHERE

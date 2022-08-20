@@ -31,17 +31,20 @@ from litecord.blueprints.checks import (
     guild_check,
     guild_perm_check,
 )
+from litecord.blueprints.channel.messages import _spawn_embed, _del_msg_fkeys
+from ..common.interop import message_view
 
 from litecord.schemas import (
     validate,
     WEBHOOK_CREATE,
     WEBHOOK_UPDATE,
     WEBHOOK_MESSAGE_CREATE,
+    WEBHOOK_MESSAGE_UPDATE,
 )
 from litecord.enums import WebhookType
 
-from litecord.utils import async_map
-from litecord.errors import NotFound, Unauthorized
+from litecord.utils import async_map, str_bool, to_update
+from litecord.errors import MissingAccess, NotFound
 
 from litecord.common.messages import (
     msg_create_request,
@@ -79,7 +82,7 @@ async def get_webhook(
     drow = dict(row)
 
     type = drow["type"]
-    if type == WebhookType.FOLLOWER.value:
+    if type != WebhookType.INCOMING.value:
         drow.pop("token")
 
     # Get partial source data
@@ -106,10 +109,10 @@ async def get_webhook(
         drow["source_guild"] = dict(row) if row else None
 
     drow["user"] = await app.storage.get_user(drow.pop("creator_id"))
+    drow["application_id"] = None
 
     if not secure:
         drow.pop("user")
-        drow.pop("guild_id")
 
     return drow
 
@@ -134,6 +137,8 @@ async def _webhook_check_guild(guild_id):
 
 async def _webhook_check_fw(webhook_id):
     """Make a check from an incoming webhook id (fw = from webhook)."""
+    await token_check()
+
     guild_id = await app.db.fetchval(
         """
     SELECT guild_id FROM webhooks
@@ -143,7 +148,7 @@ async def _webhook_check_fw(webhook_id):
     )
 
     if guild_id is None:
-        raise NotFound(10015)
+        raise MissingAccess()
 
     return (await _webhook_check_guild(guild_id)), guild_id
 
@@ -176,7 +181,7 @@ async def webhook_token_check(webhook_id: int, webhook_token: str):
     )
 
     if row is None:
-        raise Unauthorized("webhook not found or unauthorized")
+        raise NotFound(10015)
 
     return row["guild_id"], row["channel_id"]
 
@@ -202,13 +207,10 @@ async def create_webhook(channel_id: int):
 
     webhook_id = app.winter_factory.snowflake()
 
-    # I'd say generating a full fledged token with itsdangerous is
-    # relatively wasteful since webhooks don't even have a password_hash,
-    # and we don't make a webhook in the users table either.
     token = secrets.token_urlsafe(40)
 
     webhook_icon = await app.icons.put(
-        "user_avatar", webhook_id, j.get("avatar"), always_icon=True, size=(128, 128)
+        "user_avatar", webhook_id, j.get("avatar") or None, always_icon=True, size=(128, 128)
     )
 
     await app.db.execute(
@@ -284,7 +286,7 @@ async def _update_webhook(webhook_id: int, j: dict):
 
     if "avatar" in j:
         new_icon = await app.icons.update(
-            "user_avatar", webhook_id, j["avatar"], always_icon=True, size=(128, 128)
+            "user_avatar", webhook_id, j["avatar"] or None, always_icon=True, size=(128, 128)
         )
 
         await app.db.execute(
@@ -305,13 +307,9 @@ async def modify_webhook(webhook_id: int):
     j = validate(await request.get_json(), WEBHOOK_UPDATE)
 
     if "channel_id" in j:
-        # pre checks
         chan = await app.storage.get_channel(j["channel_id"])
-
-        # short-circuiting should ensure chan isn't none
-        # by the time we do chan['guild_id']
-        if chan and chan["guild_id"] != str(guild_id):
-            raise ChannelNotFound("cant assign webhook to channel")
+        if (j["channel_id"] and not chan) or (chan and chan["guild_id"] != str(guild_id)):
+            raise NotFound(10003)
 
     await _update_webhook(webhook_id, j)
 
@@ -331,7 +329,9 @@ async def modify_webhook_tokened(webhook_id, webhook_token):
 
     # forcefully pop() the channel id out of the schema
     # instead of making another, for simplicity's sake
-    j = validate(await request.get_json(), WEBHOOK_UPDATE.pop("channel_id"))
+    j = await request.get_json()
+    j.pop("channel_id", None)
+    j = validate(j, WEBHOOK_UPDATE)
 
     await _update_webhook(webhook_id, j)
     await _dispatch_webhook_update(guild_id, channel_id)
@@ -486,6 +486,7 @@ async def execute_webhook(webhook_id: int, webhook_token):
     j = validate(payload_json, WEBHOOK_MESSAGE_CREATE)
 
     msg_create_check_content(j, files)
+    wait = request.args.get("wait", type=str_bool)
 
     # webhooks don't need permissions.
     mentions_everyone = "@everyone" in j["content"]
@@ -530,7 +531,8 @@ async def execute_webhook(webhook_id: int, webhook_token):
     # we can assume its a guild text channel, so just call it
     await msg_guild_text_mentions(payload, guild_id, mentions_everyone, mentions_here)
 
-    # TODO: is it really 204?
+    if wait:
+        return jsonify(message_view(payload))
     return "", 204
 
 
@@ -539,6 +541,7 @@ async def execute_slack_webhook(webhook_id, webhook_token):
     """Execute a webhook but expecting Slack data."""
     # TODO: know slack webhooks
     await webhook_token_check(webhook_id, webhook_token)
+    return "", 204
 
 
 @bp.route("/webhooks/<int:webhook_id>/<webhook_token>/github", methods=["POST"])
@@ -546,3 +549,121 @@ async def execute_github_webhook(webhook_id, webhook_token):
     """Execute a webhook but expecting GitHub data."""
     # TODO: know github webhooks
     await webhook_token_check(webhook_id, webhook_token)
+    return "", 204
+
+
+@bp.route("/webhooks/<int:webhook_id>/<webhook_token>/messages/<int:message_id>", methods=["GET"])
+async def get_webhook_message(webhook_id, webhook_token, message_id):
+    """Get a message from a webhook."""
+    await webhook_token_check(webhook_id, webhook_token)
+
+    payload = await app.storage.get_message(message_id)
+    if not payload or not payload["webhook_id"] or int(payload["webhook_id"]) != webhook_id:
+        raise NotFound(10008)
+
+    return jsonify(message_view(payload))
+
+
+@bp.route("/webhooks/<int:webhook_id>/<webhook_token>/messages/<int:message_id>", methods=["PATCH"])
+async def update_webhook_message(webhook_id, webhook_token, message_id):
+    """Update a message from a webhook."""
+    _, channel_id = await webhook_token_check(webhook_id, webhook_token)
+
+    old_message = await app.storage.get_message(message_id)
+    if not old_message or not old_message["webhook_id"] or int(old_message["webhook_id"]) != webhook_id:
+        raise NotFound(10008)
+
+    j = validate(await request.get_json(), WEBHOOK_MESSAGE_UPDATE)
+    updated = False
+    embeds = None
+
+    if to_update(j, old_message, "content"):
+        updated = True
+        await app.db.execute(
+            """
+        UPDATE messages
+        SET content=$1
+        WHERE messages.id = $2
+        """,
+            j["content"] or "",
+            message_id,
+        )
+
+    if "embed" in j or "embeds" in j:
+        updated = True
+        embeds = [await fill_embed(embed) for embed in ((j.get("embeds") or []) or [j["embed"]] if "embed" in j and j["embed"] else [])]
+        await app.db.execute(
+            """
+        UPDATE messages
+        SET embeds=$1
+        WHERE messages.id = $2
+        """,
+            embeds,
+            message_id,
+        )
+
+        # the artificial delay keeps consistency between the events, since
+        # it makes more sense for the MESSAGE_UPDATE with new content to come
+        # BEFORE the MESSAGE_UPDATE with the new embeds (based on content)
+        await _spawn_embed(
+            {
+                "id": message_id,
+                "channel_id": channel_id,
+                "content": j["content"],
+                "embeds": old_message["embeds"],
+            },
+            delay=0.2,
+        )
+
+    # only set new timestamp upon actual update
+    if updated:
+        await app.db.execute(
+            """
+        UPDATE messages
+        SET edited_at = (now() at time zone 'utc')
+        WHERE id = $1
+        """,
+            message_id,
+        )
+
+    message = await app.storage.get_message(message_id, user_id)
+
+    # only dispatch MESSAGE_UPDATE if any update
+    # actually happened
+    if updated:
+        await app.dispatcher.channel.dispatch(channel_id, ("MESSAGE_UPDATE", message))
+
+    return jsonify(message_view(message))
+
+
+@bp.route("/webhooks/<int:webhook_id>/<webhook_token>/messages/<int:message_id>", methods=["DELETE"])
+async def delete_webhook_message(webhook_id, webhook_token, message_id):
+    """Delete a message from a webhook."""
+    guild_id, channel_id = await webhook_token_check(webhook_id, webhook_token)
+
+    payload = await app.storage.get_message(message_id)
+    if not payload or not payload["webhook_id"] or int(payload["webhook_id"]) != webhook_id:
+        raise NotFound(10008)
+
+    await _del_msg_fkeys(message_id, channel_id)
+    await app.db.execute(
+        """
+    DELETE FROM messages
+    WHERE messages.id = $1
+    """,
+        message_id,
+    )
+
+    await app.dispatcher.channel.dispatch(
+        channel_id,
+        (
+            "MESSAGE_DELETE",
+            {
+                "id": str(message_id),
+                "channel_id": str(channel_id),
+                "guild_id": str(guild_id),
+            },
+        ),
+    )
+
+    return "", 204

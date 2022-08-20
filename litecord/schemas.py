@@ -640,7 +640,7 @@ MESSAGE_CREATE = {
     "channel_id": {"type": "snowflake", "required": False},
     "sticker_ids": {"type": "list", "required": False, "schema": {"coerce": int}},
     "nonce": {"coerce": str, "required": False, "nullable": True},
-    "tts": {"type": "boolean", "required": False},
+    "tts": {"type": "boolean", "default": False},
     "message_reference": {
         "type": "dict",
         "required": False,
@@ -866,19 +866,27 @@ WEBHOOK_CREATE = {
 
 WEBHOOK_UPDATE = {
     **WEBHOOK_CREATE,
+    "name": {"coerce": str, "minlength": 2, "maxlength": 32, "required": False},
     "channel_id": {"coerce": int, "required": False, "nullable": False},
 }
 
-WEBHOOK_MESSAGE_CREATE = {
-    "content": {"coerce": str, "minlength": 0, "maxlength": 2000, "required": False},
-    "tts": {"type": "boolean", "required": False},
-    "username": {"coerce": str, "minlength": 2, "maxlength": 32, "required": False},
-    "avatar_url": {"coerce": EmbedURL, "required": False},
+
+WEBHOOK_MESSAGE_UPDATE = {
+    "content": {"coerce": str, "minlength": 1, "maxlength": 2000, "required": False},
     "embeds": {
         "type": "list",
         "required": False,
         "schema": {"type": "dict", "schema": EMBED_OBJECT},
     },
+    "embed": {"type": "dict", "schema": EMBED_OBJECT, "required": False},
+}
+
+
+WEBHOOK_MESSAGE_CREATE = {
+    **WEBHOOK_MESSAGE_UPDATE,
+    "tts": {"type": "boolean", "default": False},
+    "username": {"coerce": str, "minlength": 2, "maxlength": 32, "required": False},
+    "avatar_url": {"coerce": EmbedURL, "required": False},
 }
 
 BULK_DELETE = {
