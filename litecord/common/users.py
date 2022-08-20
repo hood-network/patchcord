@@ -225,9 +225,9 @@ async def delete_user(user_id, *, mass_update: bool = True):
     # remove the user from various tables
     await _del_from_table(db, "notes", user_id)
     await _del_from_table(db, "user_settings", user_id)
-    await _del_from_table(db, "user_payment_sources", user_id)
-    await _del_from_table(db, "user_subscriptions", user_id)
     await _del_from_table(db, "user_payments", user_id)
+    await _del_from_table(db, "user_subscriptions", user_id)
+    await _del_from_table(db, "user_payment_sources", user_id)
     await _del_from_table(db, "user_read_state", user_id)
     await _del_from_table(db, "guild_settings", user_id)
     await _del_from_table(db, "guild_settings_channel_overrides", user_id)
