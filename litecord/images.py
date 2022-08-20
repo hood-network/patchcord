@@ -413,7 +413,7 @@ class IconManager:
         # ignore icon hashes if we're talking about emoji
         icon_hash = (hex(hash(scope)).lstrip("-0x")[:3] + hex(hash(key)).lstrip("-0x")[:3] + "." + await calculate_hash(data_fd)) if scope != "emoji" else None
 
-        if mime == "image/gif":
+        if mime == "image/gif" and scope != "emoji":
             icon_hash = f"a_{icon_hash}"
 
         log.debug("PUT icon {!r} {!r} {!r} {!r}", scope, key, icon_hash, mime)
