@@ -65,7 +65,7 @@ async def mass_user_update(user_id: int) -> Tuple[dict, dict]:
 
     # usually this presence should be partial, but there should be no major issue with a full one
     await app.presence.dispatch_friends_pres(
-        public_user, presence
+        int(public_user["id"]), presence
     )
 
     for guild_id in guild_ids:
