@@ -864,7 +864,7 @@ class GatewayWebsocket:
 
         # TODO: none of this works, so dummy dispatches baby
         member = await self.storage.get_member_data_one(guild_id, self.state.user_id)
-        await self.dispatch_raw(
+        update = (
             "VOICE_STATE_UPDATE",
             {
                 "channel_id": str(channel_id) if channel_id else None,
@@ -881,6 +881,13 @@ class GatewayWebsocket:
                 "user_id": str(self.state.user_id),
             }
         )
+        if guild_id:
+            await self.app.dispatcher.guild.dispatch(guild_id, update)
+        elif channel_id:
+            await self.app.dispatcher.channel.dispatch(channel_id, update)
+        else:
+            await self.dispatch_raw(*update)
+
         await self.dispatch_raw(
             "VOICE_SERVER_UPDATE",
             {
