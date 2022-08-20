@@ -226,7 +226,7 @@ async def update_nickname(guild_id):
 
     if to_update(j, member, "avatar"):
         if not j["avatar"] or user["premium_type"] == PremiumType.TIER_2:
-            new_icon = await app.icons.update("member_avatar", f"{guild_id}_{user_id}", j["avatar"], size=(128, 128))
+            new_icon = await app.icons.update("member_avatar", f"{guild_id}_{user_id}", j["avatar"], size=(1024, 1024), always_icon=True)
 
             await app.db.execute(
                 """
@@ -242,7 +242,7 @@ async def update_nickname(guild_id):
 
     if to_update(j, member, "banner"):
         if not j["banner"] or user["premium_type"] == PremiumType.TIER_2:
-            new_icon = await app.icons.update("member_banner", f"{guild_id}_{user_id}", j["banner"])
+            new_icon = await app.icons.update("member_banner", f"{guild_id}_{user_id}", j["banner"], always_icon=True)
 
             await app.db.execute(
                 """

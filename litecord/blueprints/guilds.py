@@ -110,7 +110,7 @@ async def _general_guild_icon(scope: str, guild_id: int, icon: Optional[str], **
 
 async def put_guild_icon(guild_id: int, icon: Optional[str]):
     """Insert a guild icon on the icon database."""
-    return await _general_guild_icon("guild_icon", guild_id, icon, size=(128, 128))
+    return await _general_guild_icon("guild_icon", guild_id, icon, size=(1024, 1024))
 
 
 
@@ -385,7 +385,7 @@ async def _update_guild(guild_id):
     guild = await app.storage.get_guild(guild_id)
 
     if to_update(j, guild, "icon"):
-        await _guild_update_icon("guild_icon", guild_id, j["icon"], size=(128, 128))
+        await _guild_update_icon("guild_icon", guild_id, j["icon"], size=(1024, 1024))
 
     if to_update(j, guild, "splash") and await app.storage.has_feature(guild_id, "INVITE_SPLASH"):
         await _guild_update_icon("guild_splash", guild_id, j["splash"])

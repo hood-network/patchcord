@@ -174,10 +174,20 @@ def parse_data_uri(string) -> tuple:
         raw_data = to_raw(data_type, data)
         if raw_data is None:
             raise ImageError("Unknown data header")
+        if raw_data.startswith(b'\x89\x50\x4E\x47\x0D\x0A\x1A\x0A'):
+            given_mime = "image/png"
+        elif raw_data[0:3] == b"\xff\xd8\xff" or raw_data[6:10] in (b"JFIF", b"Exif"):
+            given_mime = "image/jpeg"
+        elif raw_data.startswith((b"\x47\x49\x46\x38\x37\x61", b"\x47\x49\x46\x38\x39\x61")):
+            given_mime = "image/gif"
+        elif raw_data.startswith(b"RIFF") and raw_data[8:12] == b"WEBP":
+            given_mime = "image/webp"
+        elif given_mime == "application/octet-stream":
+            raise ImageError("Unknown data header")
 
         return given_mime, raw_data
     except ValueError:
-        raise ImageError("data URI invalid syntax")
+        raise ImageError("Unknown data header")
 
 
 def _get_args(scope: str) -> Tuple[str, str]:
@@ -373,10 +383,12 @@ class IconManager:
 
     async def put(self, scope: str, key: str, b64_data: str, **kwargs) -> Icon:
         """Insert an icon."""
-        if b64_data is None:
+        if not b64_data:
             return _invalid(kwargs)
 
         mime, raw_data = parse_data_uri(b64_data)
+        if mime not in ("image/png", "image/jpeg", "image/gif", "image/webp"):
+            return _invalid(kwargs)
 
         # TODO: filter mimes
         data_fd = BytesIO(raw_data)
@@ -480,9 +492,14 @@ class IconManager:
         # its operations on the icons table (or a dereference with
         # the delete() method but that will work regardless)
         key = str(key)
-
         old_icon = await self.generic_get(scope, key, old_icon_hash)
-        if old_icon:
+
+        try:
+            icon = await self.put(scope, key, new_icon_data, **kwargs)
+        except Exception:
+            return old_icon or _invalid(kwargs)
+
+        if old_icon and old_icon.fs_hash != icon.fs_hash:
             hits = await self.storage.db.fetch(
                 """
             SELECT hash
@@ -494,4 +511,4 @@ class IconManager:
             if hits and len(hits) <= 1:  # if we have more than one hit, we can't delete it
                 await self.delete(old_icon)
 
-        return await self.put(scope, key, new_icon_data, **kwargs)
+        return icon

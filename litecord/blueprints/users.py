@@ -209,7 +209,7 @@ async def patch_me():
         if mime == "image/gif" and user["premium_type"] == PremiumType.NONE:
             no_gif = True
 
-        new_icon = await app.icons.update("user_avatar", user_id, j["avatar"], size=(128, 128))
+        new_icon = await app.icons.update("user_avatar", user_id, j["avatar"], size=(1024, 1024), always_icon=True)
 
         await app.db.execute(
             """
@@ -217,13 +217,13 @@ async def patch_me():
         SET avatar = $1
         WHERE id = $2
         """,
-            new_icon.icon_hash.lstrip("a_") if no_gif else new_icon.icon_hash,
+            new_icon.icon_hash.lstrip("a_") if (no_gif and new_icon.icon_hash) else new_icon.icon_hash,
             user_id,
         )
 
     if to_update(j, user, "avatar_decoration"):
         if not j["avatar_decoration"] or user["premium_type"] == PremiumType.TIER_2:
-            new_icon = await app.icons.update("user_avatar_decoration", user_id, j["avatar_decoration"])
+            new_icon = await app.icons.update("user_avatar_decoration", user_id, j["avatar_decoration"], always_icon=True)
 
             await app.db.execute(
                 """
@@ -237,7 +237,7 @@ async def patch_me():
 
     if to_update(j, user, "banner"):
         if not j["banner"] or user["premium_type"] == PremiumType.TIER_2:
-            new_icon = await app.icons.update("user_banner", user_id, j["banner"])
+            new_icon = await app.icons.update("user_banner", user_id, j["banner"], always_icon=True)
 
             await app.db.execute(
                 """

@@ -210,7 +210,7 @@ async def create_webhook(channel_id: int):
     token = secrets.token_urlsafe(40)
 
     webhook_icon = await app.icons.put(
-        "user_avatar", webhook_id, j.get("avatar") or None, always_icon=True, size=(128, 128)
+        "user_avatar", webhook_id, j.get("avatar") or None, always_icon=True, size=(1024, 1024)
     )
 
     await app.db.execute(
@@ -286,7 +286,7 @@ async def _update_webhook(webhook_id: int, j: dict):
 
     if "avatar" in j:
         new_icon = await app.icons.update(
-            "user_avatar", webhook_id, j["avatar"] or None, always_icon=True, size=(128, 128)
+            "user_avatar", webhook_id, j["avatar"] or None, always_icon=True, size=(1024, 1024)
         )
 
         await app.db.execute(
