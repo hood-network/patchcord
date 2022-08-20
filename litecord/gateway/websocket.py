@@ -876,7 +876,7 @@ class GatewayWebsocket:
                 "self_deaf": False,
                 "self_mute": False,
                 "self_video": False,
-                "session_id": "balls",
+                "session_id": self.state.session_id,
                 "suppress": False,
                 "user_id": str(self.state.user_id),
             }
