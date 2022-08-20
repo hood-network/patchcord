@@ -231,7 +231,7 @@ class Storage:
         unavailable = self.app.guild_store.get(guild_id, "unavailable", False)
 
         if unavailable:
-            drow = {"id": drow["id"], "unavailable": True}
+            return {"id": drow["id"], "unavailable": True}
 
         # guild.owner is dependant of the user doing the get_guild call.
         if user_id:
