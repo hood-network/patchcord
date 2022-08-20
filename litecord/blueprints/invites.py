@@ -220,7 +220,7 @@ async def create_invite(channel_id):
         j["temporary"],
     )
 
-    invite = _get_inv(invite_code)
+    invite = await _get_inv(invite_code)
     return jsonify(invite)
 
 
