@@ -41,6 +41,8 @@ except (FileNotFoundError, json.JSONDecodeError, UnicodeDecodeError):
 
 
 @bp.route("/science", methods=["POST"])
+@bp.route("/track", methods=["POST"])
+@bp.route("/metrics", methods=["POST"])
 async def science():
     return "", 204
 
