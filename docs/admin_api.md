@@ -11,7 +11,7 @@ The base path is `/api/v6/admin`.
 
 ## User management
 
-### `PUT /users`
+### `POST /users`
 
 Create a user.
 Returns a user object.
@@ -40,13 +40,7 @@ Delete a single user. Does not *actually* remove the user from the users row,
 it changes the username to `Deleted User <random hex>`, etc.
 
 Also disconnects all of the users' devices from the gateway.
-
-Output:
-
-| field | type | description |
-| --: | :-- | :-- |
-| old | user object | old user object pre-delete |
-| new | user object | new user object post-delete |
+Returns a user object.
 
 ### PATCH `/users/<user_id>`
 
@@ -89,7 +83,7 @@ their data in.
 
 Get a list of instance invites.
 
-### `PUT /instance/invites`
+### `POST /instance/invites`
 
 Create an instance invite. Receives only the `max_uses`
 field from the instance invites object. Returns a full
@@ -157,11 +151,12 @@ Returns a partial guild object. Gives a 404 when the guild is not found.
 Update a single guild.
 Dispatches `GUILD_UPDATE` to subscribers of the guild.
 
-Returns a guild object or an unavailable guild object on success.
+Returns a guild object on success.
 
 | field | type | description |
 | --: | :-- | :-- |
 | unavailable | bool | if the guild is unavailable |
+| features | List[string] | new list of features |
 
 ### DELETE `/guilds/<guild_id>`
 
@@ -169,34 +164,21 @@ Delete a single guild. Returns 204 on success.
 
 ## Guild features
 
-The currently supported features are:
- - `INVITE_SPLASH`, allows custom images to be put for invites.
- - `VIP_REGIONS`, allows a guild to use voice regions marked as VIP.
- - `VANITY_URL`, allows a custom invite URL to be used.
- - `MORE_EMOJI`, bumps the emoji limit from 50 to 200 (applies to static and
-    animated emoji).
- - `VERIFIED`, adds a verified badge and a guild banner being shown on the
-    top of the channel list.
+### PUT `/guilds/<guild_id>/features`
 
-Features that are not planned to be implemented:
- - `COMMERCE`
- - `NEWS`
-
-### PATCH `/guilds/<guild_id>/features`
-
-Patch the entire features list. Returns the new feature list following the same
+Replace the entire features list. Returns the new feature list following the same
 structure as the input.
 
 | field | type | description |
 | --: | :-- | :-- |
 | features | List[string] | new list of features |
 
-### PUT `/guilds/<guild_id>/features`
+### POST `/guilds/<guild_id>/features`
 
 Insert features. Receives and returns the same structure as
-PATCH `/guilds/<guild_id>/features`.
+PUT `/guilds/<guild_id>/features`.
 
 ### DELETE `/guilds/<guild_id>/features`
 
 Remove features. Receives and returns the same structure as
-PATCH `/guilds/<guild_id>/features`.
+PUT `/guilds/<guild_id>/features`.

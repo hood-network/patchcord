@@ -32,9 +32,8 @@ VOICE_REGION = {
 FEATURES = {
     "features": {
         "type": "list",
-        "required": True,
-        # using Feature doesn't seem to work with a "not callable" error.
-        "schema": {"coerce": lambda x: Feature(x)},
+        "required": False,
+        "schema": {"coerce": str},
     }
 }
 

@@ -108,14 +108,11 @@ async def _search_users():
 async def _delete_single_user(user_id: int):
     await admin_check()
 
-    old_user = await app.storage.get_user(user_id)
-
     await delete_user(user_id)
     await user_disconnect(user_id)
 
     new_user = await app.storage.get_user(user_id)
-
-    return jsonify({"old": old_user, "new": new_user})
+    return jsonify(new_user)
 
 
 @bp.route("/<int:user_id>", methods=["PATCH"])

@@ -76,7 +76,7 @@ async def _all_instance_invites():
     return jsonify(rows)
 
 
-@bp.route("", methods=["PUT"], strict_slashes=False)
+@bp.route("", methods=["POST"], strict_slashes=False)
 async def _create_invite():
     await admin_check()
 

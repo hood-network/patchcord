@@ -18,15 +18,104 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from quart import Blueprint, jsonify, current_app as app, request
+from typing import List
 
 from litecord.auth import admin_check
 from litecord.common.interop import guild_view
 from litecord.schemas import validate
-from litecord.admin_schemas import GUILD_UPDATE
+from litecord.admin_schemas import GUILD_UPDATE, FEATURES
 from litecord.common.guilds import delete_guild
 from litecord.errors import NotFound
 
 bp = Blueprint("guilds_admin", __name__)
+
+
+async def _features_from_req() -> List[str]:
+    j = validate(await request.get_json(), FEATURES)
+    return [feature for feature in j["features"] or []]
+
+
+async def _features(guild_id: int):
+    return jsonify({"features": await app.storage.guild_features(guild_id) or []})
+
+
+async def _update_features(guild_id: int, features: list):
+    if "VANITY_URL" not in features:
+        existing_inv = await app.storage.vanity_invite(guild_id)
+
+        if existing_inv:
+            await app.db.execute(
+                """
+            DELETE FROM vanity_invites
+            WHERE guild_id = $1
+            """,
+                guild_id,
+            )
+
+            await app.db.execute(
+                """
+            DELETE FROM invites
+            WHERE code = $1
+            """,
+                existing_inv,
+            )
+
+    await app.db.execute(
+        """
+    UPDATE guilds
+    SET features = $1
+    WHERE id = $2
+    """,
+        features,
+        guild_id,
+    )
+
+    guild = await app.storage.get_guild_full(guild_id)
+    await app.dispatcher.guild.dispatch(guild_id, ("GUILD_UPDATE", guild))
+
+
+@bp.route("/<int:guild_id>/features", methods=["PUT"])
+async def replace_features(guild_id: int):
+    """Replace the feature list in a guild"""
+    await admin_check()
+    features = await _features_from_req()
+
+    await _update_features(guild_id, list(set(features)))
+    return await _features(guild_id)
+
+
+@bp.route("/<int:guild_id>/features", methods=["POST"])
+async def insert_features(guild_id: int):
+    """Insert a feature on a guild."""
+    await admin_check()
+    to_add = await _features_from_req()
+
+    features = await app.storage.guild_features(guild_id)
+    features = set(features)
+
+    # i'm assuming set.add is mostly safe
+    for feature in to_add:
+        features.add(feature)
+
+    await _update_features(guild_id, list(features))
+    return await _features(guild_id)
+
+
+@bp.route("/<int:guild_id>/features", methods=["DELETE"])
+async def remove_features(guild_id: int):
+    """Remove a feature from a guild"""
+    await admin_check()
+    to_remove = await _features_from_req()
+    features = await app.storage.guild_features(guild_id)
+
+    for feature in to_remove:
+        try:
+            features.remove(feature)
+        except ValueError:
+            pass
+
+    await _update_features(guild_id, features)
+    return await _features(guild_id)
 
 
 @bp.route("/<int:guild_id>", methods=["GET"])
@@ -48,8 +137,10 @@ async def update_guild(guild_id: int):
 
     j = validate(await request.get_json(), GUILD_UPDATE)
 
-    # TODO: what happens to the other guild attributes when its
-    # unavailable? do they vanish?
+    if "features" in j and j["featrures"] is not None:
+        features = await _features_from_req()
+        await _update_features(guild_id, list(set(features)))
+
     old_unavailable = app.guild_store.get(guild_id, "unavailable")
     new_unavailable = j.get("unavailable", old_unavailable)
 
