@@ -912,6 +912,34 @@ class GatewayWebsocket:
         if same_guild and not same_channel:
             return await self.app.voice.move_state(voice_state, channel_id)
 
+        # TODO: none of this works, so dummy dispatches baby
+        member = await self.storage.get_member_data_one(guild_id, self.state.user_id)
+        await self.dispatch_raw(
+            "VOICE_STATE_UPDATE",
+            {
+                "channel_id": str(channel_id) if channel_id else None,
+                "deaf": member["deaf"] if member else False,
+                "guild_id": str(guild_id) if guild_id else None,
+                "member": member,
+                "mute": member["mute"] if member else False,
+                "request_to_speak_timestamp": None,
+                "self_deaf": False,
+                "self_mute": False,
+                "self_video": False,
+                "session_id": "balls",
+                "suppress": False,
+                "user_id": str(self.state.user_id),
+            }
+        )
+        await self.dispatch_raw(
+            "VOICE_SERVER_UPDATE",
+            {
+                "endpoint": "voice.discord.media:443",
+                "guild_id": str(guild_id) if guild_id else None,
+                "token": "balls",
+            }
+        )
+
         # TODO: this is an edge case. we're trying to move guilds in
         # a single message, perhaps?
         log.warning("vsu payload does not appear logical")
