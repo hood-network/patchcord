@@ -171,7 +171,7 @@ async def del_user(ctx, args):
 
     user = await ctx.storage.get_user(uid)
 
-    print(f'\tID: {user["user_id"]}')
+    print(f'\tID: {user["id"]}')
     print(f'\tUsername: {user["username"]}')
     print(f'\tDiscriminator: {user["discriminator"]}')
 
