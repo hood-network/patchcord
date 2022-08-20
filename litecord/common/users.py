@@ -45,8 +45,6 @@ async def mass_user_update(user_id: int) -> Tuple[dict, dict]:
     Lazy guild users might get updates N times depending of how many
     lists are they subscribed to.
     """
-    session_ids: List[str] = []
-
     public_user = await app.storage.get_user(user_id)
     private_user = await app.storage.get_user(user_id, secure=True)
 
@@ -57,22 +55,17 @@ async def mass_user_update(user_id: int) -> Tuple[dict, dict]:
 
     for guild_id in guild_ids:
         member = await app.storage.get_member_data_one(guild_id, user_id)
-        session_ids.extend(
-            await app.dispatcher.guild.dispatch_filter(
-                guild_id,
-                lambda sess_id: sess_id not in session_ids,
-                ("GUILD_MEMBER_UPDATE", {**{"guild_id": str(guild_id)}, **member}),
-            )
+        await app.dispatcher.guild.dispatch(
+            guild_id,
+            ("GUILD_MEMBER_UPDATE", {**{"guild_id": str(guild_id)}, **member}),
         )
 
     # fetch current user presence
     presence = app.presence.fetch_self_presence(user_id)
 
     # usually this presence should be partial, but there should be no major issue with a full one
-    session_ids.extend(
-        await app.presence.dispatch_friends_pres_filter(
-            public_user, lambda sess_id: sess_id not in session_ids, presence
-        )
+    await app.presence.dispatch_friends_pres(
+        public_user, presence
     )
 
     for guild_id in guild_ids:
