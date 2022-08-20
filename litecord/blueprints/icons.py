@@ -59,7 +59,7 @@ async def _get_guild_icon(guild_id: int, icon_file: str):
 async def _get_default_user_avatar(default_id):
     # TODO: how do we determine which assets to use for this?
     # I don't think we can use discord assets (well we can for educational purposes)
-    return redirect(f"https://cdn.discordapp.com/embed/avatars/{default_id}", code=301)
+    return redirect(f"https://cdn.discordapp.com/embed/avatars/{default_id}", code=308)
 
 
 async def _handle_webhook_avatar(md_url_redir: str):
