@@ -762,7 +762,7 @@ async def _search_channel(channel_id):
     user_id = await token_check()
     await channel_check(user_id, channel_id)
     await channel_perm_check(user_id, channel_id, "read_messages")
-    await channel_perm_check(user_id, channel_id, "read_message_history")
+    await channel_perm_check(user_id, channel_id, "read_history")
 
     return await handle_search(await app.storage.guild_from_channel(channel_id), channel_id)
 
