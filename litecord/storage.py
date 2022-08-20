@@ -308,6 +308,7 @@ class Storage:
         drow["roles"] = await self.get_member_role_ids(guild_id, member_id)
         if with_user:
             drow["user"] = await self.get_user(member_id)
+            drow.pop("user_id")
 
         return drow
 
