@@ -1030,3 +1030,14 @@ async def bulk_delete(channel_id: int):
 
     await app.dispatcher.channel.dispatch(channel_id, ("MESSAGE_DELETE_BULK", payload))
     return "", 204
+
+
+@bp.route("/<int:channel_id>/voice-channel-effects", methods=["POST"])
+async def voice_channel_effects(channel_id):
+    user_id = await token_check()
+    await channel_check(user_id, channel_id, only=ChannelType.GUILD_VOICE)
+    await channel_perm_check(user_id, channel_id, "read_messages")
+    await channel_perm_check(user_id, channel_id, "connect")
+
+    j = validate(await request.get_json(), {"emoji_id": {"coerce": int, "nullable": True}, "emoji_name": {"coerce": str}})
+    await app.dispatcher.channel.dispatch(channel_id, ("VOICE_CHANNEL_EFFECT_SEND", {"user_id": str(user_id), "emoji": {"id": str(j["emoji_id"]) if j["emoji_id"] else None, "name": j["emoji_name"]}}))
