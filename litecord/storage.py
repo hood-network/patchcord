@@ -1144,7 +1144,7 @@ class Storage:
 
         dinv = dict(invite)
         uses, max_age, max_uses = dinv.pop("uses"), dinv.pop("max_age"), dinv.pop("max_uses")
-        delta_sec = (datetime.utcnow() - invite.pop("created_at")).total_seconds()
+        delta_sec = (datetime.utcnow() - dinv.pop("created_at")).total_seconds()
 
         if (max_age > 0 and delta_sec > max_age) or (max_uses > 0 and uses >= max_uses):
             await self.db.execute(
