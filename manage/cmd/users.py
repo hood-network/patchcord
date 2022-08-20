@@ -143,19 +143,19 @@ async def unset_flag(ctx, args):
 
 
 async def generate_bot_token(ctx, args):
-    """Generate a token for specified bot."""
+    """Generate a token for a specified user."""
 
     password_hash = await ctx.db.fetchval(
         """
     SELECT password_hash
     FROM users
-    WHERE id = $1 AND bot = 'true'
+    WHERE id = $1
     """,
         int(args.user_id),
     )
 
     if not password_hash:
-        print("Bot not found")
+        print("User not found")
         return 1
 
     print(make_token(args.user_id, password_hash))
@@ -301,10 +301,10 @@ def setup(subparser):
 
     token_parser = subparser.add_parser(
         "gentoken",
-        help="Generate a token for specified bot",
+        help="Generate a token for a specified user",
         description=generate_bot_token.__doc__,
     )
-    token_parser.add_argument("user_id", help="ID of the bot")
+    token_parser.add_argument("user_id", help="ID of the user")
     token_parser.set_defaults(func=generate_bot_token)
 
     set_password_user_parser = subparser.add_parser(
