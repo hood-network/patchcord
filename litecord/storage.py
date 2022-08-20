@@ -140,7 +140,6 @@ class Storage:
 
         duser = dict(user_row)
 
-        duser["phone"] = duser["phone"] if duser["phone"] else None
         duser["premium"] = duser["premium_since"] is not None
         duser["public_flags"] = duser["flags"]
         duser.pop("premium_since")
@@ -149,6 +148,7 @@ class Storage:
 
         if secure:
             duser["mobile"] = False
+            duser["phone"] = duser["phone"] if duser["phone"] else None
 
             today = date.today()
             born = duser.pop("date_of_birth")
