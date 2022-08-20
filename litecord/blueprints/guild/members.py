@@ -292,7 +292,9 @@ async def update_nickname(guild_id):
         guild_id, ("GUILD_MEMBER_UPDATE", {**{"guild_id": str(guild_id)}, **member})
     )
 
-    return member
+    # We inject the guild_id into the payload because the profiles endpoint needs it
+    member["guild_id"] = str(guild_id)
+    return jsonify(member)
 
 
 @bp.route("/<int:guild_id>/members/<int:member_id>/roles/<int:role_id>", methods=["PUT"])
