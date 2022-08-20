@@ -888,14 +888,14 @@ class GatewayWebsocket:
         else:
             await self.dispatch_raw(*update)
 
-        await self.dispatch_raw(
-            "VOICE_SERVER_UPDATE",
-            {
-                "endpoint": "voice.discord.media:443",
-                "guild_id": str(guild_id) if guild_id else None,
-                "token": "balls",
-            }
-        )
+        # await self.dispatch_raw(
+        #     "VOICE_SERVER_UPDATE",
+        #     {
+        #         "endpoint": "voice.discord.media:443",
+        #         "guild_id": str(guild_id) if guild_id else None,
+        #         "token": "balls",
+        #     }
+        # )
 
         # if its null and null, disconnect the user from any voice
         # TODO: maybe just leave from DMs? idk...
