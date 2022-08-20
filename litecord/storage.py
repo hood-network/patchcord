@@ -750,6 +750,7 @@ class Storage:
                 "presences": await self.presence.guild_presences(mids, guild_id),
                 "emojis": await self.get_guild_emojis(guild_id),
                 "voice_states": await self.guild_voice_states(guild_id),
+                "lazy": True,
             },
         }
 
@@ -1203,18 +1204,8 @@ class Storage:
                 invite_code,
             )
 
-            if guild_id is None:
-                return {}
-
-            mids = await self.get_member_ids(guild_id)
-            assert self.presence is not None
-            pres = await self.presence.guild_presences(mids, guild_id)
-            online_count = sum(1 for p in pres if p["status"] == "online")
-
-            data.update({
-                "approximate_presence_count": online_count,
-                "approximate_member_count": len(mids),
-            })
+            if guild_id is not None:
+                data.update(await self.get_guild_counts(guild_id))
         if expiry:
             erow = await self.db.fetchrow(
                 """
@@ -1251,6 +1242,18 @@ class Storage:
         dinv["created_at"] = timestamp_(invite["created_at"])
 
         return dinv
+
+    async def get_guild_counts(self, guild_id: int) -> dict:
+        """Fetch approximate member and presence counts for a guild."""
+        mids = await self.get_member_ids(guild_id)
+        assert self.presence is not None
+        pres = await self.presence.guild_presences(mids, guild_id)
+        online_count = sum(1 for p in pres if p["status"] != "offline")
+
+        return {
+            "approximate_presence_count": online_count,
+            "approximate_member_count": len(mids),
+        }
 
     async def get_dm(self, dm_id: int, user_id: Optional[int] = None) -> Optional[Dict]:
         """Get a DM channel."""

@@ -375,6 +375,8 @@ async def get_me_guilds():
 
     partials = []
 
+    with_counts = request.args.get("with_counts", type=str_bool)
+
     for guild_id in guild_ids:
         partial = await app.db.fetchrow(
             """
@@ -397,9 +399,22 @@ async def get_me_guilds():
         partial["owner"] = partial["owner_id"] == user_id
         partial.pop("owner_id")
 
+        if with_counts:
+            partial.update(await app.storage.get_guild_counts(guild_id))
+
         partials.append(partial)
 
     return jsonify(partials)
+
+
+@bp.route("/@me/guilds/<int:guild_id>/members/@me", methods=["GET"])
+async def get_guild_me(guild_id: int):
+    """Get our own guild member."""
+    user_id = await token_check()
+    await guild_check(user_id, guild_id)
+
+    member = await app.storage.get_member_data_one(guild_id, user_id)
+    return jsonify(member)
 
 
 @bp.route("/@me/guilds/<int:guild_id>", methods=["DELETE"])

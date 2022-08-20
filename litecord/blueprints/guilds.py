@@ -41,7 +41,7 @@ from ..schemas import (
     MFA_TOGGLE,
 )
 from .checks import guild_check, guild_owner_check, guild_perm_check
-from litecord.utils import to_update, search_result_from_list
+from litecord.utils import str_bool, to_update, search_result_from_list
 from litecord.errors import BadRequest, ManualFormError, MissingAccess
 from litecord.permissions import get_permissions
 
@@ -325,7 +325,11 @@ async def get_guild(guild_id):
     user_id = await token_check()
     await guild_check(user_id, guild_id)
 
-    return jsonify(guild_view(await app.storage.get_guild_full(guild_id, user_id, 250)))
+    guild = guild_view(await app.storage.get_guild(guild_id, user_id))
+    if request.args.get("with_counts", type=str_bool):
+        guild.update(await app.storage.get_guild_counts(guild_id))
+
+    return jsonify(guild)
 
 
 async def _guild_update_icon(scope: str, guild_id: int, icon: Optional[str], **kwargs):
