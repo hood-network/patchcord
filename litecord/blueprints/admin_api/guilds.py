@@ -64,7 +64,8 @@ async def update_guild(guild_id: int):
 
     if old_unavailable and not new_unavailable:
         # guild became available
-        await app.dispatcher.guild.dispatch(guild_id, ("GUILD_CREATE", {**guild, "unavailable": False}))
+        extra = await app.storage.get_guild_extra(guild_id)
+        await app.dispatcher.guild.dispatch(guild_id, ("GUILD_CREATE", {**guild, **extra, "unavailable": False}))
     else:
         # guild became unavailable
         await app.dispatcher.guild.dispatch(guild_id, ("GUILD_DELETE", {**guild, "id": guild["id"]}))
