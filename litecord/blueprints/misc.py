@@ -21,11 +21,15 @@ from quart import Blueprint, jsonify, request, current_app as app
 import json
 import secrets
 
-from ..utils import str_bool
+from ..common.users import mass_user_update
+
+from ..enums import UserFlags
+
+from ..utils import str_bool, toggle_flag
 
 from litecord.auth import token_check
 from litecord.blueprints.checks import guild_perm_check
-from litecord.errors import BadRequest, ManualFormError
+from litecord.errors import ManualFormError
 
 bp = Blueprint("science", __name__)
 
@@ -122,6 +126,29 @@ async def partners_apply():
     features = await app.storage.guild_features(guild_id) or []
     if "PARTNERED" in features:
         return "", 204
+
+    owner_id = await app.db.fetchval(
+        """
+    SELECT owner_id
+    FROM guilds
+    WHERE id = $1
+    """,
+        guild_id,
+    )
+    user = await app.storage.get_user(owner_id)
+    flags = UserFlags.from_int(user["flags"])
+    toggle_flag(flags, UserFlags.partner, True)
+
+    await app.db.execute(
+        """
+    UPDATE users
+    SET flags = $1
+    WHERE id = $2
+    """,
+        flags.value,
+        user_id,
+    )
+    await mass_user_update(user_id)
 
     features.append("PARTNERED")
     features.append("VANITY_URL")
