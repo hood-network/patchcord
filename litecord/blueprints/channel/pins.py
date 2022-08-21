@@ -70,25 +70,17 @@ async def get_pins(channel_id):
     user_id = await token_check()
     await channel_check(user_id, channel_id)
 
-    ids = await app.db.fetch(
-        """
-    SELECT message_id
-    FROM channel_pins
-    WHERE channel_id = $1
-    ORDER BY message_id DESC
-    """,
-        channel_id,
+    # TODO: proper ordering
+    messages = await app.storage.get_messages(
+        user_id=user_id,
+        where_clause="""
+            WHERE channel_id = $1 AND NOT (pinned = NULL)
+            ORDER BY message_id DESC
+        """,
+        args=(channel_id,),
     )
 
-    ids = [r["message_id"] for r in ids]
-    res = []
-
-    for message_id in ids:
-        message = await app.storage.get_message(message_id)
-        if message is not None:
-            res.append(message_view(message))
-
-    return jsonify(res)
+    return jsonify([message_view(message) for message in messages])
 
 
 @bp.route("/<int:channel_id>/pins/<int:message_id>", methods=["PUT"])

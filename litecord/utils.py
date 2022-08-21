@@ -210,25 +210,6 @@ def to_update(j: dict, orig: dict, field: str) -> bool:
     return field in j and j[field] != orig[field]
 
 
-async def search_result_from_list(rows: List) -> Dict[str, Any]:
-    """Generate the end result of the search query, given a list of rows.
-
-    Each row must contain:
-     - A bigint on `current_id`
-     - An int (?) on `total_results`
-     - (removed for performance and because unused my later clients) Two bigint[], each on `before` and `after` respectively.
-    """
-    results = 0 if not rows else rows[0]["total_results"]
-    res = []
-
-    for row in rows:
-        msg = await app.storage.get_message(row["current_id"])
-        msg["hit"] = True
-        res.append([message_view(msg)])
-
-    return {"total_results": results, "messages": res, "analytics_id": "analytics"}
-
-
 def maybe_int(val: Any) -> Union[int, Any]:
     """Try to convert a given value to an integer. Returns the same value
     if it is not."""

@@ -41,7 +41,7 @@ from ..schemas import (
     MFA_TOGGLE,
 )
 from .checks import guild_check, guild_owner_check, guild_perm_check
-from litecord.utils import str_bool, to_update, search_result_from_list
+from litecord.utils import str_bool, to_update
 from litecord.errors import BadRequest, ManualFormError, MissingAccess
 from litecord.permissions import get_permissions
 
@@ -133,105 +133,108 @@ async def handle_search(guild_id: Optional[int], channel_id: Optional[int] = Non
     extra = ""
     args = [guild_id, can_read, j["limit"], j["offset"]]
     if j.get("content"):
-        extra += f" AND orig.content LIKE '%'||${len(args) + 1}||'%'"
+        extra += f" AND content LIKE '%'||${len(args) + 1}||'%'"
         args.append(j["content"])
     if j.get("min_id"):
-        extra += f" AND orig.id > ${len(args) + 1}"
+        extra += f" AND orig_id > ${len(args) + 1}"
         args.append(j["min_id"])
     if j.get("max_id"):
-        extra += f" AND orig.id < ${len(args) + 1}"
+        extra += f" AND orig_id < ${len(args) + 1}"
         args.append(j["max_id"])
     if j.get("author_id"):
-        extra += f"AND ARRAY[orig.author_id] <@ ${len(args) + 1}::bigint[]"
+        extra += f"AND author_id = ANY(${len(args) + 1}::bigint[])"
         args.append(j["author_id"])
     if j.get("channel_id") and not channel_id:
         can_read = [channel for channel in j["channel_id"] if channel in can_read]
     if j.get("mentions"):
-        extra += f" AND orig.content = ANY(${len(args) + 1}::text[])"
+        extra += f" AND content = ANY(${len(args) + 1}::text[])"
         args.append([f"%<@{id}>%" for id in j["mentions"]] + [f"%<@!{id}>%" for id in j["mentions"]])
     if j.get("link_hostname"):
-        extra += f" AND orig.content = ANY(${len(args) + 1}::text[])"
+        extra += f" AND content = ANY(${len(args) + 1}::text[])"
         args.append([f"%http://{hostname}%" for hostname in j["link_hostname"]] + [f"%https://{hostname}%" for hostname in j["link_hostname"]])
     if j.get("embed_provider"):
-        extra += f" AND orig.embeds::text == ANY(${len(args) + 1}::text[])"
+        extra += f" AND embeds::text == ANY(${len(args) + 1}::text[])"
         args.append(["%\"provider\": {\"name\": %s%" % provider for provider in j["embed_provider"]])
     if j.get("embed_type"):
-        extra += f" AND orig.embeds::text == ANY(${len(args) + 1}::text[])"
+        extra += f" AND embeds::text == ANY(${len(args) + 1}::text[])"
         args.append(["%\"type\": %s%" % type for type in j["embed_type"]])
     if j.get("attachment_filename"):
-        extra += f" AND (SELECT COUNT(*) FROM attachments WHERE attachments.message_id = orig.id AND attachments.filename = ANY(${len(args) + 1}::text[])) > 0"
+        extra += f" AND (SELECT COUNT(*) FROM attachments WHERE attachments.message_id = orig_id AND attachments.filename = ANY(${len(args) + 1}::text[])) > 0"
         args.append([f"%{filename}%" for filename in j["attachment_filename"]])
     if j.get("attachment_extension"):
-        extra += f" AND (SELECT COUNT(*) FROM attachments WHERE attachments.message_id = orig.id AND attachments.filename = ANY(${len(args) + 1}::text[])) > 0"
+        extra += f" AND (SELECT COUNT(*) FROM attachments WHERE attachments.message_id = orig_id AND attachments.filename = ANY(${len(args) + 1}::text[])) > 0"
         args.append([f"%.{extension}" for extension in j["attachment_extension"]])
     if j["mention_everyone"] is not None:
-        extra += f" AND orig.mention_everyone = ${len(args) + 1}"
+        extra += f" AND mention_everyone = ${len(args) + 1}"
         args.append(j["mention_everyone"])
     if j["pinned"] is not None:
-        extra += f" AND (SELECT COUNT(*) FROM channel_pins WHERE message_id = orig.id) {'>' if j['pinned'] else '='} 0"
+        extra += f" AND (SELECT COUNT(*) FROM channel_pins WHERE message_id = orig_id) {'>' if j['pinned'] else '='} 0"
     if not j["include_nsfw"]:
-        extra += " AND (SELECT nsfw FROM guild_channels WHERE id = orig.channel_id) = false"
+        extra += " AND (SELECT nsfw FROM guild_channels WHERE id = channel_id) = false"
     for has in j.get("has", []):
         if has == "-embed":
-            extra += " AND orig.embeds IS '[]'"
+            extra += " AND embeds IS '[]'"
         elif has == "embed":
-            extra += " AND orig.embeds IS NOT '[]'"
+            extra += " AND embeds IS NOT '[]'"
         if has == "-sticker":
-            extra += " AND orig.sticker_ids IS '[]'"
+            extra += " AND sticker_ids IS '[]'"
         elif has == "sticker":
-            extra += " AND orig.sticker_ids IS NOT '[]'"
+            extra += " AND sticker_ids IS NOT '[]'"
         if has == "-link":
-            extra += " AND orig.content NOT LIKE '%'||'http://'||'%' AND orig.content NOT LIKE '%'||'https://'||'%'"
+            extra += " AND content NOT LIKE '%'||'http://'||'%' AND content NOT LIKE '%'||'https://'||'%'"
         elif has == "link":
-            extra += " AND (orig.content LIKE '%'||'http://'||'%' OR orig.content LIKE ''%'||'https://'||'%')"
+            extra += " AND (content LIKE '%'||'http://'||'%' OR content LIKE ''%'||'https://'||'%')"
         if has == "-file":
-            extra += " AND (SELECT COUNT(*) FROM attachments WHERE message_id = orig.id) = 0"
+            extra += " AND (SELECT COUNT(*) FROM attachments WHERE message_id = orig_id) = 0"
         elif has == "file":
-            extra += " AND (SELECT COUNT(*) FROM attachments WHERE message_id = orig.id) > 0"
+            extra += " AND (SELECT COUNT(*) FROM attachments WHERE message_id = orig_id) > 0"
         if has == "-image":
-            extra += " AND (SELECT COUNT(*) FROM attachments WHERE message_id = orig.id AND image IS TRUE) = 0 AND orig.embeds::text NOT LIKE '%'||'\"type\": \"image\"'||'%'"
+            extra += " AND (SELECT COUNT(*) FROM attachments WHERE message_id = orig_id AND image IS TRUE) = 0 AND embeds::text NOT LIKE '%'||'\"type\": \"image\"'||'%'"
         elif has == "image":
-            extra += " AND ((SELECT COUNT(*) FROM attachments WHERE message_id = orig.id AND image IS TRUE) > 0 OR orig.embeds::text LIKE '%'||'\"type\": \"image\"'||'%')"
+            extra += " AND ((SELECT COUNT(*) FROM attachments WHERE message_id = orig_id AND image IS TRUE) > 0 OR embeds::text LIKE '%'||'\"type\": \"image\"'||'%')"
         if has == "-video":
-            extra += " AND (SELECT COUNT(*) FROM attachments WHERE message_id = orig.id AND (filename LIKE '%.mp4' OR filename LIKE '%.webm' OR filename LIKE '%.mov')) = 0 AND orig.embeds::text NOT LIKE '%'||'\"type\": \"video\"'||'%'"
+            extra += " AND (SELECT COUNT(*) FROM attachments WHERE message_id = orig_id AND (filename LIKE '%.mp4' OR filename LIKE '%.webm' OR filename LIKE '%.mov')) = 0 AND embeds::text NOT LIKE '%'||'\"type\": \"video\"'||'%'"
         elif has == "video":
-            extra += " AND ((SELECT COUNT(*) FROM attachments WHERE message_id = orig.id AND (filename LIKE '%.mp4' OR filename LIKE '%.webm' OR filename LIKE '%.mov')) > 0 OR orig.embeds::text LIKE '%'||'\"type\": \"video\"'||'%')"
+            extra += " AND ((SELECT COUNT(*) FROM attachments WHERE message_id = orig_id AND (filename LIKE '%.mp4' OR filename LIKE '%.webm' OR filename LIKE '%.mov')) > 0 OR embeds::text LIKE '%'||'\"type\": \"video\"'||'%')"
         if has == "-sound":
-            extra += " AND (SELECT COUNT(*) FROM attachments WHERE message_id = orig.id AND (filename LIKE '%.mp3' OR filename LIKE '%.ogg' OR filename LIKE '%.wav' OR filename LIKE '%.flac')) = 0"
+            extra += " AND (SELECT COUNT(*) FROM attachments WHERE message_id = orig_id AND (filename LIKE '%.mp3' OR filename LIKE '%.ogg' OR filename LIKE '%.wav' OR filename LIKE '%.flac')) = 0"
         elif has == "sound":
-            extra += " AND (SELECT COUNT(*) FROM attachments WHERE message_id = orig.id AND (filename LIKE '%.mp3' OR filename LIKE '%.ogg' OR filename LIKE '%.wav' OR filename LIKE '%.flac')) > 0"
+            extra += " AND (SELECT COUNT(*) FROM attachments WHERE message_id = orig_id AND (filename LIKE '%.mp3' OR filename LIKE '%.ogg' OR filename LIKE '%.wav' OR filename LIKE '%.flac')) > 0"
     for author_type in j.get("author_type", []):
         if author_type == "-webhook":
-            extra += " AND orig.author_id IS NOT NULL"
+            extra += " AND author_id IS NOT NULL"
         elif author_type == "webhook":
-            extra += " AND orig.author_id IS NULL"
+            extra += " AND author_id IS NULL"
         if author_type == "-bot":
-            extra += " AND NOT ((SELECT bot FROM users WHERE id = orig.author_id) = true)"
+            extra += " AND NOT ((SELECT bot FROM users WHERE id = author_id) = true)"
         elif author_type == "bot":
-            extra += " AND (SELECT bot FROM users WHERE id = orig.author_id) = true"
+            extra += " AND (SELECT bot FROM users WHERE id = author_id) = true"
         if author_type == "-user":
-            extra += " AND NOT ((SELECT bot FROM users WHERE id = orig.author_id) = false)"
+            extra += " AND NOT ((SELECT bot FROM users WHERE id = author_id) = false)"
         elif author_type == "user":
-            extra += " AND (SELECT bot FROM users WHERE id = orig.author_id) = false"
+            extra += " AND (SELECT bot FROM users WHERE id = author_id) = false"
 
     # we ignore sort_by because idk how to sort by relevance
 
-    rows = await app.db.fetch(
-        f"""
-    SELECT orig.id AS current_id,
-    COUNT(*) OVER() as total_results
-
-    FROM messages AS orig
-    WHERE guild_id = $1
-      AND ARRAY[orig.channel_id] <@ $2::bigint[]
-      {extra}
-    ORDER BY orig.id {j["sort_order"]}
-    LIMIT $3 OFFSET $4
-    """,
-        *args
+    messages = await app.storage.get_messages(
+        user_id=user_id,
+        extra_clause=", COUNT(*) OVER() as total_results",
+        where_clause=f"""
+            WHERE guild_id = $1
+            AND channel_id = ANY($2::bigint[])
+            {extra}
+            ORDER BY id {j["sort_order"]}
+            LIMIT $3 OFFSET $4
+        """,
+        args=args
     )
 
-    return jsonify(await search_result_from_list(rows))
+    results = 0 if not messages else messages[0]["total_results"]
+    for row in messages:
+        row["hit"] = True
+        row.pop("total_results", None)
+
+    return {"total_results": results, "messages": [[message] for message in messages], "analytics_id": "analytics"}
 
 
 @bp.route("", methods=["POST"], strict_slashes=False)

@@ -25,7 +25,7 @@ from logbook import Logger
 
 from litecord.blueprints.auth import token_check
 from litecord.blueprints.checks import channel_check, channel_perm_check
-from litecord.errors import Forbidden, ManualFormError, MissingPermissions
+from litecord.errors import Forbidden, ManualFormError, MissingPermissions, NotFound
 from litecord.enums import MessageFlags, MessageType, ChannelType, GUILD_CHANS, PremiumType
 
 from litecord.schemas import validate, MESSAGE_CREATE, MESSAGE_UPDATE
@@ -53,11 +53,13 @@ bp = Blueprint("channel_messages", __name__)
 
 async def message_search(
     channel_id: int,
-    before: Optional[int],
-    after: Optional[int],
     limit: int,
+    before: Optional[int] = None,
+    after: Optional[int] = None,
     order: str = "DESC",
-) -> List[int]:
+) -> List[dict]:
+    user_id = await token_check()
+
     where_clause = ""
     if before:
         where_clause += f"AND id < {before}"
@@ -65,37 +67,37 @@ async def message_search(
     elif after:
         where_clause += f"AND id > {after}"
 
-    return [
-        row["id"]
-        for row in await app.db.fetch(
-            f"""
-        SELECT id
-        FROM messages
-        WHERE channel_id = $1 {where_clause}
-        ORDER BY id {order}
-        LIMIT {limit}
+    return await app.storage.get_messages(
+        user_id=user_id,
+        where_clause=f"""
+            WHERE channel_id = $1 {where_clause}
+            ORDER BY id {order}
+            LIMIT {limit}
         """,
-            channel_id,
-        )
-    ]
+        args=(channel_id,),
+    )
 
 
 async def around_message_search(
     channel_id: int,
     around_id: int,
     limit: int,
-) -> List[int]:
+) -> List[dict]:
     # search limit/2 messages BEFORE around_id
     # search limit/2 messages AFTER around_id
     # merge it all together: before + [around_id] + after
+    user_id = await token_check()
     halved_limit = limit // 2
+
+    around_message = await app.storage.get_message(around_id, user_id)
+    around_message = [around_message] if around_message else []
     before_messages = await message_search(
-        channel_id, before=around_id, after=None, limit=halved_limit, order="DESC"
+        channel_id, halved_limit, before=around_id, order="DESC"
     )
     after_messages = await message_search(
-        channel_id, before=None, after=around_id, limit=halved_limit, order="ASC"
+        channel_id, halved_limit, after=around_id, order="ASC"
     )
-    return list(reversed(before_messages)) + [around_id] + after_messages
+    return list(reversed(before_messages)) + around_message + after_messages
 
 
 @bp.route("/<int:channel_id>/messages", methods=["GET"])
@@ -106,35 +108,24 @@ async def get_messages(channel_id):
     await channel_perm_check(user_id, channel_id, "read_history")
 
     if ctype == ChannelType.DM:
-        # make sure both parties will be subbed
-        # to a dm
+        # make sure both parties will be subbed to a dm
         await _dm_pre_dispatch(channel_id, user_id)
         await _dm_pre_dispatch(channel_id, peer_id)
 
     limit = extract_limit(request, 50)
 
     if "around" in request.args:
-        message_ids = await around_message_search(
+        messages = await around_message_search(
             channel_id, int(request.args["around"]), limit
         )
     else:
         before, after = query_tuple_from_args(request.args, limit)
-        message_ids = await message_search(
-            channel_id, before=before, after=after, limit=limit
+        messages = await message_search(
+            channel_id, limit, before=before, after=after
         )
 
-    result = []
-
-    for message_id in message_ids:
-        msg = await app.storage.get_message(message_id, user_id)
-
-        if msg is None:
-            continue
-
-        result.append(message_view(msg))
-
-    log.info("Fetched {} messages", len(result))
-    return jsonify(result)
+    log.info("Fetched {} messages", len(messages))
+    return jsonify([message_view(message) for message in messages])
 
 
 @bp.route("/<int:channel_id>/messages/<int:message_id>", methods=["GET"])

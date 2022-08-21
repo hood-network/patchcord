@@ -35,10 +35,11 @@ async def _handle_pin_msg(channel_id, _pinned_id, author_id):
         INSERT INTO messages
             (id, channel_id, guild_id, author_id, content, message_type)
         VALUES
-            ($1, $2, NULL, $3, '', $4)
+            ($1, $2, $3, $4, '', $5)
         """,
         new_id,
         channel_id,
+        await app.storage.guild_from_channel(channel_id),
         author_id,
         MessageType.CHANNEL_PINNED_MESSAGE.value,
     )
@@ -55,10 +56,11 @@ async def _handle_guild_join_msg(channel_id, user_id):
         INSERT INTO messages
             (id, channel_id, guild_id, author_id, content, message_type)
         VALUES
-            ($1, $2, NULL, $3, '', $4)
+            ($1, $2, $3, $4, '', $5)
         """,
         new_id,
         channel_id,
+        await app.storage.guild_from_channel(channel_id),
         user_id,
         MessageType.GUILD_MEMBER_JOIN.value,
     )
