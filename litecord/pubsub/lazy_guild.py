@@ -474,7 +474,7 @@ class GuildMemberList:
             self.list.members[member_id] = member
             self.list.data[group_id].append(member_id)
 
-    def _display_name(self, member_id: int) -> Optional[str]:
+    def _display_name(self, member_id: int) -> str:
         """Get the display name for a given member.
 
         This is more efficient than the old function (not method) of same
@@ -483,7 +483,7 @@ class GuildMemberList:
         try:
             member = self.list.members[member_id]
         except KeyError:
-            return None
+            return ""
 
         username = member["user"]["username"]
         nickname = member["nick"]
