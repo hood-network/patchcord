@@ -19,6 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from typing import List
 
+import asyncio
 from asyncpg import UniqueViolationError
 from datetime import datetime
 from quart import Blueprint, jsonify, request, current_app as app
@@ -26,7 +27,7 @@ from logbook import Logger
 
 from ..errors import BadRequest, ManualFormError, MissingAccess, NotFound
 from ..schemas import validate, USER_UPDATE, GET_MENTIONS
-from ..utils import str_bool
+from ..utils import extract_limit, str_bool
 
 from .guilds import guild_check
 from litecord.auth import token_check, hash_data
@@ -50,6 +51,34 @@ from litecord.common.users import (
 
 bp = Blueprint("user", __name__)
 log = Logger(__name__)
+
+
+@bp.route("", methods=["GET"])
+async def query_users():
+    """Query available users."""
+    user_id = await token_check()
+
+    limit = extract_limit(request, 25, 25)
+    j = validate(request.args.to_dict(), {"q": {"coerce": str, "required": True, "min_length": 2, "max_length": 32}})
+    query = j["q"]
+
+    result = await app.db.fetch(
+        """
+    SELECT id
+    FROM users
+    WHERE username LIKE '%'||$1||'%'
+    AND CARDINALITY(ARRAY((SELECT guild_id FROM members WHERE user_id = id INTERSECT SELECT guild_id FROM members WHERE user_id = $2))) > 0
+    ORDER BY username
+    LIMIT $3
+    """,
+        query,
+        user_id,
+        limit,
+    )
+
+    ids = [r["id"] for r in result]
+    coros = [app.storage.get_user(id, False) for id in ids]
+    return jsonify(await asyncio.gather(*coros))
 
 
 @bp.route("/@me", methods=["GET"])
