@@ -17,6 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
+import asyncio
 from typing import List, Dict, Any, Optional, Union, TypedDict
 from xml.etree.ElementInclude import include
 
@@ -1107,7 +1108,8 @@ class Storage:
         )
 
         user_cache = {}
-        return [await self.parse_message(dict(row), user_id, include_member, user_cache) for row in rows]
+        coros = [self.parse_message(dict(row), user_id, include_member, user_cache) for row in rows]
+        return await asyncio.gather(*coros)
 
     async def get_invite(self, invite_code: str) -> Optional[Dict]:
         """Fetch invite information given its code."""
