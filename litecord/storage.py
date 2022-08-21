@@ -824,7 +824,7 @@ class Storage:
     async def _inject_author(self, res: dict):
         """Inject a pseudo-user object when the message is
         made by a webhook."""
-        author_id = res.pop("author_id")
+        author_id = res["author_id"]
 
         # if author_id is None, we fetch webhook info
         # from the message_webhook_info table.
