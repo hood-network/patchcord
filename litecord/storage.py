@@ -883,8 +883,8 @@ class Storage:
                 created_at AS timestamp, edited_at AS edited_timestamp,
                 tts, mention_everyone, nonce, message_type, embeds, flags,
                 message_reference, allowed_mentions, sticker_ids,
-                (SELECT message_id FROM channel_pins WHERE message_id = orig_id) AS pinned,
-                ARRAY((SELECT * FROM attachments WHERE message_id = orig_id)) AS attachments,
+                (SELECT message_id FROM channel_pins WHERE message_id = id) AS pinned,
+                ARRAY((SELECT * FROM attachments WHERE message_id = id)) AS attachments,
                 ARRAY((SELECT user_id, emoji_type, emoji_id, emoji_text
                     FROM message_reactions
                     WHERE message_id = id
@@ -906,7 +906,6 @@ class Storage:
             res["type"] = res.pop("message_type")
             res["content"] = res["content"] or ""
             res["pinned"] = bool(res["pinned"])
-            res.pop("orig_id")
             await self._inject_author(res)
 
             perms = await get_permissions(res["author_id"], int(res["channel_id"])) if res["author_id"] else None
