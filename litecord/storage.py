@@ -884,12 +884,16 @@ class Storage:
                 tts, mention_everyone, nonce, message_type, embeds, flags,
                 message_reference, allowed_mentions, sticker_ids,
                 (SELECT message_id FROM channel_pins WHERE message_id = id) AS pinned,
-                ARRAY((SELECT ROW(*) FROM attachments WHERE message_id = id)) AS attachments,
-                ARRAY((SELECT ROW(user_id, emoji_type, emoji_id, emoji_text)
+                ARRAY(SELECT ROW(id::text, message_id, channel_id, filename, filesize, image, height, width)
+                    FROM attachments
+                    WHERE message_id = id)
+                AS attachments,
+                ARRAY(SELECT ROW(user_id, emoji_type, emoji_id, emoji_text)
                     FROM message_reactions
                     WHERE message_id = id
                     ORDER BY react_ts
-                )) AS reactions {extra_clause}
+                ) AS reactions
+                {extra_clause}
             FROM messages
             {where_clause}
             """,
@@ -1016,7 +1020,7 @@ class Storage:
             if is_crosspost and res.get("message_reference"):
                 attachments = await self.db.fetch(
                     """
-                SELECT *
+                SELECT id::text, message_id, channel_id, filename, filesize, image, height, width
                 FROM attachments
                 WHERE message_id = $1
                     """,
@@ -1026,9 +1030,6 @@ class Storage:
 
             for attachment in attachments:
                 # TODO: content_type
-                attachment["id"] = str(attachment["id"])
-                attachment["size"] = attachment.pop("filesize")
-
                 proto = "https" if self.app.config["IS_SSL"] else "http"
                 main_url = self.app.config["MAIN_URL"]
                 attachment["url"] = (
@@ -1038,6 +1039,7 @@ class Storage:
                 )
                 attachment["proxy_url"] = attachment["url"]
 
+                attachment["size"] = attachment.pop("filesize")
                 attachment.pop("message_id")
                 attachment.pop("channel_id")
                 if attachment["height"] is None:
