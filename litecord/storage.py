@@ -910,7 +910,7 @@ class Storage:
             message = await self.get_message(int(res["message_reference"]["message_id"]), user_id, include_member)
             res["referenced_message"] = message
             if message and (not res.get("allowed_mentions") or res["allowed_mentions"].get("replied_user", False)):
-                if not message["webhook_id"]:
+                if not message.get("webhook_id"):
                     res["mentions"].append(message["author"])
 
         async def _get_role_mention(role_id: int):
