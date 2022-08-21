@@ -910,9 +910,8 @@ class Storage:
             message = await self.get_message(int(res["message_reference"]["message_id"]), user_id, include_member)
             res["referenced_message"] = message
             if message and (not res.get("allowed_mentions") or res["allowed_mentions"].get("replied_user", False)):
-                replied_to = await _get_user(int(message["author"]["id"]))
-                if replied_to:
-                    res["mentions"].append(replied_to)
+                if not message["webhook_id"]:
+                    res["mentions"].append(message["author"])
 
         async def _get_role_mention(role_id: int):
             if not guild_id:
@@ -1034,6 +1033,7 @@ class Storage:
             res["stickers"] = stickers
             res["sticker_items"] = [{"format_type": sticker["format_type"], "id": sticker["id"], "name": sticker["name"]} for sticker in stickers]
 
+        res.pop("author_id")
         if not res["guild_id"]:
             res.pop("guild_id")
         if not res["flags"]:
