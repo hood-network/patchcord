@@ -33,6 +33,7 @@ ERR_MSG_MAP = {
     10013: "Unknown User",
     10014: "Unknown Emoji",
     10015: "Unknown Webhook",
+    10061: "Unknown sticker pack",
     20001: "Bots cannot use this endpoint",
     20002: "Only bots can use this endpoint",
     20024: "Under minimum age",
@@ -183,6 +184,11 @@ class MissingAccess(Forbidden):
 
 class MissingPermissions(Forbidden):
     error_code = 50013
+
+
+class InternalServerError(LitecordError):
+    status_code = 500
+    default_message = "500: Internal Server Error"
 
 
 class WebsocketClose(Exception):

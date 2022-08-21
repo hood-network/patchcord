@@ -17,7 +17,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from quart import Blueprint, redirect, request
+from quart import Blueprint, jsonify, redirect, request, current_app as app
+
+from ..errors import NotFound
 
 bp = Blueprint("stickers", __name__)
 
@@ -29,10 +31,16 @@ async def sticker_packs():
     return redirect(f"https://discord.com/api/v9/sticker-packs?{request.query_string.decode()}", code=308)
 
 
-@bp.route("/sticker-packs/<sticker_pack>", methods=["GET"])
+@bp.route("/sticker-packs/<int:sticker_pack>", methods=["GET"])
 async def sticker_pack(sticker_pack):
     """Send static sticker pack"""
-    return redirect(f"https://discord.com/api/v9/sticker-packs/{sticker_pack}?{request.query_string.decode()}", code=308)
+    # This endpoint requires auth for some reason
+    # return redirect(f"https://discord.com/api/v9/sticker-packs/{sticker_pack}?{request.query_string.decode()}", code=308)
+    await app.storage.get_default_sticker(None)  # Ensure stickers are loaded
+    pack = app.storage.stickers["packs"].get(sticker_pack)
+    if not pack:
+        raise NotFound(10061)
+    return jsonify(pack)
 
 
 @bp.route("/gifs/select", methods=["POST"])
