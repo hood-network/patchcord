@@ -24,6 +24,7 @@ from typing import Optional
 from quart import Blueprint, jsonify, current_app as app, request
 
 from litecord.auth import admin_check
+from ...errors import InternalServerError, NotFound
 from litecord.types import timestamp_
 from litecord.schemas import validate
 from litecord.admin_schemas import INSTANCE_INVITE
@@ -32,7 +33,7 @@ bp = Blueprint("instance_invites", __name__)
 ALPHABET = string.ascii_lowercase + string.ascii_uppercase + string.digits
 
 
-async def _gen_inv() -> str:
+def _gen_inv() -> str:
     """Generate an invite code"""
     return "".join(choice(ALPHABET) for _ in range(6))
 
@@ -40,7 +41,7 @@ async def _gen_inv() -> str:
 async def gen_inv(ctx) -> Optional[str]:
     """Generate an invite."""
     for _ in range(10):
-        possible_inv = await _gen_inv()
+        possible_inv = _gen_inv()
 
         created_at = await ctx.db.fetchval(
             """
@@ -80,11 +81,11 @@ async def _all_instance_invites():
 async def _create_invite():
     await admin_check()
 
+    j = validate(await request.get_json(), INSTANCE_INVITE)
+
     code = await gen_inv(app)
     if code is None:
-        return "failed to make invite", 500
-
-    j = validate(await request.get_json(), INSTANCE_INVITE)
+        raise InternalServerError()
 
     await app.db.execute(
         """
@@ -95,18 +96,36 @@ async def _create_invite():
         j["max_uses"],
     )
 
-    inv = dict(
-        await app.db.fetchrow(
-            """
-    SELECT code, created_at, uses, max_uses
-    FROM instance_invites
-    WHERE code = $1
-    """,
-            code,
-        )
+    inv = await app.db.fetchrow(
+        """
+        SELECT code, created_at, uses, max_uses
+        FROM instance_invites
+        WHERE code = $1
+        """,
+        code,
+    )
+    dinv = dict(inv)
+    dinv["created_at"] = timestamp_(dinv["created_at"])
+
+    return jsonify(dinv)
+
+
+@bp.route("/<invite>", methods=["GET"])
+async def _get_invite(invite):
+    inv = await app.db.fetchrow(
+        """
+        SELECT code, created_at, uses, max_uses
+        FROM instance_invites
+        WHERE code = $1
+        """,
+        invite,
     )
 
-    return jsonify(dict(inv))
+    if not inv:
+        raise NotFound(10006)
+    dinv = dict(inv)
+    dinv["created_at"] = timestamp_(dinv["created_at"])
+    return jsonify(dinv)
 
 
 @bp.route("/<invite>", methods=["DELETE"])
@@ -120,8 +139,7 @@ async def _del_invite(invite: str):
     """,
         invite,
     )
-
-    if res.lower() == "delete 0":
-        return "invite not found", 404
+    if res == "DELETE 0":
+        raise NotFound(10006)
 
     return "", 204

@@ -185,7 +185,7 @@ def set_blueprints(app_):
         voice_admin: "/admin/voice",
         guilds_admin: "/admin/guilds",
         users_admin: "/admin/users",
-        instance_invites: "/admin/instance/invites",
+        instance_invites: "/admin/instance-invites",
         read_states: "",
         stickers: "",
         applications: "/applications",
