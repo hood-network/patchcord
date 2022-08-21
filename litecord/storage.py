@@ -862,10 +862,216 @@ class Storage:
         else:
             res["author"] = await self.get_user(int(author_id))
 
+    async def parse_message(self, res: dict, user_id: Optional[int], include_member: bool, user_cache: Optional[dict] = None) -> dict:
+        """Parse a message object."""
+        user_cache = user_cache or {}
+
+        res["id"] = str(res["id"])
+        res["timestamp"] = timestamp_(res["timestamp"])
+        res["edited_timestamp"] = timestamp_(res["edited_timestamp"])
+        res["type"] = res.pop("message_type")
+        res["content"] = res["content"] or ""
+        res["pinned"] = bool(res["pinned"])
+        await self._inject_author(res)
+
+        perms = await get_permissions(res["author_id"], int(res["channel_id"])) if res["author_id"] else None
+        content = res["content"]
+        guild_id = res["guild_id"]
+        is_crosspost = res["flags"] & MessageFlags.is_crosspost == MessageFlags.is_crosspost
+        attachments = list(res["attachments"])
+        reactions = list(res["reactions"])
+
+        if not guild_id:
+            guild_id = await self.guild_from_channel(int(res["channel_id"]))
+        res["guild_id"] = str(guild_id) if guild_id else None
+
+        if include_member:
+            member = await self.get_member_data_one(guild_id, int(res["author"]["id"]), False)
+            if member:
+                res["member"] = member
+
+        async def _get_user(user_id):
+            try:
+                user = user_cache[user_id]
+            except KeyError:
+                user = await self.get_user(user_id)
+                if include_member and user and guild_id:
+                    member = await self.get_member_data_one(guild_id, user_id, False)
+                    if member:
+                        user["member"] = member
+                user_cache[user_id] = user
+            return user
+
+        res["mentions"] = await self._msg_regex(
+            USER_MENTION, _get_user, content
+        )
+
+        if res.get("message_reference") and not is_crosspost:
+            message = await self.get_message(int(res["message_reference"]["message_id"]), user_id, include_member)
+            res["referenced_message"] = message
+            if message and (not res.get("allowed_mentions") or res["allowed_mentions"].get("replied_user", False)):
+                replied_to = await _get_user(int(message["author"]["id"]))
+                if replied_to:
+                    res["mentions"].append(replied_to)
+
+        async def _get_role_mention(role_id: int):
+            if not guild_id:
+                return
+
+            if role_id == guild_id:
+                return str(role_id)
+
+            # TODO: Role cache
+            role = await self.db.fetchval(
+                """
+            SELECT id
+            FROM roles
+            WHERE id = $1 AND guild_id = $2
+            """,
+                role_id,
+                guild_id,
+            )
+            if not role:
+                return
+
+            if not (not perms or perms.bits.mention_everyone) and not role["mentionable"]:
+                return
+
+            return str(role_id)
+
+        res["mention_roles"] = await self._msg_regex(
+            ROLE_MENTION, _get_role_mention, content
+        )
+
+        emoji = []
+        react_stats = {}
+
+        # First we construct the dict and get the basic info
+        for row in reactions:
+            _, etype, eid, etext = row
+            etype = EmojiType(etype)
+            _, main_emoji = emoji_sql(etype, eid, etext)
+
+            if main_emoji in emoji:
+                continue
+
+            # Maintain reaction order
+            emoji.append(main_emoji)
+            react_stats[main_emoji] = {
+                "count": 0,
+                "me": False,
+                "emoji": partial_emoji(etype, eid, etext),
+            }
+
+        # Then we insert statistics
+        for row in reactions:
+            reactor_id, etype, eid, etext = row
+            etype = EmojiType(etype)
+            _, main_emoji = emoji_sql(etype, eid, etext)
+
+            stats = react_stats[main_emoji]
+            stats["count"] += 1
+            if reactor_id == user_id:
+                stats["me"] = True
+
+        # Return to original order
+        res["reactions"] = list(map(react_stats.get, emoji))
+
+        # If we're a crosspost, we need to inject the original attachments
+        if is_crosspost and res.get("message_reference"):
+            attachments = await self.db.fetch(
+                """
+            SELECT ROW(id::text, message_id, channel_id, filename, filesize, image, height, width)
+            FROM attachments
+            WHERE message_id = $1
+                """,
+                int(res["message_reference"]["message_id"]),
+            )
+            attachments = [dict(a) for a in attachments] if attachments else []
+
+        a_res = []
+        for attachment in attachments:
+            # We have a ROW, so we need to convert it to a dict
+            a_id, a_message_id, a_channel_id, filename, filesize, image, height, width = attachment
+            attachment = {
+                "id": a_id,
+                "message_id": a_message_id,
+                "channel_id": a_channel_id,
+                "filename": filename,
+                "filesize": filesize,
+                "image": image,
+                "height": height,
+                "width": width,
+            }
+            # TODO: content_type
+            proto = "https" if self.app.config["IS_SSL"] else "http"
+            main_url = self.app.config["MAIN_URL"]
+            attachment["url"] = (
+                f"{proto}://{main_url}/attachments/"
+                f'{attachment["channel_id"]}/{attachment["message_id"]}/'
+                f'{attachment["filename"]}'
+            )
+            attachment["proxy_url"] = attachment["url"]
+
+            attachment["size"] = attachment.pop("filesize")
+            attachment.pop("message_id")
+            attachment.pop("channel_id")
+            if attachment["height"] is None:
+                attachment.pop("height")
+                attachment.pop("width")
+            a_res.append(attachment)
+
+        res["attachments"] = a_res
+
+        sticker_ids = res.pop("sticker_ids")
+        if sticker_ids:
+            stickers = []
+            for id in sticker_ids:
+                sticker = await self.get_default_sticker(id)
+                if sticker:
+                    stickers.append(sticker)
+
+            res["stickers"] = stickers
+            res["sticker_items"] = [{"format_type": sticker["format_type"], "id": sticker["id"], "name": sticker["name"]} for sticker in stickers]
+
+        if not res["guild_id"]:
+            res.pop("guild_id")
+        if not res["flags"]:
+            res.pop("flags")
+        if not res["nonce"]:
+            res.pop("nonce")
+        if not res["message_reference"]:
+            res.pop("message_reference")
+        if include_member and not res["reactions"]:
+            res.pop("reactions")
+
+        return res
+
     async def get_message(self, message_id: int, user_id: Optional[int] = None, include_member: bool = False) -> Optional[dict]:
         """Get a single message's payload."""
-        messages = await self.get_messages([message_id], user_id, include_member)
-        return messages[0] if messages else None
+        message = await self.fetchrow_with_json(
+            f"""
+            SELECT id, channel_id::text, guild_id, author_id, content,
+                created_at AS timestamp, edited_at AS edited_timestamp,
+                tts, mention_everyone, nonce, message_type, embeds, flags,
+                message_reference, allowed_mentions, sticker_ids,
+                (SELECT message_id FROM channel_pins WHERE message_id = id) AS pinned,
+                ARRAY(SELECT ROW(id::text, message_id, channel_id, filename, filesize, image, height, width)
+                    FROM attachments
+                    WHERE message_id = id)
+                AS attachments,
+                ARRAY(SELECT ROW(user_id, emoji_type, emoji_id, emoji_text)
+                    FROM message_reactions
+                    WHERE message_id = id
+                    ORDER BY react_ts
+                ) AS reactions
+            FROM messages
+            WHERE id = $1
+            """,
+            message_id,
+        )
+        if message:
+            return await self.parse_message(dict(message), user_id, include_member)
 
     async def get_messages(
         self,
@@ -901,178 +1107,7 @@ class Storage:
         )
 
         user_cache = {}
-        result = []
-        for row in rows:
-            res = dict(row)
-            res["id"] = str(res["id"])
-            res["timestamp"] = timestamp_(res["timestamp"])
-            res["edited_timestamp"] = timestamp_(res["edited_timestamp"])
-            res["type"] = res.pop("message_type")
-            res["content"] = res["content"] or ""
-            res["pinned"] = bool(res["pinned"])
-            await self._inject_author(res)
-
-            perms = await get_permissions(res["author_id"], int(res["channel_id"])) if res["author_id"] else None
-            content = row["content"]
-            guild_id = row["guild_id"]
-            is_crosspost = row["flags"] & MessageFlags.is_crosspost == MessageFlags.is_crosspost
-            attachments = [dict(a) for a in row["attachments"]] if row["attachments"] else []
-            reactions = [(dict(r) if r else r) for r in row["reactions"]] if row["reactions"] else []
-
-            if not guild_id:
-                guild_id = await self.guild_from_channel(int(res["channel_id"]))
-            res["guild_id"] = str(guild_id) if guild_id else None
-
-            if include_member:
-                member = await self.get_member_data_one(guild_id, int(res["author"]["id"]), False)
-                if member:
-                    res["member"] = member
-
-            async def _get_user(user_id):
-                try:
-                    user = user_cache[user_id]
-                except KeyError:
-                    user = await self.get_user(user_id)
-                    if include_member and user and guild_id:
-                        member = await self.get_member_data_one(guild_id, user_id, False)
-                        if member:
-                            user["member"] = member
-                    user_cache[user_id] = user
-                return user
-
-            res["mentions"] = await self._msg_regex(
-                USER_MENTION, _get_user, row["content"]
-            )
-
-            if res.get("message_reference") and not is_crosspost:
-                message = await self.get_message(int(res["message_reference"]["message_id"]), user_id, include_member)
-                res["referenced_message"] = message
-                if message and (not res.get("allowed_mentions") or res["allowed_mentions"].get("replied_user", False)):
-                    replied_to = await _get_user(int(message["author"]["id"]))
-                    if replied_to:
-                        res["mentions"].append(replied_to)
-
-            async def _get_role_mention(role_id: int):
-                if not guild_id:
-                    return
-
-                if role_id == guild_id:
-                    return str(role_id)
-
-                role = await self.db.fetchval(
-                    """
-                SELECT id
-                FROM roles
-                WHERE id = $1 AND guild_id = $2
-                """,
-                    role_id,
-                    guild_id,
-                )
-                if not role:
-                    return
-
-                if not (not perms or perms.bits.mention_everyone) and not role["mentionable"]:
-                    return
-
-                return str(role_id)
-
-            res["mention_roles"] = await self._msg_regex(
-                ROLE_MENTION, _get_role_mention, content
-            )
-
-            emoji = []
-            react_stats = {}
-
-            # First we get the basic info
-            for row in reactions:
-                etype = EmojiType(row["emoji_type"])
-                eid, etext = row["emoji_id"], row["emoji_text"]
-                _, main_emoji = emoji_sql(etype, eid, etext)
-
-                if main_emoji in emoji:
-                    continue
-
-                # Maintain reaction order
-                emoji.append(main_emoji)
-
-                react_stats[main_emoji] = {
-                    "count": 0,
-                    "me": False,
-                    "emoji": partial_emoji(etype, eid, etext),
-                }
-
-            # Then we insert statistics
-            for row in reactions:
-                etype = EmojiType(row["emoji_type"])
-                eid, etext = row["emoji_id"], row["emoji_text"]
-                _, main_emoji = emoji_sql(etype, eid, etext)
-
-                stats = react_stats[main_emoji]
-                stats["count"] += 1
-
-                if row["user_id"] == user_id:
-                    stats["me"] = True
-
-            # Return to original order
-            res["reactions"] = list(map(react_stats.get, emoji))
-
-            # If we're a crosspost, we need to inject the original attachments
-            if is_crosspost and res.get("message_reference"):
-                attachments = await self.db.fetch(
-                    """
-                SELECT id::text, message_id, channel_id, filename, filesize, image, height, width
-                FROM attachments
-                WHERE message_id = $1
-                    """,
-                    int(res["message_reference"]["message_id"]),
-                )
-                attachments = [dict(a) for a in attachments] if attachments else []
-
-            for attachment in attachments:
-                # TODO: content_type
-                proto = "https" if self.app.config["IS_SSL"] else "http"
-                main_url = self.app.config["MAIN_URL"]
-                attachment["url"] = (
-                    f"{proto}://{main_url}/attachments/"
-                    f'{attachment["channel_id"]}/{attachment["message_id"]}/'
-                    f'{attachment["filename"]}'
-                )
-                attachment["proxy_url"] = attachment["url"]
-
-                attachment["size"] = attachment.pop("filesize")
-                attachment.pop("message_id")
-                attachment.pop("channel_id")
-                if attachment["height"] is None:
-                    attachment.pop("height")
-                    attachment.pop("width")
-
-            res["attachments"] = attachments
-
-            sticker_ids = res.pop("sticker_ids")
-            if sticker_ids:
-                stickers = []
-                for id in sticker_ids:
-                    sticker = await self.get_default_sticker(id)
-                    if sticker:
-                        stickers.append(sticker)
-
-                res["stickers"] = stickers
-                res["sticker_items"] = [{"format_type": sticker["format_type"], "id": sticker["id"], "name": sticker["name"]} for sticker in stickers]
-
-            if not res["guild_id"]:
-                res.pop("guild_id")
-            if not res["flags"]:
-                res.pop("flags")
-            if not res["nonce"]:
-                res.pop("nonce")
-            if not res["message_reference"]:
-                res.pop("message_reference")
-            if include_member and not res["reactions"]:
-                res.pop("reactions")
-
-            result.append(res)
-
-        return result
+        return [await self.parse_message(dict(row), user_id, include_member, user_cache) for row in rows]
 
     async def get_invite(self, invite_code: str) -> Optional[Dict]:
         """Fetch invite information given its code."""
