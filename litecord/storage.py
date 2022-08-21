@@ -860,7 +860,7 @@ class Storage:
             }
             res["webhook_id"] = str(wb_info["webhook_id"])
         else:
-            res["author"] = await self.get_user(res["author_id"])
+            res["author"] = await self.get_user(int(author_id))
 
     async def get_message(self, message_id: int, user_id: Optional[int] = None, include_member: bool = False) -> Optional[dict]:
         """Get a single message's payload."""
