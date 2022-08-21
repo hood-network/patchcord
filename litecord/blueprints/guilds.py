@@ -136,10 +136,10 @@ async def handle_search(guild_id: Optional[int], channel_id: Optional[int] = Non
         extra += f" AND content LIKE '%'||${len(args) + 1}||'%'"
         args.append(j["content"])
     if j.get("min_id"):
-        extra += f" AND orig_id > ${len(args) + 1}"
+        extra += f" AND id > ${len(args) + 1}"
         args.append(j["min_id"])
     if j.get("max_id"):
-        extra += f" AND orig_id < ${len(args) + 1}"
+        extra += f" AND id < ${len(args) + 1}"
         args.append(j["max_id"])
     if j.get("author_id"):
         extra += f"AND author_id = ANY(${len(args) + 1}::bigint[])"
@@ -159,16 +159,16 @@ async def handle_search(guild_id: Optional[int], channel_id: Optional[int] = Non
         extra += f" AND embeds::text == ANY(${len(args) + 1}::text[])"
         args.append(["%\"type\": %s%" % type for type in j["embed_type"]])
     if j.get("attachment_filename"):
-        extra += f" AND (SELECT COUNT(*) FROM attachments WHERE attachments.message_id = orig_id AND attachments.filename = ANY(${len(args) + 1}::text[])) > 0"
+        extra += f" AND (SELECT COUNT(*) FROM attachments WHERE attachments.message_id = id AND attachments.filename = ANY(${len(args) + 1}::text[])) > 0"
         args.append([f"%{filename}%" for filename in j["attachment_filename"]])
     if j.get("attachment_extension"):
-        extra += f" AND (SELECT COUNT(*) FROM attachments WHERE attachments.message_id = orig_id AND attachments.filename = ANY(${len(args) + 1}::text[])) > 0"
+        extra += f" AND (SELECT COUNT(*) FROM attachments WHERE attachments.message_id = id AND attachments.filename = ANY(${len(args) + 1}::text[])) > 0"
         args.append([f"%.{extension}" for extension in j["attachment_extension"]])
     if j["mention_everyone"] is not None:
         extra += f" AND mention_everyone = ${len(args) + 1}"
         args.append(j["mention_everyone"])
     if j["pinned"] is not None:
-        extra += f" AND (SELECT COUNT(*) FROM channel_pins WHERE message_id = orig_id) {'>' if j['pinned'] else '='} 0"
+        extra += f" AND (SELECT COUNT(*) FROM channel_pins WHERE message_id = id) {'>' if j['pinned'] else '='} 0"
     if not j["include_nsfw"]:
         extra += " AND (SELECT nsfw FROM guild_channels WHERE id = channel_id) = false"
     for has in j.get("has", []):
@@ -185,21 +185,21 @@ async def handle_search(guild_id: Optional[int], channel_id: Optional[int] = Non
         elif has == "link":
             extra += " AND (content LIKE '%'||'http://'||'%' OR content LIKE ''%'||'https://'||'%')"
         if has == "-file":
-            extra += " AND (SELECT COUNT(*) FROM attachments WHERE message_id = orig_id) = 0"
+            extra += " AND (SELECT COUNT(*) FROM attachments WHERE message_id = id) = 0"
         elif has == "file":
-            extra += " AND (SELECT COUNT(*) FROM attachments WHERE message_id = orig_id) > 0"
+            extra += " AND (SELECT COUNT(*) FROM attachments WHERE message_id = id) > 0"
         if has == "-image":
-            extra += " AND (SELECT COUNT(*) FROM attachments WHERE message_id = orig_id AND image IS TRUE) = 0 AND embeds::text NOT LIKE '%'||'\"type\": \"image\"'||'%'"
+            extra += " AND (SELECT COUNT(*) FROM attachments WHERE message_id = id AND image IS TRUE) = 0 AND embeds::text NOT LIKE '%'||'\"type\": \"image\"'||'%'"
         elif has == "image":
-            extra += " AND ((SELECT COUNT(*) FROM attachments WHERE message_id = orig_id AND image IS TRUE) > 0 OR embeds::text LIKE '%'||'\"type\": \"image\"'||'%')"
+            extra += " AND ((SELECT COUNT(*) FROM attachments WHERE message_id = id AND image IS TRUE) > 0 OR embeds::text LIKE '%'||'\"type\": \"image\"'||'%')"
         if has == "-video":
-            extra += " AND (SELECT COUNT(*) FROM attachments WHERE message_id = orig_id AND (filename LIKE '%.mp4' OR filename LIKE '%.webm' OR filename LIKE '%.mov')) = 0 AND embeds::text NOT LIKE '%'||'\"type\": \"video\"'||'%'"
+            extra += " AND (SELECT COUNT(*) FROM attachments WHERE message_id = id AND (filename LIKE '%.mp4' OR filename LIKE '%.webm' OR filename LIKE '%.mov')) = 0 AND embeds::text NOT LIKE '%'||'\"type\": \"video\"'||'%'"
         elif has == "video":
-            extra += " AND ((SELECT COUNT(*) FROM attachments WHERE message_id = orig_id AND (filename LIKE '%.mp4' OR filename LIKE '%.webm' OR filename LIKE '%.mov')) > 0 OR embeds::text LIKE '%'||'\"type\": \"video\"'||'%')"
+            extra += " AND ((SELECT COUNT(*) FROM attachments WHERE message_id = id AND (filename LIKE '%.mp4' OR filename LIKE '%.webm' OR filename LIKE '%.mov')) > 0 OR embeds::text LIKE '%'||'\"type\": \"video\"'||'%')"
         if has == "-sound":
-            extra += " AND (SELECT COUNT(*) FROM attachments WHERE message_id = orig_id AND (filename LIKE '%.mp3' OR filename LIKE '%.ogg' OR filename LIKE '%.wav' OR filename LIKE '%.flac')) = 0"
+            extra += " AND (SELECT COUNT(*) FROM attachments WHERE message_id = id AND (filename LIKE '%.mp3' OR filename LIKE '%.ogg' OR filename LIKE '%.wav' OR filename LIKE '%.flac')) = 0"
         elif has == "sound":
-            extra += " AND (SELECT COUNT(*) FROM attachments WHERE message_id = orig_id AND (filename LIKE '%.mp3' OR filename LIKE '%.ogg' OR filename LIKE '%.wav' OR filename LIKE '%.flac')) > 0"
+            extra += " AND (SELECT COUNT(*) FROM attachments WHERE message_id = id AND (filename LIKE '%.mp3' OR filename LIKE '%.ogg' OR filename LIKE '%.wav' OR filename LIKE '%.flac')) > 0"
     for author_type in j.get("author_type", []):
         if author_type == "-webhook":
             extra += " AND author_id IS NOT NULL"

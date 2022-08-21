@@ -879,7 +879,7 @@ class Storage:
         """Get multiple messages' payloads."""
         rows = await self.fetch_with_json(
             f"""
-            SELECT id AS orig_id, id::text, channel_id::text, guild_id, author_id, content,
+            SELECT id, channel_id::text, guild_id, author_id, content,
                 created_at AS timestamp, edited_at AS edited_timestamp,
                 tts, mention_everyone, nonce, message_type, embeds, flags,
                 message_reference, allowed_mentions, sticker_ids,
@@ -887,7 +887,7 @@ class Storage:
                 ARRAY((SELECT * FROM attachments WHERE message_id = orig_id)) AS attachments,
                 ARRAY((SELECT user_id, emoji_type, emoji_id, emoji_text
                     FROM message_reactions
-                    WHERE message_id = $1
+                    WHERE message_id = id
                     ORDER BY react_ts
                 )) AS reactions {extra_clause}
             FROM messages
@@ -900,6 +900,7 @@ class Storage:
         result = []
         for row in rows:
             res = dict(row)
+            res["id"] = str(res["id"])
             res["timestamp"] = timestamp_(res["timestamp"])
             res["edited_timestamp"] = timestamp_(res["edited_timestamp"])
             res["type"] = res.pop("message_type")
