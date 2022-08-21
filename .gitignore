@@ -110,3 +110,7 @@ attachments/*
 .DS_Store
 .vscode
 .idea
+
+# other
+nginx.conf
+assets/*
