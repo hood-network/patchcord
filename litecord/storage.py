@@ -884,8 +884,8 @@ class Storage:
                 tts, mention_everyone, nonce, message_type, embeds, flags,
                 message_reference, allowed_mentions, sticker_ids,
                 (SELECT message_id FROM channel_pins WHERE message_id = id) AS pinned,
-                ARRAY((SELECT * FROM attachments WHERE message_id = id)) AS attachments,
-                ARRAY((SELECT user_id, emoji_type, emoji_id, emoji_text
+                ARRAY((SELECT ROW(*) FROM attachments WHERE message_id = id)) AS attachments,
+                ARRAY((SELECT ROW(user_id, emoji_type, emoji_id, emoji_text)
                     FROM message_reactions
                     WHERE message_id = id
                     ORDER BY react_ts
