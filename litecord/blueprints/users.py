@@ -536,6 +536,15 @@ async def get_profile(peer_id: int):
         member = await app.storage.get_member_data_one(guild_id, user_id)
         if member:
             result["guild_member"] = result["guild_member_profile"] = await app.storage.get_member_data_one(guild_id, peer_id)
+            result["guild_member_profile"]["id"] = str(guild_id)  # Husk
+
+    if peer["bot"] and not peer["system"]:
+        result["application"] = {
+            "id": peer["id"],
+            "flags": 0,
+            "popular_application_command_ids": [],
+            "verified": peer["flags"] & UserFlags.verified_bot == UserFlags.verified_bot,
+        }
 
     return jsonify(result)
 
