@@ -916,8 +916,8 @@ class Storage:
             content = row["content"]
             guild_id = row["guild_id"]
             is_crosspost = row["flags"] & MessageFlags.is_crosspost == MessageFlags.is_crosspost
-            attachments = [dict(a) for a in row["attachments"]]
-            reactions = [dict(r) for r in row["reactions"]]
+            attachments = [dict(a) for a in row["attachments"]] if row["attachments"] else []
+            reactions = [(dict(r) if r else r) for r in row["reactions"]] if row["reactions"] else []
 
             if not guild_id:
                 guild_id = await self.guild_from_channel(int(res["channel_id"]))
@@ -1026,7 +1026,7 @@ class Storage:
                     """,
                     int(res["message_reference"]["message_id"]),
                 )
-                attachments = [dict(a) for a in attachments]
+                attachments = [dict(a) for a in attachments] if attachments else []
 
             for attachment in attachments:
                 # TODO: content_type
