@@ -362,7 +362,7 @@ class Storage:
         FROM members
         JOIN users ON members.user_id = users.id
         WHERE members.guild_id = $1
-          AND users.username LIKE '%'||$2
+          AND users.username ILIKE '%'||$2
         LIMIT {limit}
         """,
             guild_id,

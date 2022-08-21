@@ -66,7 +66,7 @@ async def query_users():
         """
     SELECT id
     FROM users
-    WHERE username LIKE '%'||$1||'%'
+    WHERE username ILIKE '%'||$1||'%'
     AND CARDINALITY(ARRAY((SELECT guild_id FROM members WHERE user_id = id INTERSECT SELECT guild_id FROM members WHERE user_id = $2))) > 0
     ORDER BY username
     LIMIT $3
@@ -585,7 +585,7 @@ async def _get_mentions():
     j = validate(dict(request.args), GET_MENTIONS)
 
     guild_query = "AND messages.guild_id = $2" if "guild_id" in j else ""
-    role_query = "OR content LIKE '%<@&%'" if j["roles"] else ""
+    role_query = "OR content ILIKE '%<@&%'" if j["roles"] else ""
     everyone_query = "OR content LIKE '%@everyone%'" if j["everyone"] else ""
     mention_user = f"<@{user_id}>"
 
@@ -605,7 +605,7 @@ async def _get_mentions():
     WHERE (
         channels.channel_type = 0
         AND messages.guild_id IN ({gids})
-        AND content LIKE '%'||$1||'%'
+        AND content ILIKE '%'||$1||'%'
         {role_query}
         {everyone_query}
         {guild_query}
