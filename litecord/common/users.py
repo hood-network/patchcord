@@ -265,7 +265,7 @@ async def user_disconnect(user_id: int):
             continue
 
         # force a close, 4000 should make the client reconnect.
-        await state.ws.ws.close(4000)
+        await state.ws.ws.close(4004)
 
     # force everyone to see the user as offline
     await app.presence.dispatch_pres(user_id, BasePresence(status="offline"))

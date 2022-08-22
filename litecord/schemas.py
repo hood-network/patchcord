@@ -280,6 +280,16 @@ REGISTER = {
     "date_of_birth": {"coerce": str, "required": False, "nullable": True},
 }
 
+LOGIN = {
+    "login": {"coerce": str, "required": True},
+    "password": {"coerce": str, "required": True},
+}
+
+LOGIN_v6 = {
+    "email": {"coerce": str, "required": True},
+    "password": {"coerce": str, "required": True},
+}
+
 # only used by us, not discord, hence 'invcode' (to separate from discord)
 REGISTER_WITH_INVITE = {**REGISTER, **{"invcode": {"coerce": str, "required": True}}}
 

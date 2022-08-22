@@ -28,8 +28,8 @@ from logbook import Logger
 
 from litecord.auth import token_check
 from litecord.common.users import create_user
-from litecord.schemas import validate, REGISTER, REGISTER_WITH_INVITE
-from litecord.errors import BadRequest, ManualFormError
+from litecord.schemas import LOGIN_v6, validate, REGISTER, REGISTER_WITH_INVITE, LOGIN
+from litecord.errors import ManualFormError
 from litecord.pubsub.user import dispatch_user
 from .invites import use_invite
 
@@ -144,11 +144,18 @@ async def _register_with_invite():
 @bp.route("/login", methods=["POST"])
 async def login():
     j = await request.get_json()
+    if "email" in j:
+        j = validate(await request.get_json(), LOGIN_v6)
+    else:
+        j = validate(await request.get_json(), LOGIN)
+
     try:
-        email, password = j["email"], j["password"]
-    except KeyError:
-        # hack for api v9
         email, password = j["login"], j["password"]
+    except KeyError:
+        # Old API versions
+        email, password = j["email"], j["password"]
+
+    error = {"code": "INVALID_LOGIN", "message": "Login or password is invalid."}
 
     row = await app.db.fetchrow(
         """
@@ -160,14 +167,22 @@ async def login():
     )
 
     if not row:
-        return jsonify({"login": ["User not found."], "email": ["User not found."]}), 401
+        raise ManualFormError(login=error, email=error, password=error)
 
     user_id, pwd_hash = row
-
     if not await check_password(pwd_hash, password):
-        return jsonify({"password": ["Password does not match."]}), 401
+        raise ManualFormError(login=error, email=error, password=error)
 
-    return jsonify({"token": make_token(user_id, pwd_hash)})
+    user_settings = await app.db.fetchrow(
+        """
+    SELECT locale, theme
+    FROM user_settings
+    WHERE id = $1
+    """,
+        user_id,
+    )
+
+    return jsonify({"token": make_token(user_id, pwd_hash), "user_id": str(user_id), "user_settings": dict(user_settings)})
 
 
 @bp.route("/consent-required", methods=["GET"])
