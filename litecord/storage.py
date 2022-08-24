@@ -259,6 +259,7 @@ class Storage:
         if user_id:
             drow["owner"] = drow["owner_id"] == str(user_id)
 
+        drow["roles"] = await self.get_role_data(guild_id)
         drow["vanity_url_code"] = await self.vanity_invite(guild_id)
         drow["nsfw"] = drow["nsfw_level"] in (NSFWLevel.RESTRICTED.value, NSFWLevel.EXPLICIT.value)
 
@@ -806,7 +807,6 @@ class Storage:
 
         members = await self.get_member_data(guild_id)
         channels = await self.get_channel_data(guild_id)
-        roles = await self.get_role_data(guild_id)
 
         # prevent data inconsistencies
         assert len(members) == member_count
@@ -821,7 +821,6 @@ class Storage:
                 "member_count": member_count,
                 "members": members,
                 "channels": channels,
-                "roles": roles,
                 "presences": await self.presence.guild_presences(mids, guild_id),
                 "emojis": await self.get_guild_emojis(guild_id),
                 "voice_states": await self.guild_voice_states(guild_id),
