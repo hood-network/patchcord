@@ -20,27 +20,26 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 from quart import Blueprint, jsonify, current_app as app, request
 
 from litecord.auth import admin_check
-from litecord.schemas import validate
-from litecord.admin_schemas import USER_CREATE, USER_UPDATE
-from litecord.errors import BadRequest, Forbidden
-from litecord.utils import async_map, toggle_flag
-from litecord.enums import UserFlags
+from litecord.schemas import validate, USER_UPDATE
+from litecord.admin_schemas import USER_CREATE
+from litecord.errors import BadRequest, NotFound
+from litecord.utils import extract_limit
+from litecord.blueprints.users import handle_user_update
 from litecord.common.users import (
     create_user,
     delete_user,
     user_disconnect,
-    mass_user_update,
 )
 
 bp = Blueprint("users_admin", __name__)
 
 
-@bp.route("", methods=["POST", "PUT"], strict_slashes=False)
+@bp.route("", methods=["POST"], strict_slashes=False)
 async def _create_user():
     await admin_check()
     j = validate(await request.get_json(), USER_CREATE)
     user_id, _ = await create_user(j["username"], j["email"], j["password"])
-    return jsonify(await app.storage.get_user(user_id))
+    return jsonify(await app.storage.get_user(user_id, True))
 
 
 def args_try(args: dict, typ, field: str, default):
@@ -53,65 +52,48 @@ def args_try(args: dict, typ, field: str, default):
 
 
 @bp.route("", methods=["GET"], strict_slashes=False)
-async def _search_users():
+async def query_users():
     await admin_check()
 
-    args = request.args
+    limit = extract_limit(request, 25, 100)
+    j = validate(request.args.to_dict(), {"q": {"coerce": str, "required": False, "maxlength": 32}, "offset": {"coerce": int, "default": 0}})
+    query = j.get("q") or ""
+    offset = j["offset"]
 
-    username, discrim = args.get("username"), args.get("discriminator")
-
-    per_page = args_try(args, int, "per_page", 20)
-    page = args_try(args, int, "page", 0)
-
-    if page < 0:
-        raise BadRequest(message="invalid page number")
-
-    if per_page > 50:
-        raise BadRequest(message="invalid per page number")
-
-    # any of those must be available.
-    if not any((username, discrim)):
-        raise BadRequest(message="must insert username or discrim")
-
-    wheres, args = [], []
-
-    if username:
-        wheres.append("username LIKE '%' || $2 || '%'")
-        args.append(username)
-
-    if discrim:
-        wheres.append(f"discriminator = ${len(args) + 2}")
-        args.append(discrim)
-
-    where_tot = "WHERE " if args else ""
-    where_tot += " AND ".join(wheres)
-
-    rows = await app.db.fetch(
-        f"""
-    SELECT id
-    FROM users
-    {where_tot}
-    ORDER BY id ASC
-    LIMIT {per_page}
-    OFFSET ($1 * {per_page})
-    """,
-        page,
-        *args,
+    result = await app.storage.get_users(
+        extra_clause=", COUNT(*) OVER() as total_results",
+        where_clause="""
+        WHERE username ILIKE '%'||$1||'%'
+        ORDER BY username
+        LIMIT $2 OFFSET $3
+        """,
+        args=(query, limit, offset),
     )
 
-    rows = [r["id"] for r in rows]
+    total_results = result[0]["total_results"] if result else 0
+    for user in result:
+        user.pop("total_results")
+    return jsonify({"users": result, "total_results": total_results})
 
-    return jsonify(await async_map(app.storage.get_user, rows))
+
+@bp.route("/<int:target_id>", methods=["GET"])
+async def get_other(target_id):
+    await admin_check()
+    other = await app.storage.get_user(target_id, True)
+    if not other:
+        raise NotFound(10013)
+    return jsonify(other)
 
 
 @bp.route("/<int:user_id>", methods=["DELETE"])
+@bp.route("/<int:user_id>/delete", methods=["POST"])
 async def _delete_single_user(user_id: int):
     await admin_check()
 
     await delete_user(user_id)
     await user_disconnect(user_id)
 
-    new_user = await app.storage.get_user(user_id)
+    new_user = await app.storage.get_user(user_id, True)
     return jsonify(new_user)
 
 
@@ -121,26 +103,28 @@ async def patch_user(user_id: int):
 
     j = validate(await request.get_json(), USER_UPDATE)
 
-    # get the original user for flags checking
-    user = await app.storage.get_user(user_id)
-    old_flags = UserFlags.from_int(user["flags"])
-
-    # j.flags is already a UserFlags since we coerce it.
-    if "flags" in j:
-        new_flags = j["flags"]
-
-        # make sure the staff flag is the same as old_flags.value
-        toggle_flag(new_flags, UserFlags.staff, old_flags.is_staff)
-
+    if "flags" in j and j["flags"] is not None and j["flags"].isdigit():
         await app.db.execute(
             """
         UPDATE users
         SET flags = $1
         WHERE id = $2
         """,
-            new_flags.value,
+            j["flags"],
             user_id,
         )
 
-    public_user, _ = await mass_user_update(user_id)
-    return jsonify(public_user)
+    private_user = await handle_user_update(user_id, False)
+    return jsonify(private_user)
+
+
+@bp.route("/<int:user_id>/channels", methods=["GET"])
+async def user_dms(user_id: int):
+    await admin_check()
+    return jsonify(await app.user_storage.get_dms(user_id))
+
+
+@bp.route("/<int:user_id>/relationships", methods=["GET"])
+async def user_relationships(user_id: int):
+    await admin_check()
+    return jsonify(await app.user_storage.get_relationships(user_id))

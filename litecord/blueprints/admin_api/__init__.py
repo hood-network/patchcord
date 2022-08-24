@@ -20,6 +20,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 from .voice import bp as voice
 from .guilds import bp as guilds
 from .users import bp as users
+from .channels import bp as channels
 from .instance_invites import bp as instance_invites
+from .info import bp as info
 
-__all__ = ["voice", "guilds", "users", "instance_invites"]
+__all__ = ["voice", "guilds", "users", "channels", "instance_invites", "info"]

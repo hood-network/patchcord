@@ -17,7 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from typing import Iterable
+from typing import Iterable, Optional
 
 from quart import Blueprint, current_app as app, jsonify
 from logbook import Logger
@@ -133,7 +133,7 @@ async def gdm_add_recipient(channel_id: int, peer_id: int, *, user_id=None):
         await send_sys_message(channel_id, MessageType.RECIPIENT_ADD, user_id, peer_id)
 
 
-async def gdm_remove_recipient(channel_id: int, peer_id: int, *, user_id=None):
+async def gdm_remove_recipient(channel_id: int, peer_id: int, silent: Optional[bool] = False, *, user_id=None):
     """Remove a member from a GDM.
 
     Dispatches:
@@ -164,7 +164,8 @@ async def gdm_remove_recipient(channel_id: int, peer_id: int, *, user_id=None):
 
     author_id = peer_id if user_id is None else user_id
 
-    await send_sys_message(channel_id, MessageType.RECIPIENT_REMOVE, author_id, peer_id)
+    if not silent:
+        await send_sys_message(channel_id, MessageType.RECIPIENT_REMOVE, author_id, peer_id)
 
 
 async def gdm_destroy(channel_id):
@@ -212,6 +213,20 @@ async def gdm_is_member(channel_id: int, user_id: int) -> bool:
     )
 
     return row is not None
+
+
+async def gdm_is_owner(channel_id: int, user_id: int) -> bool:
+    """Return if the given user is the owner of the Group DM."""
+    oid = await app.db.fetchval(
+        """
+    SELECT owner_id
+    FROM group_dm_channels
+    WHERE id = $1
+    """,
+        channel_id,
+    )
+
+    return oid == user_id
 
 
 @bp.route("/<int:dm_chan>/recipients/<int:peer_id>", methods=["PUT"])

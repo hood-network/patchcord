@@ -42,8 +42,7 @@ bp = Blueprint("dms", __name__)
 async def get_dms():
     """Get the open DMs for the user."""
     user_id = await token_check()
-    dms = await app.user_storage.get_dms(user_id)
-    return jsonify(dms)
+    return jsonify(await app.user_storage.get_dms(user_id))
 
 
 async def jsonify_dm(dm_id: int, user_id: int):

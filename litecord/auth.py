@@ -56,7 +56,7 @@ async def raw_token_check(token: str, db=None) -> int:
     user_id_str = fragments[0]
 
     try:
-        user_id_decoded = base64.b64decode(user_id_str.encode())
+        user_id_decoded = base64.b64decode(user_id_str.encode() + b"==")
         user_id = int(user_id_decoded)
     except (ValueError, binascii.Error):
         raise Unauthorized()
@@ -94,7 +94,7 @@ async def raw_token_check(token: str, db=None) -> int:
 
         return user_id
     except BadSignature:
-        log.warning("token failed for uid {}", user_id)
+        log.warning("Login failed for uid {}", user_id)
         raise Unauthorized()
 
 

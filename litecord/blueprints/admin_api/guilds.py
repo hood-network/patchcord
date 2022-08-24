@@ -21,11 +21,13 @@ from quart import Blueprint, jsonify, current_app as app, request
 from typing import List
 
 from litecord.auth import admin_check
+from litecord.blueprints.guilds import handle_guild_update
 from litecord.common.interop import guild_view
 from litecord.schemas import validate
 from litecord.admin_schemas import GUILD_UPDATE, FEATURES
 from litecord.common.guilds import delete_guild
 from litecord.errors import NotFound
+from litecord.utils import extract_limit
 
 bp = Blueprint("guilds_admin", __name__)
 
@@ -74,6 +76,86 @@ async def _update_features(guild_id: int, features: list):
     await app.dispatcher.guild.dispatch(guild_id, ("GUILD_UPDATE", guild))
 
 
+@bp.route("", methods=["GET"], strict_slashes=False)
+async def query_guilds():
+    await admin_check()
+
+    limit = extract_limit(request, 25, 100)
+    j = validate(request.args.to_dict(), {"q": {"coerce": str, "required": False, "maxlength": 100}, "offset": {"coerce": int, "default": 0}})
+    query = j.get("q") or ""
+    offset = j["offset"]
+
+    result = await app.storage.get_guilds(
+        extra_clause=", COUNT(*) OVER() as total_results",
+        where_clause="""
+        WHERE name ILIKE '%'||$1||'%'
+        ORDER BY name
+        LIMIT $2 OFFSET $3
+        """,
+        args=(query, limit, offset),
+        full=True,
+    )
+
+    total_results = result[0]["total_results"] if result else 0
+    for guild in result:
+        guild.pop("total_results")
+    return jsonify({"guilds": result, "total_results": total_results})
+
+
+@bp.route("/<int:guild_id>", methods=["GET"])
+async def get_guild(guild_id: int):
+    """Get a basic guild payload."""
+    await admin_check()
+
+    guild = await app.storage.get_guild_full(guild_id)
+    if not guild:
+        raise NotFound(10004)
+
+    return jsonify(guild_view(guild))
+
+
+@bp.route("/<int:guild_id>", methods=["PATCH"])
+async def update_guild(guild_id: int):
+    await admin_check()
+
+    j = validate(await request.get_json(), {**GUILD_UPDATE, "unavailable": {"coerce": bool, "required": False}})
+
+    if "features" in j and j["features"] is not None:
+        features = await _features_from_req()
+        await _update_features(guild_id, list(set(features)))
+
+    old_unavailable = app.guild_store.get(guild_id, "unavailable")
+    new_unavailable = j.get("unavailable", old_unavailable)
+    app.guild_store.set(guild_id, "unavailable", new_unavailable)
+
+    if old_unavailable and not new_unavailable:
+        # Guild became available
+        guild = await app.storage.get_guild_full(guild_id)
+        await app.dispatcher.guild.dispatch(guild_id, ("GUILD_CREATE", {**guild, "unavailable": False}))
+    elif not old_unavailable and new_unavailable:
+        # Guild became unavailable
+        await app.dispatcher.guild.dispatch(guild_id, ("GUILD_DELETE", {"id": guild_id, "guild_id": guild_id, "unavailable": True}))
+
+    guild = await handle_guild_update(guild_id, False)
+    return jsonify(guild)
+
+
+@bp.route("/<int:guild_id>/delete", methods=["POST"])
+@bp.route("/<int:guild_id>", methods=["DELETE"])
+async def delete_guild_as_admin(guild_id):
+    """Delete a single guild."""
+    await admin_check()
+    await delete_guild(guild_id)
+    return "", 204
+
+
+@bp.route("/<int:guild_id>/features", methods=["GET"])
+async def get_features(guild_id: int):
+    """Get the feature list of a guild"""
+    await admin_check()
+    return await _features(guild_id)
+
+
 @bp.route("/<int:guild_id>/features", methods=["PUT"])
 async def replace_features(guild_id: int):
     """Replace the feature list in a guild"""
@@ -84,14 +166,12 @@ async def replace_features(guild_id: int):
     return await _features(guild_id)
 
 
-@bp.route("/<int:guild_id>/features", methods=["POST"])
+@bp.route("/<int:guild_id>/features", methods=["PATCH"])
 async def insert_features(guild_id: int):
     """Insert a feature on a guild."""
     await admin_check()
     to_add = await _features_from_req()
-
-    features = await app.storage.guild_features(guild_id)
-    features = set(features)
+    features = set(await app.storage.guild_features(guild_id))
 
     # i'm assuming set.add is mostly safe
     for feature in to_add:
@@ -106,68 +186,13 @@ async def remove_features(guild_id: int):
     """Remove a feature from a guild"""
     await admin_check()
     to_remove = await _features_from_req()
-    features = await app.storage.guild_features(guild_id)
+    features = set(await app.storage.guild_features(guild_id))
 
     for feature in to_remove:
         try:
             features.remove(feature)
-        except ValueError:
+        except KeyError:
             pass
 
-    await _update_features(guild_id, features)
+    await _update_features(guild_id, list(features))
     return await _features(guild_id)
-
-
-@bp.route("/<int:guild_id>", methods=["GET"])
-async def get_guild(guild_id: int):
-    """Get a basic guild payload."""
-    await admin_check()
-
-    guild = await app.storage.get_guild(guild_id)
-
-    if not guild:
-        raise NotFound(10004)
-
-    return jsonify(guild_view(guild))
-
-
-@bp.route("/<int:guild_id>", methods=["PATCH"])
-async def update_guild(guild_id: int):
-    await admin_check()
-
-    j = validate(await request.get_json(), GUILD_UPDATE)
-
-    if "features" in j and j["featrures"] is not None:
-        features = await _features_from_req()
-        await _update_features(guild_id, list(set(features)))
-
-    old_unavailable = app.guild_store.get(guild_id, "unavailable")
-    new_unavailable = j.get("unavailable", old_unavailable)
-
-    # always set unavailable status since new_unavailable will be
-    # old_unavailable when not provided, so we don't need to check if
-    # j.unavailable is there
-    app.guild_store.set(guild_id, "unavailable", j["unavailable"])
-
-    guild = await app.storage.get_guild(guild_id)
-
-    # TODO: maybe we can just check guild['unavailable']...?
-
-    if old_unavailable and not new_unavailable:
-        # guild became available
-        extra = await app.storage.get_guild_extra(guild_id)
-        await app.dispatcher.guild.dispatch(guild_id, ("GUILD_CREATE", {**guild, **extra, "unavailable": False}))
-    else:
-        # guild became unavailable
-        await app.dispatcher.guild.dispatch(guild_id, ("GUILD_DELETE", {**guild, "id": guild["id"]}))
-
-    return jsonify(guild_view(guild))
-
-
-@bp.route("/<int:guild_id>/delete", methods=["POST"])
-@bp.route("/<int:guild_id>", methods=["DELETE"])
-async def delete_guild_as_admin(guild_id):
-    """Delete a single guild via the admin API without ownership checks."""
-    await admin_check()
-    await delete_guild(guild_id)
-    return "", 204

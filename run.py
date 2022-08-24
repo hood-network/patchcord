@@ -82,6 +82,8 @@ from litecord.blueprints.admin_api import (
     voice as voice_admin,
     guilds as guilds_admin,
     users as users_admin,
+    channels as channels_admin,
+    info as info_admin,
     instance_invites,
 )
 
@@ -182,9 +184,11 @@ def set_blueprints(app_):
         icons: -1,
         attachments: -1,
         static: -1,
+        info_admin: "/admin",
         voice_admin: "/admin/voice",
         guilds_admin: "/admin/guilds",
         users_admin: "/admin/users",
+        channels_admin: "/admin/channels",
         instance_invites: "/admin/instance-invites",
         read_states: "",
         stickers: "",

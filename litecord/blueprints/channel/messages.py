@@ -104,14 +104,12 @@ async def around_message_search(
 async def get_messages(channel_id):
     user_id = await token_check()
 
-    ctype, peer_id = await channel_check(user_id, channel_id)
+    await channel_check(user_id, channel_id)
     await channel_perm_check(user_id, channel_id, "read_history")
+    return jsonify(await handle_get_messages(channel_id))
 
-    if ctype == ChannelType.DM:
-        # make sure both parties will be subbed to a dm
-        await _dm_pre_dispatch(channel_id, user_id)
-        await _dm_pre_dispatch(channel_id, peer_id)
 
+async def handle_get_messages(channel_id: int):
     limit = extract_limit(request, 50)
 
     if "around" in request.args:
@@ -125,7 +123,7 @@ async def get_messages(channel_id):
         )
 
     log.info("Fetched {} messages", len(messages))
-    return jsonify([message_view(message) for message in messages])
+    return [message_view(message) for message in messages]
 
 
 @bp.route("/<int:channel_id>/messages/<int:message_id>", methods=["GET"])
@@ -135,7 +133,6 @@ async def get_single_message(channel_id, message_id):
     await channel_perm_check(user_id, channel_id, "read_history")
 
     message = await app.storage.get_message(message_id, user_id)
-
     if not message:
         raise NotFound(10008)
 

@@ -41,13 +41,7 @@ TF = TypeVar("TF", bound=Flags)
 
 async def async_map(function, iterable: Iterable) -> list:
     """Map a coroutine to an iterable."""
-    res = []
-
-    for element in iterable:
-        result = await function(element)
-        res.append(result)
-
-    return res
+    return await asyncio.gather(*[function(item) for item in iterable])
 
 
 async def task_wrapper(name: str, coro):

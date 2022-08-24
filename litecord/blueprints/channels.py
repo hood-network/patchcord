@@ -30,6 +30,7 @@ from litecord.common.guilds import process_overwrites, _dispatch_action
 from litecord.enums import ChannelType, GUILD_CHANS, MessageType, MessageFlags
 from litecord.errors import Forbidden, NotFound, BadRequest, MissingPermissions
 from litecord.schemas import (
+    maybebool,
     validate,
     CHAN_UPDATE,
     CHAN_OVERWRITE,
@@ -41,8 +42,8 @@ from litecord.schemas import (
 
 from litecord.blueprints.checks import channel_check, channel_perm_check
 from litecord.system_messages import send_sys_message
-from litecord.blueprints.dm_channels import gdm_remove_recipient, gdm_destroy
-from litecord.utils import to_update, pg_set_json
+from litecord.blueprints.dm_channels import gdm_is_member, gdm_is_owner, gdm_remove_recipient, gdm_destroy
+from litecord.utils import str_bool, to_update, pg_set_json
 from litecord.embed.messages import process_url_embed, msg_update_embeds
 from litecord.pubsub.user import dispatch_user
 from litecord.permissions import get_permissions, Target
@@ -322,8 +323,9 @@ async def close_channel(channel_id):
 
         return jsonify(chan)
     elif ctype == ChannelType.GROUP_DM:
+        silent = request.args.get("silent", type=str_bool)
+        await gdm_remove_recipient(channel_id, user_id, silent)
         chan = await app.storage.get_channel(channel_id, user_id=user_id)
-        await gdm_remove_recipient(channel_id, user_id)
 
         gdm_count = await app.db.fetchval(
             """
@@ -335,8 +337,23 @@ async def close_channel(channel_id):
         )
 
         if gdm_count == 0:
-            # destroy dm
             await gdm_destroy(channel_id)
+        else:
+            # We transfer ownership to the first member in the group
+            if chan["owner_id"] in (None, str(user_id)):
+                await app.db.execute(
+                    """
+                UPDATE group_dm_channels
+                SET owner_id = $1
+                WHERE id = $2
+                """,
+                    int(chan["recipients"][0]["id"]),
+                    channel_id,
+                )
+
+                chan = await app.storage.get_channel(channel_id, user_id=user_id)
+                await app.dispatcher.channel.dispatch(channel_id, ("CHANNEL_UPDATE", chan))
+
         return jsonify(chan)
     else:
         raise RuntimeError(f"Data inconsistency: Unknown channel type {ctype}")
@@ -596,6 +613,8 @@ async def _update_voice_channel(channel_id: int, j: dict, _user_id: int):
 
 async def _update_group_dm(channel_id: int, j: dict, author_id: int):
     if "name" in j:
+        await gdm_is_owner(channel_id, author_id)
+
         await app.db.execute(
             """
         UPDATE group_dm_channels
@@ -607,6 +626,19 @@ async def _update_group_dm(channel_id: int, j: dict, author_id: int):
         )
 
         await send_sys_message(channel_id, MessageType.CHANNEL_NAME_CHANGE, author_id)
+
+    if j.get("owner"):
+        await gdm_is_owner(channel_id, author_id)
+
+        await app.db.execute(
+            """
+        UPDATE group_dm_channels
+        SET owner_id = $1
+        WHERE id = $2
+        """,
+            j["owner"],
+            channel_id,
+        )
 
     if "icon" in j:
         new_icon = await app.icons.update(
@@ -631,6 +663,9 @@ async def update_channel(channel_id: int):
     """Update a channel's information"""
     user_id = await token_check()
     ctype, guild_id = await channel_check(user_id, channel_id)
+
+    if ctype == ChannelType.DM:
+        raise MissingPermissions()
 
     is_guild = ctype in GUILD_CHANS
 
@@ -676,7 +711,6 @@ async def trigger_typing(channel_id):
                 "channel_id": str(channel_id),
                 "user_id": str(user_id),
                 "timestamp": int(time.time()),
-                # guild_id for lazy guilds
                 "guild_id": str(guild_id) if ctype not in (ChannelType.DM, ChannelType.GROUP_DM) else None,
             },
         ),

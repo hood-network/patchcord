@@ -277,7 +277,7 @@ REGISTER = {
     "captcha_key": {"coerce": str, "required": False, "nullable": True},
     "gift_code_sku_id": {"coerce": str, "required": False, "nullable": True},
     "consent": {"type": "boolean", "required": False},
-    "date_of_birth": {"coerce": str, "required": False, "nullable": True},
+    "date_of_birth": {"type": "date", "required": False, "nullable": True},
 }
 
 LOGIN = {
@@ -771,6 +771,7 @@ CREATE_DM_V9 = {
 GROUP_DM_UPDATE = {
     "name": {"type": "guild_name", "required": False},
     "icon": {"type": "b64_icon", "required": False, "nullable": True},
+    "owner": {"type": "snowflake", "coerce": int, "required": False, "nullable": True},
 }
 
 SPECIFIC_FRIEND = {

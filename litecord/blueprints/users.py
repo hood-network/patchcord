@@ -25,12 +25,14 @@ from datetime import datetime
 from quart import Blueprint, jsonify, request, current_app as app
 from logbook import Logger
 
+from litecord.types import timestamp_
+
 from ..errors import BadRequest, ManualFormError, MissingAccess, NotFound
 from ..schemas import validate, USER_UPDATE, GET_MENTIONS
 from ..utils import extract_limit, str_bool
 
 from .guilds import guild_check
-from litecord.auth import token_check, hash_data
+from litecord.auth import is_staff, token_check, hash_data
 from litecord.common.guilds import remove_member
 
 from litecord.enums import PremiumType, UserFlags
@@ -53,32 +55,26 @@ bp = Blueprint("user", __name__)
 log = Logger(__name__)
 
 
-@bp.route("", methods=["GET"])
+@bp.route("", methods=["GET"], strict_slashes=False)
 async def query_users():
     """Query available users."""
     user_id = await token_check()
 
-    limit = extract_limit(request, 25, 25)
+    limit = extract_limit(request, 25, 100)
     j = validate(request.args.to_dict(), {"q": {"coerce": str, "required": True, "minlength": 2, "maxlength": 32}})
     query = j["q"]
 
-    result = await app.db.fetch(
-        """
-    SELECT id
-    FROM users
-    WHERE username ILIKE '%'||$1||'%'
-    AND CARDINALITY(ARRAY((SELECT guild_id FROM members WHERE user_id = id INTERSECT SELECT guild_id FROM members WHERE user_id = $2))) > 0
-    ORDER BY username
-    LIMIT $3
-    """,
-        query,
-        user_id,
-        limit,
+    result = await app.storage.get_users(
+        where_clause="""
+        WHERE username ILIKE '%'||$1||'%'
+        AND CARDINALITY(ARRAY((SELECT guild_id FROM members WHERE user_id = id INTERSECT SELECT guild_id FROM members WHERE user_id = $2))) > 0
+        ORDER BY username
+        LIMIT $3
+        """,
+        args=(query, user_id, limit),
     )
 
-    ids = [r["id"] for r in result]
-    coros = [app.storage.get_user(id, False) for id in ids]
-    return jsonify(await asyncio.gather(*coros))
+    return jsonify(result)
 
 
 @bp.route("/@me", methods=["GET"])
@@ -93,8 +89,9 @@ async def get_me():
 async def get_other(target_id):
     """Get any user, given the user ID."""
     await token_check()
-
     other = await app.storage.get_user(target_id)
+    if not other:
+        raise NotFound(10013)
     return jsonify(other)
 
 
@@ -174,7 +171,10 @@ async def _check_pass(j, user):
 async def patch_me():
     """Patch the current user's information."""
     user_id = await token_check()
+    return jsonify(await handle_user_update(user_id))
 
+
+async def handle_user_update(user_id: int, check_password: bool = True):
     j = validate(await request.get_json(), USER_UPDATE)
     user = await app.storage.get_user(user_id, True)
 
@@ -188,14 +188,16 @@ async def patch_me():
     )
 
     if to_update(j, user, "username"):
-        await _check_pass(j, user)
+        if check_password:
+            await _check_pass(j, user)
 
         discrim = await _try_username_patch(user_id, j["username"])
         user["username"] = j["username"]
         user["discriminator"] = discrim
 
     if to_update(j, user, "discriminator"):
-        await _check_pass(j, user)
+        if check_password:
+            await _check_pass(j, user)
 
         try:
             new_discrim = "%04d" % int(j["discriminator"])
@@ -207,7 +209,8 @@ async def patch_me():
                 user["discriminator"] = new_discrim
 
     if to_update(j, user, "email"):
-        await _check_pass(j, user)
+        if check_password:
+            await _check_pass(j, user)
 
         await app.db.execute(
             """
@@ -335,7 +338,8 @@ async def patch_me():
     # TODO: Unclaimed accounts
 
     if "new_password" in j and j["new_password"]:
-        await _check_pass(j, user)
+        if check_password:
+            await _check_pass(j, user)
 
         new_hash = await hash_data(j["new_password"])
         await app.db.execute(
@@ -393,7 +397,7 @@ async def patch_me():
     user.pop("password_hash")
 
     _, private_user = await mass_user_update(user_id)
-    return jsonify(private_user)
+    return private_user
 
 
 @bp.route("/@me/guilds", methods=["GET"])
@@ -409,7 +413,7 @@ async def get_me_guilds():
     for guild_id in guild_ids:
         partial = await app.db.fetchrow(
             """
-        SELECT id::text, name, icon, owner_id
+        SELECT id::text, name, icon, owner_id, features
         FROM guilds
         WHERE guilds.id = $1
         """,
@@ -425,8 +429,8 @@ async def get_me_guilds():
             partial["permissions"] = user_perms.binary & ((2 << 31) - 1)
             partial["permissions_new"] = str(user_perms.binary)
 
-        partial["owner"] = partial["owner_id"] == user_id
-        partial.pop("owner_id")
+        partial["owner"] = partial.pop("owner_id") == user_id
+        partial["features"] = partial["features"] or []
 
         if with_counts:
             partial.update(await app.storage.get_guild_counts(guild_id))
@@ -519,9 +523,10 @@ async def get_profile(peer_id: int):
 
     mutual_guilds = await app.user_storage.get_mutual_guilds(user_id, peer_id)
     friends = await app.user_storage.are_friends_with(user_id, peer_id)
+    staff = await is_staff(user_id)
 
-    # don't return a proper card if no guilds are being shared.
-    if not mutual_guilds and not friends:
+    # don't return a proper card if no guilds are being shared (bypassed by starf)
+    if not mutual_guilds and not friends and not staff:
         raise MissingAccess()
 
     # actual premium status is determined by that
@@ -550,8 +555,8 @@ async def get_profile(peer_id: int):
         "user_profile": peer,
         "connected_accounts": [],
         "premium_type": PLAN_ID_TO_TYPE.get(plan_id),
-        "premium_since": peer_premium,
-        "premium_guild_since": peer_premium,  # Same for now
+        "premium_since": timestamp_(peer_premium),
+        "premium_guild_since": timestamp_(peer_premium),  # Same for now
         "profile_themes_experiment_bucket": 1,  # I have no words
     }
 
@@ -562,15 +567,19 @@ async def get_profile(peer_id: int):
 
     if request.args.get("guild_id", type=int):
         guild_id = int(request.args["guild_id"])
-        member = await app.storage.get_member_data_one(guild_id, user_id)
-        if member:
-            result["guild_member"] = result["guild_member_profile"] = await app.storage.get_member_data_one(guild_id, peer_id)
-            result["guild_member_profile"]["id"] = str(guild_id)  # Husk
+        is_member = None
+        if not staff:
+            is_member = await app.storage.get_member_data_one(guild_id, user_id)
+        if is_member or staff:
+            member_data = await app.storage.get_member_data_one(guild_id, peer_id)
+            if member_data:
+                result["guild_member"] = result["guild_member_profile"] = member_data
+                result["guild_member_profile"]["guild_id"] = str(guild_id)  # Husk
 
     if peer["bot"] and not peer["system"]:
         result["application"] = {
             "id": peer["id"],
-            "flags": 0,
+            "flags": 8667136,
             "popular_application_command_ids": [],
             "verified": peer["flags"] & UserFlags.verified_bot == UserFlags.verified_bot,
         }

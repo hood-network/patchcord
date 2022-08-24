@@ -64,7 +64,7 @@ async def make_friend(
     _block = RelationshipType.BLOCK.value
 
     if user_id == peer_id:
-        raise RelationshipFailed("Self-relationships are disallowed")
+        raise BadRequest(80003)
 
     try:
         await app.db.execute(
@@ -209,32 +209,22 @@ async def make_friend(
     return
 
 
-class RelationshipFailed(BadRequest):
-    """Exception for general relationship errors."""
-
-    error_code = 80004
-
-
-class RelationshipBlocked(BadRequest):
-    """Exception for when the peer has blocked the user."""
-
-    error_code = 80001
-
-
 @bp.route("/@me/relationships", methods=["POST"])
 async def post_relationship():
     user_id = await token_check()
     j = validate(await request.get_json(), SPECIFIC_FRIEND)
 
     uid = await app.storage.search_user(j["username"], str(j["discriminator"]))
+    if uid == user_id:
+        raise BadRequest(80003)
 
     if not uid:
-        raise RelationshipFailed("No users with DiscordTag exist")
+        raise BadRequest(80004)
 
     res = await make_friend(user_id, uid)
 
     if res is None:
-        raise RelationshipBlocked("Can not friend user due to block")
+        raise BadRequest(80001)
 
     return "", 204
 
@@ -250,6 +240,7 @@ async def add_relationship(peer_id: int):
     if res is not None:
         return res
 
+    # TODO: wtf is happening here ffs litecord?
     # make_friend did not succeed, so we
     # assume it is a block and dispatch
     # the respective RELATIONSHIP_ADD.

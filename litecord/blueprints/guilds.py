@@ -358,10 +358,17 @@ async def _update_guild(guild_id):
 
     await guild_check(user_id, guild_id)
     await guild_perm_check(user_id, guild_id, "manage_guild")
+
+    return jsonify(await handle_guild_update(guild_id))
+
+
+async def handle_guild_update(guild_id: int, check: bool = True):
+    user_id = await token_check()
     j = validate(await request.get_json(), GUILD_UPDATE)
 
     if "owner_id" in j:
-        await guild_owner_check(user_id, guild_id)
+        if check:
+            await guild_owner_check(user_id, guild_id)
 
         await app.db.execute(
             """
@@ -384,7 +391,6 @@ async def _update_guild(guild_id):
             guild_id,
         )
 
-    # small guild to work with to_update()
     guild = await app.storage.get_guild(guild_id)
 
     if to_update(j, guild, "icon"):
@@ -514,9 +520,10 @@ async def _update_guild(guild_id):
             guild_id,
         )
 
-    guild = await app.storage.get_guild_full(guild_id, user_id)
-    await app.dispatcher.guild.dispatch(guild_id, ("GUILD_UPDATE", guild))
-    return jsonify(guild_view(guild))
+    guild = await app.storage.get_guild(guild_id, user_id)
+    extra = await app.storage.get_guild_extra(guild_id, user_id)
+    await app.dispatcher.guild.dispatch(guild_id, ("GUILD_UPDATE", {**guild, **extra}))
+    return guild_view(guild)
 
 
 @bp.route("/<int:guild_id>", methods=["DELETE"])
@@ -619,7 +626,6 @@ async def change_vanity_url(guild_id: int):
         guild_id,
         channel_id,
         user_id,
-        # sane defaults for vanity urls.
         0,
         0,
         False,

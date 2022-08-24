@@ -28,7 +28,7 @@ from logbook import Logger
 
 from litecord.auth import token_check
 from litecord.common.users import create_user
-from litecord.schemas import LOGIN_v6, validate, REGISTER, REGISTER_WITH_INVITE, LOGIN
+from litecord.schemas import validate, REGISTER, REGISTER_WITH_INVITE, LOGIN, LOGIN_v6
 from litecord.errors import ManualFormError
 from litecord.pubsub.user import dispatch_user
 from .invites import use_invite
@@ -50,7 +50,7 @@ async def check_password(pwd_hash: str, given_password: str) -> bool:
 def make_token(user_id, user_pwd_hash) -> str:
     """Generate a single token for a user."""
     signer = itsdangerous.TimestampSigner(user_pwd_hash)
-    user_id = base64.b64encode(str(user_id).encode())
+    user_id = base64.b64encode(str(user_id).encode()).rstrip(b"=")
 
     return signer.sign(user_id).decode()
 
@@ -115,7 +115,7 @@ async def _register_with_invite():
     if row is None:
         raise ManualFormError(invcode={"code": "INVITATION_CODE_INVALID", "message": "Invalid instance invite."})
 
-    if row["max_uses"] != -1 and row["uses"] >= row["max_uses"]:
+    if row["max_uses"] > 0 and row["uses"] >= row["max_uses"]:
         raise ManualFormError(invcode={"code": "INVITATION_CODE_INVALID", "message": "Invalid instance invite."})
 
     date_of_birth = None
@@ -138,7 +138,7 @@ async def _register_with_invite():
         data["username"], data["email"], data["password"], date_of_birth
     )
 
-    return jsonify({"token": make_token(user_id, pwd_hash), "user_id": str(user_id)})
+    return jsonify({"token": make_token(user_id, pwd_hash)})
 
 
 @bp.route("/login", methods=["POST"])
@@ -188,6 +188,17 @@ async def login():
 @bp.route("/consent-required", methods=["GET"])
 async def consent_required():
     return jsonify({"required": True})
+
+
+@bp.route("/location-metadata", methods=["GET"])
+async def location_metadata():
+    return jsonify(
+        {
+            "consent_required": True,
+            "country_code": "US",
+            "promotional_email_opt_in": {"required": True, "pre_checked": False}
+        }
+    )
 
 
 @bp.route("/verify/resend", methods=["POST"])

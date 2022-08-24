@@ -18,7 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import asyncio
-from typing import List, Dict, Any, Optional, Union, TypedDict
+from typing import List, Dict, Any, Optional, TypedDict
 from xml.etree.ElementInclude import include
 
 import aiohttp
@@ -104,7 +104,35 @@ class Storage:
             await pg_set_json(con)
             return await con.execute(query, *args)
 
-    async def get_user(self, user_id, secure=False) -> Optional[Dict[str, Any]]:
+    async def parse_user(self, duser: dict, secure: bool) -> dict:
+        duser["premium"] = duser.pop("premium_since") is not None
+        duser["public_flags"] = duser["flags"]
+        duser["banner_color"] = hex(duser["accent_color"]).replace("0x", "#") if duser["accent_color"] else None
+
+        if secure:
+            duser["desktop"] = True
+            duser["mobile"] = False
+            duser["phone"] = duser["phone"] if duser["phone"] else None
+
+            today = date.today()
+            born = duser.pop("date_of_birth")
+            duser["nsfw_allowed"] = ((today.year - born.year - ((today.month, today.day) < (born.month, born.day))) >= 18) if born else True
+
+            plan_id = await self.db.fetchval(
+                """
+            SELECT payment_gateway_plan_id
+            FROM user_subscriptions
+            WHERE status = 1
+              AND user_id = $1
+            """,
+                int(duser["id"]),
+            )
+
+            duser["premium_type"] = PLAN_ID_TO_TYPE.get(plan_id)
+
+        return duser
+
+    async def get_user(self, user_id, secure: bool = False) -> Optional[Dict[str, Any]]:
         """Get a single user payload."""
         user_id = int(user_id)
 
@@ -140,35 +168,52 @@ class Storage:
         if not user_row:
             return None
 
-        duser = dict(user_row)
+        return await self.parse_user(dict(user_row), secure)
 
-        duser["premium"] = duser["premium_since"] is not None
-        duser["public_flags"] = duser["flags"]
-        duser.pop("premium_since")
+    async def get_users(
+        self,
+        user_ids: Optional[List[int]] = None,
+        secure: bool = False,
+        extra_clause: str = "",
+        where_clause: str = "WHERE id = ANY($1::bigint[]) LIMIT 1",
+        args: Optional[List[Any]] = None,
+    ) -> List[dict]:
+        """Get many user payloads."""
+        if not user_ids:
+            return []
 
-        duser["banner_color"] = hex(duser["accent_color"]).replace("0x", "#") if duser["accent_color"] else None
+        fields = [
+            "id::text",
+            "username",
+            "discriminator",
+            "avatar",
+            "banner",
+            "flags",
+            "bot",
+            "system",
+            "premium_since",
+            "bio",
+            "accent_color",
+            "pronouns",
+            "avatar_decoration",
+            "theme_colors",
+        ]
 
         if secure:
-            duser["mobile"] = False
-            duser["phone"] = duser["phone"] if duser["phone"] else None
+            fields.extend(["email", "verified", "mfa_enabled", "date_of_birth", "phone"])
 
-            today = date.today()
-            born = duser.pop("date_of_birth")
-            duser["nsfw_allowed"] = ((today.year - born.year - ((today.month, today.day) < (born.month, born.day))) >= 18) if born else True
-
-            plan_id = await self.db.fetchval(
-                """
-            SELECT payment_gateway_plan_id
-            FROM user_subscriptions
-            WHERE status = 1
-              AND user_id = $1
+        users_rows = await self.db.fetch(
+            f"""
+            SELECT {','.join(fields)} {extra_clause}
+            FROM users
+            {where_clause}
             """,
-                user_id,
-            )
+            *(args or [user_ids]),
+        )
 
-            duser["premium_type"] = PLAN_ID_TO_TYPE.get(plan_id)
-
-        return duser
+        return await asyncio.gather(
+            *[self.parse_user(dict(user_row), secure) for user_row in users_rows]
+        )
 
     async def search_user(self, username: str, discriminator: str) -> int:
         """Search a user"""
@@ -205,31 +250,9 @@ class Storage:
             guild_id,
         )
 
-    async def get_guild(self, guild_id: int, user_id=None) -> Optional[Dict]:
-        """Get gulid payload."""
-        row = await self.db.fetchrow(
-            """
-        SELECT id::text, owner_id::text, name, icon, splash,
-               region, afk_channel_id::text, afk_timeout,
-               verification_level, default_message_notifications, nsfw_level,
-               explicit_content_filter, mfa_level,
-               embed_enabled, embed_channel_id::text,
-               widget_enabled, widget_channel_id::text,
-               system_channel_id::text, rules_channel_id::text, public_updates_channel_id::text, features,
-               banner, description, preferred_locale, discovery_splash, premium_progress_bar_enabled
-        FROM guilds
-        WHERE guilds.id = $1
-        """,
-            guild_id,
-        )
-
-        if not row:
-            return None
-
-        drow = dict(row)
-
-        # a guild's unavailable state is kept in memory, and we remove every
-        # other guild related field when its unavailable.
+    async def parse_guild(self, drow: dict, user_id: Optional[int], full: bool = False) -> dict:
+        """Parse guild payload."""
+        guild_id = int(drow["id"])
         unavailable = self.app.guild_store.get(guild_id, "unavailable", False)
 
         if unavailable:
@@ -246,16 +269,68 @@ class Storage:
         #  - we aren't discord
         #  - the limit for guilds is unknown and heavily dependant on the
         #     hardware
-        drow["max_presences"] = 100000
-        drow["max_members"] = 100000
+        drow["max_presences"] = 1000000
+        drow["max_members"] = 1000000
 
-        # used by guilds with DISCOVERABLE feature
+        # TODO
         drow["preferred_locale"] = "en-US"
-
-        # feature won't be impl'd
         drow["guild_scheduled_events"] = drow["embedded_activities"] = drow["connections"] = []
 
+        if full:
+            return {**drow, **await self.get_guild_extra(guild_id)}
         return drow
+
+    async def get_guild(self, guild_id: int, user_id: Optional[int] = None) -> Optional[Dict]:
+        """Get guild payload."""
+        row = await self.db.fetchrow(
+            """
+        SELECT id::text, owner_id::text, name, icon, splash,
+               region, afk_channel_id::text, afk_timeout,
+               verification_level, default_message_notifications, nsfw_level,
+               explicit_content_filter, mfa_level,
+               embed_enabled, embed_channel_id::text,
+               widget_enabled, widget_channel_id::text,
+               system_channel_id::text, rules_channel_id::text, public_updates_channel_id::text, features,
+               banner, description, preferred_locale, discovery_splash, premium_progress_bar_enabled
+        FROM guilds
+        WHERE guilds.id = $1
+        """,
+            guild_id,
+        )
+        if not row:
+            return
+
+        return await self.parse_guild(dict(row), user_id)
+
+    async def get_guilds(
+        self,
+        guild_ids: Optional[List[int]] = None,
+        user_id: Optional[int] = None,
+        full: bool = False,
+        extra_clause: str = "",
+        where_clause: str = "WHERE id = ANY($1::bigint[]) LIMIT 1",
+        args: Optional[List[Any]] = None,
+    ) -> List[dict]:
+        """Get many guild payloads."""
+        rows = await self.db.fetch(
+            f"""
+            SELECT id::text, owner_id::text, name, icon, splash,
+                   region, afk_channel_id::text, afk_timeout,
+                   verification_level, default_message_notifications, nsfw_level,
+                   explicit_content_filter, mfa_level,
+                   embed_enabled, embed_channel_id::text,
+                   widget_enabled, widget_channel_id::text,
+                   system_channel_id::text, rules_channel_id::text, public_updates_channel_id::text, features,
+                   banner, description, preferred_locale, discovery_splash, premium_progress_bar_enabled {extra_clause}
+            FROM guilds
+            {where_clause}
+            """,
+            *(args or [guild_ids]),
+        )
+
+        return await asyncio.gather(
+            *[self.parse_guild(dict(row), user_id, full) for row in rows]
+        )
 
     async def get_member_role_ids(self, guild_id: int, member_id: int) -> List[str]:
         """Get a list of role IDs that are on a member."""
@@ -384,7 +459,7 @@ class Storage:
             channel_id,
         )
 
-    async def chan_last_message_str(self, channel_id: int) -> str:
+    async def chan_last_message_str(self, channel_id: int) -> Optional[str]:
         """Get the last message ID but in a string.
 
         Converts to None (not the string "None") when
@@ -1108,8 +1183,9 @@ class Storage:
         )
 
         user_cache = {}
-        coros = [self.parse_message(dict(row), user_id, include_member, user_cache) for row in rows]
-        return await asyncio.gather(*coros)
+        return await asyncio.gather(
+            *[self.parse_message(dict(row), user_id, include_member, user_cache) for row in rows]
+        )
 
     async def get_invite(self, invite_code: str) -> Optional[Dict]:
         """Fetch invite information given its code."""
@@ -1290,7 +1366,7 @@ class Storage:
 
         drow = dict(row)
 
-        # ????
+        # TODO
         drow["roles"] = []
 
         uploader_id = drow.pop("uploader_id")

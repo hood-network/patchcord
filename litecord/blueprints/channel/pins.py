@@ -31,12 +31,6 @@ from litecord.common.interop import message_view
 bp = Blueprint("channel_pins", __name__)
 
 
-class SysMsgInvalidAction(BadRequest):
-    """Invalid action on a system message."""
-
-    error_code = 50021
-
-
 async def _dispatch_pins_update(channel_id: int) -> None:
     message_id = await app.db.fetchval(
         """
@@ -101,7 +95,7 @@ async def add_pin(channel_id, message_id):
     )
 
     if mtype in SYS_MESSAGES:
-        raise SysMsgInvalidAction("Cannot pin a system message")
+        raise BadRequest(50021)
 
     await app.db.execute(
         """
