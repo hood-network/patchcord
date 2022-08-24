@@ -1,17 +1,43 @@
-# Litecord Admin API
+# Patchcord Admin API
 
-Litecord's Admin API uses the same authentication methods as Discord,
+Patchcord's Admin API uses the same authentication methods as Discord,
 it's the same `Authorization` header, and the same token.
 
 Only users who have the staff flag set can use the Admin API. Instance
 owners can use the `./manage.py make_staff` manage task to set someone
 as a staff user, granting them access over the administration functions.
 
-The base path is `/api/v6/admin`.
+The base path is `/api/v9/admin`.
+
+## Information
+
+### GET `/db`
+
+Discover the database URL. This is useful for doing bulk operations on an admin frontend.
+
+Returns:
+
+| field | type | description |
+| --: | :-- | :-- |
+| url | string | the formatted dB URL
+
+### GET `/counts`
+
+Returns the counts of various tables in the database.
+
+### GET `/snowflake`
+
+Returns a generated snowflake for the current time.
+
+Returns:
+
+| field | type | description |
+| --: | :-- | :-- |
+| id | string | the generated snowflake
 
 ## User management
 
-### `POST /users`
+### POST `/users`
 
 Create a user.
 Returns a user object.
@@ -20,38 +46,34 @@ Returns a user object.
 | --: | :-- | :-- |
 | username | string | username |
 | email | email | the email of the new user |
-| password | str | password for the new user |
+| password | string | password for the new user |
 
-### `GET /users`
+### GET `/users`
 
 Search users. Input is query arguments with the search parameters.
-Returns a list of user objects.
 
 | field | type | description |
 | --: | :-- | :-- |
-| username | string | username |
-| discriminator | string | discriminator |
-| page | Optional[integer] | page, default 0 |
-| per\_page | Optional[integer] | users per page, default 20, max 50 |
+| q | Optional[string] | username to query with optional discriminator; defaults to an empty string |
+| limit | Optional[integer] | how many results to return; default 25, max 100 |
+| offset | Optional[integer] | how many results to skip; used in pagination |
 
-### `DELETE /users/<user_id>`
+Returns:
 
-Delete a single user. Does not *actually* remove the user from the users row,
-it changes the username to `Deleted User <random hex>`, etc.
+| field | type | description |
+| --: | :-- | :-- |
+| users | List[User] | the users found
+| total_results | integer | the total number of users found
 
-Also disconnects all of the users' devices from the gateway.
-Returns a user object.
+### GET `/users/<user_id>`
+
+Returns a single user.
 
 ### PATCH `/users/<user_id>`
 
-Update a single user's information.
+Update a single user's information. Takes the same fields as PATCH `/users/@me` with the addition of unconditional `flag` modifying.
 
 Returns a user object on success.
-
-**Note:** You can not change any user's staff badge state (neither adding
-it or removing it) to not cause privilege escalation/de-escalation (where
-a staff makes more staff or a staff removes staff privileges of someone else).
-Keep in mind the staff badge is what grants access to the Admin API, so.
 
 **Note:** Changing a user's nitro badge is not defined via the flags.
 Plus that would require adding an interface to user payments
@@ -59,9 +81,21 @@ through the Admin API.
 
 [UserFlags]: https://discordapp.com/developers/docs/resources/user#user-object-user-flags
 
-| field | type | description |
-| --: | :-- | :-- |
-| flags | [UserFlags] | user flags/badges |
+### DELETE `/users/<user_id>`
+
+Delete a single user. Does not *actually* remove the user from the users row,
+it changes the username to `Deleted User <random hex>`, etc.
+
+Also disconnects all of the users' devices from the gateway.
+Returns a user object.
+
+### GET `/users/<user_id>/relationships`
+
+Returns a single user's relationships.
+
+### GET `/users/<user_id>/channels`
+
+Returns a single user's private channels.
 
 ## Instance invites
 
@@ -79,22 +113,26 @@ their data in.
 | max\_uses | integer | maximum amount of uses |
 | uses | integer | how many times has the invite been used |
 
-### `GET /instance/invites`
+### GET `/instance-invites`
 
 Get a list of instance invites.
 
-### `POST /instance/invites`
+### POST `/instance-invites`
 
 Create an instance invite. Receives only the `max_uses`
 field from the instance invites object. Returns a full
 instance invite object.
 
-### `DELETE /instance/invites/<invite>`
+### GET `/instance-invites/<invite>`
+
+Get a single invite.
+
+### DELETE `/instance-invites/<invite>`
 
 Delete an invite. Does not have any input, only the instance invite's `code`
 as the `<invite>` parameter in the URL.
 
-Returns empty body 204 on success, 404 on invite not found.
+Returns empty body 204 on success.
 
 ## Voice
 
@@ -142,27 +180,36 @@ Returns empty body with 204 status code on success.
 
 ## Guilds
 
-### GET `/guilds/<guild_id>`
+### `GET /guilds`
 
-Returns a partial guild object. Gives a 404 when the guild is not found.
-
-### PATCH `/guilds/<guild_id>`
-
-Update a single guild.
-Dispatches `GUILD_UPDATE` to subscribers of the guild.
-
-Returns a guild object on success.
+Search guilds. Input is query arguments with the search parameters.
 
 | field | type | description |
 | --: | :-- | :-- |
-| unavailable | bool | if the guild is unavailable |
-| features | List[string] | new list of features |
+| q | Optional[string] | guild name to query with optional discriminator; defaults to an empty string |
+| limit | Optional[integer] | how many results to return; default 25, max 100 |
+| offset | Optional[integer] | how many results to skip; used in pagination |
+
+Returns:
+
+| field | type | description |
+| --: | :-- | :-- |
+| guilds | List[Guild] | the guilds found
+| total_results | integer | the total number of guilds found
+
+### GET `/guilds/<guild_id>`
+
+Get a full guild object.
+
+### PATCH `/guilds/<guild_id>`
+
+Update a single guild. Takes the same fields as the user equivalent with the addition of unconditionally modifying `features` and `unavailable`.
+
+Returns a guild object on success.
 
 ### DELETE `/guilds/<guild_id>`
 
 Delete a single guild. Returns 204 on success.
-
-## Guild features
 
 ### PUT `/guilds/<guild_id>/features`
 
@@ -173,7 +220,7 @@ structure as the input.
 | --: | :-- | :-- |
 | features | List[string] | new list of features |
 
-### POST `/guilds/<guild_id>/features`
+### PATCH `/guilds/<guild_id>/features`
 
 Insert features. Receives and returns the same structure as
 PUT `/guilds/<guild_id>/features`.
@@ -182,3 +229,15 @@ PUT `/guilds/<guild_id>/features`.
 
 Remove features. Receives and returns the same structure as
 PUT `/guilds/<guild_id>/features`.
+
+## Channels
+
+### GET `/channels/<channel_id>`
+
+Get a single channel.
+
+### PATCH `/channels/<channel_id>`
+
+Update a single channel. Takes the same parameters as the user equivalent with the addition of the `recipients` field to unconditionally modify group channel recipients.
+
+Returns a channel object on success.

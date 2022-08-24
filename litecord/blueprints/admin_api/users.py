@@ -61,6 +61,7 @@ async def query_users():
     offset = j["offset"]
 
     result = await app.storage.get_users(
+        secure=True,
         extra_clause=", COUNT(*) OVER() as total_results",
         where_clause="""
         WHERE username ILIKE '%'||$1||'%'
@@ -87,7 +88,7 @@ async def get_other(target_id):
 
 @bp.route("/<int:user_id>", methods=["DELETE"])
 @bp.route("/<int:user_id>/delete", methods=["POST"])
-async def _delete_single_user(user_id: int):
+async def _delete_user(user_id: int):
     await admin_check()
 
     await delete_user(user_id)

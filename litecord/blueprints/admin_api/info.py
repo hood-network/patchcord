@@ -37,6 +37,13 @@ async def get_db_url():
     return jsonify({"url": f"postgres://{db['user']}:{db['password']}@{host}:5432/{db['database']}"})
 
 
+@bp.route("/snowflake", methods=["GET"])
+async def generate_snowflake():
+    """Generate a snowflake."""
+    await admin_check()
+    return jsonify({"id": str(app.winter_factory.snowflake())})
+
+
 @bp.route("/counts", methods=["GET"])
 async def get_counts():
     """Get total counts of various things."""

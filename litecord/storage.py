@@ -179,9 +179,6 @@ class Storage:
         args: Optional[List[Any]] = None,
     ) -> List[dict]:
         """Get many user payloads."""
-        if not user_ids:
-            return []
-
         fields = [
             "id::text",
             "username",
@@ -208,7 +205,7 @@ class Storage:
             FROM users
             {where_clause}
             """,
-            *(args or [user_ids]),
+            *(args or [user_ids if user_ids else []]),
         )
 
         return await asyncio.gather(
@@ -325,7 +322,7 @@ class Storage:
             FROM guilds
             {where_clause}
             """,
-            *(args or [guild_ids]),
+            *(args or [guild_ids if guild_ids else []]),
         )
 
         return await asyncio.gather(
@@ -1179,7 +1176,7 @@ class Storage:
             FROM messages
             {where_clause}
             """,
-            *(args if args else [message_ids]),
+            *(args if args else [message_ids if message_ids else []]),
         )
 
         user_cache = {}
