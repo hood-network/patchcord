@@ -234,6 +234,9 @@ async def update_guild_role(guild_id, role_id):
     # we only update ints on the db, not Permissions
     j["permissions"] = int(j["permissions"])
 
+    if role_id == guild_id:
+        j = {"permissions": j["permissions"]} if "permissions" in j else {}
+
     for field in j:
         await app.db.execute(
             f"""

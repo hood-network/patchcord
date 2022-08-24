@@ -17,7 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from typing import Any, Dict, Optional, List, Union
+from typing import Any, Dict, Optional, List, Tuple
 
 from quart import Blueprint, request, current_app as app, jsonify
 
@@ -33,6 +33,7 @@ from ..auth import token_check
 
 from ..enums import ChannelType
 from ..schemas import (
+    PARTIAL_ROLE_GUILD_CREATE,
     validate,
     GUILD_CREATE,
     GUILD_UPDATE,
@@ -45,12 +46,12 @@ from litecord.utils import str_bool, to_update
 from litecord.errors import BadRequest, ManualFormError, MissingAccess
 from litecord.permissions import get_permissions
 
-DEFAULT_EVERYONE_PERMS = 104324161
+DEFAULT_EVERYONE_PERMS = 1071698660929
 
 bp = Blueprint("guilds", __name__)
 
 
-async def guild_create_roles_prep(guild_id: int, roles: list):
+async def guild_create_roles_prep(guild_id: int, roles: list) -> dict:
     """Create roles in preparation in guild create."""
     # by reaching this point in the code that means
     # roles is not nullable, which means
@@ -59,31 +60,50 @@ async def guild_create_roles_prep(guild_id: int, roles: list):
     # the first member in the roles array
     # are patches to the @everyone role
     everyone_patches = roles[0]
-    for field in everyone_patches:
+    if everyone_patches.get("permissions") is not None:
         await app.db.execute(
-            f"""
-        UPDATE roles
-        SET {field}={everyone_patches[field]}
-        WHERE roles.id = $1
-        """,
+            """
+            UPDATE roles
+            SET permissions = $1
+            WHERE id = $2
+            """,
+            everyone_patches["permissions"] or 0,
             guild_id,
         )
 
-    default_perms = everyone_patches.get("permissions") or DEFAULT_EVERYONE_PERMS
+    default_perms = (everyone_patches["permissions"] or 0) if everyone_patches.get("permissions") is not None else DEFAULT_EVERYONE_PERMS
 
+    role_map = {}
+    if everyone_patches.get("id") is not None:
+        role_map[everyone_patches["id"]] = guild_id
     # from the 2nd and forward,
     # should be treated as new roles
     for role in roles[1:]:
-        await create_role(guild_id, role["name"], default_perms=default_perms, **role)
+        cr = await create_role(guild_id, role["name"], default_perms=default_perms, **role)
+        if role.get("id") is not None:
+            role_map[role["id"]] = int(cr["id"])
+
+    return role_map
 
 
-async def guild_create_channels_prep(guild_id: int, channels: list):
+async def guild_create_channels_prep(guild_id: int, channels: list) -> dict:
     """Create channels pre-guild create"""
+    channel_map = {}
     for channel_raw in channels:
         channel_id = app.winter_factory.snowflake()
         ctype = ChannelType(channel_raw["type"])
 
-        await create_guild_channel(guild_id, channel_id, ctype)
+        if channel_raw.get("id") is not None:
+            channel_map[channel_raw["id"]] = channel_id
+        elif channel_raw.get("parent_id") is not None:
+            if channel_raw["parent_id"] not in channel_map:
+                channel_raw.pop("parent_id")
+            else:
+                channel_raw["parent_id"] = channel_map[channel_raw["parent_id"]]
+
+        await create_guild_channel(guild_id, channel_id, ctype, **channel_raw)
+
+    return channel_map
 
 
 def sanitize_icon(icon: Optional[str]) -> Optional[str]:
@@ -110,8 +130,7 @@ async def _general_guild_icon(scope: str, guild_id: int, icon: Optional[str], **
 
 async def put_guild_icon(guild_id: int, icon: Optional[str]):
     """Insert a guild icon on the icon database."""
-    return await _general_guild_icon("guild_icon", guild_id, icon, size=(1024, 1024))
-
+    return await _general_guild_icon("guild_icon", guild_id, icon, size=(1024, 1024), always_icon=True)
 
 
 async def handle_search(guild_id: Optional[int], channel_id: Optional[int] = None):
@@ -243,11 +262,16 @@ async def create_guild():
     the user creating it as the owner and
     making them join."""
     user_id = await token_check()
-    j = validate(await request.get_json(), GUILD_CREATE)
-
     guild_id = app.winter_factory.snowflake()
+    guild, _ = await handle_guild_create(user_id, guild_id)
+    return jsonify(guild), 201
 
-    if "icon" in j:
+
+async def handle_guild_create(user_id: int, guild_id: int, extra_j: Optional[dict] = None) -> Tuple[dict, dict]:
+    j = validate(await request.get_json(), GUILD_CREATE)
+    extra_j = extra_j or {}
+
+    if "icon" in j and j["icon"]:
         image = await put_guild_icon(guild_id, j["icon"])
         image = image.icon_hash
     else:
@@ -257,17 +281,19 @@ async def create_guild():
         """
         INSERT INTO guilds (id, name, region, icon, owner_id,
             verification_level, default_message_notifications,
-            explicit_content_filter)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            explicit_content_filter, afk_timeout, features)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         """,
         guild_id,
         j["name"],
         "deprecated",
         image,
         user_id,
-        j.get("verification_level", 0),
-        j.get("default_message_notifications", 0),
-        j.get("explicit_content_filter", 0),
+        j.get("verification_level") or 0,
+        j.get("default_message_notifications") or 0,
+        j.get("explicit_content_filter") or 0,
+        j.get("afk_timeout") or 300,
+        extra_j.get("features") or []
     )
 
     await add_member(guild_id, user_id, basic=True)
@@ -308,18 +334,49 @@ async def create_guild():
         guild_id, general_id, ChannelType.GUILD_TEXT, name="general"
     )
 
+    role_map = {}
     if j.get("roles"):
-        await guild_create_roles_prep(guild_id, j["roles"])
+        role_map = await guild_create_roles_prep(guild_id, j["roles"])
 
+    channel_map = {}
     if j.get("channels"):
-        await guild_create_channels_prep(guild_id, j["channels"])
+        for channel in j["channels"]:
+            for overwrite in channel.get("permission_overwrites", []):
+                overwrite["id"] = role_map.get(overwrite["id"], overwrite["id"])
+        channel_map = await guild_create_channels_prep(guild_id, j["channels"])
 
-    guild_total = await app.storage.get_guild_full(guild_id, user_id, 250)
+    if j.get("afk_channel_id") is not None:
+        afk_channel_id = channel_map.get(j["afk_channel_id"])
+        if afk_channel_id:
+            await app.db.execute(
+                """
+            UPDATE guilds
+            SET afk_channel_id = $1
+            WHERE id = $2
+            """,
+                afk_channel_id,
+                guild_id,
+            )
+
+    if j.get("system_channel_id") is not None:
+        system_channel_id = channel_map.get(j["system_channel_id"])
+        if system_channel_id:
+            await app.db.execute(
+                """
+            UPDATE guilds
+            SET system_channel_id = $1
+            WHERE id = $2
+            """,
+                system_channel_id,
+                guild_id,
+            )
+
+    guild = await app.storage.get_guild(guild_id, user_id)
+    extra = await app.storage.get_guild_extra(guild_id, user_id, 250)  # large count doesnt matter here because itll always be false
 
     await app.dispatcher.guild.sub_user(guild_id, user_id)
-
-    await app.dispatcher.guild.dispatch(guild_id, ("GUILD_CREATE", guild_total))
-    return jsonify(guild_view(guild_total))
+    await app.dispatcher.guild.dispatch(guild_id, ("GUILD_CREATE", {**guild, **extra}))
+    return guild_view(guild), extra
 
 
 @bp.route("/<int:guild_id>", methods=["GET"])

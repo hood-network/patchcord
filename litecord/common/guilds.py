@@ -27,7 +27,7 @@ from .messages import PLAN_ID_TO_TYPE
 from ..permissions import get_role_perms, get_permissions, Target
 from ..utils import dict_get, maybe_lazy_guild_dispatch
 from ..enums import ChannelType, MessageType, NSFWLevel, PremiumType, UserFlags
-from ..errors import BadRequest, Forbidden, MissingAccess, MissingPermissions, NotFound
+from ..errors import BadRequest, Forbidden, MissingPermissions, NotFound
 from litecord.common.interop import role_view
 from litecord.pubsub.member import dispatch_member
 from litecord.system_messages import send_sys_message

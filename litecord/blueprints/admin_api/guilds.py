@@ -21,7 +21,7 @@ from quart import Blueprint, jsonify, current_app as app, request
 from typing import List
 
 from litecord.auth import admin_check
-from litecord.blueprints.guilds import handle_guild_update
+from litecord.blueprints.guilds import handle_guild_create, handle_guild_update
 from litecord.common.interop import guild_view
 from litecord.schemas import validate
 from litecord.admin_schemas import GUILD_UPDATE, FEATURES
@@ -100,6 +100,18 @@ async def query_guilds():
     for guild in result:
         guild.pop("total_results")
     return jsonify({"guilds": result, "total_results": total_results})
+
+
+@bp.route("", methods=["POST"], strict_slashes=False)
+async def create_guild():
+    """Create a new guild, assigning
+    the user creating it as the owner and
+    making them join."""
+    user_id = await admin_check()
+    j = validate(await request.get_json(), {**GUILD_UPDATE, "id": {"coerce": int, "required": False}, "features": {"type": list, "schema": {"coerce": str}, "required": False}})
+    guild_id = j.get("id") or app.winter_factory.snowflake()
+    guild, extra = await handle_guild_create(user_id, guild_id, {"features": j.get("features")})
+    return jsonify({**guild, **extra}), 201
 
 
 @bp.route("/<int:guild_id>", methods=["GET"])

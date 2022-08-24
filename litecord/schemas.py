@@ -199,7 +199,6 @@ class LitecordValidator(Validator):
 
 
 class LitecordErrorHandler(BasicErrorHandler):
-
     messages = {
         0x00: {"code": "CUSTOM", "message": "{0}"},
         0x02: {"code": "BASE_TYPE_REQUIRED", "message": "This field is required."},
@@ -424,20 +423,20 @@ PARTIAL_ROLE_GUILD_CREATE = {
 
 PARTIAL_CHANNEL_GUILD_CREATE = {
     "type": "dict",
-    "schema": {"name": {"type": "channel_name"}, "type": {"type": "channel_type"}},
+    "schema": {"name": {"type": "channel_name", "required": True}, "type": {"type": "channel_type", "required": True}, "id": {"coerce": int, "nullable": True}, "parent_id": {"coerce": int}},
 }
 
 GUILD_CREATE = {
     "name": {"type": "guild_name"},
-    "region": {"type": "voice_region", "nullable": True},
     "icon": {"type": "b64_icon", "required": False, "nullable": True},
     "verification_level": {"type": "verification_level", "default": 0},
     "default_message_notifications": {"type": "msg_notifications", "default": 0},
     "explicit_content_filter": {"type": "explicit", "default": 0},
-    "roles": {"type": "list", "required": False, "schema": PARTIAL_ROLE_GUILD_CREATE},
+    "roles": {"type": "list", "default": [], "schema": PARTIAL_ROLE_GUILD_CREATE},
     "channels": {"type": "list", "default": [], "schema": PARTIAL_CHANNEL_GUILD_CREATE},
-    # not supported
     "system_channel_id": {"coerce": int, "required": False, "nullable": True},
+    "afk_channel_id": {"coerce": int, "required": False, "nullable": True},
+    "afk_timeout": {"coerce": int, "required": False, "nullable": True},
     "guild_template_code": {
         "coerce": str,
         "required": False,

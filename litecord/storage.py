@@ -266,8 +266,7 @@ class Storage:
         #  - we aren't discord
         #  - the limit for guilds is unknown and heavily dependant on the
         #     hardware
-        drow["max_presences"] = 1000000
-        drow["max_members"] = 1000000
+        drow["max_presences"] = drow["max_members"] = drow["max_video_channel_users"] = drow["max_stage_video_channel_users"] = 1000000
 
         # TODO
         drow["preferred_locale"] = "en-US"

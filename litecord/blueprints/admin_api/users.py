@@ -39,7 +39,7 @@ async def _create_user():
     await admin_check()
     j = validate(await request.get_json(), USER_CREATE)
     user_id, _ = await create_user(j["username"], j["email"], j["password"], j.get("date_of_birth"), id=j.get("id"))
-    return jsonify(await app.storage.get_user(user_id, True))
+    return jsonify(await app.storage.get_user(user_id, True)), 201
 
 
 def args_try(args: dict, typ, field: str, default):
@@ -118,7 +118,7 @@ async def patch_user(user_id: int):
 
     j = validate(await request.get_json(), USER_UPDATE)
 
-    if "flags" in j and j["flags"] is not None and j["flags"].isdigit():
+    if "flags" in j and j["flags"] is not None:
         await app.db.execute(
             """
         UPDATE users

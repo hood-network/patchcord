@@ -37,19 +37,6 @@ Returns:
 
 ## User management
 
-### POST `/users`
-
-Create a user.
-Returns a user object.
-
-| field | type | description |
-| --: | :-- | :-- |
-| username | string | username |
-| email | email | the email of the new user |
-| password | string | password for the new user |
-| id | Optional[snowflake] | the ID of the new user |
-| date_of_birth | Optional[date] | the date of birth of the new user |
-
 ### GET `/users`
 
 Search users. Input is query arguments with the search parameters.
@@ -66,6 +53,18 @@ Returns:
 | --: | :-- | :-- |
 | users | List[User] | the users found
 | total_results | integer | the total number of users found
+
+### POST `/users`
+
+Create a user. Returns a user object.
+
+| field | type | description |
+| --: | :-- | :-- |
+| username | string | username |
+| email | email | the email of the new user |
+| password | string | password for the new user |
+| id | Optional[snowflake] | the ID of the new user |
+| date_of_birth | Optional[date] | the date of birth of the new user |
 
 ### GET `/users/<user_id>`
 
@@ -182,7 +181,7 @@ Returns empty body with 204 status code on success.
 
 ## Guilds
 
-### `GET /guilds`
+### GET `/guilds`
 
 Search guilds. Input is query arguments with the search parameters.
 
@@ -198,6 +197,12 @@ Returns:
 | --: | :-- | :-- |
 | guilds | List[Guild] | the guilds found
 | total_results | integer | the total number of guilds found
+
+## POST `/guilds`
+
+Create a guild. Returns a guild object.
+
+Takes the same fields as the user equivalent with the addition of `features` and `id`.
 
 ### GET `/guilds/<guild_id>`
 
