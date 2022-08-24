@@ -1097,7 +1097,7 @@ async def voice_channel_effects(channel_id):
             {
                 "user_id": str(user_id),
                 "channel_id": str(channel_id),
-                "guild_id": str(app.storage.guild_from_channel(channel_id)),
+                "guild_id": str(await app.storage.guild_from_channel(channel_id)),
                 "emoji": {
                     "id": str(j["emoji_id"]) if j.get("emoji_id") else None,
                     "name": j["emoji_name"] if j.get("emoji_name") else None,
