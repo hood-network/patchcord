@@ -23,6 +23,7 @@ from typing import List, Optional
 
 from quart import Blueprint, request, current_app as app, jsonify
 from logbook import Logger
+from emoji import EMOJI_DATA
 
 from litecord.auth import token_check
 from litecord.common.interop import message_view, channel_view
@@ -1073,7 +1074,36 @@ async def voice_channel_effects(channel_id):
     await channel_perm_check(user_id, channel_id, "read_messages")
     await channel_perm_check(user_id, channel_id, "connect")
 
-    j = validate(await request.get_json(), {"emoji_id": {"coerce": int, "nullable": True}, "emoji_name": {"coerce": str}})
-    await app.dispatcher.channel.dispatch(channel_id, ("VOICE_CHANNEL_EFFECT_SEND", {"user_id": str(user_id), "channel_id": str(channel_id), "emoji": {"id": str(j["emoji_id"]) if j["emoji_id"] else None, "name": j["emoji_name"]}}))
+    j = validate(await request.get_json(), {"emoji_id": {"coerce": int, "nullable": True}, "emoji_name": {"coerce": str, "nullable": True}})
+
+    animated = False
+    if not j.get("emoji_id") and not j.get("emoji_name"):
+        raise BadRequest(10014)
+    elif j.get("emoji_id"):
+        emoji = await app.storage.get_emoji(j["emoji_id"])
+        if not emoji:
+            raise BadRequest(10014)
+        animated = emoji["animated"]
+    elif j.get("emoji_name"):
+        emoji_name = j["emoji_name"]
+        if len(emoji_name) != 1 or emoji_name not in EMOJI_DATA:
+            raise BadRequest(10014)
+
+    await app.dispatcher.channel.dispatch(
+        channel_id,
+        (
+            "VOICE_CHANNEL_EFFECT_SEND",
+            {
+                "user_id": str(user_id),
+                "channel_id": str(channel_id),
+                "guild_id": str(app.storage.guild_from_channel(channel_id)),
+                "emoji": {
+                    "id": str(j["emoji_id"]) if j.get("emoji_id") else None,
+                    "name": j["emoji_name"] if j.get("emoji_name") else None,
+                    "animated": animated,
+                }
+            }
+        )
+    )
 
     return "", 204

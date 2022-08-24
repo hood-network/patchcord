@@ -22,6 +22,7 @@ from typing import List, Union, Tuple, TypedDict, Optional
 
 from quart import Blueprint, request, current_app as app, jsonify
 from logbook import Logger
+from emoji import EMOJI_DATA
 
 from litecord.errors import BadRequest
 from litecord.utils import async_map, query_tuple_from_args, extract_limit
@@ -157,10 +158,9 @@ def emoji_sql(
         where_ext = f"AND emoji_id = {param}"
         main_emoji = emoji_id
     elif emoji_type == EmojiType.UNICODE:
-
         # fun fact, emojis are length 1 in python? i'll use this to the
         # best of my ability, lol
-        if len(emoji_name) != 1:
+        if len(emoji_name) != 1 or emoji_name not in EMOJI_DATA:
             raise BadRequest(10014)
 
         where_ext = f"AND emoji_text = {param}"

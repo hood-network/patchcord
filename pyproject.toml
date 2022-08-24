@@ -21,7 +21,7 @@ zstandard = "^0.15.2"
 winter = {git = "https://gitlab.com/elixire/winter"}
 wsproto = "^1.0.0"
 aiofile = "^3.8.1"
-
+emoji = "<3.0.0"
 
 
 [tool.poetry.dev-dependencies]
