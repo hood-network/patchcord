@@ -36,6 +36,7 @@ FEATURES = {
 }
 
 USER_CREATE = {
+    "id": {"coerce": int, "required": False},
     "username": {"type": "username", "required": True},
     "email": {"type": "email", "required": True},
     "password": {"type": "string", "minlength": 5, "required": True},

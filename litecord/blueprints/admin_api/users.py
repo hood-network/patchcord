@@ -38,7 +38,7 @@ bp = Blueprint("users_admin", __name__)
 async def _create_user():
     await admin_check()
     j = validate(await request.get_json(), USER_CREATE)
-    user_id, _ = await create_user(j["username"], j["email"], j["password"])
+    user_id, _ = await create_user(j["username"], j["email"], j["password"], j.get("date_of_birth"), id=j.get("id"))
     return jsonify(await app.storage.get_user(user_id, True))
 
 

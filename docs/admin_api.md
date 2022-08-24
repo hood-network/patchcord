@@ -33,7 +33,7 @@ Returns:
 
 | field | type | description |
 | --: | :-- | :-- |
-| id | string | the generated snowflake
+| id | snowflake | the generated snowflake
 
 ## User management
 
@@ -47,6 +47,8 @@ Returns a user object.
 | username | string | username |
 | email | email | the email of the new user |
 | password | string | password for the new user |
+| id | Optional[snowflake] | the ID of the new user |
+| date_of_birth | Optional[date] | the date of birth of the new user |
 
 ### GET `/users`
 

@@ -130,13 +130,13 @@ async def roll_discrim(username: str) -> Optional[str]:
     return None
 
 
-async def create_user(username: str, email: str, password: str, date_of_birth: Optional[datetime] = None) -> Tuple[int, str]:
+async def create_user(username: str, email: str, password: str, date_of_birth: Optional[datetime] = None, *, id: Optional[int] = None) -> Tuple[int, str]:
     """Create a single user.
 
     Generates a distriminator and other information. You can fetch the user
     data back with :meth:`Storage.get_user`.
     """
-    new_id = app.winter_factory.snowflake()
+    new_id = id or app.winter_factory.snowflake()
     new_discrim = await roll_discrim(username)
 
     if new_discrim is None:
