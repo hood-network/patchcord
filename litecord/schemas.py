@@ -412,7 +412,7 @@ USER_UPDATE = {
 PARTIAL_ROLE_GUILD_CREATE = {
     "type": "dict",
     "schema": {
-        "name": {"type": "role_name"},
+        "name": {"type": "role_name", "required": True},
         "color": {"type": "number", "default": 0},
         "hoist": {"type": "boolean", "default": False},
         # NOTE: no position on partial role (on guild create)

@@ -33,7 +33,6 @@ from ..auth import token_check
 
 from ..enums import ChannelType
 from ..schemas import (
-    PARTIAL_ROLE_GUILD_CREATE,
     validate,
     GUILD_CREATE,
     GUILD_UPDATE,
@@ -79,7 +78,7 @@ async def guild_create_roles_prep(guild_id: int, roles: list) -> dict:
     # from the 2nd and forward,
     # should be treated as new roles
     for role in roles[1:]:
-        cr = await create_role(guild_id, role["name"], default_perms=default_perms, **role)
+        cr = await create_role(guild_id, role.pop("name"), default_perms=default_perms, **role)
         if role.get("id") is not None:
             role_map[role["id"]] = int(cr["id"])
 
@@ -91,7 +90,7 @@ async def guild_create_channels_prep(guild_id: int, channels: list) -> dict:
     channel_map = {}
     for channel_raw in channels:
         channel_id = app.winter_factory.snowflake()
-        ctype = ChannelType(channel_raw["type"])
+        ctype = ChannelType(channel_raw.pop("type"))
 
         if channel_raw.get("id") is not None:
             channel_map[channel_raw["id"]] = channel_id
