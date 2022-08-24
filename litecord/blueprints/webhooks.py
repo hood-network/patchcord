@@ -55,7 +55,7 @@ from litecord.common.messages import (
 from litecord.embed.sanitizer import fill_embed, fetch_mediaproxy_img
 from litecord.embed.messages import process_url_embed, is_media_url
 from litecord.embed.schemas import EmbedURL
-from litecord.utils import pg_set_json
+from litecord.json import pg_set_json
 from litecord.enums import MessageType
 from litecord.images import STATIC_IMAGE_MIMES
 

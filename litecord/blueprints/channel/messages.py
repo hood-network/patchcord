@@ -29,7 +29,8 @@ from litecord.errors import Forbidden, ManualFormError, MissingPermissions, NotF
 from litecord.enums import MessageFlags, MessageType, ChannelType, GUILD_CHANS, PremiumType
 
 from litecord.schemas import validate, MESSAGE_CREATE, MESSAGE_UPDATE
-from litecord.utils import pg_set_json, query_tuple_from_args, extract_limit, to_update, toggle_flag
+from litecord.utils import query_tuple_from_args, extract_limit, to_update, toggle_flag
+from litecord.json import pg_set_json
 from litecord.permissions import get_permissions
 
 from litecord.embed.sanitizer import fill_embed

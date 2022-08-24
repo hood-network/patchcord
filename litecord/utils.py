@@ -18,19 +18,15 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import asyncio
-import json
 import secrets
 import datetime
 import re
-from typing import Any, Iterable, Optional, Sequence, List, Dict, Union, TypeVar
+from typing import Any, Iterable, Optional, Sequence, Union, TypeVar
 
 from logbook import Logger
-from quart.json import JSONEncoder
 from quart import current_app as app
 
-from litecord.common.interop import message_view
-
-from .errors import BadRequest, ManualFormError
+from .errors import ManualFormError
 from .enums import Flags
 
 log = Logger(__name__)
@@ -152,35 +148,6 @@ def mmh3(inp_str: str, seed: int = 0):
     h1 ^= _u(h1) >> 16
 
     return _u(h1) >> 0
-
-
-class LitecordJSONEncoder(JSONEncoder):
-    """Custom JSON encoder for Litecord."""
-
-    def default(self, value: Any):
-        """By default, this will try to get the to_json attribute of a given
-        value being JSON encoded."""
-        try:
-            return value.to_json
-        except AttributeError:
-            return super().default(value)
-
-
-async def pg_set_json(con):
-    """Set JSON and JSONB codecs for an asyncpg connection."""
-    await con.set_type_codec(
-        "json",
-        encoder=lambda v: json.dumps(v, cls=LitecordJSONEncoder),
-        decoder=json.loads,
-        schema="pg_catalog",
-    )
-
-    await con.set_type_codec(
-        "jsonb",
-        encoder=lambda v: json.dumps(v, cls=LitecordJSONEncoder),
-        decoder=json.loads,
-        schema="pg_catalog",
-    )
 
 
 def yield_chunks(input_list: Sequence[Any], chunk_size: int):

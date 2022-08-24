@@ -106,7 +106,7 @@ from litecord.pubsub.lazy_guild import LazyGuildManager
 
 from litecord.gateway.gateway import websocket_handler
 
-from litecord.utils import LitecordJSONEncoder
+from litecord.json import LitecordJSONProvider
 
 # == HACKY PATCH ==
 # this MUST be removed once Hypercorn gets py3.10 support.
@@ -147,7 +147,7 @@ def make_app():
     logging.getLogger("websockets").setLevel(logbook.INFO)
 
     # use our custom json encoder for custom data types
-    app.json_encoder = LitecordJSONEncoder
+    app.json_provider_class = LitecordJSONProvider
 
     return app
 

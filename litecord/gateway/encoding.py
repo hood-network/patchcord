@@ -20,7 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import json
 import earl
 
-from litecord.utils import LitecordJSONEncoder
+from litecord.json import LitecordJSONEncoder
 
 
 def encode_json(payload) -> str:

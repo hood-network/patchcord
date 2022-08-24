@@ -39,7 +39,7 @@ from litecord.blueprints.channel.reactions import (
 )
 
 from litecord.types import timestamp_
-from litecord.utils import pg_set_json
+from litecord.json import pg_set_json
 
 log = Logger(__name__)
 

@@ -43,8 +43,9 @@ from litecord.schemas import (
 
 from litecord.blueprints.checks import channel_check, channel_perm_check
 from litecord.system_messages import send_sys_message
-from litecord.blueprints.dm_channels import gdm_is_member, gdm_is_owner, gdm_remove_recipient, gdm_destroy
-from litecord.utils import str_bool, to_update, pg_set_json
+from litecord.blueprints.dm_channels import gdm_is_owner, gdm_remove_recipient, gdm_destroy
+from litecord.utils import str_bool, to_update
+from litecord.json import pg_set_json
 from litecord.embed.messages import process_url_embed, msg_update_embeds
 from litecord.pubsub.user import dispatch_user
 from litecord.permissions import get_permissions, Target
