@@ -59,16 +59,30 @@ async def query_users():
     j = validate(request.args.to_dict(), {"q": {"coerce": str, "required": False, "maxlength": 32}, "offset": {"coerce": int, "default": 0}})
     query = j.get("q") or ""
     offset = j["offset"]
+    extra = ""
+    args=(query, limit, offset)
+
+    discriminator = None
+    if "#" in query:
+        query, _, discriminator = query.rpartition("#")
+        try:
+            discriminator = "%04d" % int(discriminator)
+        except ValueError:
+            discriminator = None
+
+    if discriminator:
+        extra = "AND discriminator = $4"
+        args = (query, limit, offset, discriminator)
 
     result = await app.storage.get_users(
         secure=True,
         extra_clause=", COUNT(*) OVER() as total_results",
-        where_clause="""
-        WHERE username ILIKE '%'||$1||'%'
+        where_clause=f"""
+        WHERE username ILIKE '%'||$1||'%' {extra}
         ORDER BY username
         LIMIT $2 OFFSET $3
         """,
-        args=(query, limit, offset),
+        args=args,
     )
 
     total_results = result[0]["total_results"] if result else 0
