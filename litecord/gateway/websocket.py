@@ -84,13 +84,6 @@ def _complete_users_list(user_id: str, base_ready, user_ready, ws_properties) ->
 
     users_to_send = {}
 
-    for guild in base_ready["guilds"]:
-        if guild.get("unavailable", False):
-            continue
-
-        for member in guild["members"]:
-            users_to_send[member["user"]["id"]] = member["user"]
-
     for private_channel in base_ready["private_channels"]:
         for recipient in private_channel["recipients"]:
             users_to_send[recipient["id"]] = recipient
@@ -129,6 +122,7 @@ async def _compute_supplemental(app, base_ready, user_ready, users_to_send: dict
         "merged_presences": {"guilds": [], "friends": []},
         "merged_members": [],
         "guilds": [],
+        "lazy_private_channels": [],
     }
 
     user_relationships = user_ready.get("relationships", [])
@@ -153,9 +147,6 @@ async def _compute_supplemental(app, base_ready, user_ready, users_to_send: dict
         )
 
     for guild in base_ready["guilds"]:
-        if guild.get("unavailable", False):
-            continue
-
         supplemental["guilds"].append(
             {
                 "voice_states": [],
@@ -167,7 +158,7 @@ async def _compute_supplemental(app, base_ready, user_ready, users_to_send: dict
         merged_presences = []
         merged_members = []
 
-        for presence in guild["presences"]:
+        for presence in guild.get("presences", []):
             merged_presences.append(
                 {
                     "user_id": presence["user"]["id"],
@@ -192,11 +183,7 @@ async def _compute_supplemental(app, base_ready, user_ready, users_to_send: dict
 
             merged_members.append(
                 {
-                    "user_id": member["user"]["id"],
-                    "roles": member["roles"],
-                    "mute": member["mute"],
-                    "deaf": member["deaf"],
-                    "joined_at": member["joined_at"],
+                    **member,
                     "hoisted_role": hoisted_role[1] if hoisted_role else None,
                 }
             )
@@ -492,11 +479,13 @@ class GatewayWebsocket:
             "merged_members": [],
             "merged_presences": {"friends": friend_presences, "guilds": []},
             "tutorial": None,
+            "lazy_private_channels": [],
         }
 
     async def dispatch_ready(self, **kwargs):
         """Dispatch the READY packet for a connecting account."""
         guilds = await self._make_guild_list()
+        assert self.state is not None
 
         user_id = self.state.user_id
         user = await self.storage.get_user(user_id, True)
@@ -522,11 +511,11 @@ class GatewayWebsocket:
         }
 
         shard = [self.state.current_shard, self.state.shard_count]
-        if self.state.bot or self.state.shard_count > 1:
+        if self.state.shard_count > 1:
             base_ready["shard"] = shard
 
-        # base_ready and user_ready are normalized as v6. from here onwards
-        # full_ready_data and ready_supplemental are version specific.
+        if self.state.bot:
+            base_ready["application"] = {"id": str(user_id), "flags": 8667136}
 
         # pass users_to_send to ready_supplemental so that its easier to
         # cross-reference things
@@ -538,6 +527,7 @@ class GatewayWebsocket:
         )
 
         full_ready_data["merged_members"] = ready_supplemental["merged_members"]
+        full_ready_data["merged_presences"] = ready_supplemental["merged_presences"]
 
         # if not self.state.bot:
         #     for guild in full_ready_data["guilds"]:
