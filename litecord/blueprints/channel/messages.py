@@ -110,7 +110,7 @@ async def get_messages(channel_id):
 
 
 async def handle_get_messages(channel_id: int):
-    limit = extract_limit(request, 50)
+    limit = extract_limit(request, default=50)
 
     if "around" in request.args:
         messages = await around_message_search(

@@ -236,7 +236,7 @@ async def list_users_reaction(channel_id, message_id, emoji):
     # that are returned by channel_check
     await channel_check(user_id, channel_id)
 
-    limit = extract_limit(request, 25)
+    limit = extract_limit(request, default=25)
     before, after = query_tuple_from_args(request.args, limit)
 
     args: List[Union[int, str]] = [message_id]

@@ -60,7 +60,7 @@ async def query_users():
     """Query available users."""
     user_id = await token_check()
 
-    limit = extract_limit(request, 25, 100)
+    limit = extract_limit(request, 1, 25, 100)
     j = validate(request.args.to_dict(), {"q": {"coerce": str, "required": True, "minlength": 2, "maxlength": 32}})
     query = j["q"]
 

@@ -230,14 +230,14 @@ async def maybe_lazy_guild_dispatch(
     await (getattr(app.lazy_guild, event))(guild_id, role)
 
 
-def extract_limit(request_, default: int = 50, max_val: int = 100):
+def extract_limit(request_, min_val: int = 1, default: int = 50, max_val: int = 100):
     """Extract a limit kwarg."""
     try:
         limit = int(request_.args.get("limit", default))
     except (TypeError, ValueError):
         raise ManualFormError(limit={"code": "NUMBER_TYPE_COERCE", "message": f"Value \"{request_.args['limit']}\" is not int."})
 
-    if limit < 0:
+    if limit < min_val:
         raise ManualFormError(limit={"code": "NUMBER_TYPE_MIN", "message": f"Value should be greater than or equal to 0."})
     if limit > max_val:
         raise ManualFormError(limit={"code": "NUMBER_TYPE_MAX", "message": f"Value should be less than or equal to {max_val}."})

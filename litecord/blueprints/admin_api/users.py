@@ -55,7 +55,7 @@ def args_try(args: dict, typ, field: str, default):
 async def query_users():
     await admin_check()
 
-    limit = extract_limit(request, 25, 100)
+    limit = extract_limit(request, 1, 25, 100)
     j = validate(request.args.to_dict(), {"q": {"coerce": str, "required": False, "maxlength": 32}, "offset": {"coerce": int, "default": 0}})
     query = j.get("q") or ""
     offset = j["offset"]

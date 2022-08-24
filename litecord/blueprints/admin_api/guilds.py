@@ -80,7 +80,7 @@ async def _update_features(guild_id: int, features: list):
 async def query_guilds():
     await admin_check()
 
-    limit = extract_limit(request, 25, 100)
+    limit = extract_limit(request, 1, 25, 100)
     j = validate(request.args.to_dict(), {"q": {"coerce": str, "required": False, "maxlength": 100}, "offset": {"coerce": int, "default": 0}})
     query = j.get("q") or ""
     offset = j["offset"]
