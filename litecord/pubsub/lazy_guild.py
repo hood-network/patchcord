@@ -474,7 +474,7 @@ class GuildMemberList:
             self.list.members[member_id] = member
             self.list.data[group_id].append(member_id)
 
-    def _display_name(self, member_id: int) -> str:
+    def _display_name(self, member_id: int) -> Optional[str]:
         """Get the display name for a given member.
 
         This is more efficient than the old function (not method) of same
@@ -483,15 +483,17 @@ class GuildMemberList:
         try:
             member = self.list.members[member_id]
         except KeyError:
-            return ""
+            return
 
         username = member["user"]["username"]
         nickname = member["nick"]
 
         return nickname or username
 
-    def _display_name_as_sort_key(self, member_id: str):
+    def _display_name_as_sort_key(self, member_id: int) -> str:
         display_name = self._display_name(member_id)
+        if not display_name:
+            return ""
         return [LETTER_AS_NUMBER.get(letter, 0) for letter in display_name]
 
     async def _sort_groups(self):
@@ -531,7 +533,7 @@ class GuildMemberList:
         finally:
             self._list_lock.release()
 
-    def _get_member_as_item(self, member_id: int) -> dict:
+    def _get_member_as_item(self, member_id: int) -> Optional[dict]:
         """Get an item representing a member."""
         member = self.list.members[member_id]
         presence = self.list.presences[member_id]
@@ -561,7 +563,11 @@ class GuildMemberList:
             res.append({"group": {"id": str(group.gid), "count": len(member_ids)}})
 
             for member_id in member_ids:
-                res.append({"member": self._get_member_as_item(member_id)})
+                member = self._get_member_as_item(member_id)
+                if not member:
+                    member_ids.remove(member_id)
+                    continue
+                res.append({"member": member})
 
         return res
 
