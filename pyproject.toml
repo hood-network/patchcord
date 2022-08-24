@@ -7,19 +7,19 @@ license = "GPLv3-only"
 
 [tool.poetry.dependencies]
 python = "^3.9"
-bcrypt = "^3.2.0"
-itsdangerous = "^1.1.0"
-asyncpg = "^0.24.0"
-websockets = "^10.0"
+bcrypt = "^3.2.2"
+itsdangerous = "^2.1.2"
+asyncpg = "^0.26.0"
+websockets = "^10.3"
 Earl-ETF = "^2.1.2"
 logbook = "^1.5.3"
 Cerberus = "^1.3.4"
-quart = {git = "https://gitlab.com/pgjones/quart", rev = "c1ac142c6c51709765045f830b242950099b2295"}
-pillow = "^8.3.2"
-aiohttp = "^3.7.4"
-zstandard = "^0.15.2"
+quart = "^0.18.0"
+pillow = "^9.2.0"
+aiohttp = "^3.8.1"
+zstandard = "^0.18.0"
 winter = {git = "https://gitlab.com/elixire/winter"}
-wsproto = "^1.0.0"
+wsproto = "^1.1.0"
 aiofile = "^3.8.1"
 emoji = "<3.0.0"
 
