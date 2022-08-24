@@ -262,10 +262,6 @@ async def delete_guild(guild_id: int):
 
     # while most guild channel tables have 'ON DELETE CASCADE', this
     # must not be true to the channels table, which is generic for any channel.
-    #
-    # the drawback is that this causes breakdown on the data's semantics as
-    # we get a channel with a type of GUILD_TEXT/GUILD_VOICE but without any
-    # entry on the guild_channels table, causing errors.
     for channel_id in await app.storage.get_channel_ids(guild_id):
         await app.db.execute(
             """
@@ -275,13 +271,15 @@ async def delete_guild(guild_id: int):
             channel_id,
         )
 
-    await app.db.execute(
+    res = await app.db.execute(
         """
     DELETE FROM guilds
     WHERE guilds.id = $1
     """,
         guild_id,
     )
+    if res == "DELETE 0":
+        raise NotFound(10004)
 
     # Discord's client expects IDs being string
     await app.dispatcher.guild.dispatch(
