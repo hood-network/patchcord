@@ -128,6 +128,7 @@ async def patch_user(user_id: int):
             j["flags"],
             user_id,
         )
+        j.pop("flags")
 
     private_user = await handle_user_update(user_id, False)
     return jsonify(private_user)
