@@ -50,7 +50,6 @@ from litecord.gateway.opcodes import OP
 from litecord.gateway.state import GatewayState
 from litecord.errors import WebsocketClose, Unauthorized, Forbidden, BadRequest
 from litecord.gateway.errors import (
-    DecodeError,
     GatewayError,
     UnknownOPCode,
     InvalidShard,
@@ -138,7 +137,7 @@ async def _compute_supplemental(app, base_ready, user_ready, users_to_send: dict
 
         supplemental["merged_presences"]["friends"].append(
             {
-                "user_id": relationship["user"]["id"],
+                "user": relationship["user"],
                 "status": friend_presence["status"],
                 "last_modified": 0,
                 "client_status": friend_presence["client_status"],
@@ -162,7 +161,7 @@ async def _compute_supplemental(app, base_ready, user_ready, users_to_send: dict
         for presence in guild.get("presences", []):
             merged_presences.append(
                 {
-                    "user_id": presence["user"]["id"],
+                    "user": presence["user"],
                     "status": presence["status"],
                     "client_status": presence["client_status"],
                     "activities": presence["activities"],
@@ -170,25 +169,27 @@ async def _compute_supplemental(app, base_ready, user_ready, users_to_send: dict
                 }
             )
 
-        for member in guild["members"]:
-            hoisted_role = None
-            for role in guild["roles"]:
-                if not role["hoist"]:
-                    continue
-                if role["id"] not in member["roles"]:
-                    continue
+        # Don't see this as necessary
+        # for member in guild["members"]:
+        #     hoisted_role = None
+        #     for role in guild["roles"]:
+        #         if not role["hoist"]:
+        #             continue
+        #         if role["id"] not in member["roles"]:
+        #             continue
 
-                if hoisted_role is None:
-                    hoisted_role = (role["position"], role["id"])
-                elif hoisted_role[0] < role["position"]:
-                    hoisted_role = (role["position"], role["id"])
+        #         if hoisted_role is None:
+        #             hoisted_role = (role["position"], role["id"])
+        #         elif hoisted_role[0] < role["position"]:
+        #             hoisted_role = (role["position"], role["id"])
 
-            merged_members.append(
-                {
-                    **member,
-                    "hoisted_role": hoisted_role[1] if hoisted_role else None,
-                }
-            )
+        #     merged_members.append(
+        #         {
+        #             **member,
+        #             "hoisted_role": hoisted_role[1] if hoisted_role else None,
+        #         }
+        #     )
+        merged_members = guild["members"]
 
         supplemental["merged_presences"]["guilds"].append(merged_presences)
         supplemental["merged_members"].append(merged_members)

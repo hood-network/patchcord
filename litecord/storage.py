@@ -175,7 +175,7 @@ class Storage:
         user_ids: Optional[List[int]] = None,
         secure: bool = False,
         extra_clause: str = "",
-        where_clause: str = "WHERE id = ANY($1::bigint[]) LIMIT 1",
+        where_clause: str = "WHERE id = ANY($1::bigint[])",
         args: Optional[List[Any]] = None,
     ) -> List[dict]:
         """Get many user payloads."""
@@ -305,7 +305,7 @@ class Storage:
         user_id: Optional[int] = None,
         full: bool = False,
         extra_clause: str = "",
-        where_clause: str = "WHERE id = ANY($1::bigint[]) LIMIT 1",
+        where_clause: str = "WHERE id = ANY($1::bigint[])",
         args: Optional[List[Any]] = None,
         large: Optional[int] = None,
     ) -> List[dict]:
@@ -1152,7 +1152,7 @@ class Storage:
         user_id: Optional[int] = None,
         include_member: bool = False,
         extra_clause: str = "",
-        where_clause: str = "WHERE id = ANY($1::bigint[]) LIMIT 1",
+        where_clause: str = "WHERE id = ANY($1::bigint[])",
         args: Optional[List[Any]] = None,
     ) -> List[dict]:
         """Get multiple messages' payloads."""
