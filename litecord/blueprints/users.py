@@ -446,7 +446,7 @@ async def get_guild_me(guild_id: int):
     user_id = await token_check()
     await guild_check(user_id, guild_id)
 
-    member = await app.storage.get_member_data_one(guild_id, user_id)
+    member = await app.storage.get_member(guild_id, user_id)
     return jsonify(member)
 
 
@@ -569,9 +569,9 @@ async def get_profile(peer_id: int):
         guild_id = int(request.args["guild_id"])
         is_member = None
         if not staff:
-            is_member = await app.storage.get_member_data_one(guild_id, user_id)
+            is_member = await app.storage.get_member(guild_id, user_id)
         if is_member or staff:
-            member_data = await app.storage.get_member_data_one(guild_id, peer_id)
+            member_data = await app.storage.get_member(guild_id, peer_id)
             if member_data:
                 result["guild_member"] = result["guild_member_profile"] = member_data
                 result["guild_member_profile"]["guild_id"] = str(guild_id)  # Husk

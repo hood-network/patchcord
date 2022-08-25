@@ -841,7 +841,7 @@ class GatewayWebsocket:
         guild_id = int_(data.get("guild_id"))
 
         # TODO: none of this works, so dummy dispatches baby
-        member = await self.storage.get_member_data_one(guild_id, self.state.user_id)
+        member = await self.storage.get_member(guild_id, self.state.user_id)
         update = (
             "VOICE_STATE_UPDATE",
             {
@@ -1104,7 +1104,7 @@ class GatewayWebsocket:
         Fetches the members and presences of a guild and dispatches a
         GUILD_SYNC event with that info.
         """
-        members = await self.storage.get_member_data(guild_id)
+        members = await self.storage.get_members(guild_id)
         member_ids = [int(m["user"]["id"]) for m in members]
 
         log.debug(f"Syncing guild {guild_id} with {len(member_ids)} members")

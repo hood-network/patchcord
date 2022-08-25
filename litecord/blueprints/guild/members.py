@@ -182,7 +182,7 @@ async def modify_guild_member(guild_id, member_id):
         await guild_perm_check(user_id, guild_id, "manage_roles")
         await _update_member_roles(guild_id, member_id, j["roles"])
 
-    member = await app.storage.get_member_data_one(guild_id, member_id)
+    member = await app.storage.get_member(guild_id, member_id)
 
     # call pres_update for role and nick changes.
     partial = {"roles": member["roles"]}
@@ -207,7 +207,7 @@ async def update_nickname(guild_id):
     await guild_check(user_id, guild_id)
 
     j = validate(await request.get_json(), SELF_MEMBER_UPDATE)
-    member = await app.storage.get_member_data_one(guild_id, user_id)
+    member = await app.storage.get_member(guild_id, user_id)
     user = await app.storage.get_user(user_id, True)
     presence_dict = {}
 
@@ -283,7 +283,7 @@ async def update_nickname(guild_id):
         )
         presence_dict["pronouns"] = j["pronouns"] or ""
 
-    member = await app.storage.get_member_data_one(guild_id, user_id)
+    member = await app.storage.get_member(guild_id, user_id)
 
     # call pres_update for nick changes, etc.
     if presence_dict:
@@ -302,7 +302,7 @@ async def add_member_role(guild_id, member_id, role_id):
     user_id = await token_check()
     await guild_perm_check(user_id, guild_id, "manage_roles")
 
-    member = await app.storage.get_member_data_one(guild_id, member_id)
+    member = await app.storage.get_member(guild_id, member_id)
     if not member:
         raise NotFound(10007)
 
@@ -347,7 +347,7 @@ async def remove_member_role(guild_id, member_id, role_id):
     user_id = await token_check()
     await guild_perm_check(user_id, guild_id, "manage_roles")
 
-    member = await app.storage.get_member_data_one(guild_id, member_id)
+    member = await app.storage.get_member(guild_id, member_id)
     if not member:
         raise NotFound(10007)
 

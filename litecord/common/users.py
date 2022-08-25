@@ -54,7 +54,7 @@ async def mass_user_update(user_id: int) -> Tuple[dict, dict]:
     guild_ids: List[int] = await app.user_storage.get_user_guilds(user_id)
 
     for guild_id in guild_ids:
-        member = await app.storage.get_member_data_one(guild_id, user_id)
+        member = await app.storage.get_member(guild_id, user_id)
         await app.dispatcher.guild.dispatch(
             guild_id,
             ("GUILD_MEMBER_UPDATE", {**{"guild_id": str(guild_id)}, **member}),

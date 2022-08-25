@@ -330,11 +330,11 @@ class Storage:
             *[self.parse_guild(dict(row), user_id, full, large) for row in rows]
         )
 
-    async def get_member_role_ids(self, guild_id: int, member_id: int) -> List[str]:
+    async def get_member_role_ids(self, guild_id: int, member_id: int) -> List[int]:
         """Get a list of role IDs that are on a member."""
         roles = await self.db.fetch(
             """
-        SELECT role_id::text
+        SELECT role_id
         FROM member_roles
         WHERE guild_id = $1 AND user_id = $2
         """,
@@ -345,7 +345,7 @@ class Storage:
         roles = [r["role_id"] for r in roles]
 
         try:
-            roles.remove(str(guild_id))
+            roles.remove(guild_id)
         except ValueError:
             # if the @everyone role isn't in, we add it
             # to member_roles automatically (it won't
@@ -360,13 +360,14 @@ class Storage:
                 guild_id,
             )
 
-        return list(map(str, roles))
+        return roles
 
-    async def get_member_data_one(self, guild_id, member_id, with_user: bool = True) -> Optional[Dict[str, Any]]:
+    async def get_member(self, guild_id, member_id, with_user: bool = True) -> Optional[Dict[str, Any]]:
         row = await self.db.fetchrow(
             """
         SELECT user_id, nickname AS nick, joined_at,
-               deafened AS deaf, muted AS mute, avatar, banner, bio, pronouns
+               deafened AS deaf, muted AS mute, avatar, banner, bio, pronouns,
+               ARRAY(SELECT role_id::text FROM member_roles WHERE guild_id = $1 AND user_id = $2) AS roles
         FROM members
         WHERE guild_id = $1 and user_id = $2
         """,
@@ -378,12 +379,27 @@ class Storage:
             return None
 
         drow = dict(row)
-        drow["user_id"] = str(drow["user_id"])
+
+        try:
+            drow["roles"].remove(str(guild_id))
+        except ValueError:
+            # We do a little DB repair
+            await self.db.execute(
+                """
+            INSERT INTO member_roles (user_id, guild_id, role_id)
+            VALUES ($1, $2, $3)
+            """,
+                member_id,
+                guild_id,
+                guild_id,
+            )
+
         drow["joined_at"] = timestamp_(row["joined_at"])
-        drow["roles"] = await self.get_member_role_ids(guild_id, member_id)
         if with_user:
             drow["user"] = await self.get_user(member_id)
             drow.pop("user_id")
+        else:
+            drow["user_id"] = str(drow["user_id"])
 
         return drow
 
@@ -394,7 +410,7 @@ class Storage:
         members = []
 
         for user_id in user_ids:
-            member = await self.get_member_data_one(guild_id, user_id)
+            member = await self.get_member(guild_id, user_id)
             if not member:
                 continue
 
@@ -402,12 +418,13 @@ class Storage:
 
         return members
 
-    async def get_member_data(self, guild_id: int, with_user: bool = True) -> List[Dict[str, Any]]:
+    async def get_members(self, guild_id: int, with_user: bool = True) -> List[Dict[str, Any]]:
         """Get member information on a guild."""
         members_basic = await self.db.fetch(
             """
         SELECT user_id, nickname AS nick, joined_at,
-               deafened AS deaf, muted AS mute, avatar, banner, bio, pronouns
+               deafened AS deaf, muted AS mute, avatar, banner, bio, pronouns,
+               ARRAY(SELECT role_id::text FROM member_roles WHERE guild_id = $1 AND user_id = $2) AS roles
         FROM members
         WHERE guild_id = $1
         """,
@@ -418,12 +435,27 @@ class Storage:
         for row in members_basic:
             drow = dict(row)
             user_id = drow["user_id"]
-            drow["user_id"] = str(drow["user_id"])
+
+            try:
+                drow["roles"].remove(str(guild_id))
+            except ValueError:
+                # We do a little DB repair
+                await self.db.execute(
+                    """
+                INSERT INTO member_roles (user_id, guild_id, role_id)
+                VALUES ($1, $2, $3)
+                """,
+                    user_id,
+                    guild_id,
+                    guild_id,
+                )
+
             drow["joined_at"] = timestamp_(row["joined_at"])
-            drow["roles"] = await self.get_member_role_ids(guild_id, user_id)
             if with_user:
                 drow["user"] = await self.get_user(user_id)
                 drow.pop("user_id")
+            else:
+                drow["user_id"] = str(drow["user_id"])
             members.append(drow)
 
         return members
@@ -807,7 +839,7 @@ class Storage:
 
             res["joined_at"] = timestamp_(joined_at)
 
-        members = await self.get_member_data(guild_id)
+        members = await self.get_members(guild_id)
         channels = await self.get_channel_data(guild_id)
 
         # prevent data inconsistencies
@@ -959,7 +991,7 @@ class Storage:
         res["guild_id"] = str(guild_id) if guild_id else None
 
         if include_member:
-            member = await self.get_member_data_one(guild_id, int(res["author"]["id"]), False)
+            member = await self.get_member(guild_id, int(res["author"]["id"]), False)
             if member:
                 res["member"] = member
 
@@ -969,7 +1001,7 @@ class Storage:
             except KeyError:
                 user = await self.get_user(user_id)
                 if include_member and user and guild_id:
-                    member = await self.get_member_data_one(guild_id, user_id, False)
+                    member = await self.get_member(guild_id, user_id, False)
                     if member:
                         user["member"] = member
                 user_cache[user_id] = user

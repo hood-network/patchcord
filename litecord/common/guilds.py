@@ -411,7 +411,7 @@ async def add_member(guild_id: int, user_id: int, *, basic: bool = False, skip_c
         )
 
     # tell current members a new member came up
-    member = await app.storage.get_member_data_one(guild_id, user_id)
+    member = await app.storage.get_member(guild_id, user_id)
     await app.dispatcher.guild.dispatch(
         guild_id, ("GUILD_MEMBER_ADD", {**member, **{"guild_id": str(guild_id)}})
     )

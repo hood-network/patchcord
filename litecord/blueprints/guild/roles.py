@@ -379,7 +379,7 @@ async def add_members_to_role(guild_id, role_id):
 
     members = []
     for id in j["member_ids"]:
-        member = await app.storage.get_member_data_one(guild_id, id)
+        member = await app.storage.get_member(guild_id, id)
         if not member:
             continue
 

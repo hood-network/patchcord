@@ -124,7 +124,7 @@ class PresenceManager:
         presences = []
 
         for state in states:
-            member = await self.storage.get_member_data_one(guild_id, state.user_id)
+            member = await self.storage.get_member(guild_id, state.user_id)
             presences.append(
                 {
                     **(state.presence or BasePresence(status="offline")).partial_dict,
@@ -143,7 +143,7 @@ class PresenceManager:
     ):
         """Dispatch a Presence update to an entire guild."""
 
-        member = await self.storage.get_member_data_one(guild_id, user_id)
+        member = await self.storage.get_member(guild_id, user_id)
 
         lists = app.lazy_guild.get_gml_guild(guild_id)
 

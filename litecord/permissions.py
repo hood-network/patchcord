@@ -299,7 +299,6 @@ async def compute_overwrites(
 
     # fetch roles from user and convert to int
     role_ids = await storage.get_member_role_ids(guild_id, user_id)
-    role_ids = map(int, role_ids)
 
     # make the allow and deny binaries
     for role_id in role_ids:

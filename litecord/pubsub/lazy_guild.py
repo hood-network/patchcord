@@ -469,7 +469,7 @@ class GuildMemberList:
             if group_id is None:
                 continue
 
-            member = await self.storage.get_member_data_one(self.guild_id, member_id)
+            member = await self.storage.get_member(self.guild_id, member_id)
 
             self.list.members[member_id] = member
             self.list.data[group_id].append(member_id)
@@ -931,7 +931,7 @@ class GuildMemberList:
         # insert to pres dict
         self.list.presences[user_id] = pres
 
-        member = await self.storage.get_member_data_one(self.guild_id, user_id)
+        member = await self.storage.get_member(self.guild_id, user_id)
 
         self.list.members[user_id] = member
 
