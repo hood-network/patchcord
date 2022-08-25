@@ -290,7 +290,7 @@ async def compute_overwrites(
         return ALL_PERMISSIONS
 
     # make it a map for better usage
-    overwrites = {int(o["id"]): o for o in overwrites}
+    overwrites = {o["id"]: o for o in overwrites}
 
     perms = overwrite_find_mix(perms, overwrites, guild_id)
 

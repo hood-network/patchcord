@@ -342,7 +342,7 @@ class GuildMemberList:
 
     async def _fetch_overwrites(self):
         overwrites = await self.storage.chan_overwrites(self.channel_id, safe=False)
-        overwrites = {int(ov["id"]): ov for ov in overwrites}
+        overwrites = {ov["id"]: ov for ov in overwrites}
         self.list.overwrites = overwrites
 
     def _calc_member_group(self, roles: List[int], status: str):

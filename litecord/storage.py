@@ -565,7 +565,7 @@ class Storage:
         def _overwrite_convert(row):
             drow = dict(row)
             drow["type"] = drow.pop("target_type")
-            drow["id"] = str(drow.pop("target_role") or drow.pop("target_user"))
+            drow["id"] = str(drow.pop("target_role") or drow.pop("target_user")) if safe else (drow.pop("target_role") or drow.pop("target_user"))
             drow.pop("target_user", None)
 
             return drow
@@ -638,9 +638,8 @@ class Storage:
 
             res = await self._channels_extra(dbase)
             res["permission_overwrites"] = await self.chan_overwrites(channel_id)
-
             res["id"] = str(res["id"])
-            if (res["parent_id"]):
+            if res["parent_id"]:
                 res["parent_id"] = str(res["parent_id"])
             return res
         elif ctype == ChannelType.DM:
@@ -731,12 +730,9 @@ class Storage:
             drow["type"] = ctype
 
             res = await self._channels_extra(drow)
-
             res["permission_overwrites"] = await self.chan_overwrites(row["id"])
-
-            # Making sure.
             res["id"] = str(res["id"])
-            if (res["parent_id"]):
+            if res["parent_id"]:
                 res["parent_id"] = str(res["parent_id"])
             channels.append(res)
 
