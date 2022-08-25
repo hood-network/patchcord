@@ -143,6 +143,7 @@ async def _compute_supplemental(app, base_ready, user_ready, users_to_send: dict
                 "last_modified": 0,
                 "client_status": friend_presence["client_status"],
                 "activities": friend_presence["activities"],
+                "game": friend_presence.get("game"),
             }
         )
 
@@ -165,6 +166,7 @@ async def _compute_supplemental(app, base_ready, user_ready, users_to_send: dict
                     "status": presence["status"],
                     "client_status": presence["client_status"],
                     "activities": presence["activities"],
+                    "game": presence.get("game"),
                 }
             )
 
@@ -395,40 +397,24 @@ class GatewayWebsocket:
 
     async def _make_guild_list(self) -> List[Dict[str, Any]]:
         assert self.state is not None
-        user_id = self.state.user_id
-
         guild_ids = await self._guild_ids()
 
         if self.state.bot:
             return [{"id": row, "unavailable": True} for row in guild_ids]
 
-        return [
-            {
-                **await self.storage.get_guild(guild_id, user_id),
-                **await self.storage.get_guild_extra(
-                    guild_id, user_id, self.state.large
-                ),
-            }
-            for guild_id in guild_ids
-        ]
+        return await self.storage.get_guilds(guild_ids, self.state.user_id, True, large=self.state.large)
 
     async def _guild_dispatch(self, unavailable_guilds: List[Dict[str, Any]]):
         """Dispatch GUILD_CREATE information."""
         assert self.state is not None
 
-        # Users don't get asynchronous guild dispatching.
+        # Users don't get asynchronous guild dispatching
         if not self.state.bot:
             return
 
-        for guild_obj in unavailable_guilds:
-            # fetch full guild object including the 'large' field
-            guild = await self.storage.get_guild_full(
-                int(guild_obj["id"]), self.state.user_id, self.state.large
-            )
-
-            if guild is None:
-                continue
-
+        guild_ids = [int(g["id"]) for g in unavailable_guilds]
+        guilds = await self.storage.get_guilds(guild_ids, self.state.user_id, True, large=self.state.large)
+        for guild in guilds:
             await self.dispatch_raw("GUILD_CREATE", {**guild, "unavailable": False})
 
     async def _user_ready(self, *, settings=None) -> dict:
@@ -508,6 +494,7 @@ class GatewayWebsocket:
             "_trace": ["litecord"],
             "resume_gateway_url": get_gw(),
             "session_type": "normal",
+            "user_settings": {},
         }
 
         shard = [self.state.current_shard, self.state.shard_count]
@@ -1320,7 +1307,7 @@ class GatewayWebsocket:
         while True:
             message = await self.ws.recv()
             if len(message) > 4096:
-                raise DecodeError("Maximum payload length exceeded.")
+                raise WebsocketClose(4009, "Maximum payload length exceeded.")
 
             if self.state:
                 await self._msg_ratelimit()

@@ -247,7 +247,7 @@ class Storage:
             guild_id,
         )
 
-    async def parse_guild(self, drow: dict, user_id: Optional[int], full: bool = False) -> dict:
+    async def parse_guild(self, drow: dict, user_id: Optional[int], full: bool = False, large: Optional[int] = None) -> dict:
         """Parse guild payload."""
         guild_id = int(drow["id"])
         unavailable = self.app.guild_store.get(guild_id, "unavailable", False)
@@ -274,7 +274,7 @@ class Storage:
         drow["guild_scheduled_events"] = drow["embedded_activities"] = drow["connections"] = []
 
         if full:
-            return {**drow, **await self.get_guild_extra(guild_id)}
+            return {**drow, **await self.get_guild_extra(guild_id, user_id, large)}
         return drow
 
     async def get_guild(self, guild_id: int, user_id: Optional[int] = None) -> Optional[Dict]:
@@ -307,6 +307,7 @@ class Storage:
         extra_clause: str = "",
         where_clause: str = "WHERE id = ANY($1::bigint[]) LIMIT 1",
         args: Optional[List[Any]] = None,
+        large: Optional[int] = None,
     ) -> List[dict]:
         """Get many guild payloads."""
         rows = await self.db.fetch(
@@ -326,7 +327,7 @@ class Storage:
         )
 
         return await asyncio.gather(
-            *[self.parse_guild(dict(row), user_id, full) for row in rows]
+            *[self.parse_guild(dict(row), user_id, full, large) for row in rows]
         )
 
     async def get_member_role_ids(self, guild_id: int, member_id: int) -> List[str]:
@@ -422,6 +423,7 @@ class Storage:
             drow["roles"] = await self.get_member_role_ids(guild_id, user_id)
             if with_user:
                 drow["user"] = await self.get_user(user_id)
+                drow.pop("user_id")
             members.append(drow)
 
         return members
