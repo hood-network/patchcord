@@ -424,7 +424,7 @@ class Storage:
             """
         SELECT user_id, nickname AS nick, joined_at,
                deafened AS deaf, muted AS mute, avatar, banner, bio, pronouns,
-               ARRAY(SELECT role_id::text FROM member_roles WHERE guild_id = $1 AND user_id = $2) AS roles
+               ARRAY(SELECT role_id::text FROM member_roles WHERE guild_id = $1 AND user_id = user_id) AS roles
         FROM members
         WHERE guild_id = $1
         """,
