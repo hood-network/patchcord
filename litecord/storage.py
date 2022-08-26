@@ -259,6 +259,7 @@ class Storage:
         if user_id:
             drow["owner"] = drow["owner_id"] == str(user_id)
 
+        drow["features"] = drow["features"] or []
         drow["roles"] = await self.get_role_data(guild_id)
         drow["vanity_url_code"] = await self.vanity_invite(guild_id)
         drow["nsfw"] = drow["nsfw_level"] in (NSFWLevel.RESTRICTED.value, NSFWLevel.EXPLICIT.value)
@@ -944,7 +945,7 @@ class Storage:
             )
 
             if not wb_info:
-                log.warning("webhook info not found for msg {}", res["id"])
+                log.warning("Webhook info not found for msg {}", res["id"])
 
             wb_info = wb_info or {
                 "webhook_id": res["id"],
@@ -957,7 +958,9 @@ class Storage:
                 "bot": True,
                 "username": wb_info["name"],
                 "avatar": wb_info["avatar"],
+                "avatar_decoration": None,
                 "discriminator": "0000",
+                "public_flags": 0,
             }
             res["webhook_id"] = str(wb_info["webhook_id"])
         else:
