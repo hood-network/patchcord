@@ -28,15 +28,16 @@ from litecord.errors import BadRequest
 from litecord.utils import async_map, query_tuple_from_args, extract_limit
 from litecord.blueprints.auth import token_check
 from litecord.blueprints.checks import channel_check, channel_perm_check
+from litecord.common.messages import PLAN_ID_TO_TYPE
 
 from litecord.enums import GUILD_CHANS
+from litecord.enums import PremiumType
 
 
 log = Logger(__name__)
 bp = Blueprint("channel_reactions", __name__)
 
 BASEPATH = "/<int:channel_id>/messages/<int:message_id>/reactions"
-
 
 class EmojiType(IntEnum):
     CUSTOM = 0
@@ -118,6 +119,31 @@ async def add_reaction(channel_id: int, message_id: int, emoji: str):
 
     if reaction_count == 0:
         await channel_perm_check(user_id, channel_id, "add_reactions")
+        
+        # First reaction, so nitro check
+        if emoji_type == EmojiType.CUSTOM:
+            row = await app.db.fetchrow(
+                """
+                 SELECT animated,
+                        guild_id,
+                        (SELECT payment_gateway_plan_id
+                         FROM   user_subscriptions
+                         WHERE  status = 1
+                         AND user_id = $2) AS plan_id
+                FROM   guild_emoji
+                WHERE  id = $1; 
+                """,
+                emoji_id,
+                user_id
+            )
+
+            # If the emoji does not exist
+            if not row:
+                raise BadRequest(10014)
+
+            premium_type = PLAN_ID_TO_TYPE.get(row['plan_id'])
+            if (row['animated'] or (row['guild_id'] != guild_id)) and not premium_type:
+                raise BadRequest(10014)
 
     await app.db.execute(
         """
