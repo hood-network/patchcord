@@ -32,9 +32,8 @@ import aiohttp
 from aiofile import async_open as aopen
 from litecord.auth import is_staff, token_check
 from litecord.schemas import OVERRIDE_LINK, OVERRIDE_STAFF, validate
-from quart import Blueprint, abort
-from quart import current_app as app
-from quart import jsonify, make_response, render_template, request
+from litecord.blueprints.gateway import get_gw
+from quart import Blueprint, abort, jsonify, make_response, render_template, redirect, request, current_app as app
 
 from ..utils import str_bool
 
@@ -468,3 +467,9 @@ async def remove_build_overrides():
     resp = await make_response("", 204)
     resp.set_cookie("buildOverride", "", expires=0)
     return resp
+
+
+# Old clients my beloved
+@bp.route("/hub")
+async def discover_gateway():
+    return redirect(get_gw(), code=308)
