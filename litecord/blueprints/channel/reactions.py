@@ -28,6 +28,7 @@ from litecord.errors import BadRequest
 from litecord.utils import async_map, query_tuple_from_args, extract_limit
 from litecord.blueprints.auth import token_check
 from litecord.blueprints.checks import channel_check, channel_perm_check
+from litecord.common.messages import PLAN_ID_TO_TYPE
 
 from litecord.enums import GUILD_CHANS
 from litecord.enums import PremiumType
@@ -37,14 +38,6 @@ log = Logger(__name__)
 bp = Blueprint("channel_reactions", __name__)
 
 BASEPATH = "/<int:channel_id>/messages/<int:message_id>/reactions"
-
-PLAN_ID_TO_TYPE = {
-    "premium_month_tier_0": PremiumType.TIER_0,
-    "premium_month_tier_1": PremiumType.TIER_1,
-    "premium_month_tier_2": PremiumType.TIER_2,
-    "premium_year_tier_1": PremiumType.TIER_1,
-    "premium_year_tier_2": PremiumType.TIER_2,
-}
 
 class EmojiType(IntEnum):
     CUSTOM = 0
