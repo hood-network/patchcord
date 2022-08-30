@@ -636,7 +636,7 @@ MESSAGE_UPDATE = {
         "required": False,
         "nullable": True,
         "schema": {
-            "parse": {"type": "list", "required": False},
+            "parse": {"type": "list", "required": False, "allowed": ("everyone", "roles", "users")},
             "replied_user": {"type": "boolean", "required": False},
         },
     },

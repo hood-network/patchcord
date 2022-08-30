@@ -91,6 +91,12 @@ async def query_users():
     return jsonify({"users": result, "total_results": total_results})
 
 
+@bp.route("/@me", methods=["GET"])
+async def get_me():
+    user_id = await admin_check()
+    return jsonify(await app.storage.get_user(user_id, True))
+
+
 @bp.route("/<int:target_id>", methods=["GET"])
 async def get_other(target_id):
     await admin_check()

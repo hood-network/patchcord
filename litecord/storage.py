@@ -251,7 +251,6 @@ class Storage:
         """Parse guild payload."""
         guild_id = int(drow["id"])
         unavailable = self.app.guild_store.get(guild_id, "unavailable", False)
-
         if unavailable:
             return {"id": drow["id"], "unavailable": True}
 
@@ -263,6 +262,8 @@ class Storage:
         drow["roles"] = await self.get_role_data(guild_id)
         drow["vanity_url_code"] = await self.vanity_invite(guild_id)
         drow["nsfw"] = drow["nsfw_level"] in (NSFWLevel.RESTRICTED.value, NSFWLevel.EXPLICIT.value)
+        drow["embed_enabled"] = drow["widget_enabled"]
+        drow["embed_channel_id"] = drow["widget_channel_id"]
 
         # hardcoding these since:
         #  - we aren't discord
@@ -280,13 +281,16 @@ class Storage:
 
     async def get_guild(self, guild_id: int, user_id: Optional[int] = None) -> Optional[Dict]:
         """Get guild payload."""
+        unavailable = self.app.guild_store.get(guild_id, "unavailable", False)
+        if unavailable:
+            return {"id": str(guild_id), "unavailable": True}
+
         row = await self.db.fetchrow(
             """
         SELECT id::text, owner_id::text, name, icon, splash,
                region, afk_channel_id::text, afk_timeout,
                verification_level, default_message_notifications, nsfw_level,
                explicit_content_filter, mfa_level,
-               embed_enabled, embed_channel_id::text,
                widget_enabled, widget_channel_id::text,
                system_channel_id::text, rules_channel_id::text, public_updates_channel_id::text, features,
                banner, description, preferred_locale, discovery_splash, premium_progress_bar_enabled
@@ -494,8 +498,7 @@ class Storage:
     async def chan_last_message_str(self, channel_id: int) -> Optional[str]:
         """Get the last message ID but in a string.
 
-        Converts to None (not the string "None") when
-        no last message ID is found.
+        Doesn't convert when no last message ID is found.
         """
         last_msg = await self.chan_last_message(channel_id)
         return str_(last_msg)
@@ -508,7 +511,6 @@ class Storage:
         """
         channel_type = row["type"]
         chan_type = ChannelType(channel_type)
-        assert chan_type in (ChannelType.GUILD_TEXT, ChannelType.GUILD_VOICE, ChannelType.GUILD_CATEGORY, ChannelType.GUILD_NEWS)
 
         if chan_type in (ChannelType.GUILD_TEXT, ChannelType.GUILD_NEWS):
             ext_row = await self.db.fetchrow(
@@ -537,8 +539,6 @@ class Storage:
             )
 
             return {**row, **dict(vrow)}
-        elif chan_type == ChannelType.GUILD_CATEGORY:
-            return row
         else:
             return row
 
@@ -684,7 +684,6 @@ class Storage:
 
             user_id: Optional[int] = kwargs.get("user_id")
             drow["recipients"] = await self._gdm_recipients(channel_id, user_id)
-
             drow["last_message_id"] = await self.chan_last_message_str(channel_id)
             return drow
 
@@ -875,21 +874,20 @@ class Storage:
             return guild
 
         extra = await self.get_guild_extra(guild_id, user_id, large_count)
-
         return {**guild, **extra}
 
     async def guild_exists(self, guild_id: int) -> bool:
         """Return if a given guild ID exists."""
-        owner_id = await self.db.fetch(
+        id = await self.db.fetch(
             """
-        SELECT owner_id
+        SELECT id
         FROM guilds
         WHERE id = $1
         """,
             guild_id,
         )
 
-        return owner_id is not None
+        return id is not None
 
     async def get_member_ids(self, guild_id: int) -> List[int]:
         """Get member IDs inside a guild"""
@@ -976,14 +974,14 @@ class Storage:
         res["type"] = res.pop("message_type")
         res["content"] = res["content"] or ""
         res["pinned"] = bool(res["pinned"])
+        res["mention_roles"] = [str(r) for r in res["mention_roles"]] if res["mention_roles"] else []
         await self._inject_author(res)
 
-        perms = await get_permissions(res["author_id"], int(res["channel_id"])) if res["author_id"] else None
         content = res["content"]
         guild_id = res["guild_id"]
         is_crosspost = res["flags"] & MessageFlags.is_crosspost == MessageFlags.is_crosspost
-        attachments = list(res["attachments"])
-        reactions = list(res["reactions"])
+        attachments = list(res["attachments"]) if res["attachments"] else []
+        reactions = list(res["reactions"]) if res["reactions"] else []
 
         if not guild_id:
             guild_id = await self.guild_from_channel(int(res["channel_id"]))
@@ -1017,34 +1015,30 @@ class Storage:
                 if not message.get("webhook_id"):
                     res["mentions"].append(message["author"])
 
-        async def _get_role_mention(role_id: int):
-            if not guild_id:
-                return
+        # async def _get_role_mention(role_id: int):
+        #     if not guild_id:
+        #         return
 
-            if role_id == guild_id:
-                return str(role_id)
+        #     if role_id == guild_id:
+        #         return str(role_id)
 
-            # TODO: Role cache
-            role = await self.db.fetchval(
-                """
-            SELECT id
-            FROM roles
-            WHERE id = $1 AND guild_id = $2
-            """,
-                role_id,
-                guild_id,
-            )
-            if not role:
-                return
+        #     # TODO: Role cache
+        #     role = await self.db.fetchval(
+        #         """
+        #     SELECT id
+        #     FROM roles
+        #     WHERE id = $1 AND guild_id = $2
+        #     """,
+        #         role_id,
+        #         guild_id,
+        #     )
+        #     if not role:
+        #         return
 
-            if not (not perms or perms.bits.mention_everyone) and not role["mentionable"]:
-                return
+        #     if not (not perms or perms.bits.mention_everyone) and not role["mentionable"]:
+        #         return
 
-            return str(role_id)
-
-        res["mention_roles"] = await self._msg_regex(
-            ROLE_MENTION, _get_role_mention, content
-        )
+        #     return str(role_id)
 
         emoji = []
         react_stats = {}
@@ -1098,10 +1092,8 @@ class Storage:
             a_id, a_message_id, a_channel_id, filename, filesize, image, height, width = attachment
             attachment = {
                 "id": a_id,
-                "message_id": a_message_id,
-                "channel_id": a_channel_id,
                 "filename": filename,
-                "filesize": filesize,
+                "size": filesize,
                 "image": image,
                 "height": height,
                 "width": width,
@@ -1111,14 +1103,10 @@ class Storage:
             main_url = self.app.config["MAIN_URL"]
             attachment["url"] = (
                 f"{proto}://{main_url}/attachments/"
-                f'{attachment["channel_id"]}/{attachment["message_id"]}/'
-                f'{attachment["filename"]}'
+                f'{a_channel_id}/{a_message_id}/'
+                f'{filename}'
             )
             attachment["proxy_url"] = attachment["url"]
-
-            attachment["size"] = attachment.pop("filesize")
-            attachment.pop("message_id")
-            attachment.pop("channel_id")
             if attachment["height"] is None:
                 attachment.pop("height")
                 attachment.pop("width")

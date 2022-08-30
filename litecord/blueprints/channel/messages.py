@@ -213,6 +213,17 @@ async def _spawn_embed(payload, **kwargs):
     app.sched.spawn(process_url_embed(payload, **kwargs))
 
 
+async def validate_allowed_mentions(allowed_mentions: Optional[dict]):
+    if not allowed_mentions:
+        return allowed_mentions
+
+    for key in allowed_mentions.get("parse", []):
+        if key == "everyone":
+            continue
+        if allowed_mentions.get(key):
+            raise ManualFormError(allowed_mentions={"code": "MESSAGE_ALLOWED_MENTIONS_PARSE_EXCLUSIVE", "message": f"parse:[\"{key}\"] and {key}: [ids...] are mutually exclusive."})
+
+
 @bp.route("/<int:channel_id>/messages", methods=["POST"])
 async def _create_message(channel_id):
     """Create a message."""
@@ -248,11 +259,13 @@ async def _create_message(channel_id):
         # guild_id is the dm's peer_id
         await dm_pre_check(user_id, channel_id, guild_id)
 
+    allowed_mentions = validate_allowed_mentions(j.get("allowed_mentions"))
+
     can_everyone = await channel_perm_check(
         user_id, channel_id, "mention_everyone", False
     )
 
-    mentions_everyone = ("@everyone" in j["content"]) and can_everyone
+    mentions_everyone = ("@everyone" in j["content"]) and can_everyone and ("everyone" in allowed_mentions.get(""))
     mentions_here = ("@here" in j["content"]) and can_everyone
 
     is_tts = j.get("tts", False) and await channel_perm_check(

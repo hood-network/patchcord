@@ -255,6 +255,9 @@ async def _proxy_asset(asset, default: bool = False):
 
                     try:
                         data = (data.decode("utf-8")
+                            # Older build compatibility
+                            .replace("discordapp.com/hub", app.config["WEBSOCKET_URL"])
+                            .replace("type].push", "type]?.push")
                             # Hardcoded discord.com et al references
                             .replace("https://discord.com", main_url)
                             .replace("https://discordapp.com", main_url)
@@ -271,8 +274,6 @@ async def _proxy_asset(asset, default: bool = False):
                             .replace(r'/^((https:\/\/)?(discord\.gg\/)|(discord\.com\/)(invite\/)?)?[A-Za-z0-9]{8,8}$/', r'/^((https:\/\/)?(%s\/)(invite\/)?)?[A-Za-z0-9]{8,8}$/' % host.replace(".", r"\."))
                             .replace('+"|discordapp.com|discord.com)$"', f'+"{host})$"')
                             .replace(r"/(?:^|\.)discordapp\.com$/i", r"/(?:^|\.)%s$/i" % host.replace(".", r"\."))
-                            # Older build compatibility
-                            .replace("r[t.type].push", "r[t.type]?.push")
                         )
                     except Exception:
                         pass

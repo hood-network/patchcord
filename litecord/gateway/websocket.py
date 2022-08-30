@@ -149,7 +149,7 @@ async def _compute_supplemental(app, base_ready, user_ready, users_to_send: dict
     for guild in base_ready["guilds"]:
         supplemental["guilds"].append(
             {
-                "voice_states": [],
+                "voice_states": await app.storage.guild_voice_states(int(guild["id"])),
                 "embedded_activities": [],
                 "id": guild["id"],
             }
@@ -157,7 +157,6 @@ async def _compute_supplemental(app, base_ready, user_ready, users_to_send: dict
 
         merged_presences = []
         merged_members = []
-
         for presence in guild.get("presences", []):
             merged_presences.append(
                 {
