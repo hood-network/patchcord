@@ -31,7 +31,7 @@ async def websocket_handler(app, ws, url):
     try:
         gw_version = args["v"][0]
     except (KeyError, IndexError):
-        gw_version = "6"
+        gw_version = "5"
 
     try:
         gw_encoding = args["encoding"][0]
