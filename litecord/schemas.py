@@ -180,7 +180,7 @@ class LitecordValidator(Validator):
     def _validate_type_recipients(self, value: Union[List[Union[int, str]], Union[int, str]]):
         return all(self._validate_type_snowflake(v) for v in value) if isinstance(value, list) else self._validate_type_snowflake(value)
 
-    def _validate_type_date(self, value: str) -> bool:
+    def _validate_type_date_of_birth(self, value: str) -> bool:
         try:
             datetime.strptime(value, "%Y-%m-%d")
         except ValueError:
@@ -276,7 +276,7 @@ REGISTER = {
     "captcha_key": {"coerce": str, "required": False, "nullable": True},
     "gift_code_sku_id": {"coerce": str, "required": False, "nullable": True},
     "consent": {"type": "boolean", "required": False},
-    "date_of_birth": {"type": "date", "required": False, "nullable": True},
+    "date_of_birth": {"type": "date_of_birth", "required": False, "nullable": True},
 }
 
 LOGIN = {
@@ -404,7 +404,7 @@ USER_UPDATE = {
         "required": False,
     },
     "date_of_birth": {
-        "type": "date",
+        "type": "date_of_birth",
         "required": False,
     },
 }
