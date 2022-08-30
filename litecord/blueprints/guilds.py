@@ -327,7 +327,7 @@ async def handle_guild_create(user_id: int, guild_id: int, extra_j: Optional[dic
     )
 
     # create a single #general channel.
-    general_id = app.winter_factory.snowflake()
+    general_id = guild_id
 
     await create_guild_channel(
         guild_id, general_id, ChannelType.GUILD_TEXT, name="general"

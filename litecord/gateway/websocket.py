@@ -364,13 +364,11 @@ class GatewayWebsocket:
     async def _send_hello(self):
         """Send the OP 10 Hello packet over the websocket."""
         # random heartbeat intervals
-        interval = randint(40, 46) * 1000
-
         await self.send_op(
-            OP.HELLO, {"heartbeat_interval": interval, "_trace": ["litecord"]}
+            OP.HELLO, {"heartbeat_interval": 41250, "_trace": ["litecord"]}
         )
 
-        self._hb_start(interval)
+        self._hb_start(41250)
 
     async def dispatch_raw(self, event: str, data: Any):
         """Dispatch an event to the websocket, bypassing the gateway state.
@@ -495,6 +493,7 @@ class GatewayWebsocket:
             "resume_gateway_url": get_gw(),
             "session_type": "normal",
             "user_settings": {},
+            "heartbeat_interval": 41250,
         }
 
         shard = [self.state.current_shard, self.state.shard_count]
@@ -751,12 +750,7 @@ class GatewayWebsocket:
 
     async def handle_2(self, payload: Dict[str, Any]):
         """Handle the OP 2 Identify packet."""
-        # do not validate given guild_hashes
-        payload_copy = dict(payload)
-        payload_copy["d"].get("client_state", {"guild_hashes": None}).pop(
-            "guild_hashes"
-        )
-        validate(payload_copy, IDENTIFY_SCHEMA)
+        validate(payload, IDENTIFY_SCHEMA)
         data = payload["d"]
         token = data["token"]
 
