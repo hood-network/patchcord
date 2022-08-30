@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS icons (
     key text,
 
     -- sha256 of the icon
-    hash text NOT NULL,
+    hash text UNIQUE,
 
     -- icon mime
     mime text NOT NULL,
@@ -70,16 +70,9 @@ CREATE TABLE IF NOT EXISTS users (
 
     -- user properties
     bot boolean DEFAULT FALSE,
-    system boolean DEFAULT FALSE,
     mfa_enabled boolean DEFAULT FALSE,
     verified boolean DEFAULT FALSE,
-    avatar text REFERENCES icons (hash) ON DELETE SET NULL ON UPDATE CASCADE DEFAULT NULL,
-    avatar_decoration text REFERENCES icons (hash) ON DELETE SET NULL ON UPDATE CASCADE DEFAULT NULL,
-    banner text REFERENCES icons (hash) ON DELETE SET NULL ON UPDATE CASCADE DEFAULT NULL,
-    bio text DEFAULT '' NOT NULL,
-    pronouns text DEFAULT '' NOT NULL,
-    theme_colors integer[] DEFAULT NULL,
-    nsfw_allowed bool DEFAULT true,
+    avatar text REFERENCES icons (hash) DEFAULT NULL,
 
     -- user badges, discord dev, etc
     flags int DEFAULT 0,
@@ -346,10 +339,10 @@ CREATE TABLE IF NOT EXISTS guilds (
 
     name text NOT NULL,
     icon text DEFAULT NULL,
-    splash text REFERENCES icons (hash) ON DELETE SET NULL ON UPDATE CASCADE DEFAULT NULL,
+    splash text DEFAULT NULL,
     owner_id bigint NOT NULL REFERENCES users (id),
 
-    region text,
+    region text REFERENCES voice_regions (id),
 
     features text[],
 
@@ -372,8 +365,6 @@ CREATE TABLE IF NOT EXISTS guilds (
     -- ????
     mfa_level int DEFAULT 0,
 
-    nsfw_level int DEFAULT 0,
-
     embed_enabled boolean DEFAULT false,
     embed_channel_id bigint REFERENCES channels (id) DEFAULT NULL,
 
@@ -382,12 +373,12 @@ CREATE TABLE IF NOT EXISTS guilds (
 
     system_channel_id bigint REFERENCES channels (id) DEFAULT NULL,
 
-    premium_progress_bar_enabled boolean DEFAULT false,
-
     -- only for guilds with certain features
     description text DEFAULT NULL,
-    banner text REFERENCES icons (hash) ON DELETE SET NULL ON UPDATE CASCADE DEFAULT NULL
+    banner text DEFAULT NULL
 );
+
+
 
 
 CREATE TABLE IF NOT EXISTS guild_channels (
@@ -398,7 +389,6 @@ CREATE TABLE IF NOT EXISTS guild_channels (
     parent_id bigint DEFAULT NULL,
 
     name text NOT NULL,
-    banner text REFERENCES icons (hash) ON DELETE SET NULL ON UPDATE CASCADE DEFAULT NULL,
     position int,
     nsfw bool default false
 );
@@ -471,7 +461,7 @@ CREATE TABLE IF NOT EXISTS group_dm_channels (
     id bigint REFERENCES channels (id) ON DELETE CASCADE,
     owner_id bigint REFERENCES users (id),
     name text,
-    icon text REFERENCES icons (hash) ON DELETE SET NULL ON UPDATE CASCADE DEFAULT NULL,
+    icon text REFERENCES icons (hash) DEFAULT NULL,
     PRIMARY KEY (id)
 );
 
@@ -496,7 +486,7 @@ CREATE TABLE IF NOT EXISTS guild_emoji (
     uploader_id bigint REFERENCES users (id),
 
     name text NOT NULL,
-    image text REFERENCES icons (hash) ON DELETE CASCADE ON UPDATE CASCADE,
+    image text REFERENCES icons (hash),
     animated bool DEFAULT false,
     managed bool DEFAULT false,
     require_colons bool DEFAULT true
@@ -536,7 +526,6 @@ CREATE TABLE IF NOT EXISTS vanity_invites (
 
 CREATE TABLE IF NOT EXISTS webhooks (
     id bigint PRIMARY KEY,
-    type int NOT NULL DEFAULT 1,
 
     guild_id bigint REFERENCES guilds (id) ON DELETE CASCADE,
     channel_id bigint REFERENCES channels (id) ON DELETE CASCADE,
@@ -554,16 +543,10 @@ CREATE TABLE IF NOT EXISTS webhooks (
 CREATE TABLE IF NOT EXISTS members (
     user_id bigint REFERENCES users (id) ON DELETE CASCADE,
     guild_id bigint REFERENCES guilds (id) ON DELETE CASCADE,
+    nickname text DEFAULT NULL,
     joined_at timestamp without time zone default (now() at time zone 'utc'),
     deafened boolean DEFAULT false,
     muted boolean DEFAULT false,
-
-    avatar text REFERENCES icons (hash) ON DELETE SET NULL ON UPDATE CASCADE DEFAULT NULL,
-    banner text REFERENCES icons (hash) ON DELETE SET NULL ON UPDATE CASCADE DEFAULT NULL,
-    nickname text DEFAULT NULL,
-    bio text DEFAULT '' NOT NULL,
-    pronouns text DEFAULT '' NOT NULL,
-
     PRIMARY KEY (user_id, guild_id)
 );
 
@@ -672,9 +655,8 @@ CREATE TABLE IF NOT EXISTS messages (
     mention_everyone bool default false,
 
     embeds jsonb DEFAULT '[]',
-    sticker_ids jsonb DEFAULT '[]',
 
-    nonce text DEFAULT NULL,
+    nonce bigint default 0,
 
     message_type int NOT NULL
 );
@@ -684,10 +666,9 @@ CREATE TABLE IF NOT EXISTS message_webhook_info (
     message_id bigint REFERENCES messages (id) PRIMARY KEY,
 
     webhook_id bigint,
-    name text DEFAULT 'Unknown Webhook',
+    name text DEFAULT '<invalid>',
     avatar text DEFAULT NULL
 );
-
 
 CREATE TABLE IF NOT EXISTS message_reactions (
     message_id bigint REFERENCES messages (id),
