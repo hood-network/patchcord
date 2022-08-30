@@ -515,12 +515,17 @@ class GatewayWebsocket:
         full_ready_data["merged_members"] = ready_supplemental["merged_members"]
         full_ready_data["merged_presences"] = ready_supplemental["merged_presences"]
 
+        if self.ws_properties.version < 6:  # Extremely old client compat
+            for guild in full_ready_data["guilds"]:
+                guild["presence"] = guild.pop("presences", {})
+
         # if not self.state.bot:
         #     for guild in full_ready_data["guilds"]:
         #         guild["members"] = []
 
         await self.dispatch_raw("READY", full_ready_data)
-        await self.dispatch_raw("READY_SUPPLEMENTAL", ready_supplemental)
+        if self.ws_properties.version > 5:
+            await self.dispatch_raw("READY_SUPPLEMENTAL", ready_supplemental)
         self.ready.set()
         app.sched.spawn(self._guild_dispatch(guilds))
 
