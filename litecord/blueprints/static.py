@@ -108,33 +108,35 @@ def guess_content_type(file: str) -> str:
         return "application/octet-stream"
 
 
-async def _load_build(type: str = "branch", value: str = "latest", *, default: bool = False, clear_override: bool = False):
+async def _load_build(type: str = "id", value: str = "latest", *, default: bool = False, clear_override: bool = False):
     """Load a build from discord.sale."""
-    if value == "latest":
+    if value == "latest":  # Always get latest build
         async with aiohttp.request("GET", "https://api.discord.sale/builds") as resp:
             if not 300 > resp.status >= 200:
-                return "Bad Gateway", 502
-            type = "branch"
+                return "", 502
+            type = "id"
             value = (await resp.json())[0]["hash"]
 
-    if type != "branch":
-        return "Not Implemented", 501
+    elif type == "branch":
+        try:
+            value = BUILDS["overrides"][value]
+        except KeyError:
+            return "Build not found", 404
 
     async with aiohttp.request("GET", f"https://api.discord.sale/builds/{value}") as resp:
         if not 300 > resp.status >= 200:
             try:
                 info = BUILDS[value]
             except KeyError:
-                try:
-                    info = BUILDS[BUILDS["overrides"][value]]
-                except KeyError:
-                    return "Build not found", 404
+                return "Build not found", 404
         else:
             info = await resp.json()
 
         scripts = [f"{file}.js" for file in info["files"]["rootScripts"]]
         styles = [f"{file}.css" for file in info["files"]["css"]]
         version = info["number"]
+
+        # We pass the original API version
         global_env = _get_environment(app)
         global_env["API_VERSION"] = info.get("GLOBAL_ENV", {}).get("API_VERSION", 9)
 
@@ -156,9 +158,10 @@ async def _load_build(type: str = "branch", value: str = "latest", *, default: b
             kwargs["webpack"] = scripts[2]
             kwargs["app"] = scripts[3]
         else:
-            return "Build not supported", 404
+            return "", 501
 
         if default:
+            # We cache the assets
             for asset in (scripts + styles):
                 await _proxy_asset(asset, True)
 
@@ -468,9 +471,3 @@ async def remove_build_overrides():
     resp = await make_response("", 204)
     resp.set_cookie("buildOverride", "", expires=0)
     return resp
-
-
-# Old clients my beloved
-@bp.route("/hub")
-async def discover_gateway():
-    return redirect(get_gw(), code=308)
