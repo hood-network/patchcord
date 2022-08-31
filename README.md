@@ -89,7 +89,7 @@ Optional requirement:
 ### Download the code
 
 ```sh
-$ git clone https://gitlab.com/litecord/litecord.git && cd litecord
+$ git clone https://github.com/dolfies/patchcord.git && cd litecord
 ```
 
 ### Install packages
