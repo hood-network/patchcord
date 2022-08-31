@@ -997,7 +997,7 @@ class Storage:
                 user_cache[user_id] = user
             return user
 
-        mentions = await asyncio.gather(*[_get_user(m["id"]) for m in res["mentions"]])
+        mentions = await asyncio.gather(*[_get_user(m) for m in res["mentions"]])
         res["mentions"] = [mention for mention in mentions if mention]
 
         if res.get("message_reference") and not is_crosspost and include_member:

@@ -327,6 +327,7 @@ async def _create_message(channel_id):
 
     user_id = await token_check()
     ctype, guild_id = await channel_check(user_id, channel_id)
+    await channel_perm_check(user_id, channel_id, "view_channel")
 
     actual_guild_id: Optional[int] = None
 
@@ -358,7 +359,7 @@ async def _create_message(channel_id):
 
     can_everyone = await channel_perm_check(
         user_id, channel_id, "mention_everyone", False
-    )
+    ) and ctype != ChannelType.DM
 
     mentions_everyone = ("@everyone" in j["content"]) and can_everyone
     mentions_here = ("@here" in j["content"]) and can_everyone
