@@ -153,7 +153,7 @@ async def get_note(target_id: int):
     if note is None:
         raise NotFound(10013)
 
-    return jsonify({"user_id": user_id, "note_user_id": target_id, "note": note})
+    return jsonify({"user_id": str(user_id), "note_user_id": str(target_id), "note": note})
 
 
 @bp.route("/@me/notes/<int:target_id>", methods=["PUT"])
