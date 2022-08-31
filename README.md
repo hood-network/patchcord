@@ -5,7 +5,8 @@ Discord's HTTP API and Gateway in Python 3.
 
 This project is a rewrite of [litecord-reference] and [litecord serviced].
 
-This fork aims to integrate a client into Litecord for educational purposes. Credits to [Displunger](https://gitlab.com/derpystuff/displunger).
+Other than implementing various features, Patchcord aims to integrate client functionality and various QoL improvements into Litecord for educational purposes.  
+Credits to [Displunger](https://gitlab.com/derpystuff/displunger).
 
 [clean-room]: https://en.wikipedia.org/wiki/Clean_room_design
 [litecord-reference]: https://gitlab.com/luna/litecord-reference
@@ -19,25 +20,21 @@ could help writing it, defining a clear protocol between components
 (litebridge). Sadly, it didn't take off, so I (Luna), that wrote the other two,
 took a shot at writing it again. It works.
 
-**This is "Litecord" / "litecord".** There are _no_ rewrites planned.
+**This is "Litecord" / "litecord".** There are _no_ rewrites planned (for now :>).
 
 ## Project Goals
 
 - Being able to unit test bots in an autonomous fashion.
 - Doing research and exploration on the Discord API.
-
-### Non-goals
-
-- Being used as a "self-hostable Discord alternative".
+- Doing research on old clients and scrapped features.
 
 ## Caveats
 
 - Unit testing is incomplete.
 - Currently, there are no plans to support video in voice chats, or the
   Discord Store.
-- An unofficial Discord Client is recommended to connect (more on
-  `docs/clients.md`). Litecord will not distribute official client code from
-  Discord nor provide ways to modify the official client.
+- Many things are non-performant, deviate from the Discord API, are incomplete, etc.
+- Compatibility is preferred to accuracy. Because of this, many duplicate/deprecated fields exist in the API.
 
 ## Implementation status, AKA "Does it work?"
 
@@ -54,10 +51,8 @@ Discord can implement new features at any time, for any reason. The following
 are not implemented, for example:
 
 - Threads
-- Channel Categories
-- API v9 (Right now, Litecord, in general, assumes v9 is
-  just v6 to make clients work, new payload structure support is
-  scattered throughout the codebase)
+- Auto moderation
+- Server boosts
 
 ## Liability
 
@@ -89,7 +84,7 @@ Optional requirement:
 ### Download the code
 
 ```sh
-$ git clone https://gitlab.com/litecord/litecord.git && cd litecord
+$ git clone https://github.com/dolfies/patchcord.git && cd patchcord
 ```
 
 ### Install packages
@@ -141,7 +136,7 @@ You can use `--access-log -` to output access logs to stdout.
 ### Does it work?
 
 You can check if your instance is running by performing an HTTP `GET` request on
-the `/api/v6/gateway` endpoint. For basic websocket testing, a tool such as
+the `/api/v9/gateway` endpoint. For basic websocket testing, a tool such as
 [ws](https://github.com/hashrocket/ws) can be used.
 
 After checking that it actually works, `docs/operating.md` continues on common
