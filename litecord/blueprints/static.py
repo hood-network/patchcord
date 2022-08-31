@@ -86,10 +86,10 @@ def guess_content_type(file: str) -> str:
         return "text/javascript"
     elif file.endswith(".css"):
         return "text/css"
-    elif file.endswith("json"):
+    elif file.endswith(".json"):
         return "application/json"
     elif file.endswith(".svg"):
-        return "image/svg"
+        return "image/svg+xml"
     elif file.endswith(".png"):
         return "image/png"
     elif file.endswith(".jpg") or file.endswith(".jpeg"):
@@ -237,9 +237,7 @@ async def _proxy_asset(asset, default: bool = False):
         try:
             async with aopen(f"assets/{asset}", "rb") as f:
                 data = await f.read()
-
-                response = await make_response(data, 200)
-                response.headers["content-type"] = guess_content_type(asset)
+                response = await make_response(data, 200, {"content-type": guess_content_type(asset)})
         except FileNotFoundError:
             async with aiohttp.request("GET", f"https://canary.discord.com/assets/{asset}") as resp:
                 if not 300 > resp.status >= 200:  # Fallback to the Wayback Machine if the asset is not found
