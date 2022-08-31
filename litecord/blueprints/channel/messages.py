@@ -28,7 +28,7 @@ from litecord.blueprints.checks import channel_check, channel_perm_check
 from litecord.errors import Forbidden, ManualFormError, MissingPermissions, NotFound
 from litecord.enums import MessageFlags, MessageType, ChannelType, GUILD_CHANS, PremiumType
 
-from litecord.schemas import validate, MESSAGE_CREATE, MESSAGE_UPDATE
+from litecord.schemas import validate, MESSAGE_CREATE, MESSAGE_UPDATE, ROLE_MENTION, USER_MENTION
 from litecord.utils import query_tuple_from_args, extract_limit, to_update, toggle_flag
 from litecord.json import pg_set_json
 from litecord.permissions import get_permissions
@@ -176,9 +176,105 @@ async def _dm_pre_dispatch(channel_id, peer_id):
 
 
 async def create_message(
-    channel_id: int, actual_guild_id: Optional[int], author_id: int, data: dict
+    channel_id: int,
+    ctype: ChannelType,
+    actual_guild_id: Optional[int],
+    author_id: Optional[int],
+    data: dict,
+    *,
+    recipient_id: Optional[int] = None,
+    can_everyone: bool,
 ) -> int:
     message_id = app.winter_factory.snowflake()
+
+    # We parse allowed_mentions
+    allowed_mentions = await validate_allowed_mentions(data.get("allowed_mentions"))
+
+    if data["everyone_mention"] and allowed_mentions is not None and "everyone" not in allowed_mentions.get("parse", []):
+        data["everyone_mention"] = False
+
+    mentions = []
+    mention_roles = []
+    if data.get("content"):
+        if allowed_mentions is None or "users" in allowed_mentions.get("parse", []) or allowed_mentions.get("users"):
+            allowed = (allowed_mentions.get("users") or []) if allowed_mentions else []
+            if ctype == ChannelType.GROUP_DM:
+                members = await app.db.fetch(
+                    """
+                SELECT member_id
+                FROM group_dm_members
+                WHERE id = $1
+                    """,
+                    channel_id,
+                )
+                members = [member["member_id"] for member in members]
+                allowed = [a for a in allowed if a in members] if allowed else members
+
+            for match in USER_MENTION.finditer(data["content"]):
+                found_id = match.group(1)
+                try:
+                    found_id = int(found_id)
+                except ValueError:
+                    continue
+
+                if allowed and found_id not in allowed:
+                    continue
+                if ctype == ChannelType.DM and found_id not in (author_id, recipient_id):
+                    continue
+                if ChannelType not in (ChannelType.DM, ChannelType.GROUP_DM):
+                    is_member = await app.db.fetchval(
+                        """
+                    SELECT user_id
+                    FROM members
+                    WHERE guild_id = $1 AND user_id = $2
+                    """,
+                        actual_guild_id,
+                        found_id,
+                    )
+                    if not is_member:
+                        continue
+
+                mentions.append(found_id)
+
+        if actual_guild_id and (allowed_mentions is None or "roles" in allowed_mentions.get("parse", []) or allowed_mentions.get("roles")):
+            guild_roles = await app.db.fetch(
+                """
+            SELECT id, mentionable
+            FROM guild_roles
+            WHERE guild_id = $1
+            """,
+                actual_guild_id,
+            )
+            guild_roles = {role["id"]: role for role in guild_roles}
+            allowed = (allowed_mentions.get("roles") or []) if allowed_mentions else []
+
+            for match in ROLE_MENTION.finditer(data["content"]):
+                found_id = match.group(1)
+                try:
+                    found_id = int(found_id)
+                except ValueError:
+                    continue
+
+                if allowed and found_id not in allowed:
+                    continue
+                if found_id not in guild_roles:
+                    continue
+                if not guild_roles[found_id]["mentionable"] and not can_everyone:
+                    continue
+
+                mention_roles.append(found_id)
+
+    if data.get("message_reference") and not data.get("flags", 0) & MessageFlags.is_crosspost == MessageFlags.is_crosspost:
+        author_id = await app.db.fetchval(
+            """
+        SELECT author_id
+        FROM messages
+        WHERE id = $1
+        """,
+            int(data["message_reference"]["message_id"]),
+        )
+        if author_id:
+            mentions.append(author_id)
 
     async with app.db.acquire() as conn:
         await pg_set_json(conn)
@@ -187,8 +283,8 @@ async def create_message(
             """
             INSERT INTO messages (id, channel_id, guild_id, author_id,
                 content, tts, mention_everyone, nonce, message_type, flags,
-                embeds, message_reference, allowed_mentions, sticker_ids)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+                embeds, message_reference, sticker_ids, mentions, mention_roles)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
             """,
             message_id,
             channel_id,
@@ -202,8 +298,9 @@ async def create_message(
             data.get("flags") or 0,
             data.get("embeds") or [],
             data.get("message_reference") or None,
-            data.get("allowed_mentions") or None,
             data.get("sticker_ids") or [],
+            mentions,
+            mention_roles,
         )
 
     return message_id
@@ -259,13 +356,11 @@ async def _create_message(channel_id):
         # guild_id is the dm's peer_id
         await dm_pre_check(user_id, channel_id, guild_id)
 
-    allowed_mentions = validate_allowed_mentions(j.get("allowed_mentions"))
-
     can_everyone = await channel_perm_check(
         user_id, channel_id, "mention_everyone", False
     )
 
-    mentions_everyone = ("@everyone" in j["content"]) and can_everyone and ("everyone" in allowed_mentions.get(""))
+    mentions_everyone = ("@everyone" in j["content"]) and can_everyone
     mentions_here = ("@here" in j["content"]) and can_everyone
 
     is_tts = j.get("tts", False) and await channel_perm_check(
@@ -275,6 +370,7 @@ async def _create_message(channel_id):
     embeds = [await fill_embed(embed) for embed in ((j.get("embeds") or []) or [j["embed"]] if "embed" in j and j["embed"] else [])]
     message_id = await create_message(
         channel_id,
+        ctype,
         actual_guild_id,
         user_id,
         {
@@ -289,6 +385,8 @@ async def _create_message(channel_id):
             "sticker_ids": j.get("sticker_ids"),
             "flags": MessageFlags.suppress_embeds if (j.get("flags", 0) & MessageFlags.suppress_embeds == MessageFlags.suppress_embeds) else 0,
         },
+        recipient_id=guild_id if ctype == ChannelType.DM else None,
+        can_everyone=can_everyone,
     )
 
     # for each file given, we add it as an attachment
@@ -352,15 +450,7 @@ async def edit_message(channel_id, message_id):
 
     if to_update(j, old_message, "allowed_mentions"):
         updated = True
-        await app.db.execute(
-            """
-        UPDATE messages
-        SET allowed_mentions = $1
-        WHERE id = $2
-        """,
-            j["allowed_mentions"],
-            message_id,
-        )
+        # TODO
 
     flags = None
     if "flags" in j:

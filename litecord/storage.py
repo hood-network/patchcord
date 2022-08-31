@@ -29,8 +29,6 @@ import json
 
 from litecord.enums import ChannelType, MessageFlags, NSFWLevel
 from litecord.common.messages import PLAN_ID_TO_TYPE
-from litecord.permissions import get_permissions
-from litecord.schemas import USER_MENTION, ROLE_MENTION
 from litecord.blueprints.channel.reactions import (
     EmojiType,
     emoji_sql,
@@ -42,10 +40,6 @@ from litecord.types import timestamp_
 from litecord.json import pg_set_json
 
 log = Logger(__name__)
-
-
-async def _dummy(any_id):
-    return str(any_id)
 
 
 def maybe(typ, val):
@@ -977,7 +971,6 @@ class Storage:
         res["mention_roles"] = [str(r) for r in res["mention_roles"]] if res["mention_roles"] else []
         await self._inject_author(res)
 
-        content = res["content"]
         guild_id = res["guild_id"]
         is_crosspost = res["flags"] & MessageFlags.is_crosspost == MessageFlags.is_crosspost
         attachments = list(res["attachments"]) if res["attachments"] else []
@@ -1004,41 +997,12 @@ class Storage:
                 user_cache[user_id] = user
             return user
 
-        res["mentions"] = await self._msg_regex(
-            USER_MENTION, _get_user, content
-        )
+        mentions = await asyncio.gather(*[_get_user(m["id"]) for m in res["mentions"]])
+        res["mentions"] = [mention for mention in mentions if mention]
 
-        if res.get("message_reference") and not is_crosspost:
+        if res.get("message_reference") and not is_crosspost and include_member:
             message = await self.get_message(int(res["message_reference"]["message_id"]), user_id, include_member)
             res["referenced_message"] = message
-            if message and (not res.get("allowed_mentions") or res["allowed_mentions"].get("replied_user", False)):
-                if not message.get("webhook_id"):
-                    res["mentions"].append(message["author"])
-
-        # async def _get_role_mention(role_id: int):
-        #     if not guild_id:
-        #         return
-
-        #     if role_id == guild_id:
-        #         return str(role_id)
-
-        #     # TODO: Role cache
-        #     role = await self.db.fetchval(
-        #         """
-        #     SELECT id
-        #     FROM roles
-        #     WHERE id = $1 AND guild_id = $2
-        #     """,
-        #         role_id,
-        #         guild_id,
-        #     )
-        #     if not role:
-        #         return
-
-        #     if not (not perms or perms.bits.mention_everyone) and not role["mentionable"]:
-        #         return
-
-        #     return str(role_id)
 
         emoji = []
         react_stats = {}
@@ -1146,7 +1110,7 @@ class Storage:
             SELECT id, channel_id::text, guild_id, author_id, content,
                 created_at AS timestamp, edited_at AS edited_timestamp,
                 tts, mention_everyone, nonce, message_type, embeds, flags,
-                message_reference, allowed_mentions, sticker_ids,
+                message_reference, sticker_ids, mentions, mentions_roles,
                 (SELECT message_id FROM channel_pins WHERE message_id = id) AS pinned,
                 ARRAY(SELECT ROW(id::text, message_id, channel_id, filename, filesize, image, height, width)
                     FROM attachments
@@ -1180,7 +1144,7 @@ class Storage:
             SELECT id, channel_id::text, guild_id, author_id, content,
                 created_at AS timestamp, edited_at AS edited_timestamp,
                 tts, mention_everyone, nonce, message_type, embeds, flags,
-                message_reference, allowed_mentions, sticker_ids,
+                message_reference, sticker_ids, mentions, mentions_roles,
                 (SELECT message_id FROM channel_pins WHERE message_id = id) AS pinned,
                 ARRAY(SELECT ROW(id::text, message_id, channel_id, filename, filesize, image, height, width)
                     FROM attachments

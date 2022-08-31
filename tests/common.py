@@ -252,7 +252,6 @@ class WrappedMessage:
     attachments: list
     pinned: bool
     message_reference: Optional[dict]
-    allowed_mentions: Optional[dict]
     member: Optional[dict] = None
     flags: Optional[int] = None
     guild_id: Optional[int] = None

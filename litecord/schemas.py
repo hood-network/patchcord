@@ -630,6 +630,7 @@ MESSAGE_UPDATE = {
         "required": False,
         "schema": {"type": "dict", "schema": EMBED_OBJECT},
         "nullable": True,
+        "maxlength": 10,
     },
     "allowed_mentions": {
         "type": "dict",
@@ -638,6 +639,8 @@ MESSAGE_UPDATE = {
         "schema": {
             "parse": {"type": "list", "required": False, "allowed": ("everyone", "roles", "users")},
             "replied_user": {"type": "boolean", "required": False},
+            "roles": {"type": "list", "required": False, "schema": {"coerce": int}},
+            "users": {"type": "list", "required": False, "schema": {"coerce": int}},
         },
     },
     "flags": {"coerce": int, "required": False},
@@ -887,15 +890,28 @@ WEBHOOK_MESSAGE_UPDATE = {
         "type": "list",
         "required": False,
         "schema": {"type": "dict", "schema": EMBED_OBJECT},
+        "nullable": True,
+        "maxlength": 10,
     },
     "embed": {"type": "dict", "schema": EMBED_OBJECT, "required": False},
+    "allowed_mentions": {
+        "type": "dict",
+        "required": False,
+        "nullable": True,
+        "schema": {
+            "parse": {"type": "list", "required": False, "allowed": ("everyone", "roles", "users")},
+            "replied_user": {"type": "boolean", "required": False},
+            "roles": {"type": "list", "required": False, "schema": {"coerce": int}},
+            "users": {"type": "list", "required": False, "schema": {"coerce": int}},
+        },
+    },
 }
 
 
 WEBHOOK_MESSAGE_CREATE = {
     **WEBHOOK_MESSAGE_UPDATE,
     "tts": {"type": "boolean", "default": False},
-    "username": {"coerce": str, "minlength": 2, "maxlength": 32, "required": False},
+    "username": {"coerce": str, "minlength": 2, "maxlength": 80, "required": False},
     "avatar_url": {"coerce": EmbedURL, "required": False},
 }
 
