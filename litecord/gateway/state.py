@@ -131,12 +131,12 @@ class GatewayState:
                 # Various old API version compatibility crap
                 data = payload.get("d") or {}
 
-                if (
-                    event_type.startswith("MESSAGE_")
-                    and data.get("type") in (19, 20, 23)
-                    and self.ws.ws_properties.version < 8
-                ):
-                    data["type"] = 0
+                if event_type.startswith("MESSAGE_"):
+                    data.pop("reactions", None)
+                    data["referenced_message"] = data.get("referenced_message") or None
+
+                    if data.get("type") in (19, 20, 23) and self.ws.ws_properties.version < 8:
+                        data["type"] = 0
 
                 elif (
                     event_type.startswith("GUILD_ROLE_")

@@ -35,6 +35,7 @@ def message_view(message_data: dict) -> dict:
     if request.discord_api_version < 8 and message_data["type"] in (19, 20, 23):
         message_data["type"] = 0
     message_data.pop("member", None)
+    message_data.pop("guild_id", None)
     return message_data
 
 

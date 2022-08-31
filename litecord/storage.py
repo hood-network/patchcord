@@ -1092,8 +1092,6 @@ class Storage:
         res.pop("author_id")
         if not res["guild_id"]:
             res.pop("guild_id")
-        if not res["flags"]:
-            res.pop("flags")
         if not res["nonce"]:
             res.pop("nonce")
         if not res["message_reference"]:

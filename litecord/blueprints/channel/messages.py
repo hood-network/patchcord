@@ -221,7 +221,7 @@ async def create_message(
                     continue
                 if ctype == ChannelType.DM and found_id not in (author_id, recipient_id):
                     continue
-                if ChannelType not in (ChannelType.DM, ChannelType.GROUP_DM):
+                if ctype not in (ChannelType.DM, ChannelType.GROUP_DM):
                     is_member = await app.db.fetchval(
                         """
                     SELECT user_id
