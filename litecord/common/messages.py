@@ -157,7 +157,7 @@ async def msg_add_attachment(message_id: int, channel_id: int, author_id: Option
     with open(f"attachments/{attachment_id}.{ext}", "wb") as attach_file:
         attach_file.write(attachment_file.stream.read())
 
-    log.debug("written {} bytes for attachment id {}", file_size, attachment_id)
+    log.debug("saved attachment {} to disk", attachment_id)
 
     return attachment_id
 
@@ -166,7 +166,6 @@ async def msg_guild_text_mentions(
     payload: dict, guild_id: int, mentions_everyone: bool, mentions_here: bool
 ):
     """Calculates mention data side-effects."""
-    # TODO this should be aware of allowed_mentions
     channel_id = int(payload["channel_id"])
 
     # calculate the user ids we'll bump the mention count for
