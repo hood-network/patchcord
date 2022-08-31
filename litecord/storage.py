@@ -1110,7 +1110,7 @@ class Storage:
             SELECT id, channel_id::text, guild_id, author_id, content,
                 created_at AS timestamp, edited_at AS edited_timestamp,
                 tts, mention_everyone, nonce, message_type, embeds, flags,
-                message_reference, sticker_ids, mentions, mentions_roles,
+                message_reference, sticker_ids, mentions, mention_roles,
                 (SELECT message_id FROM channel_pins WHERE message_id = id) AS pinned,
                 ARRAY(SELECT ROW(id::text, message_id, channel_id, filename, filesize, image, height, width)
                     FROM attachments
@@ -1144,7 +1144,7 @@ class Storage:
             SELECT id, channel_id::text, guild_id, author_id, content,
                 created_at AS timestamp, edited_at AS edited_timestamp,
                 tts, mention_everyone, nonce, message_type, embeds, flags,
-                message_reference, sticker_ids, mentions, mentions_roles,
+                message_reference, sticker_ids, mentions, mention_roles,
                 (SELECT message_id FROM channel_pins WHERE message_id = id) AS pinned,
                 ARRAY(SELECT ROW(id::text, message_id, channel_id, filename, filesize, image, height, width)
                     FROM attachments
