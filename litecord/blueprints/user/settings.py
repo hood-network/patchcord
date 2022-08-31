@@ -136,6 +136,22 @@ async def patch_guild_settings(guild_id: int):
     return jsonify(settings)
 
 
+@bp.route("/@me/notes", methods=["GET"])
+async def get_notes():
+    """Get all of a user's notes."""
+    user_id = await token_check()
+    notes = await app.db.fetch(
+        """
+        SELECT note, target_id::text
+        FROM notes
+        WHERE user_id = $1
+        """,
+        user_id,
+    )
+
+    return jsonify({n["target_id"]: n["note"] for n in notes})
+
+
 @bp.route("/@me/notes/<int:target_id>", methods=["GET"])
 async def get_note(target_id: int):
     """Get a single note from a user."""
