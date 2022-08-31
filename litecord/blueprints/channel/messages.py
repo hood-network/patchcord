@@ -240,7 +240,7 @@ async def create_message(
             guild_roles = await app.db.fetch(
                 """
             SELECT id, mentionable
-            FROM guild_roles
+            FROM roles
             WHERE guild_id = $1
             """,
                 actual_guild_id,
