@@ -235,7 +235,7 @@ async def _proxy_asset(asset, default: bool = False):
         return response
     else:
         try:
-            async with aopen(f"assets/{asset}") as f:
+            async with aopen(f"assets/{asset}", "rb") as f:
                 data = await f.read()
 
                 response = await make_response(data, 200)
