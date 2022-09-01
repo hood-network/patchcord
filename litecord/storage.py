@@ -1109,14 +1109,14 @@ class Storage:
                 created_at AS timestamp, edited_at AS edited_timestamp,
                 tts, mention_everyone, nonce, message_type, embeds, flags,
                 message_reference, sticker_ids, mentions, mention_roles,
-                (SELECT message_id FROM channel_pins WHERE message_id = id) AS pinned,
+                (SELECT message_id FROM channel_pins WHERE message_id = messages.id) AS pinned,
                 ARRAY(SELECT ROW(id::text, message_id, channel_id, filename, filesize, image, height, width)
                     FROM attachments
-                    WHERE message_id = id)
+                    WHERE message_id = messages.id)
                 AS attachments,
                 ARRAY(SELECT ROW(user_id, emoji_type, emoji_id, emoji_text)
                     FROM message_reactions
-                    WHERE message_id = id
+                    WHERE message_id = messages.id
                     ORDER BY react_ts
                 ) AS reactions
             FROM messages
@@ -1143,14 +1143,14 @@ class Storage:
                 created_at AS timestamp, edited_at AS edited_timestamp,
                 tts, mention_everyone, nonce, message_type, embeds, flags,
                 message_reference, sticker_ids, mentions, mention_roles,
-                (SELECT message_id FROM channel_pins WHERE message_id = id) AS pinned,
+                (SELECT message_id FROM channel_pins WHERE message_id = messages.id) AS pinned,
                 ARRAY(SELECT ROW(id::text, message_id, channel_id, filename, filesize, image, height, width)
                     FROM attachments
-                    WHERE message_id = id)
+                    WHERE message_id = messages.id)
                 AS attachments,
                 ARRAY(SELECT ROW(user_id, emoji_type, emoji_id, emoji_text)
                     FROM message_reactions
-                    WHERE message_id = id
+                    WHERE message_id = messages.id
                     ORDER BY react_ts
                 ) AS reactions
                 {extra_clause}
