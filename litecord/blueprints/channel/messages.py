@@ -28,7 +28,7 @@ from litecord.blueprints.checks import channel_check, channel_perm_check
 from litecord.errors import Forbidden, ManualFormError, MissingPermissions, NotFound
 from litecord.enums import MessageFlags, MessageType, ChannelType, GUILD_CHANS, PremiumType
 
-from litecord.schemas import validate, MESSAGE_CREATE, MESSAGE_UPDATE, ROLE_MENTION, USER_MENTION
+from litecord.schemas import CHANNEL_GREET, validate, MESSAGE_CREATE, MESSAGE_UPDATE, ROLE_MENTION, USER_MENTION
 from litecord.utils import query_tuple_from_args, extract_limit, to_update, toggle_flag
 from litecord.json import pg_set_json
 from litecord.permissions import get_permissions
@@ -264,7 +264,11 @@ async def create_message(
 
                 mention_roles.append(found_id)
 
-    if data.get("message_reference") and not data.get("flags", 0) & MessageFlags.is_crosspost == MessageFlags.is_crosspost:
+    if (
+        data.get("message_reference")
+        and not data.get("flags", 0) & MessageFlags.is_crosspost == MessageFlags.is_crosspost
+        and (allowed_mentions is None or allowed_mentions.get("replied_user", False))
+    ):
         reply_id = await app.db.fetchval(
             """
         SELECT author_id
@@ -321,10 +325,70 @@ async def validate_allowed_mentions(allowed_mentions: Optional[dict]):
             raise ManualFormError(allowed_mentions={"code": "MESSAGE_ALLOWED_MENTIONS_PARSE_EXCLUSIVE", "message": f"parse:[\"{key}\"] and {key}: [ids...] are mutually exclusive."})
 
 
+@bp.route("/<int:channel_id>/greet", methods=["POST"])
+async def greet(channel_id):
+    """Send a greet message."""
+    user_id = await token_check()
+    ctype, guild_id = await channel_check(user_id, channel_id)
+    await channel_perm_check(user_id, channel_id, "read_messages")
+
+    actual_guild_id: Optional[int] = None
+    if ctype in GUILD_CHANS:
+        await channel_perm_check(user_id, channel_id, "send_messages")
+        actual_guild_id = guild_id
+
+    j = validate(await request.get_json(), CHANNEL_GREET)
+    message_id = await create_message(
+        channel_id,
+        ctype,
+        actual_guild_id,
+        user_id,
+        {
+            "content": "",
+            "tts": False,
+            "nonce": None,
+            "everyone_mention": False,
+            "embeds": [],
+            "message_reference": j.get("message_reference"),
+            "allowed_mentions": None,
+            "sticker_ids": j["sticker_ids"],
+            "flags": 0,
+        },
+        can_everyone=False,
+    )
+
+    payload = await app.storage.get_message(message_id, user_id, include_member=True)
+
+    if ctype == ChannelType.DM:
+        # guild id here is the peer's ID.
+        await _dm_pre_dispatch(channel_id, user_id)
+        await _dm_pre_dispatch(channel_id, guild_id)
+
+    await app.dispatcher.channel.dispatch(channel_id, ("MESSAGE_CREATE", payload))
+
+    # update read state for the author
+    await app.db.execute(
+        """
+    UPDATE user_read_state
+    SET last_message_id = $1
+    WHERE channel_id = $2 AND user_id = $3
+    """,
+        message_id,
+        channel_id,
+        user_id,
+    )
+
+    if ctype not in (ChannelType.DM, ChannelType.GROUP_DM):
+        await msg_guild_text_mentions(
+            payload, guild_id, False, False
+        )
+
+    return jsonify(message_view(payload))
+
+
 @bp.route("/<int:channel_id>/messages", methods=["POST"])
 async def _create_message(channel_id):
     """Create a message."""
-
     user_id = await token_check()
     ctype, guild_id = await channel_check(user_id, channel_id)
     await channel_perm_check(user_id, channel_id, "read_messages")

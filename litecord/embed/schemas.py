@@ -84,13 +84,12 @@ EMBED_FIELD = {
 }
 
 EMBED_OBJECT = {
-    "type": {"type": "embed_type", "required": False},
     "title": {"type": "string", "minlength": 1, "maxlength": 256, "required": False},
     # NOTE: type set by us
     "description": {
         "type": "string",
         "minlength": 1,
-        "maxlength": 2048,
+        "maxlength": 4096,
         "required": False,
     },
     "url": {"coerce": EmbedURL, "required": False},

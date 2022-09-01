@@ -615,6 +615,22 @@ SELF_MEMBER_UPDATE = {
 # NOTE: things such as payload_json are parsed at the handler
 # for creating a message.
 
+
+CHANNEL_GREET = {
+    "sticker_ids": {"type": "list", "required": True, "schema": {"coerce": int}, "maxlength": 3},
+    "message_reference": {
+        "type": "dict",
+        "required": False,
+        "nullable": True,
+        "schema": {
+            "guild_id": {"coerce": str, "required": False},
+            "channel_id": {"coerce": str, "required": True},
+            "message_id": {"coerce": str, "required": True},
+        },
+    },
+}
+
+
 MESSAGE_UPDATE = {
     "type": {"type": "snowflake", "required": False},
     "attachments": {"type": "list", "required": False, "schema": {"type": "dict"}},
@@ -638,7 +654,7 @@ MESSAGE_UPDATE = {
         "nullable": True,
         "schema": {
             "parse": {"type": "list", "required": False, "allowed": ("everyone", "roles", "users")},
-            "replied_user": {"type": "boolean", "required": False},
+            "replied_user": {"type": "boolean", "default": False},
             "roles": {"type": "list", "required": False, "schema": {"coerce": int}},
             "users": {"type": "list", "required": False, "schema": {"coerce": int}},
         },
@@ -649,20 +665,10 @@ MESSAGE_UPDATE = {
 
 MESSAGE_CREATE = {
     **MESSAGE_UPDATE,
+    **CHANNEL_GREET,
     "channel_id": {"type": "snowflake", "required": False},
-    "sticker_ids": {"type": "list", "required": False, "schema": {"coerce": int}},
     "nonce": {"coerce": str, "required": False, "nullable": True},
     "tts": {"type": "boolean", "default": False},
-    "message_reference": {
-        "type": "dict",
-        "required": False,
-        "nullable": True,
-        "schema": {
-            "guild_id": {"coerce": str, "required": False},
-            "channel_id": {"coerce": str, "required": True},
-            "message_id": {"coerce": str, "required": True},
-        },
-    },
 }
 
 
