@@ -1,14 +1,14 @@
 import json
-import logging
 import os
 from typing import Optional
 
 from litecord.enums import PremiumType
 from litecord.errors import BadRequest, ManualFormError, TooLarge
+from logbook import Logger
 from PIL import Image
-from quart import current_app as app, request
+from quart import request, current_app as app
 
-log = logging.getLogger(__name__)
+log = Logger(__name__)
 
 PLAN_ID_TO_TYPE = {
     "premium_month_tier_0": PremiumType.TIER_0,
@@ -157,7 +157,7 @@ async def msg_add_attachment(message_id: int, channel_id: int, author_id: Option
     with open(f"attachments/{attachment_id}.{ext}", "wb") as attach_file:
         attach_file.write(attachment_file.stream.read())
 
-    log.debug("saved attachment {} to disk", attachment_id)
+    log.debug("written {} bytes for attachment id {}", file_size, attachment_id)
 
     return attachment_id
 
