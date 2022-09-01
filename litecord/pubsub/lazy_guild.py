@@ -535,9 +535,11 @@ class GuildMemberList:
 
     def _get_member_as_item(self, member_id: int) -> Optional[dict]:
         """Get an item representing a member."""
-        member = self.list.members[member_id]
-        presence = self.list.presences[member_id]
+        member = self.list.members.get(member_id)
+        if not member:
+            return
 
+        presence = self.list.presences[member_id]
         return merge(member, presence)
 
     @property
