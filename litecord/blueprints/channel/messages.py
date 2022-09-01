@@ -265,7 +265,7 @@ async def create_message(
                 mention_roles.append(found_id)
 
     if data.get("message_reference") and not data.get("flags", 0) & MessageFlags.is_crosspost == MessageFlags.is_crosspost:
-        author_id = await app.db.fetchval(
+        reply_id = await app.db.fetchval(
             """
         SELECT author_id
         FROM messages
@@ -273,8 +273,8 @@ async def create_message(
         """,
             int(data["message_reference"]["message_id"]),
         )
-        if author_id:
-            mentions.append(author_id)
+        if reply_id:
+            mentions.append(reply_id)
 
     async with app.db.acquire() as conn:
         await pg_set_json(conn)
