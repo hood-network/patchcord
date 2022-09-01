@@ -142,14 +142,6 @@ async def make_friend(
         await _dispatch(
             user_id,
             (
-                "RELATIONSHIP_REMOVE",
-                {"type": RelationshipType.INCOMING.value, "id": str(peer_id)},
-            ),
-        )
-
-        await _dispatch(
-            user_id,
-            (
                 "RELATIONSHIP_ADD",
                 {
                     "type": _friend,
