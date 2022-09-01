@@ -761,7 +761,7 @@ USER_SETTINGS = {
 
 RELATIONSHIP = {
     "type": {
-        "coerce": str,
+        "coerce": int,
         "allowed": (RelationshipType.FRIEND.value, RelationshipType.BLOCK.value),
         "default": RelationshipType.FRIEND.value,
     }
