@@ -20,7 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 from quart import Blueprint, request, current_app as app, jsonify
 
 from litecord.blueprints.auth import token_check
-from litecord.errors import BadRequest, ManualFormError, NotFound
+from litecord.errors import NotFound
 
 from litecord.schemas import validate, MEMBER_UPDATE, SELF_MEMBER_UPDATE
 from litecord.utils import to_update
@@ -190,7 +190,7 @@ async def modify_guild_member(guild_id, member_id):
     if nick_flag:
         partial["nick"] = j["nick"]
 
-    await app.lazy_guild.pres_update(guild_id, user_id, partial)
+    await app.lazy_guild.pres_update(guild_id, member_id, partial)
     await app.dispatcher.guild.dispatch(
         guild_id, ("GUILD_MEMBER_UPDATE", {**{"guild_id": str(guild_id)}, **member})
     )
