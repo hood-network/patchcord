@@ -609,7 +609,7 @@ class GuildMemberList:
         given session ids."""
 
         # construct the payload to dispatch
-        groups = self.list.groups_complete
+        groups = list(self.list.groups_complete)
         member_count = len(self.list.members)
         offline_count = 0
         for group, count in groups:
