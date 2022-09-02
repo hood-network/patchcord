@@ -609,14 +609,23 @@ class GuildMemberList:
         given session ids."""
 
         # construct the payload to dispatch
+        groups = self.list.groups_complete
+        member_count = len(self.list.members)
+        offline_count = 0
+        for group, count in groups:
+            if group.gid == "offline":
+                offline_count = count
+
         payload = {
             "id": self.list_id,
             "guild_id": str(self.guild_id),
             "groups": [
                 {"id": str(group.gid), "count": count}
-                for group, count in self.list.groups_complete
+                for group, count in groups
             ],
             "ops": [operation.to_dict for operation in operations],
+            "member_count": member_count,
+            "online_count": member_count - offline_count,
         }
 
         states = map(self._get_state, session_ids)
