@@ -25,7 +25,7 @@ import websockets
 from logbook import Logger
 
 from litecord.presence import BasePresence
-from litecord.enums import Intents, MessageFlags
+from litecord.enums import Intents
 from .opcodes import OP
 
 log = Logger(__name__)
@@ -34,6 +34,21 @@ log = Logger(__name__)
 def gen_session_id() -> str:
     """Generate a random session ID."""
     return hashlib.sha1(os.urandom(128)).hexdigest()
+
+
+def content_allowed(user_id: str, intents: Intents, data: dict) -> bool:
+    # Message content is returned if any of the following is true:
+    # - User has the message content intent
+    # - The message is not from a guild
+    # - The user is the message author
+    # - The user is explicitly mentioned in the message
+    # Otherwise, `content`, `embeds`, `attachments`, and `components` are yeeted
+    return (
+        (intents & Intents.MESSAGE_CONTENT == Intents.MESSAGE_CONTENT)
+        or not data.get("guild_id")
+        or user_id == data.get("author", {}).get("id")
+        or user_id in data.get("mentions", [])
+    )
 
 
 class PayloadStore:
@@ -131,12 +146,25 @@ class GatewayState:
                 # Various old API version compatibility crap
                 data = payload.get("d") or {}
 
-                if event_type.startswith("MESSAGE_"):
+                if event_type in ("MESSAGE_CREATE", "MESSAGE_UPDATE"):
                     data.pop("reactions", None)
                     data["referenced_message"] = data.get("referenced_message") or None
-
                     if data.get("type") in (19, 20, 23) and self.ws.ws_properties.version < 8:
                         data["type"] = 0
+
+                    if not content_allowed(str(self.user_id), self.intents, data):
+                        if data.get("content"):
+                            data["content"] = ""
+                        if data.get("embeds"):
+                            data["embeds"] = []
+                        if data.get("attachments"):
+                            data["attachments"] = []
+                        if data["referenced_message"] and not content_allowed(str(self.user_id), self.intents, data["referenced_message"]):
+                            data["referenced_message"].update({
+                                "content": "",
+                                "embeds": [],
+                                "attachments": []
+                            })
 
                 elif (
                     event_type.startswith("GUILD_ROLE_")

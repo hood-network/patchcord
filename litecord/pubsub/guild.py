@@ -24,7 +24,7 @@ from logbook import Logger
 
 from .dispatcher import DispatcherWithState, GatewayEvent
 from litecord.gateway.state import GatewayState
-from litecord.enums import EVENTS_TO_INTENTS
+from litecord.enums import EVENTS_TO_INTENTS, Intents
 from litecord.permissions import get_permissions
 
 
@@ -32,19 +32,21 @@ log = Logger(__name__)
 
 
 def can_dispatch(event_type, event_data, state) -> bool:
-    # If we're sending to the same user for this kind of event,
-    # bypass event logic (always send)
     if event_type == "GUILD_MEMBER_UPDATE":
+        # You always get GUILD_MEMBER_UPDATE for yourself
         user_id = int(event_data["user"]["id"])
-        return user_id == state.user_id
+        if user_id == state.user_id:
+            wanted_intent = None
+        wanted_intent = Intents.GUILD_MEMBERS
+    else:
+        # If the return value is a tuple, it depends on `guild_id` being present
+        wanted_intent = EVENTS_TO_INTENTS.get(event_type)
+        if isinstance(wanted_intent, tuple):
+            wanted_intent = wanted_intent[bool(event_data.get("guild_id"))]
 
-    # TODO Guild Create and Req Guild Members have specific
-    # logic regarding the presence intent.
-
-    wanted_intent = EVENTS_TO_INTENTS.get(event_type)
     if wanted_intent is not None:
-        state_has_intent = (state.intents & wanted_intent) == wanted_intent
-        return state_has_intent
+        return (state.intents & wanted_intent) == wanted_intent
+    return True
 
 
 class GuildDispatcher(DispatcherWithState[int, str, GatewayEvent, List[str]]):

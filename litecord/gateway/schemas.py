@@ -82,9 +82,6 @@ IDENTIFY_SCHEMA = {
                         "release_channel": {"type": "string", "required": False},
                         "system_locale": {"type": "string", "required": False},
                         "window_manager": {"type": "string", "required": False},
-                        "$browser": {"type": "string", "required": False},
-                        "$os": {"type": "string", "required": False},
-                        "$device": {"type": "string", "required": False},
                         "device": {"type": "string", "required": False},
                         "referrer": {"type": "string", "required": False},
                         "referrer_current": {"type": "string", "required": False},
@@ -107,24 +104,20 @@ IDENTIFY_SCHEMA = {
                     "type": "dict",
                     "required": False,
                     "schema": {
-                        # guild_hashes is a Dict with keys being guild ids and
-                        # values being a list of 3 strings. this can not be
-                        # validated by cerberus
+                        # guild_hashes cannot be validated by Cerberus
                         "highest_last_message_id": {
-                            "anyof_type": ["string", "number"],
+                            "coerce": int,
                             "required": False,
                         },
-                        "read_state_version": {"type": "number", "required": False},
+                        "read_state_version": {"coerce": int, "required": False},
                         "user_guild_settings_version": {
-                            "type": "number",
+                            "coerce": int,
                             "required": False,
                         },
-                        "user_settings_version": {"type": "number", "required": False},
+                        "user_settings_version": {"coerce": int, "required": False},
                     },
                 },
                 "guild_subscriptions": {"type": "boolean", "required": False},
-                # this is just to make bot libraries happy
-                "v": {"type": "number", "required": False},
             },
         }
     },

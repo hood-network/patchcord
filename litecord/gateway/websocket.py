@@ -203,6 +203,8 @@ def calculate_intents(data) -> Intents:
         intents_int = Intents(0)
         intents_int |= Intents.GUILD_MESSAGE_TYPING
         intents_int |= Intents.DIRECT_MESSAGE_TYPING
+        intents_int |= Intents.GUILD_PRESENCES
+        intents_int |= Intents.GUILD_MEMBERS
         intents_int = ~intents_int
     elif intents_int is None:
         intents_int = Intents.default()
