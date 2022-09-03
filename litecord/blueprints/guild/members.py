@@ -49,7 +49,7 @@ async def add_guild_member(guild_id, member_id):
 
     # TODO: if we ever support bots we will need to use checks for all of these here but 
     # for now since this is only for the admin panel we can safely skip all checks
-    add_member(guild_id, member_id, skip_check=True, basic=True)
+    await add_member(guild_id, member_id, skip_check=True, basic=True)
 
     return "", 204
 
