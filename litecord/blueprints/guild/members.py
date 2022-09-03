@@ -19,7 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from quart import Blueprint, request, current_app as app, jsonify
 
-from litecord.blueprints.auth import token_check
+from litecord.auth import token_check, admin_check
 from litecord.errors import NotFound
 
 from litecord.schemas import validate, MEMBER_UPDATE, SELF_MEMBER_UPDATE
@@ -28,6 +28,8 @@ from litecord.utils import to_update
 from litecord.enums import PremiumType
 
 from litecord.blueprints.checks import guild_check, guild_perm_check
+
+from litecord.common.guilds import add_member
 
 bp = Blueprint("guild_members", __name__)
 
@@ -39,6 +41,17 @@ async def get_guild_member(guild_id, member_id):
     await guild_check(user_id, guild_id)
     member = await app.storage.get_single_member(guild_id, member_id)
     return jsonify(member)
+
+@bp.route("/<int:guild_id>/members/<int:member_id>", methods=["PUT"])
+async def add_guild_member(guild_id, member_id):
+    """Forcibly add a member to a guild"""
+    await admin_check()
+
+    # TODO: if we ever support bots we will need to use checks for all of these here but 
+    # for now since this is only for the admin panel we can safely skip all checks
+    add_member(guild_id, member_id, skip_check=True, basic=True)
+
+    return "", 204
 
 
 @bp.route("/<int:guild_id>/members", methods=["GET"])
