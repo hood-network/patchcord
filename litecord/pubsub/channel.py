@@ -44,6 +44,17 @@ def gdm_recipient_view(orig: dict, user_id: int) -> dict:
     return data
 
 
+def can_dispatch(event_type, event_data, state) -> bool:
+    # If the return value is a tuple, it depends on `guild_id` being present
+    wanted_intent = EVENTS_TO_INTENTS.get(event_type)
+    if isinstance(wanted_intent, tuple):
+        wanted_intent = wanted_intent[bool(event_data.get("guild_id"))]
+
+    if wanted_intent is not None:
+        return (state.intents & wanted_intent) == wanted_intent
+    return True
+
+
 class ChannelDispatcher(DispatcherWithState[int, str, GatewayEvent, List[str]]):
     """Main channel Pub/Sub logic. Handles both Guild, DM, and Group DM channels."""
 
@@ -62,11 +73,8 @@ class ChannelDispatcher(DispatcherWithState[int, str, GatewayEvent, List[str]]):
                 await self.unsub(channel_id, session_id)
                 continue
 
-            wanted_intent = EVENTS_TO_INTENTS.get(event_type)
-            if wanted_intent is not None:
-                state_has_intent = (state.intents & wanted_intent) == wanted_intent
-                if not state_has_intent:
-                    continue
+            if not can_dispatch(event_type, event_data, state):
+                continue
 
             correct_event = event
             # for cases where we are talking about group dms, we create an edited
