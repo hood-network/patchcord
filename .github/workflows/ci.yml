@@ -1,0 +1,47 @@
+name: Run tests
+on: push
+
+env:
+  PIP_CACHE_DIR: '$GITHUB_WORKSPACE/.cache/pip'
+  POSTGRES_HOST_AUTH_METHOD: 'trust'
+
+jobs:
+  tests:
+    name: Run tests
+    runs-on: ubuntu-latest
+
+    container:
+      image: python:3.9-alpine
+
+    services:
+      postgres:
+        image: postgres:10.8
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ''
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        # needed because the postgres container does not provide a healthcheck
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Show Python version info
+        run: python -V
+
+      - name: Install dependencies
+        run: time apk --update add --no-cache build-base gcc libgcc libffi-dev openssl-dev git postgresql-client jpeg-dev openjpeg-dev zlib-dev freetype-dev lcms2-dev freetype-dev gifsicle rust cargo
+
+      - name: Upgrade pip
+        run: time pip3 install --upgrade pip
+
+      - name: Install Python dependencies
+        run: time pip3 install wheel tox
+
+      - name: Copy dummy config
+        run: cp config.ci.py config.py
+
+      - name: Run tests
+        run: time tox
