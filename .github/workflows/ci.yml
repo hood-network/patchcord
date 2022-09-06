@@ -32,7 +32,7 @@ jobs:
         run: time apk --update add --no-cache build-base gcc libgcc libffi-dev openssl-dev git postgresql-client jpeg-dev openjpeg-dev zlib-dev freetype-dev lcms2-dev freetype-dev gifsicle rust cargo
 
       - name: Install Python dependencies
-        run: time pip3 -U pip install wheel tox
+        run: time pip3 install -U pip wheel tox
 
       - name: Copy dummy config
         run: cp config.ci.py config.py
