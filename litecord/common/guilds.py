@@ -351,7 +351,6 @@ async def add_member(guild_id: int, user_id: int, *, basic: bool = False, skip_c
         if len(guild_ids) >= max_guilds:
             raise BadRequest(30001, max_guilds)
 
-    if not basic:
         nsfw_level = await app.db.fetchval(
             """
         SELECT nsfw_level
