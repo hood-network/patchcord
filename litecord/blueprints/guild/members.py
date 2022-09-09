@@ -47,24 +47,18 @@ async def add_guild_member(guild_id, member_id):
     """Forcibly add a member to a guild"""
     await admin_check()
 
-    joined = await app.db.fetchval(
-        """
-    SELECT joined_at
-    FROM members
-    WHERE user_id = $1 AND guild_id = $2
-    """,
-        member_id,
-        guild_id,
-    )
+    async def get_member():
+        return await app.storage.get_single_member(guild_id, member_id)
 
-    if joined:
+    if await get_member():
         return "", 204
 
     # TODO: if we ever support bots we will need to use checks for all of these here but 
     # for now since this is only for the admin panel we can safely skip all checks
     await add_member(guild_id, member_id, skip_check=True, basic=False)
 
-    return await get_guild_member(guild_id, member_id), 201
+    member = await get_member()
+    return jsonify(member)
 
 @bp.route("/<int:guild_id>/members", methods=["GET"])
 async def get_members(guild_id):
