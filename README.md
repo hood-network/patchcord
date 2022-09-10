@@ -12,6 +12,10 @@ Credits to [Displunger](https://gitlab.com/derpystuff/displunger).
 [litecord-reference]: https://gitlab.com/luna/litecord-reference
 [litecord serviced]: https://github.com/litecord
 
+## Important Note
+
+This project is for educational purposes and open-sourced so other cool people can observe and improve the project in collaboration with us. Our instance is private and at this time we are not providing selfhosting support.
+
 ## Wait, two other Litecords?
 
 The first version is litecord-reference, written in Python and used MongoDB
