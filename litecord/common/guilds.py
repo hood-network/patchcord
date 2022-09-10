@@ -35,20 +35,20 @@ from litecord.system_messages import send_sys_message
 log = Logger(__name__)
 
 async def _check_max_guilds(user_id: int):
-        plan_id = await app.db.fetchval(
-            """
+    plan_id = await app.db.fetchval(
+        """
         SELECT payment_gateway_plan_id
         FROM user_subscriptions
         WHERE status = 1
-            AND user_id = $1
+        AND user_id = $1
         """,
-            user_id,
-        )
-        premium_type = PLAN_ID_TO_TYPE.get(plan_id)
-        guild_ids = await app.user_storage.get_user_guilds(user_id)
-        max_guilds = 200 if premium_type == PremiumType.TIER_2 else 100
-        if len(guild_ids) >= max_guilds:
-            raise BadRequest(30001, max_guilds)
+        user_id,
+    )
+    premium_type = PLAN_ID_TO_TYPE.get(plan_id)
+    guild_ids = await app.user_storage.get_user_guilds(user_id)
+    max_guilds = 200 if premium_type == PremiumType.TIER_2 else 100
+    if len(guild_ids) >= max_guilds:
+        raise BadRequest(30001, max_guilds)
 
 async def remove_member(guild_id: int, member_id: int, raise_err: bool = True) -> None:
     """Do common tasks related to deleting a member from the guild,
