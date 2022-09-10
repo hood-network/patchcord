@@ -26,6 +26,7 @@ from litecord.common.guilds import (
     create_guild_channel,
     delete_guild,
     add_member,
+    _check_max_guilds,
 )
 from litecord.common.interop import guild_view
 
@@ -269,6 +270,8 @@ async def create_guild():
 async def handle_guild_create(user_id: int, guild_id: int, extra_j: Optional[dict] = None) -> Tuple[dict, dict]:
     j = validate(await request.get_json(), GUILD_CREATE)
     extra_j = extra_j or {}
+
+    await _check_max_guilds()
 
     if "icon" in j and j["icon"]:
         image = await put_guild_icon(guild_id, j["icon"])
