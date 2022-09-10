@@ -271,7 +271,7 @@ async def handle_guild_create(user_id: int, guild_id: int, extra_j: Optional[dic
     j = validate(await request.get_json(), GUILD_CREATE)
     extra_j = extra_j or {}
 
-    await _check_max_guilds()
+    await _check_max_guilds(user_id)
 
     if "icon" in j and j["icon"]:
         image = await put_guild_icon(guild_id, j["icon"])

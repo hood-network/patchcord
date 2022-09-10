@@ -351,7 +351,7 @@ async def add_member(guild_id: int, user_id: int, *, basic: bool = False, skip_c
     """
 
     if not skip_check:
-        await _check_max_guilds()
+        await _check_max_guilds(user_id)
 
         nsfw_level = await app.db.fetchval(
             """
