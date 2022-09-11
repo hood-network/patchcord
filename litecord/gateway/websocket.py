@@ -433,7 +433,7 @@ class GatewayWebsocket:
         friend_presences = await self.app.presence.friend_presences(friend_ids)
         settings = settings or await self.user_storage.get_user_settings(user_id)
 
-        if self.ws_properties.version < 7:  # v6 and below
+        if self.ws_properties.version < 8:  # v6 and below
             user_guild_settings = await self.user_storage.get_guild_settings(user_id)
             read_state = await self.user_storage.get_read_state(user_id)
         else:
@@ -526,8 +526,7 @@ class GatewayWebsocket:
         #         guild["members"] = []
 
         await self.dispatch_raw("READY", full_ready_data)
-        if self.ws_properties.version > 5:
-            await self.dispatch_raw("READY_SUPPLEMENTAL", ready_supplemental)
+        await self.dispatch_raw("READY_SUPPLEMENTAL", ready_supplemental)
         self.ready.set()
         app.sched.spawn(self._guild_dispatch(guilds))
 
@@ -767,6 +766,9 @@ class GatewayWebsocket:
         shard = data.get("shard", [0, 1])
         presence = data.get("presence") or {}
 
+        if self.ws_properties.version > 7:
+            data.pop("guild_subscriptions", None)
+
         intents = calculate_intents(data)
 
         try:
@@ -787,7 +789,7 @@ class GatewayWebsocket:
         await self._check_shards(shard, user_id)
 
         # only create a state after checking everything
-        self.state = GatewayState(
+        self.state = state = GatewayState(
             user_id=user_id,
             bot=bot,
             compress=compress,
@@ -797,10 +799,10 @@ class GatewayWebsocket:
             intents=intents,
         )
 
-        self.state.ws = self
+        state.ws = self
 
         # link the state to the user
-        self.app.state_manager.insert(self.state)
+        self.app.state_manager.insert(state)
 
         settings = await self.user_storage.get_user_settings(user_id)
 
@@ -1105,14 +1107,14 @@ class GatewayWebsocket:
         GUILD_SYNC event with that info.
         """
         members = await self.storage.get_members(guild_id)
-        member_ids = [int(m["user"]["id"]) for m in members]
+        member_ids = list(members.keys())
 
         log.debug(f"Syncing guild {guild_id} with {len(member_ids)} members")
         presences = await self.presence.guild_presences(member_ids, guild_id)
 
         await self.dispatch_raw(
             "GUILD_SYNC",
-            {"id": str(guild_id), "presences": presences, "members": members},
+            {"id": str(guild_id), "presences": presences, "members": list(members.values())},
         )
 
     async def handle_12(self, payload: Dict[str, Any]):
