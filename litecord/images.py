@@ -432,6 +432,12 @@ class IconManager:
 
         await self.storage.db.execute(
             """
+        DELETE FROM icons WHERE key=$1
+        """,
+            str(key)
+        )
+        await self.storage.db.execute(
+            """
         INSERT INTO icons (scope, key, hash, mime)
         VALUES ($1, $2, $3, $4)
         """,
