@@ -254,6 +254,7 @@ class Storage:
 
         drow["features"] = drow["features"] or []
         drow["roles"] = await self.get_role_data(guild_id)
+        drow["emojis"] = await self.get_guild_emojis(guild_id)
         drow["vanity_url_code"] = await self.vanity_invite(guild_id)
         drow["nsfw"] = drow["nsfw_level"] in (NSFWLevel.RESTRICTED.value, NSFWLevel.EXPLICIT.value)
         drow["embed_enabled"] = drow["widget_enabled"]
@@ -266,7 +267,7 @@ class Storage:
 
         # TODO
         drow["preferred_locale"] = "en-US"
-        drow["guild_scheduled_events"] = drow["embedded_activities"] = drow["connections"] = []
+        drow["guild_scheduled_events"] = drow["embedded_activities"] = drow["connections"] = drow["stickers"] = []
 
         if full:
             return {**drow, **await self.get_guild_extra(guild_id, user_id, large)}
@@ -823,7 +824,6 @@ class Storage:
                 "members": list(members.values()),
                 "channels": channels,
                 "presences": await self.presence.guild_presences(mids, guild_id),
-                "emojis": await self.get_guild_emojis(guild_id),
                 "voice_states": await self.guild_voice_states(guild_id),
                 "lazy": True,
             },
