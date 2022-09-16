@@ -254,6 +254,7 @@ class Storage:
 
         drow["features"] = drow["features"] or []
         drow["roles"] = await self.get_role_data(guild_id)
+        drow["emojis"] = await self.get_guild_emojis(guild_id)
         drow["vanity_url_code"] = await self.vanity_invite(guild_id)
         drow["nsfw"] = drow["nsfw_level"] in (NSFWLevel.RESTRICTED.value, NSFWLevel.EXPLICIT.value)
         drow["embed_enabled"] = drow["widget_enabled"]
@@ -261,13 +262,12 @@ class Storage:
 
         # hardcoding these since:
         #  - we aren't discord
-        #  - the limit for guilds is unknown and heavily dependant on the
-        #     hardware
+        #  - the limit for guilds is unknown and heavily dependant on the hardware
         drow["max_presences"] = drow["max_members"] = drow["max_video_channel_users"] = drow["max_stage_video_channel_users"] = 1000000
 
         # TODO
         drow["preferred_locale"] = "en-US"
-        drow["guild_scheduled_events"] = drow["embedded_activities"] = drow["connections"] = []
+        drow["guild_scheduled_events"] = drow["embedded_activities"] = drow["connections"] = drow["stickers"] = []
 
         if full:
             return {**drow, **await self.get_guild_extra(guild_id, user_id, large)}
@@ -417,23 +417,23 @@ class Storage:
 
         return members
 
-    async def get_members(self, guild_id: int, with_user: bool = True) -> List[Dict[str, Any]]:
+    async def get_members(self, guild_id: int, with_user: bool = True) -> Dict[int, Dict[str, Any]]:
         """Get member information on a guild."""
         members_basic = await self.db.fetch(
             """
         SELECT user_id, nickname AS nick, joined_at,
                deafened AS deaf, muted AS mute, avatar, banner, bio, pronouns,
-               ARRAY(SELECT role_id::text FROM member_roles WHERE guild_id = $1 AND user_id = user_id) AS roles
+               ARRAY(SELECT role_id::text FROM member_roles WHERE guild_id = $1 AND user_id = members.user_id) AS roles
         FROM members
         WHERE guild_id = $1
         """,
             guild_id,
         )
 
-        members = []
+        members = {}
         for row in members_basic:
             drow = dict(row)
-            user_id = drow["user_id"]
+            user_id = drow.pop("user_id")
 
             try:
                 drow["roles"].remove(str(guild_id))
@@ -452,10 +452,9 @@ class Storage:
             drow["joined_at"] = timestamp_(row["joined_at"])
             if with_user:
                 drow["user"] = await self.get_user(user_id)
-                drow.pop("user_id")
             else:
-                drow["user_id"] = str(drow["user_id"])
-            members.append(drow)
+                drow["user_id"] = str(user_id)
+            members[user_id] = drow
 
         return members
 
@@ -804,49 +803,27 @@ class Storage:
         """Get extra information about a guild."""
         res = {}
 
-        member_count = await self.db.fetchval(
-            """
-        SELECT COUNT(*)
-        FROM members
-        WHERE guild_id = $1
-        """,
-            guild_id,
-        )
+        members = await self.get_members(guild_id)
+        channels = await self.get_channel_data(guild_id)
+        member_count = len(members)
 
+        assert self.presence is not None
+        mids = list(members.keys())
         if large:
             res["large"] = member_count > large
 
         if user_id:
-            joined_at = await self.db.fetchval(
-                """
-            SELECT joined_at
-            FROM members
-            WHERE guild_id = $1 AND user_id = $2
-            """,
-                guild_id,
-                user_id,
-            )
-
-            res["joined_at"] = timestamp_(joined_at)
-
-        members = await self.get_members(guild_id)
-        channels = await self.get_channel_data(guild_id)
-
-        # prevent data inconsistencies
-        assert len(members) == member_count
-
-        mids = [int(m["user"]["id"]) for m in members]
-
-        assert self.presence is not None
+            self_member = members.get(user_id)
+            if self_member:
+                res["joined_at"] = self_member["joined_at"]
 
         return {
             **res,
             **{
                 "member_count": member_count,
-                "members": members,
+                "members": list(members.values()),
                 "channels": channels,
                 "presences": await self.presence.guild_presences(mids, guild_id),
-                "emojis": await self.get_guild_emojis(guild_id),
                 "voice_states": await self.guild_voice_states(guild_id),
                 "lazy": True,
             },
