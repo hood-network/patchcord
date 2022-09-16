@@ -1,11 +1,4 @@
-`  _____        _         _                           _ 
- |  __ \      | |       | |                         | |
- | |__) |__ _ | |_  ___ | |__    ___  ___   _ __  __| |
- |  ___// _` || __|/ __|| '_ \  / __|/ _ \ | '__|/ _` |
- | |   | (_| || |_| (__ | | | || (__| (_) || |  | (_| |
- |_|    \__,_| \__|\___||_| |_| \___|\___/ |_|   \__,_|
-                                                       `
-                                                       
+dis is my fork use the main one xd                               
 
 Litecord is an open source, [clean-room design][clean-room] reimplementation of
 Discord's HTTP API and Gateway in Python 3.
