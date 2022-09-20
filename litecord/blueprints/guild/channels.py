@@ -57,7 +57,7 @@ async def create_channel(guild_id):
     if channel_type == ChannelType.GUILD_CATEGORY and j.get("parent_id"):
         raise ManualFormError(parent_id={"code": "CHANNEL_PARENT_INVALID_PARENT", "message": "Categories cannot have subcategories"})
 
-    if channel_type == ChannelType.GUILD_NEWS and not app.storage.has_feature("NEWS"):
+    if channel_type == ChannelType.GUILD_NEWS and not app.storage.has_feature(guild_id, "NEWS"):
         raise ManualFormError(type={"code": "BASE_TYPE_CHOICES", "message": f"Value must be one of {CHAN_CREATE['type']['allo']}."})
 
     new_channel_id = app.winter_factory.snowflake()
