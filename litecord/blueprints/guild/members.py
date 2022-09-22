@@ -39,7 +39,7 @@ async def get_guild_member(guild_id, member_id):
     """Get a member's information in a guild."""
     user_id = await token_check()
     await guild_check(user_id, guild_id)
-    member = await app.storage.get_single_member(guild_id, member_id)
+    member = await app.storage.get_member(guild_id, member_id)
     return jsonify(member)
 
 @bp.route("/<int:guild_id>/members/<int:member_id>", methods=["PUT"])
@@ -48,7 +48,7 @@ async def add_guild_member(guild_id, member_id):
     await admin_check()
 
     async def get_member():
-        return await app.storage.get_single_member(guild_id, member_id)
+        return await app.storage.get_member(guild_id, member_id)
 
     if await get_member():
         return "", 204
