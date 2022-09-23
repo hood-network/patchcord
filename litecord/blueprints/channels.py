@@ -43,7 +43,11 @@ from litecord.schemas import (
 
 from litecord.blueprints.checks import channel_check, channel_perm_check
 from litecord.system_messages import send_sys_message
-from litecord.blueprints.dm_channels import gdm_is_owner, gdm_remove_recipient, gdm_destroy
+from litecord.blueprints.dm_channels import (
+    gdm_is_owner,
+    gdm_remove_recipient,
+    gdm_destroy,
+)
 from litecord.utils import str_bool, to_update
 from litecord.json import pg_set_json
 from litecord.embed.messages import process_url_embed, msg_update_embeds
@@ -254,7 +258,7 @@ async def close_channel(channel_id):
             DELETE FROM {main_tbl}
             WHERE id = $1
             """,
-                channel_id
+                channel_id,
             )
 
         updated_ids = []
@@ -274,7 +278,7 @@ async def close_channel(channel_id):
             UPDATE guild_channels SET parent_id = NULL
             WHERE parent_id = $1
             """,
-                channel_id
+                channel_id,
             )
 
         await app.db.execute(
@@ -354,7 +358,9 @@ async def close_channel(channel_id):
                 )
 
                 chan = await app.storage.get_channel(channel_id, user_id=user_id)
-                await app.dispatcher.channel.dispatch(channel_id, ("CHANNEL_UPDATE", chan))
+                await app.dispatcher.channel.dispatch(
+                    channel_id, ("CHANNEL_UPDATE", chan)
+                )
 
         return jsonify(chan)
     else:
@@ -574,7 +580,10 @@ async def _update_text_channel(channel_id: int, j: dict, _user_id: int):
             channel_id,
         )
 
-    if channel["type"] in (ChannelType.GUILD_TEXT.value, ChannelType.GUILD_NEWS.value) and j["type"] in (ChannelType.GUILD_TEXT.value, ChannelType.GUILD_NEWS.value):
+    if channel["type"] in (
+        ChannelType.GUILD_TEXT.value,
+        ChannelType.GUILD_NEWS.value,
+    ) and j["type"] in (ChannelType.GUILD_TEXT.value, ChannelType.GUILD_NEWS.value):
         await app.db.execute(
             f"""
         UPDATE channels
@@ -713,7 +722,9 @@ async def trigger_typing(channel_id):
                 "channel_id": str(channel_id),
                 "user_id": str(user_id),
                 "timestamp": int(time.time()),
-                "guild_id": str(guild_id) if ctype not in (ChannelType.DM, ChannelType.GROUP_DM) else None,
+                "guild_id": str(guild_id)
+                if ctype not in (ChannelType.DM, ChannelType.GROUP_DM)
+                else None,
             },
         ),
     )
@@ -745,7 +756,12 @@ async def _follow_channel(channel_id):
 
     webhook_id = app.winter_factory.snowflake()
     token = secrets.token_urlsafe(40)
-    webhook_icon = (hex(hash("user_avatar")).lstrip("-0x")[:3] + hex(hash(str(webhook_id))).lstrip("-0x")[:3] + "." + guild_icon.fs_hash)
+    webhook_icon = (
+        hex(hash("user_avatar")).lstrip("-0x")[:3]
+        + hex(hash(str(webhook_id))).lstrip("-0x")[:3]
+        + "."
+        + guild_icon.fs_hash
+    )
 
     await app.db.execute(
         """
@@ -789,7 +805,13 @@ async def _follower_stats(channel_id):  # Even the official API stubs this
     await channel_perm_check(user_id, channel_id, "read_messages")
 
     guild_id = await app.storage.guild_from_channel(channel_id)
-    return jsonify({"guild_id": str(guild_id), "webhook_source_channel_id": None, "users_seen_ever": None})
+    return jsonify(
+        {
+            "guild_id": str(guild_id),
+            "webhook_source_channel_id": None,
+            "users_seen_ever": None,
+        }
+    )
 
 
 @bp.route("/<int:channel_id>/messages/search", methods=["GET"])
@@ -800,13 +822,21 @@ async def _search_channel(channel_id):
     await channel_perm_check(user_id, channel_id, "read_messages")
     await channel_perm_check(user_id, channel_id, "read_history")
 
-    return await handle_search(await app.storage.guild_from_channel(channel_id), channel_id)
+    return await handle_search(
+        await app.storage.guild_from_channel(channel_id), channel_id
+    )
 
 
 @bp.route("/<int:channel_id>/application-commands/search", methods=["GET"])
 async def _search_application_commands(channel_id):
     """Stub application command search"""
-    return jsonify({"application_commands": [], "applications": [], "cursor": {"next": None, "previous": None, "repaired": None}})
+    return jsonify(
+        {
+            "application_commands": [],
+            "applications": [],
+            "cursor": {"next": None, "previous": None, "repaired": None},
+        }
+    )
 
 
 # NOTE that those functions stay here until some other
@@ -910,9 +940,7 @@ async def suppress_embeds(channel_id: int, message_id: int):
     return "", 204
 
 
-@bp.route(
-    "/<int:channel_id>/messages/<int:message_id>/crosspost", methods=["POST"]
-)
+@bp.route("/<int:channel_id>/messages/<int:message_id>/crosspost", methods=["POST"])
 async def publish_message(channel_id: int, message_id: int):
     user_id = await token_check()
     await channel_check(user_id, channel_id, only=ChannelType.GUILD_NEWS)
@@ -973,7 +1001,17 @@ async def publish_message(channel_id: int, message_id: int):
         user = await app.storage.get_user(found_id)
         content = content.replace(match.group(0), user["username"] if user else "")
 
-    result = {"content": content, "embeds": message.get("embeds", []), "sticker_ids": list(map(int, message.get("sticker_ids", []))), "flags": flags | MessageFlags.is_crosspost, "message_reference": {"guild_id": int(message["guild_id"]), "channel_id": channel_id, "message_id": message_id}}
+    result = {
+        "content": content,
+        "embeds": message.get("embeds", []),
+        "sticker_ids": list(map(int, message.get("sticker_ids", []))),
+        "flags": flags | MessageFlags.is_crosspost,
+        "message_reference": {
+            "guild_id": int(message["guild_id"]),
+            "channel_id": channel_id,
+            "message_id": message_id,
+        },
+    }
 
     for hook in hooks:
         result_id = app.winter_factory.snowflake()
@@ -995,7 +1033,7 @@ async def publish_message(channel_id: int, message_id: int):
                 result["embeds"],
                 result["flags"],
                 result["sticker_ids"],
-                result["message_reference"]
+                result["message_reference"],
             )
 
             await conn.execute(
@@ -1012,7 +1050,9 @@ async def publish_message(channel_id: int, message_id: int):
             )
 
             payload = await app.storage.get_message(result_id, include_member=True)
-            await app.dispatcher.channel.dispatch(hook["channel_id"], ("MESSAGE_CREATE", payload))
+            await app.dispatcher.channel.dispatch(
+                hook["channel_id"], ("MESSAGE_CREATE", payload)
+            )
             app.sched.spawn(process_url_embed(payload))
 
     return jsonify(message_view(message))
@@ -1075,7 +1115,13 @@ async def voice_channel_effects(channel_id):
     await channel_perm_check(user_id, channel_id, "read_messages")
     await channel_perm_check(user_id, channel_id, "connect")
 
-    j = validate(await request.get_json(), {"emoji_id": {"coerce": int, "nullable": True}, "emoji_name": {"coerce": str, "nullable": True}})
+    j = validate(
+        await request.get_json(),
+        {
+            "emoji_id": {"coerce": int, "nullable": True},
+            "emoji_name": {"coerce": str, "nullable": True},
+        },
+    )
 
     animated = False
     if not j.get("emoji_id") and not j.get("emoji_name"):
@@ -1102,9 +1148,9 @@ async def voice_channel_effects(channel_id):
                     "id": str(j["emoji_id"]) if j.get("emoji_id") else None,
                     "name": j["emoji_name"] if j.get("emoji_name") else None,
                     "animated": animated,
-                }
-            }
-        )
+                },
+            },
+        ),
     )
 
     return "", 204

@@ -210,7 +210,11 @@ async def create_webhook(channel_id: int):
     token = secrets.token_urlsafe(40)
 
     webhook_icon = await app.icons.put(
-        "user_avatar", webhook_id, j.get("avatar") or None, always_icon=True, size=(1024, 1024)
+        "user_avatar",
+        webhook_id,
+        j.get("avatar") or None,
+        always_icon=True,
+        size=(1024, 1024),
     )
 
     await app.db.execute(
@@ -286,7 +290,11 @@ async def _update_webhook(webhook_id: int, j: dict):
 
     if "avatar" in j:
         new_icon = await app.icons.update(
-            "user_avatar", webhook_id, j["avatar"] or None, always_icon=True, size=(1024, 1024)
+            "user_avatar",
+            webhook_id,
+            j["avatar"] or None,
+            always_icon=True,
+            size=(1024, 1024),
         )
 
         await app.db.execute(
@@ -308,7 +316,9 @@ async def modify_webhook(webhook_id: int):
 
     if "channel_id" in j:
         chan = await app.storage.get_channel(j["channel_id"])
-        if (j["channel_id"] and not chan) or (chan and chan["guild_id"] != str(guild_id)):
+        if (j["channel_id"] and not chan) or (
+            chan and chan["guild_id"] != str(guild_id)
+        ):
             raise NotFound(10003)
 
     await _update_webhook(webhook_id, j)
@@ -513,7 +523,14 @@ async def execute_webhook(webhook_id: int, webhook_token):
             "content": j.get("content", ""),
             "tts": j.get("tts", False),
             "everyone_mention": mentions_everyone or mentions_here,
-            "embeds": [await fill_embed(embed) for embed in ((j.get("embeds") or []) or [j["embed"]] if "embed" in j and j["embed"] else [])],
+            "embeds": [
+                await fill_embed(embed)
+                for embed in (
+                    (j.get("embeds") or []) or [j["embed"]]
+                    if "embed" in j and j["embed"]
+                    else []
+                )
+            ],
             "info": {"name": j.get("username", webhook["name"]), "avatar": avatar},
         },
     )
@@ -552,25 +569,39 @@ async def execute_github_webhook(webhook_id, webhook_token):
     return "", 204
 
 
-@bp.route("/webhooks/<int:webhook_id>/<webhook_token>/messages/<int:message_id>", methods=["GET"])
+@bp.route(
+    "/webhooks/<int:webhook_id>/<webhook_token>/messages/<int:message_id>",
+    methods=["GET"],
+)
 async def get_webhook_message(webhook_id, webhook_token, message_id):
     """Get a message from a webhook."""
     await webhook_token_check(webhook_id, webhook_token)
 
     payload = await app.storage.get_message(message_id)
-    if not payload or not payload["webhook_id"] or int(payload["webhook_id"]) != webhook_id:
+    if (
+        not payload
+        or not payload["webhook_id"]
+        or int(payload["webhook_id"]) != webhook_id
+    ):
         raise NotFound(10008)
 
     return jsonify(message_view(payload))
 
 
-@bp.route("/webhooks/<int:webhook_id>/<webhook_token>/messages/<int:message_id>", methods=["PATCH"])
+@bp.route(
+    "/webhooks/<int:webhook_id>/<webhook_token>/messages/<int:message_id>",
+    methods=["PATCH"],
+)
 async def update_webhook_message(webhook_id, webhook_token, message_id):
     """Update a message from a webhook."""
     _, channel_id = await webhook_token_check(webhook_id, webhook_token)
 
     old_message = await app.storage.get_message(message_id)
-    if not old_message or not old_message["webhook_id"] or int(old_message["webhook_id"]) != webhook_id:
+    if (
+        not old_message
+        or not old_message["webhook_id"]
+        or int(old_message["webhook_id"]) != webhook_id
+    ):
         raise NotFound(10008)
 
     j = validate(await request.get_json(), WEBHOOK_MESSAGE_UPDATE)
@@ -591,7 +622,14 @@ async def update_webhook_message(webhook_id, webhook_token, message_id):
 
     if "embed" in j or "embeds" in j:
         updated = True
-        embeds = [await fill_embed(embed) for embed in ((j.get("embeds") or []) or [j["embed"]] if "embed" in j and j["embed"] else [])]
+        embeds = [
+            await fill_embed(embed)
+            for embed in (
+                (j.get("embeds") or []) or [j["embed"]]
+                if "embed" in j and j["embed"]
+                else []
+            )
+        ]
         await app.db.execute(
             """
         UPDATE messages
@@ -636,13 +674,20 @@ async def update_webhook_message(webhook_id, webhook_token, message_id):
     return jsonify(message_view(message))
 
 
-@bp.route("/webhooks/<int:webhook_id>/<webhook_token>/messages/<int:message_id>", methods=["DELETE"])
+@bp.route(
+    "/webhooks/<int:webhook_id>/<webhook_token>/messages/<int:message_id>",
+    methods=["DELETE"],
+)
 async def delete_webhook_message(webhook_id, webhook_token, message_id):
     """Delete a message from a webhook."""
     guild_id, channel_id = await webhook_token_check(webhook_id, webhook_token)
 
     payload = await app.storage.get_message(message_id)
-    if not payload or not payload["webhook_id"] or int(payload["webhook_id"]) != webhook_id:
+    if (
+        not payload
+        or not payload["webhook_id"]
+        or int(payload["webhook_id"]) != webhook_id
+    ):
         raise NotFound(10008)
 
     await _del_msg_fkeys(message_id, channel_id)

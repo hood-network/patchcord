@@ -202,12 +202,27 @@ def extract_limit(request_, min_val: int = 1, default: int = 50, max_val: int = 
     try:
         limit = int(request_.args.get("limit", default))
     except (TypeError, ValueError):
-        raise ManualFormError(limit={"code": "NUMBER_TYPE_COERCE", "message": f"Value \"{request_.args['limit']}\" is not int."})
+        raise ManualFormError(
+            limit={
+                "code": "NUMBER_TYPE_COERCE",
+                "message": f"Value \"{request_.args['limit']}\" is not int.",
+            }
+        )
 
     if limit < min_val:
-        raise ManualFormError(limit={"code": "NUMBER_TYPE_MIN", "message": f"Value should be greater than or equal to 0."})
+        raise ManualFormError(
+            limit={
+                "code": "NUMBER_TYPE_MIN",
+                "message": f"Value should be greater than or equal to 0.",
+            }
+        )
     if limit > max_val:
-        raise ManualFormError(limit={"code": "NUMBER_TYPE_MAX", "message": f"Value should be less than or equal to {max_val}."})
+        raise ManualFormError(
+            limit={
+                "code": "NUMBER_TYPE_MAX",
+                "message": f"Value should be less than or equal to {max_val}.",
+            }
+        )
 
     return limit
 

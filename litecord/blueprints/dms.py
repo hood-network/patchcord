@@ -117,12 +117,12 @@ async def create_dm(user_id: int, recipient_id: int):
 async def _handle_dm(user_id: int, data: dict):
     """Handle DM creation requests."""
 
-    if 'recipient_ids' in data:
+    if "recipient_ids" in data:
         j = validate(data, CREATE_DM)
     else:
         j = validate(data, CREATE_DM_V9)
 
-    recipients = j.get('recipient_ids', j['recipients'])
+    recipients = j.get("recipient_ids", j["recipients"])
     if len(recipients) > 1:
         channel_id = await gdm_create(user_id, int(recipients[0]))
         for recipient in recipients[1:]:

@@ -159,7 +159,10 @@ async def _stub_sku_plans(sku_id: int):
 
     for sub in stub_subscriptions:
         prices = {"amount": sub["price"], "currency": sub["currency"], "exponent": 2}
-        price_dict = {"country_prices": {"country_code": "US", "prices": [prices]}, "payment_source_prices": {str(k): [prices] for k in sources}}
+        price_dict = {
+            "country_prices": {"country_code": "US", "prices": [prices]},
+            "payment_source_prices": {str(k): [prices] for k in sources},
+        }
         sub["prices"] = {k: price_dict for k in range(0, 5)}
 
     return jsonify(stub_subscriptions)

@@ -55,10 +55,22 @@ async def create_channel(guild_id):
     channel_type = ChannelType(channel_type)
 
     if channel_type == ChannelType.GUILD_CATEGORY and j.get("parent_id"):
-        raise ManualFormError(parent_id={"code": "CHANNEL_PARENT_INVALID_PARENT", "message": "Categories cannot have subcategories"})
+        raise ManualFormError(
+            parent_id={
+                "code": "CHANNEL_PARENT_INVALID_PARENT",
+                "message": "Categories cannot have subcategories",
+            }
+        )
 
-    if channel_type == ChannelType.GUILD_NEWS and not app.storage.has_feature(guild_id, "NEWS"):
-        raise ManualFormError(type={"code": "BASE_TYPE_CHOICES", "message": f"Value must be one of {CHAN_CREATE['type']['allo']}."})
+    if channel_type == ChannelType.GUILD_NEWS and not app.storage.has_feature(
+        guild_id, "NEWS"
+    ):
+        raise ManualFormError(
+            type={
+                "code": "BASE_TYPE_CHOICES",
+                "message": f"Value must be one of {CHAN_CREATE['type']['allo']}.",
+            }
+        )
 
     new_channel_id = app.winter_factory.snowflake()
     await create_guild_channel(guild_id, new_channel_id, channel_type, **j)
@@ -96,7 +108,7 @@ async def _do_channel_updates(guild_id: int, updates: list):
             """,
                 pos,
                 _id,
-                guild_id
+                guild_id,
             )
         updated.append(_id)
 
@@ -126,13 +138,19 @@ async def modify_channel_pos(guild_id):
     j = validate({"channels": raw_j}, CHANNEL_UPDATE_POSITION)
     j = j["channels"]
 
-    channels = {int(chan["id"]): chan for chan in await app.storage.get_channel_data(guild_id)}
+    channels = {
+        int(chan["id"]): chan for chan in await app.storage.get_channel_data(guild_id)
+    }
     channel_tree = {}
 
     for chan in j:
         conn = await app.db.acquire()
         _id = int(chan["id"])
-        if _id in channels and "parent_id" in chan and (chan["parent_id"] is None or chan["parent_id"] in channels):
+        if (
+            _id in channels
+            and "parent_id" in chan
+            and (chan["parent_id"] is None or chan["parent_id"] in channels)
+        ):
             channels[_id]["parent_id"] = chan["parent_id"]
             await conn.execute(
                 """
@@ -142,7 +160,7 @@ async def modify_channel_pos(guild_id):
             """,
                 chan["parent_id"],
                 chan["id"],
-                guild_id
+                guild_id,
             )
 
             await _chan_update_dispatch(guild_id, chan["id"])
@@ -155,13 +173,13 @@ async def modify_channel_pos(guild_id):
         _channels = channel_tree[_key]
         _channel_ids = list(map(lambda chan: int(chan["id"]), _channels))
         print(_key, _channel_ids)
-        _channel_positions = {chan["position"]: int(chan["id"])
-                              for chan in _channels}
-        _change_list = list(filter(lambda chan: "position" in chan and int(chan["id"]) in _channel_ids, j))
-        _swap_pairs = gen_pairs(
-            _change_list,
-            _channel_positions
+        _channel_positions = {chan["position"]: int(chan["id"]) for chan in _channels}
+        _change_list = list(
+            filter(
+                lambda chan: "position" in chan and int(chan["id"]) in _channel_ids, j
+            )
         )
+        _swap_pairs = gen_pairs(_change_list, _channel_positions)
 
         await _do_channel_updates(guild_id, _swap_pairs)
 

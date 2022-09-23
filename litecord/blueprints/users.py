@@ -61,7 +61,10 @@ async def query_users():
     user_id = await token_check()
 
     limit = extract_limit(request, 1, 25, 100)
-    j = validate(request.args.to_dict(), {"q": {"coerce": str, "required": True, "minlength": 2, "maxlength": 32}})
+    j = validate(
+        request.args.to_dict(),
+        {"q": {"coerce": str, "required": True, "minlength": 2, "maxlength": 32}},
+    )
     query = j["q"]
 
     result = await app.storage.get_users(
@@ -159,11 +162,21 @@ async def _check_pass(j, user):
         return
 
     if not j["password"]:
-        raise ManualFormError(password={"code": "PASSWORD_DOES_NOT_MATCH", "message": "Password does not match."})
+        raise ManualFormError(
+            password={
+                "code": "PASSWORD_DOES_NOT_MATCH",
+                "message": "Password does not match.",
+            }
+        )
 
     phash = user["password_hash"]
     if not await check_password(phash, j["password"]):
-        raise ManualFormError(password={"code": "PASSWORD_DOES_NOT_MATCH", "message": "Password does not match."})
+        raise ManualFormError(
+            password={
+                "code": "PASSWORD_DOES_NOT_MATCH",
+                "message": "Password does not match.",
+            }
+        )
 
 
 @bp.route("/@me", methods=["PATCH"])
@@ -241,7 +254,9 @@ async def handle_user_update(user_id: int, check_password: bool = True):
         if mime == "image/gif" and user["premium_type"] == PremiumType.NONE:
             no_gif = True
 
-        new_icon = await app.icons.update("user_avatar", user_id, j["avatar"], size=(1024, 1024), always_icon=True)
+        new_icon = await app.icons.update(
+            "user_avatar", user_id, j["avatar"], size=(1024, 1024), always_icon=True
+        )
 
         await app.db.execute(
             """
@@ -249,13 +264,20 @@ async def handle_user_update(user_id: int, check_password: bool = True):
         SET avatar = $1
         WHERE id = $2
         """,
-            new_icon.icon_hash.lstrip("a_") if (no_gif and new_icon.icon_hash) else new_icon.icon_hash,
+            new_icon.icon_hash.lstrip("a_")
+            if (no_gif and new_icon.icon_hash)
+            else new_icon.icon_hash,
             user_id,
         )
 
     if to_update(j, user, "avatar_decoration"):
         if not j["avatar_decoration"] or user["premium_type"] == PremiumType.TIER_2:
-            new_icon = await app.icons.update("user_avatar_decoration", user_id, j["avatar_decoration"], always_icon=True)
+            new_icon = await app.icons.update(
+                "user_avatar_decoration",
+                user_id,
+                j["avatar_decoration"],
+                always_icon=True,
+            )
 
             await app.db.execute(
                 """
@@ -269,7 +291,9 @@ async def handle_user_update(user_id: int, check_password: bool = True):
 
     if to_update(j, user, "banner"):
         if not j["banner"] or user["premium_type"] == PremiumType.TIER_2:
-            new_icon = await app.icons.update("user_banner", user_id, j["banner"], always_icon=True)
+            new_icon = await app.icons.update(
+                "user_banner", user_id, j["banner"], always_icon=True
+            )
 
             await app.db.execute(
                 """
@@ -356,8 +380,12 @@ async def handle_user_update(user_id: int, check_password: bool = True):
         old_flags = UserFlags.from_int(user["flags"])
         new_flags = UserFlags.from_int(j["flags"])
 
-        toggle_flag(old_flags, UserFlags.premium_dismissed, new_flags.is_premium_dismissed)
-        toggle_flag(old_flags, UserFlags.unread_urgent_system, new_flags.is_unread_urgent_system)
+        toggle_flag(
+            old_flags, UserFlags.premium_dismissed, new_flags.is_premium_dismissed
+        )
+        toggle_flag(
+            old_flags, UserFlags.unread_urgent_system, new_flags.is_unread_urgent_system
+        )
         toggle_flag(old_flags, UserFlags.disable_premium, new_flags.is_disable_premium)
 
         if old_flags.value != user["flags"]:
@@ -382,7 +410,12 @@ async def handle_user_update(user_id: int, check_password: bool = True):
         )
 
         if date_of_birth:
-            raise ManualFormError(date_of_birth={"code": "DATE_OF_BIRTH_IMMUTABLE", "message": "You cannot update your date of birth."})
+            raise ManualFormError(
+                date_of_birth={
+                    "code": "DATE_OF_BIRTH_IMMUTABLE",
+                    "message": "You cannot update your date of birth.",
+                }
+            )
 
         await app.db.execute(
             """
@@ -581,7 +614,8 @@ async def get_profile(peer_id: int):
             "id": peer["id"],
             "flags": 8667136,
             "popular_application_command_ids": [],
-            "verified": peer["flags"] & UserFlags.verified_bot == UserFlags.verified_bot,
+            "verified": peer["flags"] & UserFlags.verified_bot
+            == UserFlags.verified_bot,
         }
 
     return jsonify(result)
@@ -659,7 +693,12 @@ async def delete_account():
         user_id,
     )
     if not await check_password(pwd_hash, password):
-        raise ManualFormError(password={"code": "PASSWORD_DOES_NOT_MATCH", "message": "Password does not match."})
+        raise ManualFormError(
+            password={
+                "code": "PASSWORD_DOES_NOT_MATCH",
+                "message": "Password does not match.",
+            }
+        )
 
     owned_guilds = await app.db.fetchval(
         """
@@ -686,8 +725,15 @@ async def _get_tinder_score_affinity_users():
     # We make semi-accurate affinities by using relationships and private channels
     friends = await app.user_storage.get_friend_ids(user_id)
     dms = await app.user_storage.get_dms(user_id)
-    dm_recipients = [r["id"] for dm in dms for r in dm["recipients"] if int(r["id"]) != user_id]
-    return jsonify({"user_affinities": list(set(map(str, friends + dm_recipients))), "inverse_user_affinities": []})
+    dm_recipients = [
+        r["id"] for dm in dms for r in dm["recipients"] if int(r["id"]) != user_id
+    ]
+    return jsonify(
+        {
+            "user_affinities": list(set(map(str, friends + dm_recipients))),
+            "inverse_user_affinities": [],
+        }
+    )
 
 
 @bp.route("/@me/affinities/guilds", methods=["GET"])

@@ -292,8 +292,8 @@ async def update_relationship(peer_id: int):
                     "id": str(peer_id),
                     "type": info["rel_type"],
                     "nickname": payload.get("nickname") or None,
-                }
-            )
+                },
+            ),
         )
 
     return "", 204

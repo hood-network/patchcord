@@ -28,7 +28,10 @@ bp = Blueprint("stickers", __name__)
 @bp.route("/users/@me/sticker-packs", methods=["GET"])
 async def sticker_packs():
     """Send static sticker packs"""
-    return redirect(f"https://discord.com/api/v9/sticker-packs?{request.query_string.decode()}", code=308)
+    return redirect(
+        f"https://discord.com/api/v9/sticker-packs?{request.query_string.decode()}",
+        code=308,
+    )
 
 
 @bp.route("/sticker-packs/<int:sticker_pack>", methods=["GET"])
@@ -52,10 +55,16 @@ async def stub_select():
 @bp.route("/gifs/<path:path>", methods=["GET", "POST"])
 async def gifs(path):
     """Send gifs and stuff"""
-    return redirect(f"https://discord.com/api/v9/gifs/{path}?{request.query_string.decode()}", code=308)
+    return redirect(
+        f"https://discord.com/api/v9/gifs/{path}?{request.query_string.decode()}",
+        code=308,
+    )
 
 
 @bp.route("/integrations/<provider>/search", methods=["GET"])
 async def search_gifs(provider):
     """Send gifs and stuff"""
-    return redirect(f"https://discord.com/api/v9/gifs/search?provider={provider}&media_format={request.args.get('media_format', 'mp4')}&{request.query_string.decode()}", code=308)
+    return redirect(
+        f"https://discord.com/api/v9/gifs/search?provider={provider}&media_format={request.args.get('media_format', 'mp4')}&{request.query_string.decode()}",
+        code=308,
+    )

@@ -108,7 +108,9 @@ def _complete_users_list(user_id: str, base_ready, user_ready, ws_properties) ->
                 private_channel["recipients"].pop(self_user_index)
             else:
                 if self_user_index == 0:
-                    private_channel["recipients"].append(private_channel["recipients"].pop(0))
+                    private_channel["recipients"].append(
+                        private_channel["recipients"].pop(0)
+                    )
 
         # if ws_properties.version >= 9:
         #     private_channel["recipient_ids"] = [recipient["id"] for recipient in private_channel["recipients"]],
@@ -402,7 +404,9 @@ class GatewayWebsocket:
         if self.state.bot:
             return [{"id": row, "unavailable": True} for row in guild_ids]
 
-        return await self.storage.get_guilds(guild_ids, self.state.user_id, True, large=self.state.large)
+        return await self.storage.get_guilds(
+            guild_ids, self.state.user_id, True, large=self.state.large
+        )
 
     async def _guild_dispatch(self, unavailable_guilds: List[Dict[str, Any]]):
         """Dispatch GUILD_CREATE information."""
@@ -413,7 +417,9 @@ class GatewayWebsocket:
             return
 
         guild_ids = [int(g["id"]) for g in unavailable_guilds]
-        guilds = await self.storage.get_guilds(guild_ids, self.state.user_id, True, large=self.state.large)
+        guilds = await self.storage.get_guilds(
+            guild_ids, self.state.user_id, True, large=self.state.large
+        )
         for guild in guilds:
             await self.dispatch_raw("GUILD_CREATE", {**guild, "unavailable": False})
 
@@ -452,11 +458,18 @@ class GatewayWebsocket:
             "read_state": read_state,
             "user_guild_settings": user_guild_settings,
             "friend_suggestion_count": 0,
-            'country_code': 'US',
-            'geo_ordered_rtc_regions': [],
+            "country_code": "US",
+            "geo_ordered_rtc_regions": [],
             "experiments": await self.storage.get_experiments(),
             "guild_experiments": await self.storage.get_guild_experiments(),
-            "sessions": [{"session_id": self.state.session_id, "status": self.state.presence.status, "activities": self.state.presence.activities, "client_info": {"client": "web", "os": "windows", "version": 0}}],
+            "sessions": [
+                {
+                    "session_id": self.state.session_id,
+                    "status": self.state.presence.status,
+                    "activities": self.state.presence.activities,
+                    "client_info": {"client": "web", "os": "windows", "version": 0},
+                }
+            ],
             # those are unused default values.
             "consents": {"personalization": {"consented": True}},
             "connected_accounts": [],
@@ -707,7 +720,17 @@ class GatewayWebsocket:
         )
         log.debug("full presence = {}", presence)
 
-        await self.dispatch_raw("SESSIONS_REPLACE", [{"session_id": self.state.session_id, "status": presence.status, "activities": presence.activities, "client_info": {"client": "web", "os": "windows", "version": 0}}])
+        await self.dispatch_raw(
+            "SESSIONS_REPLACE",
+            [
+                {
+                    "session_id": self.state.session_id,
+                    "status": presence.status,
+                    "activities": presence.activities,
+                    "client_info": {"client": "web", "os": "windows", "version": 0},
+                }
+            ],
+        )
         await self.app.presence.dispatch_pres(self.state.user_id, self.state.presence)
 
     async def _custom_status_expire_check(self):
@@ -859,7 +882,7 @@ class GatewayWebsocket:
                 "session_id": self.state.session_id,
                 "suppress": False,
                 "user_id": str(self.state.user_id),
-            }
+            },
         )
         if guild_id:
             await self.app.dispatcher.guild.dispatch(guild_id, update)
@@ -1063,7 +1086,12 @@ class GatewayWebsocket:
         else:
             members = await self.storage.query_members(guild_id, query, limit)
             mids = [m["user"]["id"] for m in members]
-            body = {"guild_id": str(guild_id), "members": members, "chunk_index": 0, "chunk_count": 1}
+            body = {
+                "guild_id": str(guild_id),
+                "members": members,
+                "chunk_index": 0,
+                "chunk_count": 1,
+            }
 
         if presences:
             presences = await self.presence.guild_presences(mids, guild_id)
@@ -1114,7 +1142,11 @@ class GatewayWebsocket:
 
         await self.dispatch_raw(
             "GUILD_SYNC",
-            {"id": str(guild_id), "presences": presences, "members": list(members.values())},
+            {
+                "id": str(guild_id),
+                "presences": presences,
+                "members": list(members.values()),
+            },
         )
 
     async def handle_12(self, payload: Dict[str, Any]):

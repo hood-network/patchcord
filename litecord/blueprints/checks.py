@@ -50,7 +50,9 @@ async def guild_check(user_id: int, guild_id: int, raise_err: bool = True) -> bo
     return True
 
 
-async def guild_owner_check(user_id: int, guild_id: int, raise_err: bool = True) -> bool:
+async def guild_owner_check(
+    user_id: int, guild_id: int, raise_err: bool = True
+) -> bool:
     """Check if a user is the owner of the guild."""
     data = await app.db.fetchrow(
         """

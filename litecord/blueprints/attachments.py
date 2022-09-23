@@ -88,9 +88,7 @@ async def _resize(image, attach_id: int, ext: str, width: int, height: int) -> s
     return resized_path_s
 
 
-@bp.route(
-    "/attachments/<int:channel_id>/<int:message_id>/<filename>", methods=["GET"]
-)
+@bp.route("/attachments/<int:channel_id>/<int:message_id>/<filename>", methods=["GET"])
 async def _get_attachment(channel_id: int, message_id: int, filename: str):
 
     attach_id = await app.db.fetchval(

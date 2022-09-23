@@ -620,8 +620,7 @@ class GuildMemberList:
             "id": self.list_id,
             "guild_id": str(self.guild_id),
             "groups": [
-                {"id": str(group.gid), "count": count}
-                for group, count in groups
+                {"id": str(group.gid), "count": count} for group, count in groups
             ],
             "ops": [operation.to_dict for operation in operations],
             "member_count": member_count,

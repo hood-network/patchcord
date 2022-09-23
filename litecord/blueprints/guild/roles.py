@@ -109,6 +109,7 @@ async def _role_pairs_update(guild_id: int, pairs: list):
 
 PairList = List[Tuple[int, int]]
 
+
 def gen_pairs(
     list_of_changes: List[Dict[str, int]],
     current_state: Dict[int, int],
@@ -363,7 +364,17 @@ async def add_members_to_role(guild_id, role_id):
 
     await guild_perm_check(user_id, guild_id, "manage_roles")
 
-    j = validate(await request.get_json(), {"member_ids": {"type": "list", "schema": {"coerce": int}, "maxlength": 30, "required": True}})
+    j = validate(
+        await request.get_json(),
+        {
+            "member_ids": {
+                "type": "list",
+                "schema": {"coerce": int},
+                "maxlength": 30,
+                "required": True,
+            }
+        },
+    )
 
     val = await app.db.fetchval(
         """
@@ -401,7 +412,8 @@ async def add_members_to_role(guild_id, role_id):
 
             await app.lazy_guild.pres_update(guild_id, id, partial)
             await app.dispatcher.guild.dispatch(
-                guild_id, ("GUILD_MEMBER_UPDATE", {**{"guild_id": str(guild_id)}, **member})
+                guild_id,
+                ("GUILD_MEMBER_UPDATE", {**{"guild_id": str(guild_id)}, **member}),
             )
 
         members.append(member)

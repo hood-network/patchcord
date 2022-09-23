@@ -38,7 +38,9 @@ bp = Blueprint("users_admin", __name__)
 async def _create_user():
     await admin_check()
     j = validate(await request.get_json(), USER_CREATE)
-    user_id, _ = await create_user(j["username"], j["email"], j["password"], j.get("date_of_birth"), id=j.get("id"))
+    user_id, _ = await create_user(
+        j["username"], j["email"], j["password"], j.get("date_of_birth"), id=j.get("id")
+    )
     return jsonify(await app.storage.get_user(user_id, True)), 201
 
 
@@ -56,11 +58,17 @@ async def query_users():
     await admin_check()
 
     limit = extract_limit(request, 1, 25, 100)
-    j = validate(request.args.to_dict(), {"q": {"coerce": str, "required": False, "maxlength": 32}, "offset": {"coerce": int, "default": 0}})
+    j = validate(
+        request.args.to_dict(),
+        {
+            "q": {"coerce": str, "required": False, "maxlength": 32},
+            "offset": {"coerce": int, "default": 0},
+        },
+    )
     query = j.get("q") or ""
     offset = j["offset"]
     extra = ""
-    args=(query, limit, offset)
+    args = (query, limit, offset)
 
     discriminator = None
     if "#" in query:

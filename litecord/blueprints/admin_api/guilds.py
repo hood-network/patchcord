@@ -81,7 +81,13 @@ async def query_guilds():
     await admin_check()
 
     limit = extract_limit(request, 1, 25, 100)
-    j = validate(request.args.to_dict(), {"q": {"coerce": str, "required": False, "maxlength": 100}, "offset": {"coerce": int, "default": 0}})
+    j = validate(
+        request.args.to_dict(),
+        {
+            "q": {"coerce": str, "required": False, "maxlength": 100},
+            "offset": {"coerce": int, "default": 0},
+        },
+    )
     query = j.get("q") or ""
     offset = j["offset"]
 
@@ -108,9 +114,18 @@ async def create_guild():
     the user creating it as the owner and
     making them join."""
     user_id = await admin_check()
-    j = validate(await request.get_json(), {**GUILD_UPDATE, "id": {"coerce": int, "required": False}, "features": {"type": "list", "schema": {"coerce": str}, "required": False}})
+    j = validate(
+        await request.get_json(),
+        {
+            **GUILD_UPDATE,
+            "id": {"coerce": int, "required": False},
+            "features": {"type": "list", "schema": {"coerce": str}, "required": False},
+        },
+    )
     guild_id = j.get("id") or app.winter_factory.snowflake()
-    guild, extra = await handle_guild_create(user_id, guild_id, {"features": j.get("features")})
+    guild, extra = await handle_guild_create(
+        user_id, guild_id, {"features": j.get("features")}
+    )
     return jsonify({**guild, **extra}), 201
 
 
@@ -130,7 +145,10 @@ async def get_guild(guild_id: int):
 async def update_guild(guild_id: int):
     await admin_check()
 
-    j = validate(await request.get_json(), {**GUILD_UPDATE, "unavailable": {"coerce": bool, "required": False}})
+    j = validate(
+        await request.get_json(),
+        {**GUILD_UPDATE, "unavailable": {"coerce": bool, "required": False}},
+    )
 
     if "features" in j and j["features"] is not None:
         features = await _features_from_req()
@@ -143,10 +161,18 @@ async def update_guild(guild_id: int):
     if old_unavailable and not new_unavailable:
         # Guild became available
         guild = await app.storage.get_guild_full(guild_id)
-        await app.dispatcher.guild.dispatch(guild_id, ("GUILD_CREATE", {**guild, "unavailable": False}))
+        await app.dispatcher.guild.dispatch(
+            guild_id, ("GUILD_CREATE", {**guild, "unavailable": False})
+        )
     elif not old_unavailable and new_unavailable:
         # Guild became unavailable
-        await app.dispatcher.guild.dispatch(guild_id, ("GUILD_DELETE", {"id": guild_id, "guild_id": guild_id, "unavailable": True}))
+        await app.dispatcher.guild.dispatch(
+            guild_id,
+            (
+                "GUILD_DELETE",
+                {"id": guild_id, "guild_id": guild_id, "unavailable": True},
+            ),
+        )
 
     guild = await handle_guild_update(guild_id, False)
     return jsonify(guild)

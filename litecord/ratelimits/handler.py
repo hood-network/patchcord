@@ -31,7 +31,9 @@ async def _check_bucket(bucket):
     if retry_after:
         request.retry_after = retry_after
 
-        raise Ratelimited(**{"retry_after": int(retry_after * 1000), "global": request.bucket_global})
+        raise Ratelimited(
+            **{"retry_after": int(retry_after * 1000), "global": request.bucket_global}
+        )
 
 
 async def _handle_global(ratelimit):

@@ -231,8 +231,14 @@ async def get_invite(invite_code: str):
     if not inv:
         return UnknownInvite()
 
-    if request.args.get("with_counts", type=str_bool) or request.args.get("with_expiration", type=str_bool):
-        extra = await app.storage.get_invite_extra(invite_code, request.args.get("with_counts", type=str_bool), request.args.get("with_expiration", type=str_bool))
+    if request.args.get("with_counts", type=str_bool) or request.args.get(
+        "with_expiration", type=str_bool
+    ):
+        extra = await app.storage.get_invite_extra(
+            invite_code,
+            request.args.get("with_counts", type=str_bool),
+            request.args.get("with_expiration", type=str_bool),
+        )
         inv.update(extra)
 
     return jsonify(inv)
