@@ -852,7 +852,6 @@ class Storage:
         member_count = len(members)
 
         assert self.presence is not None
-        mids = list(members.keys())
         if large:
             res["large"] = member_count > large
 
@@ -867,7 +866,7 @@ class Storage:
                 "member_count": member_count,
                 "members": list(members.values()),
                 "channels": channels,
-                "presences": await self.presence.guild_presences(mids, guild_id),
+                "presences": await self.presence.guild_presences(members, guild_id),
                 "voice_states": await self.guild_voice_states(guild_id),
                 "lazy": True,
             },
@@ -1360,14 +1359,14 @@ class Storage:
 
     async def get_guild_counts(self, guild_id: int) -> dict:
         """Fetch approximate member and presence counts for a guild."""
-        mids = await self.get_member_ids(guild_id)
+        members = await self.get_members(guild_id)
         assert self.presence is not None
-        pres = await self.presence.guild_presences(mids, guild_id)
+        pres = await self.presence.guild_presences(members, guild_id)
         online_count = sum(1 for p in pres if p["status"] != "offline")
 
         return {
             "approximate_presence_count": online_count,
-            "approximate_member_count": len(mids),
+            "approximate_member_count": len(members),
         }
 
     async def get_dm(self, dm_id: int, user_id: Optional[int] = None) -> Optional[Dict]:
