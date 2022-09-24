@@ -519,7 +519,7 @@ class GuildMemberList:
         # allocate a list per group
         self.list.data = {group.gid: [] for group in self.list.groups}
 
-        await self._list_fill_groups(members)
+        await self._list_fill_groups(members.values())
 
         # second pass: sort each group's members
         # by the display name
