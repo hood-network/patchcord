@@ -127,7 +127,7 @@ class PresenceManager:
         # this works via fetching all connected GatewayState on a guild
         # then fetching its respective member and merging that info with
         # the state's set presence.
-        states = self.state_manager.guild_states([int(m["user"]["id"]) for m in members], guild_id)
+        states = self.state_manager.guild_states([int(m["user"]["id"]) for m in members.values()], guild_id)
         presences = []
 
         for state in states:
