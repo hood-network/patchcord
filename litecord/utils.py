@@ -325,11 +325,6 @@ def want_string(data: Union[str, bytes]) -> str:
     return data.decode() if isinstance(data, bytes) else data
 
 
-def snowflake_timestamp(id: int) -> datetime.datetime:
-    timestamp = ((id >> 22) + EPOCH) / 1000
-    return datetime.datetime.fromtimestamp(timestamp, tz=datetime.timezone.utc)
-
-
 def toggle_flag(flags: TF, value: int, state: bool) -> TF:
     if state is True:
         flags.value |= value

@@ -424,6 +424,8 @@ async def create_message_webhook(guild_id, channel_id, webhook_id, data):
             info["avatar"],
         )
 
+        await app.storage.increment_thread_messages(channel_id)
+
     return message_id
 
 

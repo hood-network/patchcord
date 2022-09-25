@@ -233,7 +233,7 @@ async def get_subscription(subscription_id: int):
     for field in to_tstamp:
         drow[field] = timestamp_(drow[field])
 
-    drow["created_at"] = snowflake_timestamp(int(drow["id"])).isoformat()
+    drow["created_at"] = app.winter_factory.to_datetime(int(drow["id"])).isoformat()
 
     drow["items"] = [
         {

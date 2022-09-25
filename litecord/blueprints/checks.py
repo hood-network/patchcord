@@ -17,7 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from typing import Union, List, Optional
+from typing import Union, List, Optional, Tuple
 
 from quart import current_app as app
 
@@ -75,7 +75,7 @@ async def guild_owner_check(
 
 async def channel_check(
     user_id, channel_id, *, only: Optional[Union[ChannelType, List[ChannelType]]] = None
-):
+) -> Tuple[ChannelType, Optional[int]]:
     """Check if the current user is authorized
     to read the channel's information."""
     chan_type = await app.storage.get_chan_type(channel_id)

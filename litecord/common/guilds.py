@@ -172,6 +172,17 @@ async def _specific_chan_create(channel_id, ctype, **kwargs):
         )
 
 
+async def _subscribe_user_new_channel(guild_id: int, channel_id: int, user_id: int) -> None:
+    for session_id in app.dispatcher.guild.state[guild_id]:
+        try:
+            state = app.state_manager.fetch_raw(session_id)
+        except KeyError:
+            continue
+
+        if state.user_id == user_id:
+            await app.dispatcher.channel.sub(channel_id, session_id)
+
+
 async def _subscribe_users_new_channel(guild_id: int, channel_id: int) -> None:
     # for each state currently subscribed to guild, we check on the database
     # which states can also subscribe to the new channel at its creation.
@@ -262,6 +273,48 @@ async def create_guild_channel(
         await process_overwrites(
             guild_id, channel_id, kwargs["permission_overwrites"] or []
         )
+
+
+async def create_guild_thread(
+    guild_id: int, channel_id: int, thread_id: int, owner_id: int, ctype: ChannelType, **kwargs
+):
+    """Create a channel in a guild."""
+    await app.db.execute(
+        """
+    INSERT INTO channels (id, channel_type)
+    VALUES ($1, $2)
+    """,
+        channel_id,
+        ctype.value,
+    )
+
+    await app.db.execute(
+        """
+    INSERT INTO guild_threads (id, guild_id, parent_id, owner_id, name, rate_limit_per_user, auto_archive_duration)
+    VALUES ($1, $2, $3, $4, $5, $6, $7)
+    """,
+        thread_id,
+        guild_id,
+        channel_id,
+        owner_id,
+        kwargs["name"],
+        kwargs["rate_limit_per_user"],
+        kwargs["auto_archive_duration"],
+    )
+
+    await app.db.execute(
+        """
+    INSERT INTO thread_members (id, user_id)
+    VALUES ($1, $2)
+    """,
+        thread_id,
+        owner_id,
+    )
+
+    if ctype != ChannelType.PRIVATE_THREAD:
+        await _subscribe_users_new_channel(guild_id, channel_id)
+    else:
+        await _subscribe_user_new_channel(guild_id, channel_id, owner_id)
 
 
 async def _del_from_table(table: str, user_id: int):

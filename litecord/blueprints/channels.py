@@ -27,7 +27,7 @@ from emoji import EMOJI_DATA
 
 from litecord.auth import token_check
 from litecord.common.interop import message_view, channel_view
-from litecord.common.guilds import process_overwrites, _dispatch_action
+from litecord.common.guilds import process_overwrites, _dispatch_action, create_guild_thread
 from litecord.enums import ChannelType, GUILD_CHANS, MessageType, MessageFlags
 from litecord.errors import Forbidden, NotFound, BadRequest, MissingPermissions
 from litecord.schemas import (
@@ -39,6 +39,8 @@ from litecord.schemas import (
     BULK_DELETE,
     FOLLOW_CHANNEL,
     USER_MENTION,
+    THREAD_CREATE,
+    MSG_THREAD_CREATE,
 )
 
 from litecord.blueprints.checks import channel_check, channel_perm_check
@@ -618,7 +620,6 @@ async def _update_voice_channel(channel_id: int, j: dict, _user_id: int):
             channel_id,
         )
 
-    # yes, i'm letting voice channels have nsfw, you cant stop me
     await _common_guild_chan(channel_id, j)
 
 
@@ -794,6 +795,15 @@ async def _follow_channel(channel_id):
     )
 
     await _dispatch_webhook_update(destination_guild_id, destination_id)
+    await send_sys_message(
+        destination_id,
+        MessageType.CHANNEL_FOLLOW_ADD,
+        guild_id,
+        user_id,
+        f"{guild['name']} #{channel['name']}",
+        {"channel_id": channel_id, "guild_id": guild_id}
+    )
+
     return jsonify({"channel_id": str(channel_id), "webhook_id": str(webhook_id)})
 
 
@@ -890,6 +900,19 @@ async def suppress_embeds(channel_id: int, message_id: int):
     user_id = await token_check()
     await channel_check(user_id, channel_id)
 
+    mid = await app.db.fetchval(
+        """
+    SELECT id
+    FROM messages
+    WHERE id = $1 AND channel_id = $2
+    """,
+        message_id,
+        channel_id,
+    )
+
+    if mid is None:
+        raise MessageNotFound()
+
     # the checks here have been copied from the delete_message()
     # handler on blueprints.channel.messages. maybe we can combine
     # them someday?
@@ -913,29 +936,20 @@ async def suppress_embeds(channel_id: int, message_id: int):
 
     suppress = j["suppress"]
     message = await app.storage.get_message(message_id)
-    url_embeds = sum(1 for embed in message["embeds"] if embed["type"] == "url")
+    embeds = message["embeds"]
 
-    # NOTE for any future self. discord doing flags an optional thing instead
-    # of just giving 0 is a pretty bad idea because now i have to deal with
-    # that behavior here, and likely in every other message update thing
-
-    if suppress and url_embeds:
+    if suppress:
         # delete all embeds then dispatch an update
         await _msg_set_flags(message_id, MessageFlags.suppress_embeds)
-
         message["flags"] = message.get("flags", 0) | MessageFlags.suppress_embeds
-
-        await msg_update_embeds(message, [])
-    elif not suppress and not url_embeds:
+        if embeds:
+            await msg_update_embeds(message, [])
+    elif not suppress:
         # spawn process_url_embed to restore the embeds, if any
         await _msg_unset_flags(message_id, MessageFlags.suppress_embeds)
-
-        try:
-            message.pop("flags")
-        except KeyError:
-            pass
-
-        app.sched.spawn(process_url_embed(message))
+        message["flags"] = message.get("flags", 0) & ~MessageFlags.suppress_embeds
+        if not embeds:
+            app.sched.spawn(process_url_embed(message))
 
     return "", 204
 
@@ -945,6 +959,19 @@ async def publish_message(channel_id: int, message_id: int):
     user_id = await token_check()
     await channel_check(user_id, channel_id, only=ChannelType.GUILD_NEWS)
     await channel_perm_check(user_id, channel_id, "send_messages")
+
+    mid = await app.db.fetchval(
+        """
+    SELECT id
+    FROM messages
+    WHERE id = $1 AND channel_id = $2
+    """,
+        message_id,
+        channel_id,
+    )
+
+    if mid is None:
+        raise MessageNotFound()
 
     author_id = await app.db.fetchval(
         """
@@ -1013,11 +1040,11 @@ async def publish_message(channel_id: int, message_id: int):
         },
     }
 
-    for hook in hooks:
-        result_id = app.winter_factory.snowflake()
+    async with app.db.acquire() as conn:
+        await pg_set_json(conn)
 
-        async with app.db.acquire() as conn:
-            await pg_set_json(conn)
+        for hook in hooks:
+            result_id = app.winter_factory.snowflake()
 
             await conn.execute(
                 """
@@ -1049,6 +1076,7 @@ async def publish_message(channel_id: int, message_id: int):
                 hook["avatar"],
             )
 
+            await app.storage.increment_thread_messages(hook["channel_id"])
             payload = await app.storage.get_message(result_id, include_member=True)
             await app.dispatcher.channel.dispatch(
                 hook["channel_id"], ("MESSAGE_CREATE", payload)
@@ -1056,6 +1084,108 @@ async def publish_message(channel_id: int, message_id: int):
             app.sched.spawn(process_url_embed(payload))
 
     return jsonify(message_view(message))
+
+
+@bp.route("/<int:channel_id>/messages/<int:message_id>/threads", methods=["POST"])
+async def create_message_thread(channel_id: int, message_id: int):
+    user_id = await token_check()
+    ctype, guild_id = await channel_check(user_id, channel_id)
+
+    if ctype != ChannelType.GUILD_TEXT:
+        raise BadRequest("Invalid channel type")
+
+    assert guild_id is not None
+
+    mid = await app.db.fetchval(
+        """
+    SELECT id
+    FROM messages
+    WHERE id = $1 AND channel_id = $2
+    """,
+        message_id,
+        channel_id,
+    )
+
+    if mid is None:
+        raise MessageNotFound()
+
+    tid = await app.db.fetchval(
+        """
+    SELECT id
+    FROM threads
+    WHERE id = $1
+    """,
+        message_id,
+    )
+
+    if tid is not None:
+        raise BadRequest("Message already has a thread")
+
+    await channel_perm_check(user_id, channel_id, "create_public_threads")
+
+    j = validate(await request.get_json(), MSG_THREAD_CREATE)
+
+    # First we migrate the source message
+    message = await app.storage.get_message(message_id, user_id)
+    await _msg_set_flags(message_id, MessageFlags.has_thread)
+    update_payload = {
+        "id": str(message_id),
+        "channel_id": str(channel_id),
+        "guild_id": message["guild_id"],
+        "flags": message.get("flags", 0) | MessageFlags.has_thread,
+    }
+    await app.dispatcher.channel.dispatch(
+        channel_id, ("MESSAGE_UPDATE", update_payload)
+    )
+
+    await create_guild_thread(guild_id, channel_id, message_id, user_id, ChannelType.PUBLIC_THREAD, **j)
+
+    thread = await app.storage.get_channel(message_id, request.discord_api_version)
+    thread["newly_created"] = True
+    await app.dispatcher.channel.dispatch(message_id, ("THREAD_CREATE", thread))
+    await dispatch_user(user_id, ("THREAD_MEMBER_UPDATE", await app.storage.get_thread_member(thread_id, user_id)))
+
+    await send_sys_message(
+        message_id,
+        MessageType.THREAD_STARTER_MESSAGE,
+        guild_id,
+        int(message["author_id"]),
+        {"guild_id": int(message["guild_id"]), "channel_id": int(message["channel_id"]), "message_id": int(message_id)}
+    )
+    message = await app.storage.get_message(result_id)
+    await app.dispatcher.channel.dispatch(message_id, ("MESSAGE_CREATE", message))
+
+    thread["member"] = await app.storage.get_thread_member(message_id, user_id)
+    return jsonify(thread), 201
+
+
+@bp.route("/<int:channel_id>/threads", methods=["POST"])
+async def create_thread(channel_id: int):
+    user_id = await token_check()
+    ctype, guild_id = await channel_check(user_id, channel_id)
+
+    if ctype != ChannelType.GUILD_TEXT:
+        raise BadRequest("Invalid channel type")
+
+    assert guild_id is not None
+
+    j = validate(await request.get_json(), THREAD_CREATE)
+    ctype = ChannelType(j["type"])
+
+    if ctype in (ChannelType.NEWS_THREAD, ChannelType.PUBLIC_THREAD):
+        await channel_perm_check(user_id, channel_id, "create_public_threads")
+    else:
+        await channel_perm_check(user_id, channel_id, "create_private_threads")
+
+    thread_id = app.winter_factory.snowflake()
+    await create_guild_thread(guild_id, channel_id, thread_id, user_id, ctype, **j)
+
+    thread = await app.storage.get_channel(thread_id, request.discord_api_version)
+    thread["newly_created"] = True
+    await app.dispatcher.channel.dispatch(thread_id, ("THREAD_CREATE", thread))
+    await dispatch_user(user_id, ("THREAD_MEMBER_UPDATE", await app.storage.get_thread_member(thread_id, user_id)))
+
+    return jsonify(thread), 201
 
 
 @bp.route("/<int:channel_id>/messages/bulk_delete", methods=["POST"])

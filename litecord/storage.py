@@ -573,11 +573,11 @@ class Storage:
         else:
             return row
 
-    async def get_chan_type(self, channel_id: int) -> Optional[int]:
-        """Get the channel type integer, given channel ID."""
-        return await self.db.fetchval(
+    async def get_chan_basic(self, channel_id: int) -> dict:
+        """Get the basic channel info."""
+        return await self.db.fetchrow(
             """
-        SELECT channel_type
+        SELECT channel_type, flags
         FROM channels
         WHERE channels.id = $1
         """,
@@ -650,11 +650,12 @@ class Storage:
 
     async def get_channel(self, channel_id: int, **kwargs) -> Optional[Dict[str, Any]]:
         """Fetch a single channel's information."""
-        chan_type = await self.get_chan_type(channel_id)
-        if chan_type is None:
+        basic = await self.get_chan_basic(channel_id)
+        if basic is None:
             return None
+        basic = dict(basic)
 
-        ctype = ChannelType(chan_type)
+        ctype = ChannelType(basic["channel_type"])
 
         if ctype in (
             ChannelType.GUILD_TEXT,
@@ -672,7 +673,7 @@ class Storage:
             )
 
             dbase = dict(base)
-            dbase["type"] = chan_type
+            dbase.update(basic)
 
             res = await self._channels_extra(dbase)
             res["permission_overwrites"] = await self.chan_overwrites(channel_id)
@@ -691,7 +692,7 @@ class Storage:
             )
 
             drow = dict(dm_row)
-            drow["type"] = chan_type
+            drow.update(basic)
 
             drow["last_message_id"] = await self.chan_last_message_str(channel_id)
 
@@ -717,15 +718,94 @@ class Storage:
             )
 
             drow = dict(gdm_row)
-            drow["type"] = chan_type
+            drow.update(basic)
 
             user_id: Optional[int] = kwargs.get("user_id")
             drow["recipients"] = await self._gdm_recipients(channel_id, user_id)
             drow["last_message_id"] = await self.chan_last_message_str(channel_id)
             return drow
+        elif ctype in (ChannelType.NEWS_THREAD, ChannelType.PRIVATE_THREAD, ChannelType.PUBLIC_THREAD):
+            thread_row = await self.db.fetchrow(
+                """
+            SELECT id::text, guild_id::text, parent_id::text, owner_id::text, name, archived, locked,
+            create_timestamp, archive_timestamp, rate_limit_per_user, auto_archive_duration, total_message_sent,
+            FROM threads
+            WHERE id = $1
+            """,
+                channel_id,
+            )
+            drow = dict(thread_row)
+            drow.update(basic)
+
+            # owner_id = int(drow["owner_id"])
+            # drow["owner"] = await self.get_member_data_one(int(drow["guild_id"]), owner_id) or await self.get_user(owner_id)
+
+            members = await self.db.fetch(
+                """
+            SELECT user_id::text
+            from thread_members
+            where id = $1
+            """,
+                channel_id,
+            )
+
+            user_id = kwargs.get("user_id")
+            if user_id and user_id in [int(m["user_id"]) for m in members]:
+                drow["member"] = await self.get_thread_member(channel_id, user_id)
+
+            drow["member_ids_preview"] = [m["user_id"] for m in members]
+            drow["member_count"] = min(len(members), 50)
+            drow["message_count"] = await self.db.fetchval(
+                """
+            SELECT COUNT(*)
+            FROM messages
+            WHERE channel_id = $1
+            """,
+                channel_id,
+            )
+            drow["thread_metadata"] = {"archived": drow.pop("archived"), "locked": drow.pop("locked"), "create_timestamp": drow.pop("create_timestamp"), "archive_timestamp": drow.pop("archive_timestamp"), "auto_archive_duration": drow.pop("auto_archive_duration")}
+            drow["last_message_id"] = await self.chan_last_message_str(channel_id)
 
         raise RuntimeError(
             f"Data Inconsistency: Channel type {ctype} is not properly handled"
+        )
+
+    async def get_thread_member(self, thread_id: int, user_id: int) -> Optional[dict]:
+        """Get the data for a thread member."""
+        row = await self.db.fetchrow(
+            """
+        SELECT id::text, user_id::text, joined_timestamp, flags, muted, mute_config
+        FROM thread_members
+        WHERE id = $1 AND user_id = $2
+        """,
+            thread_id,
+            user_id,
+        )
+        drow = dict(row)
+        return drow
+
+    async def get_thread_parent(self, thread_id: int) -> Optional[int]:
+        return await self.db.fetchval(
+            """
+        SELECT parent_id
+        FROM threads
+        WHERE id = $1
+        """,
+            thread_id,
+        )
+
+    async def increment_thread_messages(self, thread_id: int) -> None:
+        channel = await self.get_chan_basic(thread_id)
+        if channel is None or channel["channel_type"] not in (ChannelType.NEWS_THREAD, ChannelType.PRIVATE_THREAD, ChannelType.PUBLIC_THREAD):
+            return
+
+        await self.db.execute(
+            """
+        UPDATE threads
+        SET total_message_sent = total_message_sent + 1
+        WHERE id = $1
+        """,
+            thread_id,
         )
 
     async def get_channel_ids(self, guild_id: int) -> List[int]:
@@ -755,16 +835,10 @@ class Storage:
         channels = []
 
         for row in channel_basics:
-            ctype = await self.db.fetchval(
-                """
-            SELECT channel_type FROM channels
-            WHERE id = $1
-            """,
-                row["id"],
-            )
+            basic = await self.get_chan_basic(row["id"])
 
             drow = dict(row)
-            drow["type"] = ctype
+            drow.update(dict(basic))
 
             res = await self._channels_extra(drow)
             res["permission_overwrites"] = await self.chan_overwrites(row["id"])

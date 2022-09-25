@@ -336,6 +336,8 @@ async def create_message(
             mention_roles,
         )
 
+        await app.storage.increment_thread_messages(channel_id)
+
     return message_id
 
 
@@ -547,6 +549,19 @@ async def _create_message(channel_id):
 async def edit_message(channel_id, message_id):
     user_id = await token_check()
     await channel_check(user_id, channel_id)
+
+    mid = await app.db.fetchval(
+        """
+    SELECT id
+    FROM messages
+    WHERE id = $1 AND channel_id = $2
+    """,
+        message_id,
+        channel_id,
+    )
+
+    if mid is None:
+        raise MessageNotFound()
 
     author_id = await app.db.fetchval(
         """
@@ -801,6 +816,19 @@ async def delete_message(channel_id, message_id):
     user_id = await token_check()
     _ctype, guild_id = await channel_check(user_id, channel_id)
 
+    mid = await app.db.fetchval(
+        """
+    SELECT id
+    FROM messages
+    WHERE id = $1 AND channel_id = $2
+    """,
+        message_id,
+        channel_id,
+    )
+
+    if mid is None:
+        raise MessageNotFound()
+
     author_id = await app.db.fetchval(
         """
     SELECT author_id FROM messages
@@ -834,7 +862,6 @@ async def delete_message(channel_id, message_id):
             {
                 "id": str(message_id),
                 "channel_id": str(channel_id),
-                # for lazy guilds
                 "guild_id": str(guild_id),
             },
         ),

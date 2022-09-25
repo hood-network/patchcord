@@ -31,6 +31,7 @@ from .errors import BadRequest, FormError
 from .permissions import Permissions
 from .types import Color
 from .enums import (
+    THREAD_TYPES,
     ActivityType,
     StatusType,
     ExplicitFilter,
@@ -123,7 +124,7 @@ class LitecordValidator(Validator):
         return value in ActivityType.values()
 
     def _validate_type_channel_type(self, value: int) -> bool:
-        return value in ChannelType.values()
+        return value in ChannelType.values() and ChannelType(value) not in THREAD_TYPES
 
     def _validate_type_status_external(self, value: str) -> bool:
         statuses = StatusType.values()
@@ -138,12 +139,23 @@ class LitecordValidator(Validator):
         return val in ExplicitFilter.values()
 
     def _validate_type_nsfw(self, value: str) -> bool:
+        return value in NSFWLevel.values()
+
+    def _validate_type_thread_type(self, value: str) -> bool:
         try:
             val = int(value)
         except (TypeError, ValueError):
             return False
 
-        return val in NSFWLevel.values()
+        return ChannelType(val) in THREAD_TYPES
+
+    def _validate_type_rel_type(self, value: str) -> bool:
+        try:
+            val = int(value)
+        except (TypeError, ValueError):
+            return False
+
+        return val in (RelationshipType.FRIEND.value, RelationshipType.BLOCK.value)
 
     def _validate_type_msg_notifications(self, value: str):
         try:
@@ -603,13 +615,9 @@ CHAN_CREATE = {
     "position": {"coerce": int, "required": False},
     "topic": {"coerce": str, "minlength": 0, "maxlength": 1024, "required": False},
     "nsfw": {"type": "boolean", "required": False},
-    "rate_limit_per_user": {"coerce": int, "min": 0, "max": 120, "required": False},
-    "default_auto_archive_duration": {
-        "coerce": int,
-        "required": False,
-        "nullable": True,
-    },
-    "rtc_region": {"coerce": str, "required": False, "nullable": True},
+    "default_auto_archive_duration": {"coerce": int, "required": False, "nullable": True},
+    "rtc_region": {"type": "string", "required": False, "nullable": True},
+    "rate_limit_per_user": {"coerce": int, "min": 0, "max": 10080, "required": False},
     "bitrate": {
         "coerce": int,
         "min": 8000,
@@ -630,6 +638,24 @@ CHAN_CREATE = {
         "required": False,
     },
     "parent_id": {"coerce": int, "required": False, "nullable": True},
+}
+
+
+MSG_THREAD_CREATE = {
+    "name": {"type": "string", "minlength": 1, "maxlength": 100, "required": True},
+    "auto_archive_duration": {"coerce": int, "allowed": [0, 60, 1440, 4320, 10080], "required": False, "default": 1440},
+    "rate_limit_per_user": {"coerce": int, "min": 0, "max": 10080, "required": False},
+    "location": {"type": "string", "required": False, "nullable": True},
+}
+
+
+THREAD_CREATE = {
+    "name": {"type": "string", "minlength": 1, "maxlength": 100, "required": True},
+    "auto_archive_duration": {"coerce": int, "allowed": [0, 60, 1440, 4320, 10080], "required": False},
+    "rate_limit_per_user": {"coerce": int, "min": 0, "max": 10080, "required": False},
+    "location": {"type": "string", "required": False, "nullable": True},
+    "type": {"type": "thread_type", "required": False},
+    "invitable": {"type": "boolean", "required": False},
 }
 
 
@@ -791,7 +817,7 @@ INVITE = {
     "max_age": {
         "coerce": int,
         "min": 0,
-        "max": 666666,  # TODO find correct max value
+        "max": 604800,
         # a day
         "default": 86400,
     },
@@ -808,8 +834,8 @@ INVITE = {
         "coerce": str,
         "required": False,
         "nullable": True,
-    },
-    "target_type": {"coerce": str, "required": False, "nullable": True},
+    },  # discord client sends invite code there
+    "target_type": {"type": "string", "required": False, "nullable": True},
     "target_user_id": {"type": "snowflake", "required": False, "nullable": True},
     "target_user_type": {"type": "number", "required": False, "nullable": True},
 }

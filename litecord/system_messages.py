@@ -68,6 +68,50 @@ async def _handle_guild_join_msg(channel_id, user_id):
     return new_id
 
 
+async def _handle_follow(channel_id, guild_id, user_id, content, message_reference):
+    """Handle the channel follow message."""
+    new_id = app.winter_factory.snowflake()
+
+    await app.db.execute(
+        """
+        INSERT INTO messages
+            (id, channel_id, guild_id, author_id, content, message_type, message_reference)
+        VALUES
+            ($1, $2, $3, $4, $5, $6, $7)
+        """,
+        new_id,
+        channel_id,
+        guild_id,
+        user_id,
+        content,
+        MessageType.CHANNEL_FOLLOW_ADD.value,
+        message_reference,
+    )
+
+    return new_id
+
+
+async def _handle_thread_starter_msg(thread_id, guild_id, user_id, message_reference):
+    """Handle the thread starter message."""
+    new_id = app.winter_factory.snowflake()
+
+    await app.db.execute(
+        """
+        INSERT INTO messages (id, channel_id, guild_id, author_id,
+            content, message_type, message_reference)
+        VALUES ($1, $2, $3, $4, '', $5, $6)
+    """,
+        new_id,
+        thread_id,
+        guild_id,
+        user_id,
+        MessageType.THREAD_STARTER_MESSAGE.value,
+        message_reference,
+    )
+
+    return new_id
+
+
 # TODO: decrease repetition between add and remove handlers
 async def _handle_recp_add(channel_id, author_id, peer_id):
     new_id = app.winter_factory.snowflake()
@@ -186,6 +230,8 @@ async def send_sys_message(
         handler = {
             MessageType.CHANNEL_PINNED_MESSAGE: _handle_pin_msg,
             MessageType.GUILD_MEMBER_JOIN: _handle_guild_join_msg,
+            MessageType.CHANNEL_FOLLOW_ADD: _handle_follow,
+            MessageType.THREAD_STARTER_MESSAGE: _handle_thread_starter_msg,
             # gdm specific
             MessageType.RECIPIENT_ADD: _handle_recp_add,
             MessageType.RECIPIENT_REMOVE: _handle_recp_rmv,

@@ -23,6 +23,8 @@ from typing import Optional, Union
 
 from quart import current_app as app
 
+from litecord.enums import THREAD_TYPES
+
 # so we don't keep repeating the same
 # type for all the fields
 _i = ctypes.c_uint8
@@ -63,6 +65,16 @@ class _RawPermsBits(ctypes.LittleEndianStructure):
         ("manage_roles", _i, 1),
         ("manage_webhooks", _i, 1),
         ("manage_emojis", _i, 1),
+        ("use_application_commands", _i, 1),
+        ("request_to_speak", _i, 1),
+        ("manage_events", _i, 1),
+        ("manage_threads", _i, 1),
+        ("create_public_threads", _i, 1),
+        ("create_private_threads", _i, 1),
+        ("use_external_stickers", _i, 1),
+        ("send_messages_in_threads", _i, 1),
+        ("use_embedded_activities", _i, 1),
+        ("moderate_members", _i, 1),
     ]
 
 
@@ -90,7 +102,7 @@ class Permissions(ctypes.Union):
         return self.binary
 
 
-ALL_PERMISSIONS = Permissions(0b01111111111111111111111111111111)
+ALL_PERMISSIONS = Permissions(0b11111111111111111111111111111111111111111)
 EMPTY_PERMISSIONS = Permissions(0)
 
 
@@ -322,10 +334,12 @@ async def get_permissions(member_id: int, channel_id, *, storage=None) -> Permis
         storage = app.storage
 
     guild_id = await storage.guild_from_channel(channel_id)
-
-    # for non guild channels
     if not guild_id:
         return ALL_PERMISSIONS
+
+    basic = await storage.get_chan_basic(channel_id)
+    if basic["channel_type"] in THREAD_TYPES:
+        channel_id = await storage.get_thread_parent(channel_id)
 
     base_perms = await base_permissions(member_id, guild_id, storage)
 

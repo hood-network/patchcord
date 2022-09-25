@@ -24,6 +24,8 @@ blueprint for direct messages
 from quart import Blueprint, request, current_app as app, jsonify
 from logbook import Logger
 
+from litecord.errors import Forbidden
+
 from ..schemas import validate, CREATE_DM, CREATE_DM_V9
 from ..enums import ChannelType
 
@@ -143,6 +145,7 @@ async def start_dm():
 async def create_group_dm(p_user_id: int):
     """Create a DM or a Group DM with user(s)."""
     user_id = await token_check()
-    assert user_id == p_user_id
+    if user_id != p_user_id:
+        raise Forbidden('Cannot create a private channel for another user')
 
     return await _handle_dm(user_id, await request.get_json())
