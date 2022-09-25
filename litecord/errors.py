@@ -78,6 +78,7 @@ ERR_MSG_MAP = {
     50021: "Cannot execute action on a system message",
     50024: "Cannot execute action on this channel type",
     50025: "Invalid OAuth2 access token",
+    50028: "Invalid Role",
     50034: "A message provided was too old to bulk delete",
     50035: "Invalid Form Body",
     50036: "An invite was accepted to a guild the application's bot is not in",
