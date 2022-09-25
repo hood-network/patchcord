@@ -222,7 +222,7 @@ class Storage:
         )
 
         return await asyncio.gather(
-            *[self.parse_user(dict(user_row), secure) for user_row in users_rows]
+            *(self.parse_user(dict(user_row), secure) for user_row in users_rows)
         )
 
     async def search_user(self, username: str, discriminator: str) -> int:
@@ -360,7 +360,7 @@ class Storage:
         )
 
         return await asyncio.gather(
-            *[self.parse_guild(dict(row), user_id, full, large) for row in rows]
+            *(self.parse_guild(dict(row), user_id, full, large) for row in rows)
         )
 
     async def get_member_role_ids(self, guild_id: int, member_id: int) -> List[int]:
@@ -935,7 +935,7 @@ class Storage:
 
         return res
 
-    async def _inject_author(self, res: dict):
+    async def _inject_author(self, res: dict, _get_user):
         """Inject a pseudo-user object when the message is
         made by a webhook."""
         author_id = res["author_id"]
@@ -976,7 +976,10 @@ class Storage:
             }
             res["webhook_id"] = str(wb_info["webhook_id"])
         else:
-            res["author"] = await self.get_user(int(author_id))
+            res["author"] = author = await _get_user(int(author_id))
+            member = author.pop("member", None)
+            if member:
+                res["member"] = member
 
     async def parse_message(
         self,
@@ -987,33 +990,6 @@ class Storage:
     ) -> dict:
         """Parse a message object."""
         user_cache = user_cache or {}
-
-        res["id"] = str(res["id"])
-        res["timestamp"] = timestamp_(res["timestamp"])
-        res["edited_timestamp"] = timestamp_(res["edited_timestamp"])
-        res["type"] = res.pop("message_type")
-        res["content"] = res["content"] or ""
-        res["pinned"] = bool(res["pinned"])
-        res["mention_roles"] = (
-            [str(r) for r in res["mention_roles"]] if res["mention_roles"] else []
-        )
-        await self._inject_author(res)
-
-        guild_id = res["guild_id"]
-        is_crosspost = (
-            res["flags"] & MessageFlags.is_crosspost == MessageFlags.is_crosspost
-        )
-        attachments = list(res["attachments"]) if res["attachments"] else []
-        reactions = list(res["reactions"]) if res["reactions"] else []
-
-        if not guild_id:
-            guild_id = await self.guild_from_channel(int(res["channel_id"]))
-        res["guild_id"] = str(guild_id) if guild_id else None
-
-        if include_member:
-            member = await self.get_member(guild_id, int(res["author"]["id"]), False)
-            if member:
-                res["member"] = member
 
         async def _get_user(user_id):
             try:
@@ -1027,7 +1003,29 @@ class Storage:
                 user_cache[user_id] = user
             return user
 
-        mentions = await asyncio.gather(*[_get_user(m) for m in res["mentions"]])
+        res["id"] = str(res["id"])
+        res["timestamp"] = timestamp_(res["timestamp"])
+        res["edited_timestamp"] = timestamp_(res["edited_timestamp"])
+        res["type"] = res.pop("message_type")
+        res["content"] = res["content"] or ""
+        res["pinned"] = bool(res["pinned"])
+        res["mention_roles"] = (
+            [str(r) for r in res["mention_roles"]] if res["mention_roles"] else []
+        )
+        await self._inject_author(res, _get_user)
+
+        guild_id = res["guild_id"]
+        is_crosspost = (
+            res["flags"] & MessageFlags.is_crosspost == MessageFlags.is_crosspost
+        )
+        attachments = list(res["attachments"]) if res["attachments"] else []
+        reactions = list(res["reactions"]) if res["reactions"] else []
+
+        if not guild_id:
+            guild_id = await self.guild_from_channel(int(res["channel_id"]))
+        res["guild_id"] = str(guild_id) if guild_id else None
+
+        mentions = await asyncio.gather(*(_get_user(m) for m in res["mentions"]))
         res["mentions"] = [mention for mention in mentions if mention]
 
         if res.get("message_reference") and not is_crosspost and include_member:
@@ -1038,31 +1036,22 @@ class Storage:
 
         emoji = []
         react_stats = {}
-
-        # First we construct the dict and get the basic info
-        for row in reactions:
-            _, etype, eid, etext = row
-            etype = EmojiType(etype)
-            _, main_emoji = emoji_sql(etype, eid, etext)
-
-            if main_emoji in emoji:
-                continue
-
-            # Maintain reaction order
-            emoji.append(main_emoji)
-            react_stats[main_emoji] = {
-                "count": 0,
-                "me": False,
-                "emoji": partial_emoji(etype, eid, etext),
-            }
-
-        # Then we insert statistics
         for row in reactions:
             reactor_id, etype, eid, etext = row
             etype = EmojiType(etype)
             _, main_emoji = emoji_sql(etype, eid, etext)
 
-            stats = react_stats[main_emoji]
+            # Maintain reaction order
+            emoji.append(main_emoji)
+            try:
+                stats = react_stats[main_emoji]
+            except KeyError:
+                stats = react_stats[main_emoji] = {
+                    "count": 0,
+                    "me": False,
+                    "emoji": partial_emoji(etype, eid, etext),
+                }
+
             stats["count"] += 1
             if reactor_id == user_id:
                 stats["me"] = True
@@ -1215,10 +1204,10 @@ class Storage:
 
         user_cache = {}
         return await asyncio.gather(
-            *[
+            *(
                 self.parse_message(dict(row), user_id, include_member, user_cache)
                 for row in rows
-            ]
+            )
         )
 
     async def get_invite(self, invite_code: str) -> Optional[Dict]:

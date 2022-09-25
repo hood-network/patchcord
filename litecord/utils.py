@@ -37,7 +37,7 @@ TF = TypeVar("TF", bound=Flags)
 
 async def async_map(function, iterable: Iterable) -> list:
     """Map a coroutine to an iterable."""
-    return await asyncio.gather(*[function(item) for item in iterable])
+    return await asyncio.gather(*(function(item) for item in iterable))
 
 
 async def task_wrapper(name: str, coro):
@@ -194,7 +194,11 @@ async def maybe_lazy_guild_dispatch(
     if isinstance(role, dict) and not role["hoist"] and not force:
         return
 
-    await (getattr(app.lazy_guild, event))(guild_id, role)
+    kwargs = {}
+    if event == "role_delete":
+        kwargs = {"deleted": True}
+
+    await (getattr(app.lazy_guild, event))(guild_id, role, **kwargs)
 
 
 def extract_limit(request_, min_val: int = 1, default: int = 50, max_val: int = 100):

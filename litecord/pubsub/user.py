@@ -17,7 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from typing import Callable, List
+from typing import Callable, List, Optional
 
 from quart import current_app as app
 from .dispatcher import GatewayEvent
@@ -25,13 +25,13 @@ from .utils import send_event_to_states
 
 
 async def dispatch_user_filter(
-    user_id: int, filter_func: Callable[[str], bool], event_data: GatewayEvent
+    user_id: int, filter_func: Optional[Callable[[str], bool]], event_data: GatewayEvent
 ) -> List[str]:
     """Dispatch to a given user's states, but only for states
     where filter_func returns true."""
     states = list(
         filter(
-            lambda state: filter_func(state.session_id),
+            lambda state: filter_func(state.session_id) if filter_func else True,
             app.state_manager.user_states(user_id),
         )
     )
@@ -40,4 +40,4 @@ async def dispatch_user_filter(
 
 
 async def dispatch_user(user_id: int, event_data: GatewayEvent) -> List[str]:
-    return await dispatch_user_filter(user_id, lambda sess_id: True, event_data)
+    return await dispatch_user_filter(user_id, None, event_data)

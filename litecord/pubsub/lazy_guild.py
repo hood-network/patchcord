@@ -1320,8 +1320,8 @@ class GuildMemberList:
             )
             return await self.role_delete(role_id)
 
-    async def role_delete(self, role_id: int):
-        """Called when a role is deleted, so we should
+    async def role_delete(self, role_id: int, deleted: bool = False):
+        """Called when a role group is deleted, so we should
         delete it off the list and reassign presences."""
         if not self.list:
             return
@@ -1368,11 +1368,12 @@ class GuildMemberList:
             # the new presences so we achieve the correct state
             log.debug("reassigning {} presences", len(member_ids))
             members = [self.list.members[mid] for mid in member_ids]
-            for member in members:
-                try:
-                    member["roles"].remove(str(role_id))
-                except ValueError:
-                    pass
+            if deleted:
+                for member in members:
+                    try:
+                        member["roles"].remove(str(role_id))
+                    except ValueError:
+                        pass
             await self._list_fill_groups(members)
             await self._sort_groups()
         except KeyError:
@@ -1510,14 +1511,14 @@ class LazyGuildManager:
         gml = await self.get_gml(channel_id)
         await gml.chan_update()
 
-    async def _call_all_lists(self, guild_id, method_str: str, *args):
+    async def _call_all_lists(self, guild_id, method_str: str, *args, **kwargs):
         lists = self.get_gml_guild(guild_id)
 
         log.debug("calling method={} to all {} lists", method_str, len(lists))
 
         for lazy_list in lists:
             method = getattr(lazy_list, method_str)
-            await method(*args)
+            await method(*args, **kwargs)
 
     async def new_role(self, guild_id: int, new_role: dict):
         """Handle the addition of a new group by dispatching it to
@@ -1531,8 +1532,8 @@ class LazyGuildManager:
         # handle name and hoist changes
         await self._call_all_lists(guild_id, "role_update", role)
 
-    async def role_delete(self, guild_id, role_id: int):
-        await self._call_all_lists(guild_id, "role_delete", role_id)
+    async def role_delete(self, guild_id, role_id: int, *, deleted: bool = False):
+        await self._call_all_lists(guild_id, "role_delete", role_id, deleted=deleted)
 
     async def pres_update(self, guild_id, user_id: int, partial: dict):
         await self._call_all_lists(guild_id, "pres_update", user_id, partial)

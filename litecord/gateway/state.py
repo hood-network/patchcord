@@ -26,6 +26,7 @@ from logbook import Logger
 
 from litecord.presence import BasePresence
 from litecord.enums import Intents
+from litecord.utils import index_by_func
 from .opcodes import OP
 
 log = Logger(__name__)
@@ -134,7 +135,7 @@ class GatewayState:
             "op": OP.DISPATCH,
             "t": event_type.upper(),
             "s": self.seq,
-            "d": event_data,
+            "d": dict(event_data) if event_data else None,
         }
 
         self.store[self.seq] = payload
@@ -180,25 +181,29 @@ class GatewayState:
 
                 elif (
                     event_type.startswith("CHANNEL_")
-                    and data.get("permission_overwrites")
-                    and self.ws.ws_properties.version < 8
                 ):
-                    for overwrite in data["permission_overwrites"]:
-                        overwrite["type"] = (
-                            "role" if overwrite["type"] == 0 else "member"
-                        )
-                        overwrite["allow_new"] = overwrite.get("allow", "0")
-                        overwrite["allow"] = (
-                            (int(overwrite["allow"]) & ((2 << 31) - 1))
-                            if overwrite.get("allow")
-                            else 0
-                        )
-                        overwrite["deny_new"] = overwrite.get("deny", "0")
-                        overwrite["deny"] = (
-                            (int(overwrite["deny"]) & ((2 << 31) - 1))
-                            if overwrite.get("deny")
-                            else 0
-                        )
+                    if data.get("type") == 3:
+                        idx = index_by_func(lambda user: user["id"] == str(self.user_id), data["recipients"])
+                        if idx is not None:
+                            data["recipients"].pop(idx)
+
+                    if data.get("permission_overwrites") and self.ws.ws_properties.version < 8:
+                        for overwrite in data["permission_overwrites"]:
+                            overwrite["type"] = (
+                                "role" if overwrite["type"] == 0 else "member"
+                            )
+                            overwrite["allow_new"] = overwrite.get("allow", "0")
+                            overwrite["allow"] = (
+                                (int(overwrite["allow"]) & ((2 << 31) - 1))
+                                if overwrite.get("allow")
+                                else 0
+                            )
+                            overwrite["deny_new"] = overwrite.get("deny", "0")
+                            overwrite["deny"] = (
+                                (int(overwrite["deny"]) & ((2 << 31) - 1))
+                                if overwrite.get("deny")
+                                else 0
+                            )
 
                 elif (
                     event_type in ("GUILD_CREATE", "GUILD_UPDATE")

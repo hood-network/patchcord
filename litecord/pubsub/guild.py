@@ -19,6 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from typing import List, Tuple
 
+import asyncio
 from quart import current_app as app
 from logbook import Logger
 
@@ -56,8 +57,7 @@ class GuildDispatcher(DispatcherWithState[int, str, GatewayEvent, List[str]]):
         self, guild_id: int, user_id: int
     ) -> Tuple[List[GatewayState], List[int]]:
         states = app.state_manager.fetch_states(user_id, guild_id)
-        for state in states:
-            await self.sub(guild_id, state.session_id)
+        asyncio.gather(*(self.sub(guild_id, state.session_id) for state in states))
 
         # instead of calculating which channels to subscribe to
         # inside guild dispatcher, we calculate them in here, so that
@@ -65,11 +65,11 @@ class GuildDispatcher(DispatcherWithState[int, str, GatewayEvent, List[str]]):
 
         guild_chan_ids = await app.storage.get_channel_ids(guild_id)
         channel_ids = []
-        for channel_id in guild_chan_ids:
+        async def sub_channel(channel_id):
             perms = await get_permissions(user_id, channel_id)
-
             if perms.bits.read_messages:
                 channel_ids.append(channel_id)
+        await asyncio.gather(*(sub_channel(chan_id) for chan_id in guild_chan_ids))
 
         return states, channel_ids
 
@@ -77,9 +77,7 @@ class GuildDispatcher(DispatcherWithState[int, str, GatewayEvent, List[str]]):
         self, guild_id: int, user_id: int
     ) -> Tuple[List[GatewayState], List[int]]:
         states = app.state_manager.fetch_states(user_id, guild_id)
-        for state in states:
-            await self.unsub(guild_id, state.session_id)
-
+        asyncio.gather(*(self.unsub(guild_id, state.session_id) for state in states))
         guild_chan_ids = await app.storage.get_channel_ids(guild_id)
         return states, guild_chan_ids
 
@@ -90,34 +88,35 @@ class GuildDispatcher(DispatcherWithState[int, str, GatewayEvent, List[str]]):
         sessions: List[str] = []
         event_type, event_data = event
 
-        for session_id in set(session_ids):
-            if not filter_function(session_id):
-                continue
+        async def _dispatch(session_id: str) -> None:
+            if filter_function and not filter_function(session_id):
+                return
 
             try:
                 state = app.state_manager.fetch_raw(session_id)
             except KeyError:
                 await self.unsub(guild_id, session_id)
-                continue
+                return
 
             if not state:
                 await self.unsub(guild_id, session_id)
-                continue
+                return
 
             if not can_dispatch(event_type, event_data, state):
-                continue
+                return
 
             try:
                 await state.dispatch(*event)
             except Exception:
                 log.exception("error while dispatching to {}", state.session_id)
-                continue
+                return
 
             sessions.append(session_id)
 
+        await asyncio.gather(*(_dispatch(sess_id) for sess_id in session_ids))
         log.info("Dispatched {} {!r} to {} states", guild_id, event[0], len(sessions))
         return sessions
 
     async def dispatch(self, guild_id: int, event):
         """Dispatch an event to all subscribers of the guild."""
-        return await self.dispatch_filter(guild_id, lambda sess_id: True, event)
+        return await self.dispatch_filter(guild_id, None, event)

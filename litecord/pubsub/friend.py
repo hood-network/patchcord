@@ -17,6 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
+import asyncio
 from typing import List, Set
 from logbook import Logger
 
@@ -39,13 +40,15 @@ class FriendDispatcher(DispatcherWithState[int, int, GatewayEvent, List[str]]):
         peer_ids: Set[int] = self.state[user_id]
         sessions: List[str] = []
 
-        for peer_id in peer_ids:
+        async def dispatch(peer_id: int) -> None:
             # dispatch to the user instead of the "shards tied to a guild"
             # since relationships broadcast to all shards.
             sessions.extend(await dispatch_user_filter(peer_id, filter_function, event))
+
+        asyncio.gather(*[dispatch(peer_id) for peer_id in peer_ids])
 
         log.info("dispatched uid={} {!r} to {} states", user_id, event, len(sessions))
         return sessions
 
     async def dispatch(self, user_id: int, event: GatewayEvent):
-        return await self.dispatch_filter(user_id, lambda sess_id: True, event)
+        return await self.dispatch_filter(user_id, None, event)
