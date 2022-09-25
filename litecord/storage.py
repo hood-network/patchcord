@@ -991,18 +991,6 @@ class Storage:
         """Parse a message object."""
         user_cache = user_cache or {}
 
-        async def _get_user(user_id):
-            try:
-                user = user_cache[user_id]
-            except KeyError:
-                user = await self.get_user(user_id)
-                if include_member and user and guild_id:
-                    member = await self.get_member(guild_id, user_id, False)
-                    if member:
-                        user["member"] = member
-                user_cache[user_id] = user
-            return user
-
         res["id"] = str(res["id"])
         res["timestamp"] = timestamp_(res["timestamp"])
         res["edited_timestamp"] = timestamp_(res["edited_timestamp"])
@@ -1012,7 +1000,6 @@ class Storage:
         res["mention_roles"] = (
             [str(r) for r in res["mention_roles"]] if res["mention_roles"] else []
         )
-        await self._inject_author(res, _get_user)
 
         guild_id = res["guild_id"]
         is_crosspost = (
@@ -1025,14 +1012,27 @@ class Storage:
             guild_id = await self.guild_from_channel(int(res["channel_id"]))
         res["guild_id"] = str(guild_id) if guild_id else None
 
-        mentions = await asyncio.gather(*(_get_user(m) for m in res["mentions"]))
-        res["mentions"] = [mention for mention in mentions if mention]
-
         if res.get("message_reference") and not is_crosspost and include_member:
             message = await self.get_message(
                 int(res["message_reference"]["message_id"]), user_id, include_member
             )
             res["referenced_message"] = message
+
+        async def _get_user(user_id):
+            try:
+                user = user_cache[user_id]
+            except KeyError:
+                user = await self.get_user(user_id)
+                if include_member and user and guild_id:
+                    member = await self.get_member(guild_id, user_id, False)
+                    if member:
+                        user["member"] = member
+                user_cache[user_id] = user
+            return user
+
+        await self._inject_author(res, _get_user)
+        mentions = await asyncio.gather(*(_get_user(m) for m in res["mentions"]))
+        res["mentions"] = [mention for mention in mentions if mention]
 
         emoji = []
         react_stats = {}
