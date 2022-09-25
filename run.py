@@ -482,3 +482,6 @@ def handle_413(_):
 @app.errorhandler(500)
 async def handle_500(_):
     jsonify({"message": "500: Internal Server Error", "code": 0}), 500
+
+if __name__ == "__main__":
+    app.run()
