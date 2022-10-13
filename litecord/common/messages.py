@@ -44,10 +44,24 @@ async def msg_create_request() -> tuple:
 
     for num, (_, given_file) in enumerate(files.items()):
         if given_file.content_length is None:
-            raise ManualFormError(files={num: {"content_length": {"code": "BASE_TYPE_REQUIRED", "message": "This field is required."}}})
+            raise ManualFormError(
+                files={
+                    num: {
+                        "content_length": {
+                            "code": "BASE_TYPE_REQUIRED",
+                            "message": "This field is required.",
+                        }
+                    }
+                }
+            )
 
     if len(files) > 10:
-        raise ManualFormError(files={"code": "BASE_TYPE_MAX_LENGTH", "message": "Must be 10 or fewer in length."})
+        raise ManualFormError(
+            files={
+                "code": "BASE_TYPE_MAX_LENGTH",
+                "message": "Must be 10 or fewer in length.",
+            }
+        )
 
     # we don't really care about the given fields on the files dict, so
     # we only extract the values
@@ -57,13 +71,19 @@ async def msg_create_request() -> tuple:
 def msg_create_check_content(payload: dict, files: list):
     """Check if there is actually any content being sent to us."""
     content = payload["content"] or ""
-    embeds = (payload.get("embeds") or []) or [payload["embed"]] if "embed" in payload and payload["embed"] else []
+    embeds = (
+        (payload.get("embeds") or []) or [payload["embed"]]
+        if "embed" in payload and payload["embed"]
+        else []
+    )
     sticker_ids = payload.get("sticker_ids")
     if not content and not embeds and not sticker_ids and not files:
         raise BadRequest(50006)
 
 
-async def msg_add_attachment(message_id: int, channel_id: int, author_id: Optional[int], attachment_file) -> int:
+async def msg_add_attachment(
+    message_id: int, channel_id: int, author_id: Optional[int], attachment_file
+) -> int:
     """Add an attachment to a message.
 
     Parameters
@@ -191,10 +211,10 @@ async def msg_guild_text_mentions(
 
         await app.db.execute(
             """
-        UPDATE user_read_state
-        SET mention_count = mention_count + 1
-        WHERE channel_id = $1
-        """,
+            UPDATE user_read_state
+            SET mention_count = mention_count + 1
+            WHERE channel_id = $1
+            """,
             channel_id,
         )
 

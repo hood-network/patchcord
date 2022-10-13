@@ -30,6 +30,7 @@ from typing import (
     Tuple,
 )
 from collections import defaultdict
+import asyncio
 
 from logbook import Logger
 
@@ -71,8 +72,7 @@ class Dispatcher(Generic[K, V, EventType, DispatchType]):
 
     async def dispatch_many(self, keys: List[K], *args: Any, **kwargs: Any) -> None:
         log.info("MULTI DISPATCH in {!r}, {} keys", self, len(keys))
-        for key in keys:
-            await self.dispatch(key, *args, **kwargs)
+        await asyncio.gather(*(self.dispatch(key, *args, **kwargs) for key in keys))
 
     async def drop(self, key: K) -> None:
         """Drop a key."""
@@ -119,7 +119,4 @@ class DispatcherWithState(Dispatcher[K, V, EventType, DispatchType]):
         self.state[key] = set()
 
     async def drop(self, key: K):
-        try:
-            self.state.pop(key)
-        except KeyError:
-            pass
+        self.state.pop(key, None)

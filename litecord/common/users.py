@@ -64,9 +64,7 @@ async def mass_user_update(user_id: int) -> Tuple[dict, dict]:
     presence = app.presence.fetch_self_presence(user_id)
 
     # usually this presence should be partial, but there should be no major issue with a full one
-    await app.presence.dispatch_friends_pres(
-        int(public_user["id"]), presence
-    )
+    await app.presence.dispatch_friends_pres(int(public_user["id"]), presence)
 
     for guild_id in guild_ids:
         await app.lazy_guild.update_user(guild_id, user_id)
@@ -130,7 +128,14 @@ async def roll_discrim(username: str) -> Optional[str]:
     return None
 
 
-async def create_user(username: str, email: str, password: str, date_of_birth: Optional[datetime] = None, *, id: Optional[int] = None) -> Tuple[int, str]:
+async def create_user(
+    username: str,
+    email: str,
+    password: str,
+    date_of_birth: Optional[datetime] = None,
+    *,
+    id: Optional[int] = None,
+) -> Tuple[int, str]:
     """Create a single user.
 
     Generates a distriminator and other information. You can fetch the user
@@ -160,7 +165,12 @@ async def create_user(username: str, email: str, password: str, date_of_birth: O
             date_of_birth,
         )
     except UniqueViolationError:
-        raise ManualFormError(email={"code": "EMAIL_ALREADY_REGISTERED", "message": "Email is already registered."})
+        raise ManualFormError(
+            email={
+                "code": "EMAIL_ALREADY_REGISTERED",
+                "message": "Email is already registered.",
+            }
+        )
 
     return new_id, pwd_hash
 

@@ -26,7 +26,7 @@ from litecord.auth import token_check
 
 from litecord.blueprints.checks import guild_check, guild_perm_check
 from litecord.common.interop import role_view
-from litecord.errors import NotFound
+from litecord.errors import BadRequest, NotFound
 from litecord.schemas import validate, ROLE_CREATE, ROLE_UPDATE, ROLE_UPDATE_POSITION
 
 from litecord.utils import maybe_lazy_guild_dispatch
@@ -108,6 +108,7 @@ async def _role_pairs_update(guild_id: int, pairs: list):
 
 
 PairList = List[Tuple[int, int]]
+
 
 def gen_pairs(
     list_of_changes: List[Dict[str, int]],
@@ -264,6 +265,9 @@ async def delete_guild_role(guild_id, role_id):
 
     await guild_perm_check(user_id, guild_id, "manage_roles")
 
+    if role_id == guild_id:
+        raise BadRequest(50028)
+
     res = await app.db.execute(
         """
     DELETE FROM roles
@@ -363,7 +367,17 @@ async def add_members_to_role(guild_id, role_id):
 
     await guild_perm_check(user_id, guild_id, "manage_roles")
 
-    j = validate(await request.get_json(), {"member_ids": {"type": "list", "schema": {"coerce": int}, "maxlength": 30, "required": True}})
+    j = validate(
+        await request.get_json(),
+        {
+            "member_ids": {
+                "type": "list",
+                "schema": {"coerce": int},
+                "maxlength": 30,
+                "required": True,
+            }
+        },
+    )
 
     val = await app.db.fetchval(
         """
@@ -401,7 +415,8 @@ async def add_members_to_role(guild_id, role_id):
 
             await app.lazy_guild.pres_update(guild_id, id, partial)
             await app.dispatcher.guild.dispatch(
-                guild_id, ("GUILD_MEMBER_UPDATE", {**{"guild_id": str(guild_id)}, **member})
+                guild_id,
+                ("GUILD_MEMBER_UPDATE", {**{"guild_id": str(guild_id)}, **member}),
             )
 
         members.append(member)

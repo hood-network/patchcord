@@ -177,8 +177,14 @@ class LitecordValidator(Validator):
         else:
             return True
 
-    def _validate_type_recipients(self, value: Union[List[Union[int, str]], Union[int, str]]):
-        return all(self._validate_type_snowflake(v) for v in value) if isinstance(value, list) else self._validate_type_snowflake(value)
+    def _validate_type_recipients(
+        self, value: Union[List[Union[int, str]], Union[int, str]]
+    ):
+        return (
+            all(self._validate_type_snowflake(v) for v in value)
+            if isinstance(value, list)
+            else self._validate_type_snowflake(value)
+        )
 
     def _validate_type_date_of_birth(self, value: str) -> bool:
         try:
@@ -195,7 +201,22 @@ class LitecordValidator(Validator):
         return value in {"user", "-user", "bot", "-bot", "webhook", "-webhook"}
 
     def _validate_type_has(self, value: str) -> bool:
-        return value in {"video", "-link", "file", "sticker", "-embed", "-file", "-video", "-sound", "link", "-image", "-sticker", "embed", "sound", "image"}
+        return value in {
+            "video",
+            "-link",
+            "file",
+            "sticker",
+            "-embed",
+            "-file",
+            "-video",
+            "-sound",
+            "link",
+            "-image",
+            "-sticker",
+            "embed",
+            "sound",
+            "image",
+        }
 
 
 class LitecordErrorHandler(BasicErrorHandler):
@@ -205,27 +226,68 @@ class LitecordErrorHandler(BasicErrorHandler):
         0x06: {"code": "BASE_TYPE_REQUIRED", "message": "This field is required."},
         0x22: {"code": "BASE_TYPE_REQUIRED", "message": "This field is required."},
         0x23: {"code": "BASE_TYPE_REQUIRED", "message": "This field is required."},
-        0x24: {"code": "{constraint}_TYPE_COERCE", "message": "Value \"{value}\" is not {constraint}."},
-        0x25: {"code": "DICT_TYPE_CONVERT", "message": "Only dictionaries may be used in a DictType."},
-        0x27: {"code": "BASE_TYPE_BAD_LENGTH", "message": "Must be between {0} and {1} in length."},
-        0x27: {"code": "BASE_TYPE_MIN_LENGTH", "message": "Must be {constraint} or more in length."},
-        0x28: {"code": "BASE_TYPE_MAX_LENGTH", "message": "Must be {constraint} or fewer in length."},
-        0x41: {"code": "REGEX_VALIDATE", "message": "Value cannot be \"{value}\"."},
-        0x42: {"code": "NUMBER_TYPE_MIN", "message": "Value should be greater than or equal to {constraint}."},
-        0x43: {"code": "NUMBER_TYPE_MAX", "message": "Value should be less than or equal to {constraint}."},
-        0x44: {"code": "BASE_TYPE_CHOICES", "message": "Value must be one of {constraint}."},
-        0x45: {"code": "BASE_TYPE_CHOICES", "message": "Values must be one of {constraint}."},
-        0x46: {"code": "BASE_TYPE_CHOICES", "message": "Value cannot be one of {constraint}."},
-        0x47: {"code": "BASE_TYPE_CHOICES", "message": "Values cannot be one of {constraint}."},
-        0x47: {"code": "BASE_TYPE_CHOICES", "message": "Values must contain {constraint}."},
-        0x61: {"code": "{constraint}_TYPE_COERCE", "message": "Value \"{value}\" is not {constraint}."},
+        0x24: {
+            "code": "{constraint}_TYPE_COERCE",
+            "message": 'Value "{value}" is not {constraint}.',
+        },
+        0x25: {
+            "code": "DICT_TYPE_CONVERT",
+            "message": "Only dictionaries may be used in a DictType.",
+        },
+        0x27: {
+            "code": "BASE_TYPE_BAD_LENGTH",
+            "message": "Must be between {0} and {1} in length.",
+        },
+        0x27: {
+            "code": "BASE_TYPE_MIN_LENGTH",
+            "message": "Must be {constraint} or more in length.",
+        },
+        0x28: {
+            "code": "BASE_TYPE_MAX_LENGTH",
+            "message": "Must be {constraint} or fewer in length.",
+        },
+        0x41: {"code": "REGEX_VALIDATE", "message": 'Value cannot be "{value}".'},
+        0x42: {
+            "code": "NUMBER_TYPE_MIN",
+            "message": "Value should be greater than or equal to {constraint}.",
+        },
+        0x43: {
+            "code": "NUMBER_TYPE_MAX",
+            "message": "Value should be less than or equal to {constraint}.",
+        },
+        0x44: {
+            "code": "BASE_TYPE_CHOICES",
+            "message": "Value must be one of {constraint}.",
+        },
+        0x45: {
+            "code": "BASE_TYPE_CHOICES",
+            "message": "Values must be one of {constraint}.",
+        },
+        0x46: {
+            "code": "BASE_TYPE_CHOICES",
+            "message": "Value cannot be one of {constraint}.",
+        },
+        0x47: {
+            "code": "BASE_TYPE_CHOICES",
+            "message": "Values cannot be one of {constraint}.",
+        },
+        0x47: {
+            "code": "BASE_TYPE_CHOICES",
+            "message": "Values must contain {constraint}.",
+        },
+        0x61: {
+            "code": "{constraint}_TYPE_COERCE",
+            "message": 'Value "{value}" is not {constraint}.',
+        },
     }
 
     def _format_message(self, field, error):
         info = self.messages.get(error.code, self.messages[0x00])
         return {
             "code": info["code"].format(constraint=error.constraint).upper(),
-            "message": info["message"].format(*error.info, constraint=error.constraint, field=field, value=error.value),
+            "message": info["message"].format(
+                *error.info, constraint=error.constraint, field=field, value=error.value
+            ),
         }
 
 
@@ -296,7 +358,10 @@ REGISTER_WITH_INVITE = {**REGISTER, **{"invcode": {"coerce": str, "required": Tr
 OVERRIDE_SPECIFIC = {
     "type": "dict",
     "required": False,
-    "schema": {"id": {"coerce": str, "required": True}, "type": {"coerce": str, "required": True, "allowed": ("id", "branch")}},
+    "schema": {
+        "id": {"coerce": str, "required": True},
+        "type": {"coerce": str, "required": True, "allowed": ("id", "branch")},
+    },
 }
 
 OVERRIDE_STAFF = {
@@ -322,10 +387,24 @@ OVERRIDE_LINK = {
         "type": "dict",
         "required": True,
         "schema": {
-            "allow_logged_out": {"type": "boolean", "required": False, "default": False},
+            "allow_logged_out": {
+                "type": "boolean",
+                "required": False,
+                "default": False,
+            },
             "release_channel": {"coerce": str, "required": False, "nullable": True},
-            "user_ids": {"type": "list", "required": False, "nullable": True, "schema": {"coerce": int}},
-            "ttl_seconds": {"type": "number", "required": False, "nullable": True, "default": 3600},
+            "user_ids": {
+                "type": "list",
+                "required": False,
+                "nullable": True,
+                "schema": {"coerce": int},
+            },
+            "ttl_seconds": {
+                "type": "number",
+                "required": False,
+                "nullable": True,
+                "default": 3600,
+            },
         },
     },
 }
@@ -423,7 +502,12 @@ PARTIAL_ROLE_GUILD_CREATE = {
 
 PARTIAL_CHANNEL_GUILD_CREATE = {
     "type": "dict",
-    "schema": {"name": {"type": "channel_name", "required": True}, "type": {"type": "channel_type", "required": True}, "id": {"coerce": int, "nullable": True}, "parent_id": {"coerce": int}},
+    "schema": {
+        "name": {"type": "channel_name", "required": True},
+        "type": {"type": "channel_type", "required": True},
+        "id": {"coerce": int, "nullable": True},
+        "parent_id": {"coerce": int},
+    },
 }
 
 GUILD_CREATE = {
@@ -509,13 +593,22 @@ CHAN_CREATE = {
     "type": {
         "coerce": int,
         "default": ChannelType.GUILD_TEXT.value,
-        "allowed": (ChannelType.GUILD_TEXT.value, ChannelType.GUILD_VOICE.value, ChannelType.GUILD_CATEGORY.value, ChannelType.GUILD_NEWS.value),
+        "allowed": (
+            ChannelType.GUILD_TEXT.value,
+            ChannelType.GUILD_VOICE.value,
+            ChannelType.GUILD_CATEGORY.value,
+            ChannelType.GUILD_NEWS.value,
+        ),
     },
     "position": {"coerce": int, "required": False},
     "topic": {"coerce": str, "minlength": 0, "maxlength": 1024, "required": False},
     "nsfw": {"type": "boolean", "required": False},
     "rate_limit_per_user": {"coerce": int, "min": 0, "max": 120, "required": False},
-    "default_auto_archive_duration": {"coerce": int, "required": False, "nullable": True},
+    "default_auto_archive_duration": {
+        "coerce": int,
+        "required": False,
+        "nullable": True,
+    },
     "rtc_region": {"coerce": str, "required": False, "nullable": True},
     "bitrate": {
         "coerce": int,
@@ -585,7 +678,7 @@ CHANNEL_UPDATE_POSITION = {
                 "parent_id": {"coerce": int, "required": False, "nullable": True},
                 "lock_permissions": {"type": "boolean", "required": False},
             },
-        }
+        },
     }
 }
 
@@ -596,7 +689,12 @@ MEMBER_UPDATE = {
     "bio": {"coerce": str, "required": False, "nullable": True, "maxlength": 190},
     "pronouns": {"coerce": str, "required": False, "nullable": True, "maxlength": 40},
     "nick": {"type": "nickname", "required": False, "nullable": True},
-    "roles": {"type": "list", "required": False, "schema": {"coerce": int}, "nullable": True},
+    "roles": {
+        "type": "list",
+        "required": False,
+        "schema": {"coerce": int},
+        "nullable": True,
+    },
     "mute": {"type": "boolean", "required": False},
     "deaf": {"type": "boolean", "required": False},
     "channel_id": {"type": "snowflake", "required": False, "nullable": True},
@@ -617,7 +715,12 @@ SELF_MEMBER_UPDATE = {
 
 
 CHANNEL_GREET = {
-    "sticker_ids": {"type": "list", "required": True, "schema": {"coerce": int}, "maxlength": 3},
+    "sticker_ids": {
+        "type": "list",
+        "required": True,
+        "schema": {"coerce": int},
+        "maxlength": 3,
+    },
     "message_reference": {
         "type": "dict",
         "required": False,
@@ -653,7 +756,11 @@ MESSAGE_UPDATE = {
         "required": False,
         "nullable": True,
         "schema": {
-            "parse": {"type": "list", "required": False, "allowed": ("everyone", "roles", "users")},
+            "parse": {
+                "type": "list",
+                "required": False,
+                "allowed": ("everyone", "roles", "users"),
+            },
             "replied_user": {"type": "boolean", "default": False},
             "roles": {"type": "list", "required": False, "schema": {"coerce": int}},
             "users": {"type": "list", "required": False, "schema": {"coerce": int}},
@@ -666,7 +773,12 @@ MESSAGE_UPDATE = {
 MESSAGE_CREATE = {
     **MESSAGE_UPDATE,
     **CHANNEL_GREET,
-    "sticker_ids": {"type": "list", "required": False, "schema": {"coerce": int}, "maxlength": 3},
+    "sticker_ids": {
+        "type": "list",
+        "required": False,
+        "schema": {"coerce": int},
+        "maxlength": 3,
+    },
     "channel_id": {"type": "snowflake", "required": False},
     "nonce": {"coerce": str, "required": False, "nullable": True},
     "tts": {"type": "boolean", "default": False},
@@ -702,8 +814,10 @@ INVITE = {
     "target_user_type": {"type": "number", "required": False, "nullable": True},
 }
 
+
 def removeunknown(value: str):
     return value if value.lower() != "unknown" else "online"
+
 
 USER_SETTINGS = {
     "afk_timeout": {"type": "number", "required": False, "min": 0, "max": 3000},
@@ -773,9 +887,7 @@ RELATIONSHIP_UPDATE = {
 
 CREATE_DM = {"recipient_id": {"type": "recipients", "required": True}}
 
-CREATE_DM_V9 = {
-    "recipients": {"type": "recipients", "required": True}
-}
+CREATE_DM_V9 = {"recipients": {"type": "recipients", "required": True}}
 
 GROUP_DM_UPDATE = {
     "name": {"type": "guild_name", "required": False},
@@ -839,21 +951,39 @@ def maybebool(value):
 
 
 SEARCH_CHANNEL = {
-    "content": {"coerce": str, "minlength": 1, "maxlength": 4096, "required": False, "nullable": True},
+    "content": {
+        "coerce": str,
+        "minlength": 1,
+        "maxlength": 4096,
+        "required": False,
+        "nullable": True,
+    },
     "include_nsfw": {"coerce": maybebool, "default": True},
     "offset": {"coerce": int, "default": 0},
     "min_id": {"coerce": int, "required": False},
     "max_id": {"coerce": int, "required": False},
     "channel_id": {"type": "list", "schema": {"coerce": int}, "required": False},
     "author_id": {"type": "list", "schema": {"coerce": int}, "required": False},
-    "author_type": {"type": "list", "schema": {"type": "author_type"}, "required": False},
+    "author_type": {
+        "type": "list",
+        "schema": {"type": "author_type"},
+        "required": False,
+    },
     "has": {"type": "list", "schema": {"type": "has"}, "required": False},
     "mentions": {"type": "list", "schema": {"coerce": int}, "required": False},
     "embed_type": {"type": "list", "schema": {"coerce": str}, "required": False},
     "embed_provider": {"type": "list", "schema": {"coerce": str}, "required": False},
     "link_hostname": {"type": "list", "schema": {"coerce": str}, "required": False},
-    "attachment_filename": {"type": "list", "schema": {"coerce": str}, "required": False},
-    "attachment_extension": {"type": "list", "schema": {"coerce": str}, "required": False},
+    "attachment_filename": {
+        "type": "list",
+        "schema": {"coerce": str},
+        "required": False,
+    },
+    "attachment_extension": {
+        "type": "list",
+        "schema": {"coerce": str},
+        "required": False,
+    },
     "limit": {"coerce": int, "default": 25, "min": 1, "max": 25},
     "sort_by": {"coerce": str, "required": False},
     "sort_order": {"coerce": str, "allowed": ("asc", "desc"), "default": "desc"},
@@ -906,7 +1036,11 @@ WEBHOOK_MESSAGE_UPDATE = {
         "required": False,
         "nullable": True,
         "schema": {
-            "parse": {"type": "list", "required": False, "allowed": ("everyone", "roles", "users")},
+            "parse": {
+                "type": "list",
+                "required": False,
+                "allowed": ("everyone", "roles", "users"),
+            },
             "replied_user": {"type": "boolean", "required": False},
             "roles": {"type": "list", "required": False, "schema": {"coerce": int}},
             "users": {"type": "list", "required": False, "schema": {"coerce": int}},

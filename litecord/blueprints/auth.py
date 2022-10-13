@@ -60,7 +60,10 @@ async def register():
     """Register a single user."""
     enabled = app.config.get("REGISTRATIONS")
     if not enabled:
-        error = {"code": "REGISTRATIONS_DISABLED", "message": "Registrations are disabled."}
+        error = {
+            "code": "REGISTRATIONS_DISABLED",
+            "message": "Registrations are disabled.",
+        }
         raise ManualFormError(email=error, username=error)
 
     j = await request.get_json()
@@ -82,8 +85,17 @@ async def register():
     if j.get("date_of_birth"):
         today = date.today()
         date_of_birth = datetime.strptime(j["date_of_birth"], "%Y-%m-%d")
-        if (today.year - date_of_birth.year - ((today.month, today.day) < (date_of_birth.month, date_of_birth.day))) < 13:
-            raise ManualFormError(date_of_birth={"code": "DATE_OF_BIRTH_UNDERAGE", "message": "You must be at least 13 years old to register."})
+        if (
+            today.year
+            - date_of_birth.year
+            - ((today.month, today.day) < (date_of_birth.month, date_of_birth.day))
+        ) < 13:
+            raise ManualFormError(
+                date_of_birth={
+                    "code": "DATE_OF_BIRTH_UNDERAGE",
+                    "message": "You must be at least 13 years old to register.",
+                }
+            )
 
     new_id, pwd_hash = await create_user(username, email, password, date_of_birth)
 
@@ -113,17 +125,36 @@ async def _register_with_invite():
     )
 
     if row is None:
-        raise ManualFormError(invcode={"code": "INVITATION_CODE_INVALID", "message": "Invalid instance invite."})
+        raise ManualFormError(
+            invcode={
+                "code": "INVITATION_CODE_INVALID",
+                "message": "Invalid instance invite.",
+            }
+        )
 
     if row["max_uses"] > 0 and row["uses"] >= row["max_uses"]:
-        raise ManualFormError(invcode={"code": "INVITATION_CODE_INVALID", "message": "Invalid instance invite."})
+        raise ManualFormError(
+            invcode={
+                "code": "INVITATION_CODE_INVALID",
+                "message": "Invalid instance invite.",
+            }
+        )
 
     date_of_birth = None
     if data.get("date_of_birth"):
         today = date.today()
         date_of_birth = datetime.strptime(data["date_of_birth"], "%Y-%m-%d")
-        if (today.year - date_of_birth.year - ((today.month, today.day) < (date_of_birth.month, date_of_birth.day))) < 13:
-            raise ManualFormError(date_of_birth={"code": "DATE_OF_BIRTH_UNDERAGE", "message": "You must be at least 13 years old to register."})
+        if (
+            today.year
+            - date_of_birth.year
+            - ((today.month, today.day) < (date_of_birth.month, date_of_birth.day))
+        ) < 13:
+            raise ManualFormError(
+                date_of_birth={
+                    "code": "DATE_OF_BIRTH_UNDERAGE",
+                    "message": "You must be at least 13 years old to register.",
+                }
+            )
 
     await app.db.execute(
         """
@@ -182,7 +213,13 @@ async def login():
         user_id,
     )
 
-    return jsonify({"token": make_token(user_id, pwd_hash), "user_id": str(user_id), "user_settings": dict(user_settings)})
+    return jsonify(
+        {
+            "token": make_token(user_id, pwd_hash),
+            "user_id": str(user_id),
+            "user_settings": dict(user_settings),
+        }
+    )
 
 
 @bp.route("/consent-required", methods=["GET"])
@@ -196,7 +233,7 @@ async def location_metadata():
         {
             "consent_required": True,
             "country_code": "US",
-            "promotional_email_opt_in": {"required": True, "pre_checked": False}
+            "promotional_email_opt_in": {"required": True, "pre_checked": False},
         }
     )
 

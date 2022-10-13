@@ -108,7 +108,9 @@ def _complete_users_list(user_id: str, base_ready, user_ready, ws_properties) ->
                 private_channel["recipients"].pop(self_user_index)
             else:
                 if self_user_index == 0:
-                    private_channel["recipients"].append(private_channel["recipients"].pop(0))
+                    private_channel["recipients"].append(
+                        private_channel["recipients"].pop(0)
+                    )
 
         # if ws_properties.version >= 9:
         #     private_channel["recipient_ids"] = [recipient["id"] for recipient in private_channel["recipients"]],
@@ -124,74 +126,23 @@ async def _compute_supplemental(app, base_ready, user_ready, users_to_send: dict
         "lazy_private_channels": [],
     }
 
-    user_relationships = user_ready.get("relationships", [])
-
-    for relationship in user_relationships:
-        if relationship["type"] != RelationshipType.FRIEND.value:
-            continue
-
-        friend_user = users_to_send[relationship["user"]["id"]]
-        friend_presence = (
-            await app.presence.friend_presences([int(friend_user["id"])])
-        )[0]
-
-        supplemental["merged_presences"]["friends"].append(
-            {
-                "user": relationship["user"],
-                "status": friend_presence["status"],
-                "last_modified": 0,
-                "client_status": friend_presence["client_status"],
-                "activities": friend_presence["activities"],
-                "game": friend_presence.get("game"),
-            }
-        )
+    supplemental["merged_presences"]["friends"] = [{**presence, "last_modified": 0} for presence in user_ready["presences"]]
 
     for guild in base_ready["guilds"]:
-        supplemental["guilds"].append(
-            {
-                "voice_states": await app.storage.guild_voice_states(int(guild["id"])),
-                "embedded_activities": [],
-                "id": guild["id"],
-            }
-        )
-
-        merged_presences = []
-        merged_members = []
-        for presence in guild.get("presences", []):
-            merged_presences.append(
+        if not guild.get("unavailable"):
+            supplemental["guilds"].append(
                 {
-                    "user": presence["user"],
-                    "status": presence["status"],
-                    "client_status": presence["client_status"],
-                    "activities": presence["activities"],
-                    "game": presence.get("game"),
+                    "voice_states": await app.storage.guild_voice_states(int(guild["id"])),
+                    "embedded_activities": [],
+                    "id": guild["id"],
                 }
             )
+        else:
+            # Yes, this is how Discord does it
+            supplemental["guilds"].append({"id": guild["id"]})
 
-        # Don't see this as necessary
-        # for member in guild["members"]:
-        #     hoisted_role = None
-        #     for role in guild["roles"]:
-        #         if not role["hoist"]:
-        #             continue
-        #         if role["id"] not in member["roles"]:
-        #             continue
-
-        #         if hoisted_role is None:
-        #             hoisted_role = (role["position"], role["id"])
-        #         elif hoisted_role[0] < role["position"]:
-        #             hoisted_role = (role["position"], role["id"])
-
-        #     merged_members.append(
-        #         {
-        #             **member,
-        #             "hoisted_role": hoisted_role[1] if hoisted_role else None,
-        #         }
-        #     )
-        merged_members = guild["members"]
-
-        supplemental["merged_presences"]["guilds"].append(merged_presences)
-        supplemental["merged_members"].append(merged_members)
+        supplemental["merged_presences"]["guilds"].append(guild.get("presences", guild.get("presence", [])))
+        supplemental["merged_members"].append(guild.get("members"))
 
     return supplemental
 
@@ -402,7 +353,9 @@ class GatewayWebsocket:
         if self.state.bot:
             return [{"id": row, "unavailable": True} for row in guild_ids]
 
-        return await self.storage.get_guilds(guild_ids, self.state.user_id, True, large=self.state.large)
+        return await self.storage.get_guilds(
+            guild_ids, self.state.user_id, True, large=self.state.large
+        )
 
     async def _guild_dispatch(self, unavailable_guilds: List[Dict[str, Any]]):
         """Dispatch GUILD_CREATE information."""
@@ -413,24 +366,25 @@ class GatewayWebsocket:
             return
 
         guild_ids = [int(g["id"]) for g in unavailable_guilds]
-        guilds = await self.storage.get_guilds(guild_ids, self.state.user_id, True, large=self.state.large)
+        guilds = await self.storage.get_guilds(
+            guild_ids, self.state.user_id, True, large=self.state.large
+        )
         for guild in guilds:
             await self.dispatch_raw("GUILD_CREATE", {**guild, "unavailable": False})
 
     async def _user_ready(self, *, settings=None) -> dict:
         """Fetch information about users in the READY packet."""
 
+        assert self.state is not None
         user_id = self.state.user_id
-
         relationships = await self.user_storage.get_relationships(user_id)
-
-        friend_ids = [
-            int(r["user"]["id"])
+        friend_users = [
+            r["user"]
             for r in relationships
             if r["type"] == RelationshipType.FRIEND.value
         ]
 
-        friend_presences = await self.app.presence.friend_presences(friend_ids)
+        friend_presences = await self.app.presence.friend_presences(friend_users)
         settings = settings or await self.user_storage.get_user_settings(user_id)
 
         if self.ws_properties.version < 8:  # v6 and below
@@ -439,9 +393,11 @@ class GatewayWebsocket:
         else:
             user_guild_settings = {
                 "entries": await self.user_storage.get_guild_settings(user_id),
+                "partial": False,
             }
             read_state = {
                 "entries": await self.user_storage.get_read_state(user_id),
+                "partial": False,
             }
 
         return {
@@ -452,18 +408,23 @@ class GatewayWebsocket:
             "read_state": read_state,
             "user_guild_settings": user_guild_settings,
             "friend_suggestion_count": 0,
-            'country_code': 'US',
-            'geo_ordered_rtc_regions': [],
+            "country_code": "US",
+            "geo_ordered_rtc_regions": [],
             "experiments": await self.storage.get_experiments(),
             "guild_experiments": await self.storage.get_guild_experiments(),
-            "sessions": [{"session_id": self.state.session_id, "status": self.state.presence.status, "activities": self.state.presence.activities, "client_info": {"client": "web", "os": "windows", "version": 0}}],
-            # those are unused default values.
+            "sessions": [
+                {
+                    "session_id": self.state.session_id,
+                    "status": self.state.presence.status,
+                    "activities": self.state.presence.activities,
+                    "client_info": {"client": "web", "os": "windows", "version": 0},
+                }
+            ],
             "consents": {"personalization": {"consented": True}},
             "connected_accounts": [],
             "analytics_token": "analytics",
             "users": [],
             "merged_members": [],
-            "merged_presences": {"friends": friend_presences, "guilds": []},
             "tutorial": None,
             "lazy_private_channels": [],
         }
@@ -514,8 +475,7 @@ class GatewayWebsocket:
             self.app, base_ready, user_ready, users_to_send
         )
 
-        full_ready_data["merged_members"] = ready_supplemental["merged_members"]
-        full_ready_data["merged_presences"] = ready_supplemental["merged_presences"]
+        full_ready_data["merged_members"] = [[member for member in members if member["user"]["id"] == user["id"]] for members in ready_supplemental["merged_members"]]
 
         if self.ws_properties.version < 6:  # Extremely old client compat
             for guild in full_ready_data["guilds"]:
@@ -707,7 +667,17 @@ class GatewayWebsocket:
         )
         log.debug("full presence = {}", presence)
 
-        await self.dispatch_raw("SESSIONS_REPLACE", [{"session_id": self.state.session_id, "status": presence.status, "activities": presence.activities, "client_info": {"client": "web", "os": "windows", "version": 0}}])
+        await self.dispatch_raw(
+            "SESSIONS_REPLACE",
+            [
+                {
+                    "session_id": self.state.session_id,
+                    "status": presence.status,
+                    "activities": presence.activities,
+                    "client_info": {"client": "web", "os": "windows", "version": 0},
+                }
+            ],
+        )
         await self.app.presence.dispatch_pres(self.state.user_id, self.state.presence)
 
     async def _custom_status_expire_check(self):
@@ -859,7 +829,7 @@ class GatewayWebsocket:
                 "session_id": self.state.session_id,
                 "suppress": False,
                 "user_id": str(self.state.user_id),
-            }
+            },
         )
         if guild_id:
             await self.app.dispatcher.guild.dispatch(guild_id, update)
@@ -1062,11 +1032,15 @@ class GatewayWebsocket:
             }
         else:
             members = await self.storage.query_members(guild_id, query, limit)
-            mids = [m["user"]["id"] for m in members]
-            body = {"guild_id": str(guild_id), "members": members, "chunk_index": 0, "chunk_count": 1}
+            body = {
+                "guild_id": str(guild_id),
+                "members": members,
+                "chunk_index": 0,
+                "chunk_count": 1,
+            }
 
         if presences:
-            presences = await self.presence.guild_presences(mids, guild_id)
+            presences = await self.presence.guild_presences({int(m["user"]["id"]): m for m in members}, guild_id)
             body["presences"] = presences
 
         await self.dispatch_raw("GUILD_MEMBERS_CHUNK", body)
@@ -1107,14 +1081,17 @@ class GatewayWebsocket:
         GUILD_SYNC event with that info.
         """
         members = await self.storage.get_members(guild_id)
-        member_ids = list(members.keys())
 
-        log.debug(f"Syncing guild {guild_id} with {len(member_ids)} members")
-        presences = await self.presence.guild_presences(member_ids, guild_id)
+        log.debug(f"Syncing guild {guild_id} with {len(members)} members")
+        presences = await self.presence.guild_presences(members, guild_id)
 
         await self.dispatch_raw(
             "GUILD_SYNC",
-            {"id": str(guild_id), "presences": presences, "members": list(members.values())},
+            {
+                "id": str(guild_id),
+                "presences": presences,
+                "members": list(members.values()),
+            },
         )
 
     async def handle_12(self, payload: Dict[str, Any]):

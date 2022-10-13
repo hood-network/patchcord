@@ -179,9 +179,20 @@ async def get_payment_source(user_id: int, source_id: int) -> dict:
         derow.pop("cc_full")
 
     derow["default"] = derow.pop("default_")
-    derow["billing_address"] = json.loads(derow["billing_address"]) if isinstance(derow["billing_address"], str) else derow["billing_address"]
+    derow["billing_address"] = (
+        json.loads(derow["billing_address"])
+        if isinstance(derow["billing_address"], str)
+        else derow["billing_address"]
+    )
 
-    source = {"id": str(source_id), "type": source_type.value, "country": derow["billing_address"]["country"], "flags": 0, "payment_gateway": 1, "screen_status": 0}
+    source = {
+        "id": str(source_id),
+        "type": source_type.value,
+        "country": derow["billing_address"]["country"],
+        "flags": 0,
+        "payment_gateway": 1,
+        "screen_status": 0,
+    }
 
     return {**source, **derow}
 
@@ -485,12 +496,23 @@ async def _create_subscription():
     return jsonify(await get_subscription(new_id))
 
 
-@bp.route("/@me/billing/invoices/preview", methods=["GET", "PATCH", "POST"], defaults={"subscription_id": None})
-@bp.route("/@me/billing/subscriptions/<int:subscription_id>/preview", methods=["GET", "PATCH", "POST"])
+@bp.route(
+    "/@me/billing/invoices/preview",
+    methods=["GET", "PATCH", "POST"],
+    defaults={"subscription_id": None},
+)
+@bp.route(
+    "/@me/billing/subscriptions/<int:subscription_id>/preview",
+    methods=["GET", "PATCH", "POST"],
+)
 @bp.route("/@me/billing/subscriptions/<int:subscription_id>", methods=["GET"])
 async def _get_subscription(subscription_id):
     await token_check()
-    return jsonify(await get_subscription(subscription_id or int((await request.get_json())["subscription_id"])))
+    return jsonify(
+        await get_subscription(
+            subscription_id or int((await request.get_json())["subscription_id"])
+        )
+    )
 
 
 @bp.route("/@me/billing/subscriptions/<int:subscription_id>", methods=["DELETE"])
@@ -506,7 +528,7 @@ async def _delete_subscription(subscription_id):
         user_id,
     )
 
-    return '', 204
+    return "", 204
 
 
 @bp.route("/@me/billing/subscriptions/<int:subscription_id>", methods=["PATCH"])

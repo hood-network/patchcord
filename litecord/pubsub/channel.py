@@ -19,29 +19,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from typing import List
 
+import asyncio
 from quart import current_app as app
 from logbook import Logger
 
-from litecord.enums import ChannelType, EVENTS_TO_INTENTS
-from litecord.utils import index_by_func
+from litecord.enums import EVENTS_TO_INTENTS
 from .dispatcher import DispatcherWithState, GatewayEvent
 
 log = Logger(__name__)
-
-
-def gdm_recipient_view(orig: dict, user_id: int) -> dict:
-    """Create a copy of the original channel object that doesn't
-    show the user we are dispatching it to.
-
-    this only applies to group dms and discords' api design that says
-    a group dms' recipients must not show the original user.
-    """
-    # make a copy or the original channel object
-    data = dict(orig)
-    idx = index_by_func(lambda user: user["id"] == str(user_id), data["recipients"])
-    if idx is not None:
-        data["recipients"].pop(idx)
-    return data
 
 
 def can_dispatch(event_type, event_data, state) -> bool:
@@ -64,31 +49,21 @@ class ChannelDispatcher(DispatcherWithState[int, str, GatewayEvent, List[str]]):
         sessions: List[str] = []
 
         event_type, event_data = event
-        assert isinstance(event_data, dict)
 
-        for session_id in session_ids:
+        async def _dispatch(session_id: str) -> None:
             try:
                 state = app.state_manager.fetch_raw(session_id)
             except KeyError:
                 await self.unsub(channel_id, session_id)
-                continue
+                return
 
             if not can_dispatch(event_type, event_data, state):
-                continue
+                return
 
-            correct_event = event
-            # for cases where we are talking about group dms, we create an edited
-            # event data so that it doesn't show the user we're dispatching
-            # to in data.recipients (clients already assume they are recipients)
-            if (
-                event_type in ("CHANNEL_CREATE", "CHANNEL_UPDATE")
-                and event_data.get("type") == ChannelType.GROUP_DM.value
-            ):
-                new_data = gdm_recipient_view(event_data, state.user_id)
-                correct_event = (event_type, new_data)
-
-            await state.dispatch(*correct_event)
+            await state.dispatch(*event)
             sessions.append(session_id)
+
+        await asyncio.gather(*(_dispatch(sid) for sid in session_ids))
 
         log.info(
             "Dispatched chan={} {!r} to {} states", channel_id, event[0], len(sessions)

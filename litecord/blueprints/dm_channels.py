@@ -25,14 +25,29 @@ from logbook import Logger
 from litecord.blueprints.auth import token_check
 from litecord.blueprints.checks import channel_check
 from litecord.enums import ChannelType, MessageType
-from litecord.errors import BadRequest, Forbidden, MissingPermissions
+from litecord.errors import Forbidden, MissingPermissions
+from litecord.utils import index_by_func
 
 from litecord.system_messages import send_sys_message
-from litecord.pubsub.channel import gdm_recipient_view
 from litecord.pubsub.user import dispatch_user
 
 log = Logger(__name__)
 bp = Blueprint("dm_channels", __name__)
+
+
+def gdm_recipient_view(orig: dict, user_id: int) -> dict:
+    """Create a copy of the original channel object that doesn't
+    show the user we are dispatching it to.
+
+    this only applies to group dms and discords' api design that says
+    a group dms' recipients must not show the original user.
+    """
+    # make a copy or the original channel object
+    data = dict(orig)
+    idx = index_by_func(lambda user: user["id"] == str(user_id), data["recipients"])
+    if idx is not None:
+        data["recipients"].pop(idx)
+    return data
 
 
 async def _raw_gdm_add(channel_id, user_id):
@@ -133,7 +148,9 @@ async def gdm_add_recipient(channel_id: int, peer_id: int, *, user_id=None):
         await send_sys_message(channel_id, MessageType.RECIPIENT_ADD, user_id, peer_id)
 
 
-async def gdm_remove_recipient(channel_id: int, peer_id: int, silent: Optional[bool] = False, *, user_id=None):
+async def gdm_remove_recipient(
+    channel_id: int, peer_id: int, silent: Optional[bool] = False, *, user_id=None
+):
     """Remove a member from a GDM.
 
     Dispatches:
@@ -165,7 +182,9 @@ async def gdm_remove_recipient(channel_id: int, peer_id: int, silent: Optional[b
     author_id = peer_id if user_id is None else user_id
 
     if not silent:
-        await send_sys_message(channel_id, MessageType.RECIPIENT_REMOVE, author_id, peer_id)
+        await send_sys_message(
+            channel_id, MessageType.RECIPIENT_REMOVE, author_id, peer_id
+        )
 
 
 async def gdm_destroy(channel_id):

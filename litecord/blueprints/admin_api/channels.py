@@ -34,7 +34,13 @@ async def query_channels():
     await admin_check()
 
     limit = extract_limit(request, 1, 25, 100)
-    j = validate(request.args.to_dict(), {"q": {"coerce": str, "required": False, "maxlength": 32}, "offset": {"coerce": int, "default": 0}})
+    j = validate(
+        request.args.to_dict(),
+        {
+            "q": {"coerce": str, "required": False, "maxlength": 32},
+            "offset": {"coerce": int, "default": 0},
+        },
+    )
     query = j.get("q") or ""
     offset = j["offset"]
 

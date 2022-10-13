@@ -44,7 +44,7 @@ log = Logger(__name__)
 bp = Blueprint("invites", __name__)
 
 
-class UnknownInvite(BadRequest):
+class UnknownInvite(NotFound):
     error_code = 10006
 
 
@@ -229,10 +229,16 @@ async def create_invite(channel_id):
 async def get_invite(invite_code: str):
     inv = await app.storage.get_invite(invite_code)
     if not inv:
-        return UnknownInvite()
+        raise UnknownInvite()
 
-    if request.args.get("with_counts", type=str_bool) or request.args.get("with_expiration", type=str_bool):
-        extra = await app.storage.get_invite_extra(invite_code, request.args.get("with_counts", type=str_bool), request.args.get("with_expiration", type=str_bool))
+    if request.args.get("with_counts", type=str_bool) or request.args.get(
+        "with_expiration", type=str_bool
+    ):
+        extra = await app.storage.get_invite_extra(
+            invite_code,
+            request.args.get("with_counts", type=str_bool),
+            request.args.get("with_expiration", type=str_bool),
+        )
         inv.update(extra)
 
     return jsonify(inv)

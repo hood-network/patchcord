@@ -71,7 +71,14 @@ def status_cmp(status: str, other_status: str) -> bool:
     in the status hierarchy.
     """
 
-    hierarchy = {"online": 3, "idle": 2, "dnd": 1, "offline": 0, None: -1, "unknown": -2}
+    hierarchy = {
+        "online": 3,
+        "idle": 2,
+        "dnd": 1,
+        "offline": 0,
+        None: -1,
+        "unknown": -2,
+    }
 
     return hierarchy[status] > hierarchy[other_status]
 
@@ -114,17 +121,17 @@ class PresenceManager:
         self.state_manager = app.state_manager
 
     async def guild_presences(
-        self, member_ids: List[int], guild_id: int
+        self, members: dict, guild_id: int
     ) -> List[Dict[Any, str]]:
         """Fetch all presences in a guild."""
         # this works via fetching all connected GatewayState on a guild
         # then fetching its respective member and merging that info with
         # the state's set presence.
-        states = self.state_manager.guild_states(member_ids, guild_id)
+        states = self.state_manager.guild_states([int(m["user"]["id"]) for m in members.values()], guild_id)
         presences = []
 
         for state in states:
-            member = await self.storage.get_member(guild_id, state.user_id)
+            member = members[state.user_id]
             presences.append(
                 {
                     **(state.presence or BasePresence(status="offline")).partial_dict,
@@ -273,19 +280,17 @@ class PresenceManager:
         # if there aren't any shards with id 0
         # AND none that are single, just go with a random one.
         shard = choice([s for s in friend_states if s.presence])
-        assert shard.presence is not None
-        return shard.presence
+        return shard.presence or BasePresence(status="offline")
 
-    async def friend_presences(self, friend_ids: Iterable[int]) -> List[Presence]:
+    async def friend_presences(self, friends: Iterable[dict]) -> List[Presence]:
         """Fetch presences for a group of users.
 
         This assumes the users are friends and so
         only gets states that are single or have ID 0.
         """
         res = []
-
-        for friend_id in friend_ids:
-            presence = self.fetch_friend_presence(friend_id)
-            res.append(await _pres(friend_id, presence))
+        for user in friends:
+            presence = self.fetch_friend_presence(int(user["id"]))
+            res.append({**presence.partial_dict, 'user': user})
 
         return res

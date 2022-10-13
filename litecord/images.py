@@ -85,7 +85,9 @@ class Icon:
             return None
 
         ext = get_ext(self.mime)
-        return str(IMAGE_FOLDER / f"{self.fs_hash if self.icon_hash else self.key}.{ext}")
+        return str(
+            IMAGE_FOLDER / f"{self.fs_hash if self.icon_hash else self.key}.{ext}"
+        )
 
     @property
     def as_pathlib(self) -> Optional[Path]:
@@ -174,11 +176,13 @@ def parse_data_uri(string) -> tuple:
         raw_data = to_raw(data_type, data)
         if raw_data is None:
             raise ImageError("Unknown data header")
-        if raw_data.startswith(b'\x89\x50\x4E\x47\x0D\x0A\x1A\x0A'):
+        if raw_data.startswith(b"\x89\x50\x4E\x47\x0D\x0A\x1A\x0A"):
             given_mime = "image/png"
         elif raw_data[0:3] == b"\xff\xd8\xff" or raw_data[6:10] in (b"JFIF", b"Exif"):
             given_mime = "image/jpeg"
-        elif raw_data.startswith((b"\x47\x49\x46\x38\x37\x61", b"\x47\x49\x46\x38\x39\x61")):
+        elif raw_data.startswith(
+            (b"\x47\x49\x46\x38\x37\x61", b"\x47\x49\x46\x38\x39\x61")
+        ):
             given_mime = "image/gif"
         elif raw_data.startswith(b"RIFF") and raw_data[8:12] == b"WEBP":
             given_mime = "image/webp"
@@ -314,7 +318,9 @@ class IconManager:
         target_mime = get_mime(target)
         log.info("converting from {} to {}", icon.mime, target_mime)
 
-        target_path = IMAGE_FOLDER / f"{icon.fs_hash if icon.fs_hash else icon.key}.{target}"
+        target_path = (
+            IMAGE_FOLDER / f"{icon.fs_hash if icon.fs_hash else icon.key}.{target}"
+        )
 
         if target_path.exists():
             return Icon(icon.key, icon.icon_hash, target_mime)
@@ -423,7 +429,16 @@ class IconManager:
 
         # calculate sha256
         # ignore icon hashes if we're talking about emoji
-        icon_hash = (hex(hash(scope)).lstrip("-0x")[:3] + hex(hash(key)).lstrip("-0x")[:3] + "." + await calculate_hash(data_fd)) if scope != "emoji" else None
+        icon_hash = (
+            (
+                hex(hash(scope)).lstrip("-0x")[:3]
+                + hex(hash(key)).lstrip("-0x")[:3]
+                + "."
+                + await calculate_hash(data_fd)
+            )
+            if scope != "emoji"
+            else None
+        )
 
         if mime == "image/gif" and scope != "emoji":
             icon_hash = f"a_{icon_hash}"
@@ -448,7 +463,10 @@ class IconManager:
         )
 
         # write it off to fs
-        icon_path = IMAGE_FOLDER / f"{icon_hash.split('.')[-1] if icon_hash else key}.{extension}"
+        icon_path = (
+            IMAGE_FOLDER
+            / f"{icon_hash.split('.')[-1] if icon_hash else key}.{extension}"
+        )
         if not icon_path.exists():
             icon_path.write_bytes(raw_data)
 
@@ -487,7 +505,7 @@ class IconManager:
         query = f"SELECT {arg} from {table} "
         if "_" in str(key):  # Support guild_user
             query += "WHERE user_id = $1 and guild_id = $2"
-            args = (int(key.split('_')[1]), int(key.split('_')[0]))
+            args = (int(key.split("_")[1]), int(key.split("_")[0]))
         else:
             query += "WHERE id = $1"
             args = (key,)
@@ -514,7 +532,9 @@ class IconManager:
             """,
                 old_icon.fs_hash,
             )
-            if hits and len(hits) <= 1:  # if we have more than one hit, we can't delete it
+            if (
+                hits and len(hits) <= 1
+            ):  # if we have more than one hit, we can't delete it
                 await self.delete(old_icon)
 
         return icon

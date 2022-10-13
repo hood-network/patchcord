@@ -83,7 +83,7 @@ async def create_ban(guild_id, member_id):
         j.get("reason", ""),
     )
 
-    await remove_member(guild_id, member_id, raise_err = False)
+    await remove_member(guild_id, member_id, raise_err=False)
 
     await app.dispatcher.guild.dispatch(
         guild_id,

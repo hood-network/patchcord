@@ -34,6 +34,7 @@ from litecord.system_messages import send_sys_message
 
 log = Logger(__name__)
 
+
 async def _check_max_guilds(user_id: int):
     plan_id = await app.db.fetchval(
         """
@@ -49,6 +50,7 @@ async def _check_max_guilds(user_id: int):
     max_guilds = 200 if premium_type == PremiumType.TIER_2 else 100
     if len(guild_ids) >= max_guilds:
         raise BadRequest(30001, max_guilds)
+
 
 async def remove_member(guild_id: int, member_id: int, raise_err: bool = True) -> None:
     """Do common tasks related to deleting a member from the guild,
@@ -230,7 +232,9 @@ async def create_guild_channel(
 
     parent_id = kwargs.get("parent_id") or None
 
-    banner = await app.icons.put("channel_banner", channel_id, kwargs.get("banner"), always_icon=True)
+    banner = await app.icons.put(
+        "channel_banner", channel_id, kwargs.get("banner"), always_icon=True
+    )
 
     # all channels go to guild_channels
     await app.db.execute(
@@ -243,7 +247,7 @@ async def create_guild_channel(
         parent_id,
         kwargs["name"],
         max_pos + 1,
-        banner.icon_hash
+        banner.icon_hash,
     )
 
     # the rest of sql magic is dependant on the channel
@@ -255,7 +259,9 @@ async def create_guild_channel(
 
     # This needs to be last, because it depends on users being already sub'd
     if "permission_overwrites" in kwargs:
-        await process_overwrites(guild_id, channel_id, kwargs["permission_overwrites"] or [])
+        await process_overwrites(
+            guild_id, channel_id, kwargs["permission_overwrites"] or []
+        )
 
 
 async def _del_from_table(table: str, user_id: int):
@@ -343,7 +349,9 @@ async def create_guild_settings(guild_id: int, user_id: int):
     )
 
 
-async def add_member(guild_id: int, user_id: int, *, basic: bool = False, skip_check: bool = False):
+async def add_member(
+    guild_id: int, user_id: int, *, basic: bool = False, skip_check: bool = False
+):
     """Add a user to a guild.
 
     If `basic` is set to true, side-effects from member adding won't be
@@ -366,13 +374,19 @@ async def add_member(guild_id: int, user_id: int, *, basic: bool = False, skip_c
         features = await app.storage.guild_features(guild_id) or []
         user = await app.storage.get_user(user_id, True)
 
-        if "INTERNAL_EMPLOYEE_ONLY" in features and user["flags"] & UserFlags.staff != UserFlags.staff:
+        if (
+            "INTERNAL_EMPLOYEE_ONLY" in features
+            and user["flags"] & UserFlags.staff != UserFlags.staff
+        ):
             raise Forbidden(20017)
 
         if "INVITES_DISABLED" in features:
             raise Forbidden(40008)
 
-        if nsfw_level in (NSFWLevel.RESTRICTED, NSFWLevel.EXPLICIT) and not user["nsfw_allowed"]:
+        if (
+            nsfw_level in (NSFWLevel.RESTRICTED, NSFWLevel.EXPLICIT)
+            and not user["nsfw_allowed"]
+        ):
             raise Forbidden(20024)
 
     await app.db.execute(

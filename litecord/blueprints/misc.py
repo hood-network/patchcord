@@ -60,7 +60,9 @@ async def experiments():
 
     user_id = await token_check(False)
     if not user_id and not request.headers.get("X-Fingerprint"):
-        ret["fingerprint"] = f"{app.winter_factory.snowflake()}.{secrets.token_urlsafe(32)}"
+        ret[
+            "fingerprint"
+        ] = f"{app.winter_factory.snowflake()}.{secrets.token_urlsafe(32)}"
 
     if request.args.get("with_guild_experiments", type=str_bool):
         ret["guild_experiments"] = await app.storage.get_guild_experiments()
@@ -108,7 +110,12 @@ async def get_partner_requirements(guild_id: int):
         "engagement_healthy": True,
         "age": True,
         "minimum_age": 7,
-        "health_score": {"avg_nonnew_participators": None, "avg_nonnew_communicators": None, "num_intentful_joiners": None, "perc_ret_w1_intentful": None},
+        "health_score": {
+            "avg_nonnew_participators": None,
+            "avg_nonnew_communicators": None,
+            "num_intentful_joiners": None,
+            "perc_ret_w1_intentful": None,
+        },
         "minimum_size": 1,
     }
     return jsonify(data)
@@ -121,7 +128,12 @@ async def partners_apply():
     try:
         guild_id = int((await request.get_json())["guild_id"])
     except (KeyError, ValueError):
-        raise ManualFormError(guild_id={"code": "BASE_TYPE_REQUIRED", "message": "This field is required."})
+        raise ManualFormError(
+            guild_id={
+                "code": "BASE_TYPE_REQUIRED",
+                "message": "This field is required.",
+            }
+        )
 
     await guild_perm_check(user_id, guild_id, "manage_guild")
 

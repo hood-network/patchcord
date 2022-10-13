@@ -39,8 +39,9 @@ async def get_guild_member(guild_id, member_id):
     """Get a member's information in a guild."""
     user_id = await token_check()
     await guild_check(user_id, guild_id)
-    member = await app.storage.get_single_member(guild_id, member_id)
+    member = await app.storage.get_member(guild_id, member_id)
     return jsonify(member)
+
 
 @bp.route("/<int:guild_id>/members/<int:member_id>", methods=["PUT"])
 async def add_guild_member(guild_id, member_id):
@@ -48,17 +49,18 @@ async def add_guild_member(guild_id, member_id):
     await admin_check()
 
     async def get_member():
-        return await app.storage.get_single_member(guild_id, member_id)
+        return await app.storage.get_member(guild_id, member_id)
 
     if await get_member():
         return "", 204
 
-    # TODO: if we ever support bots we will need to use checks for all of these here but 
+    # TODO: if we ever support bots we will need to use checks for all of these here but
     # for now since this is only for the admin panel we can safely skip all checks
     await add_member(guild_id, member_id, skip_check=True, basic=False)
 
     member = await get_member()
     return jsonify(member)
+
 
 @bp.route("/<int:guild_id>/members", methods=["GET"])
 async def get_members(guild_id):
@@ -66,7 +68,13 @@ async def get_members(guild_id):
     user_id = await token_check()
     await guild_check(user_id, guild_id)
 
-    j = validate(request.args.to_dict(), {"limit": {"coerce": int, "min": 1, "max": 1000, "default": 1}, "offset": {"coerce": int, "default": 0}})
+    j = validate(
+        request.args.to_dict(),
+        {
+            "limit": {"coerce": int, "min": 1, "max": 1000, "default": 1},
+            "offset": {"coerce": int, "default": 0},
+        },
+    )
 
     limit, after = j["limit"], j["after"]
 
@@ -245,7 +253,13 @@ async def update_nickname(guild_id):
 
     if to_update(j, member, "avatar"):
         if not j["avatar"] or user["premium_type"] == PremiumType.TIER_2:
-            new_icon = await app.icons.update("member_avatar", f"{guild_id}_{user_id}", j["avatar"], size=(1024, 1024), always_icon=True)
+            new_icon = await app.icons.update(
+                "member_avatar",
+                f"{guild_id}_{user_id}",
+                j["avatar"],
+                size=(1024, 1024),
+                always_icon=True,
+            )
 
             await app.db.execute(
                 """
@@ -261,7 +275,9 @@ async def update_nickname(guild_id):
 
     if to_update(j, member, "banner"):
         if not j["banner"] or user["premium_type"] == PremiumType.TIER_2:
-            new_icon = await app.icons.update("member_banner", f"{guild_id}_{user_id}", j["banner"], always_icon=True)
+            new_icon = await app.icons.update(
+                "member_banner", f"{guild_id}_{user_id}", j["banner"], always_icon=True
+            )
 
             await app.db.execute(
                 """
@@ -316,7 +332,9 @@ async def update_nickname(guild_id):
     return jsonify(member)
 
 
-@bp.route("/<int:guild_id>/members/<int:member_id>/roles/<int:role_id>", methods=["PUT"])
+@bp.route(
+    "/<int:guild_id>/members/<int:member_id>/roles/<int:role_id>", methods=["PUT"]
+)
 async def add_member_role(guild_id, member_id, role_id):
     user_id = await token_check()
     await guild_perm_check(user_id, guild_id, "manage_roles")
@@ -361,7 +379,9 @@ async def add_member_role(guild_id, member_id, role_id):
     return "", 204
 
 
-@bp.route("/<int:guild_id>/members/<int:member_id>/roles/<int:role_id>", methods=["DELETE"])
+@bp.route(
+    "/<int:guild_id>/members/<int:member_id>/roles/<int:role_id>", methods=["DELETE"]
+)
 async def remove_member_role(guild_id, member_id, role_id):
     user_id = await token_check()
     await guild_perm_check(user_id, guild_id, "manage_roles")

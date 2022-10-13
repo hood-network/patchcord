@@ -37,7 +37,7 @@ TF = TypeVar("TF", bound=Flags)
 
 async def async_map(function, iterable: Iterable) -> list:
     """Map a coroutine to an iterable."""
-    return await asyncio.gather(*[function(item) for item in iterable])
+    return await asyncio.gather(*(function(item) for item in iterable))
 
 
 async def task_wrapper(name: str, coro):
@@ -194,7 +194,11 @@ async def maybe_lazy_guild_dispatch(
     if isinstance(role, dict) and not role["hoist"] and not force:
         return
 
-    await (getattr(app.lazy_guild, event))(guild_id, role)
+    kwargs = {}
+    if event == "role_delete":
+        kwargs = {"deleted": True}
+
+    await (getattr(app.lazy_guild, event))(guild_id, role, **kwargs)
 
 
 def extract_limit(request_, min_val: int = 1, default: int = 50, max_val: int = 100):
@@ -202,12 +206,27 @@ def extract_limit(request_, min_val: int = 1, default: int = 50, max_val: int = 
     try:
         limit = int(request_.args.get("limit", default))
     except (TypeError, ValueError):
-        raise ManualFormError(limit={"code": "NUMBER_TYPE_COERCE", "message": f"Value \"{request_.args['limit']}\" is not int."})
+        raise ManualFormError(
+            limit={
+                "code": "NUMBER_TYPE_COERCE",
+                "message": f"Value \"{request_.args['limit']}\" is not int.",
+            }
+        )
 
     if limit < min_val:
-        raise ManualFormError(limit={"code": "NUMBER_TYPE_MIN", "message": f"Value should be greater than or equal to 0."})
+        raise ManualFormError(
+            limit={
+                "code": "NUMBER_TYPE_MIN",
+                "message": f"Value should be greater than or equal to 0.",
+            }
+        )
     if limit > max_val:
-        raise ManualFormError(limit={"code": "NUMBER_TYPE_MAX", "message": f"Value should be less than or equal to {max_val}."})
+        raise ManualFormError(
+            limit={
+                "code": "NUMBER_TYPE_MAX",
+                "message": f"Value should be less than or equal to {max_val}.",
+            }
+        )
 
     return limit
 

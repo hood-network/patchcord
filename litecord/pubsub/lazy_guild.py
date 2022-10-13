@@ -455,9 +455,10 @@ class GuildMemberList:
 
         return group_id
 
-    async def _list_fill_groups(self, member_ids: List[int]):
+    async def _list_fill_groups(self, members: List[dict]):
         """Fill in groups with the member ids."""
-        for member_id in member_ids:
+        for member in members:
+            member_id = int(member["user"]["id"])
             presence = self.list.presences[member_id]
 
             group_id = await self._get_group_for_member(
@@ -468,8 +469,6 @@ class GuildMemberList:
             # (members without read messages)
             if group_id is None:
                 continue
-
-            member = await self.storage.get_member(self.guild_id, member_id)
 
             self.list.members[member_id] = member
             self.list.data[group_id].append(member_id)
@@ -506,21 +505,21 @@ class GuildMemberList:
 
     async def __init_member_list(self):
         """Generate the main member list with groups."""
-        member_ids = await self.storage.get_member_ids(self.guild_id)
+        members = await self.storage.get_members(self.guild_id)
 
-        presences = await self.presence.guild_presences(member_ids, self.guild_id)
+        presences = await self.presence.guild_presences(members, self.guild_id)
 
         # set presences in the list
         self.list.presences = {int(p["user"]["id"]): p for p in presences}
 
         await self._set_groups()
 
-        log.debug("init: {} members, {} groups", len(member_ids), len(self.list.groups))
+        log.debug("init: {} members, {} groups", len(members), len(self.list.groups))
 
         # allocate a list per group
         self.list.data = {group.gid: [] for group in self.list.groups}
 
-        await self._list_fill_groups(member_ids)
+        await self._list_fill_groups(members.values())
 
         # second pass: sort each group's members
         # by the display name
@@ -620,8 +619,7 @@ class GuildMemberList:
             "id": self.list_id,
             "guild_id": str(self.guild_id),
             "groups": [
-                {"id": str(group.gid), "count": count}
-                for group, count in groups
+                {"id": str(group.gid), "count": count} for group, count in groups
             ],
             "ops": [operation.to_dict for operation in operations],
             "member_count": member_count,
@@ -931,7 +929,8 @@ class GuildMemberList:
             return
 
         # fetch the new member's presence
-        pres = await self.presence.guild_presences([user_id], self.guild_id)
+        member = await self.storage.get_member(self.guild_id, user_id)
+        pres = await self.presence.guild_presences({user_id: member}, self.guild_id)
 
         try:
             pres = pres[0]
@@ -941,9 +940,6 @@ class GuildMemberList:
 
         # insert to pres dict
         self.list.presences[user_id] = pres
-
-        member = await self.storage.get_member(self.guild_id, user_id)
-
         self.list.members[user_id] = member
 
         # find a group for the newcomer
@@ -1324,8 +1320,8 @@ class GuildMemberList:
             )
             return await self.role_delete(role_id)
 
-    async def role_delete(self, role_id: int):
-        """Called when a role is deleted, so we should
+    async def role_delete(self, role_id: int, deleted: bool = False):
+        """Called when a role group is deleted, so we should
         delete it off the list and reassign presences."""
         if not self.list:
             return
@@ -1371,7 +1367,14 @@ class GuildMemberList:
             # the presences into new groups and sort
             # the new presences so we achieve the correct state
             log.debug("reassigning {} presences", len(member_ids))
-            await self._list_fill_groups(member_ids)
+            members = [self.list.members[mid] for mid in member_ids]
+            if deleted:
+                for member in members:
+                    try:
+                        member["roles"].remove(str(role_id))
+                    except ValueError:
+                        pass
+            await self._list_fill_groups(members)
             await self._sort_groups()
         except KeyError:
             log.warning("list unstable: {} not in data dict", role_id)
@@ -1508,14 +1511,14 @@ class LazyGuildManager:
         gml = await self.get_gml(channel_id)
         await gml.chan_update()
 
-    async def _call_all_lists(self, guild_id, method_str: str, *args):
+    async def _call_all_lists(self, guild_id, method_str: str, *args, **kwargs):
         lists = self.get_gml_guild(guild_id)
 
         log.debug("calling method={} to all {} lists", method_str, len(lists))
 
         for lazy_list in lists:
             method = getattr(lazy_list, method_str)
-            await method(*args)
+            await method(*args, **kwargs)
 
     async def new_role(self, guild_id: int, new_role: dict):
         """Handle the addition of a new group by dispatching it to
@@ -1529,8 +1532,8 @@ class LazyGuildManager:
         # handle name and hoist changes
         await self._call_all_lists(guild_id, "role_update", role)
 
-    async def role_delete(self, guild_id, role_id: int):
-        await self._call_all_lists(guild_id, "role_delete", role_id)
+    async def role_delete(self, guild_id, role_id: int, *, deleted: bool = False):
+        await self._call_all_lists(guild_id, "role_delete", role_id, deleted=deleted)
 
     async def pres_update(self, guild_id, user_id: int, partial: dict):
         await self._call_all_lists(guild_id, "pres_update", user_id, partial)

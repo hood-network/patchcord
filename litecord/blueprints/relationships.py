@@ -45,16 +45,16 @@ async def _unsub_friend(user_id, peer_id):
     await app.dispatcher.friend.unsub(peer_id, user_id)
 
 
-async def _sub_friend(user_id, peer_id):
-    await app.dispatcher.friend.sub(user_id, peer_id)
-    await app.dispatcher.friend.sub(peer_id, user_id)
+async def _sub_friend(user, peer):
+    await app.dispatcher.friend.sub(int(user["id"]), int(peer["id"]))
+    await app.dispatcher.friend.sub(int(peer["id"]), int(user["id"]))
 
     # dispatch presence update to the user and peer about
     # eachother's presence.
-    user_pres, peer_pres = await app.presence.friend_presences([user_id, peer_id])
+    user_pres, peer_pres = await app.presence.friend_presences([user, peer])
 
-    await _dispatch_single_pres(user_id, peer_pres)
-    await _dispatch_single_pres(peer_id, user_pres)
+    await _dispatch_single_pres(int(user["id"]), peer_pres)
+    await _dispatch_single_pres(int(peer["id"]), user_pres)
 
 
 async def make_friend(
@@ -139,6 +139,8 @@ async def make_friend(
     if existing:
         # accepted a friend request, dispatch respective
         # relationship events
+        peer = await app.storage.get_user(peer_id)
+        user = await app.storage.get_user(user_id)
         await _dispatch(
             user_id,
             (
@@ -146,7 +148,7 @@ async def make_friend(
                 {
                     "type": _friend,
                     "id": str(peer_id),
-                    "user": await app.storage.get_user(peer_id),
+                    "user": peer,
                 },
             ),
         )
@@ -158,12 +160,12 @@ async def make_friend(
                 {
                     "type": _friend,
                     "id": str(user_id),
-                    "user": await app.storage.get_user(user_id),
+                    "user": user,
                 },
             ),
         )
 
-        await _sub_friend(user_id, peer_id)
+        await _sub_friend(user, peer)
 
         return "", 204
 
@@ -292,8 +294,8 @@ async def update_relationship(peer_id: int):
                     "id": str(peer_id),
                     "type": info["rel_type"],
                     "nickname": payload.get("nickname") or None,
-                }
-            )
+                },
+            ),
         )
 
     return "", 204

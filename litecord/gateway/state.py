@@ -26,6 +26,7 @@ from logbook import Logger
 
 from litecord.presence import BasePresence
 from litecord.enums import Intents
+from litecord.utils import index_by_func
 from .opcodes import OP
 
 log = Logger(__name__)
@@ -134,7 +135,7 @@ class GatewayState:
             "op": OP.DISPATCH,
             "t": event_type.upper(),
             "s": self.seq,
-            "d": event_data,
+            "d": dict(event_data) if event_data else None,
         }
 
         self.store[self.seq] = payload
@@ -149,7 +150,10 @@ class GatewayState:
                 if event_type in ("MESSAGE_CREATE", "MESSAGE_UPDATE"):
                     data.pop("reactions", None)
                     data["referenced_message"] = data.get("referenced_message") or None
-                    if data.get("type") in (19, 20, 23) and self.ws.ws_properties.version < 8:
+                    if (
+                        data.get("type") in (19, 20, 23)
+                        and self.ws.ws_properties.version < 8
+                    ):
                         data["type"] = 0
 
                     if not content_allowed(str(self.user_id), self.intents, data):
@@ -159,12 +163,12 @@ class GatewayState:
                             data["embeds"] = []
                         if data.get("attachments"):
                             data["attachments"] = []
-                        if data["referenced_message"] and not content_allowed(str(self.user_id), self.intents, data["referenced_message"]):
-                            data["referenced_message"].update({
-                                "content": "",
-                                "embeds": [],
-                                "attachments": []
-                            })
+                        if data["referenced_message"] and not content_allowed(
+                            str(self.user_id), self.intents, data["referenced_message"]
+                        ):
+                            data["referenced_message"].update(
+                                {"content": "", "embeds": [], "attachments": []}
+                            )
 
                 elif (
                     event_type.startswith("GUILD_ROLE_")
@@ -177,17 +181,34 @@ class GatewayState:
 
                 elif (
                     event_type.startswith("CHANNEL_")
-                    and data.get("permission_overwrites")
+                ):
+                    if data.get("type") == 3:
+                        idx = index_by_func(lambda user: user["id"] == str(self.user_id), data["recipients"])
+                        if idx is not None:
+                            data["recipients"].pop(idx)
+
+                    if data.get("permission_overwrites") and self.ws.ws_properties.version < 8:
+                        for overwrite in data["permission_overwrites"]:
+                            overwrite["type"] = (
+                                "role" if overwrite["type"] == 0 else "member"
+                            )
+                            overwrite["allow_new"] = overwrite.get("allow", "0")
+                            overwrite["allow"] = (
+                                (int(overwrite["allow"]) & ((2 << 31) - 1))
+                                if overwrite.get("allow")
+                                else 0
+                            )
+                            overwrite["deny_new"] = overwrite.get("deny", "0")
+                            overwrite["deny"] = (
+                                (int(overwrite["deny"]) & ((2 << 31) - 1))
+                                if overwrite.get("deny")
+                                else 0
+                            )
+
+                elif (
+                    event_type in ("GUILD_CREATE", "GUILD_UPDATE")
                     and self.ws.ws_properties.version < 8
                 ):
-                    for overwrite in data["permission_overwrites"]:
-                        overwrite["type"] = "role" if overwrite["type"] == 0 else "member"
-                        overwrite["allow_new"] = overwrite.get("allow", "0")
-                        overwrite["allow"] = (int(overwrite["allow"]) & ((2 << 31) - 1)) if overwrite.get("allow") else 0
-                        overwrite["deny_new"] = overwrite.get("deny", "0")
-                        overwrite["deny"] = (int(overwrite["deny"]) & ((2 << 31) - 1)) if overwrite.get("deny") else 0
-
-                elif event_type in ("GUILD_CREATE", "GUILD_UPDATE") and self.ws.ws_properties.version < 8:
                     for role in data.get("roles", []):
                         role["permissions_new"] = role["permissions"]
                         role["permissions"] = int(role["permissions"]) & ((2 << 31) - 1)
@@ -197,9 +218,13 @@ class GatewayState:
                                 "id": overwrite["id"],
                                 "type": "role" if overwrite["type"] == 0 else "member",
                                 "allow_new": overwrite.get("allow", "0"),
-                                "allow": (int(overwrite["allow"]) & ((2 << 31) - 1)) if overwrite.get("allow") else 0,
+                                "allow": (int(overwrite["allow"]) & ((2 << 31) - 1))
+                                if overwrite.get("allow")
+                                else 0,
                                 "deny_new": overwrite.get("deny", "0"),
-                                "deny": (int(overwrite["deny"]) & ((2 << 31) - 1)) if overwrite.get("deny") else 0,
+                                "deny": (int(overwrite["deny"]) & ((2 << 31) - 1))
+                                if overwrite.get("deny")
+                                else 0,
                             }
                             for overwrite in channel["permission_overwrites"]
                         ]
