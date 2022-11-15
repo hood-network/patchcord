@@ -28,9 +28,9 @@ from litecord.errors import BadRequest
 from litecord.schemas import validate
 from litecord.types import HOURS, timestamp_
 from litecord.utils import snowflake_timestamp
+from litecord.typing_hax import app
 from logbook import Logger
 from quart import Blueprint
-from quart import current_app as app
 from quart import jsonify, request
 
 log = Logger(__name__)

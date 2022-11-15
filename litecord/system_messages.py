@@ -18,7 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from logbook import Logger
-from quart import current_app as app
+from .typing_hax import app
 
 
 from litecord.enums import MessageType

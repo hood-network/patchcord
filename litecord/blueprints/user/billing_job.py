@@ -22,7 +22,6 @@ this file only serves the periodic payment job code.
 """
 import datetime
 
-from quart import current_app as app
 from asyncio import sleep, CancelledError
 from logbook import Logger
 
@@ -33,6 +32,7 @@ from litecord.blueprints.user.billing import (
     create_payment,
     process_subscription,
 )
+from litecord.typing_hax import app
 
 from litecord.types import MINUTES
 

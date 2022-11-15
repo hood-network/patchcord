@@ -23,8 +23,8 @@ from typing import List, Optional, Tuple
 
 from asyncpg import UniqueViolationError
 from logbook import Logger
-from quart import current_app as app
 
+from litecord.typing_hax import app
 from ..auth import hash_data
 from ..errors import BadRequest, ManualFormError
 from ..presence import BasePresence

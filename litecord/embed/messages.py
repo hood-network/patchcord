@@ -23,12 +23,12 @@ import urllib.parse
 from pathlib import Path
 from typing import List, Optional
 
-from quart import current_app as app
 from logbook import Logger
 
 from litecord.embed.sanitizer import proxify, fetch_metadata, fetch_mediaproxy_embed
 from litecord.embed.schemas import EmbedURL
 from litecord.enums import MessageFlags
+from litecord.typing_hax import app
 
 log = Logger(__name__)
 

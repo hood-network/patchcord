@@ -16,8 +16,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
-
-from quart import request
+from litecord.typing_hax import request
 
 
 def guild_view(guild_data: dict) -> dict:

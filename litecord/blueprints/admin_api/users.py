@@ -17,7 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from quart import Blueprint, jsonify, current_app as app, request
+from quart import Blueprint, jsonify, request
 
 from litecord.auth import admin_check
 from litecord.schemas import validate, USER_UPDATE
@@ -30,6 +30,7 @@ from litecord.common.users import (
     delete_user,
     user_disconnect,
 )
+from litecord.typing_hax import app
 
 bp = Blueprint("users_admin", __name__)
 

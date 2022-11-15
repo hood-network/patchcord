@@ -25,7 +25,7 @@ from typing import Union, Dict, List, Optional
 from cerberus import Validator
 from cerberus.errors import BasicErrorHandler
 from logbook import Logger
-from quart import current_app as app
+from .typing_hax import app
 
 from .errors import BadRequest, FormError
 from .permissions import Permissions

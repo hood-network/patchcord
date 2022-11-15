@@ -21,7 +21,7 @@ import ctypes
 from dataclasses import dataclass
 from typing import Optional, Union
 
-from quart import current_app as app
+from .typing_hax import app
 
 # so we don't keep repeating the same
 # type for all the fields

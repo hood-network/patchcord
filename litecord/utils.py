@@ -24,7 +24,7 @@ import re
 from typing import Any, Iterable, Optional, Sequence, Union, TypeVar
 
 from logbook import Logger
-from quart import current_app as app
+from .typing_hax import app
 
 from .errors import ManualFormError
 from .enums import Flags

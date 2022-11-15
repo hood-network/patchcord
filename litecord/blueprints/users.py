@@ -22,11 +22,12 @@ from typing import List
 import asyncio
 from asyncpg import UniqueViolationError
 from datetime import datetime
-from quart import Blueprint, jsonify, request, current_app as app
+from quart import Blueprint, jsonify, request
 from logbook import Logger
 
 from litecord.types import timestamp_
 
+from typing_hax import app
 from ..errors import BadRequest, ManualFormError, MissingAccess, NotFound
 from ..schemas import validate, USER_UPDATE, GET_MENTIONS
 from ..utils import extract_limit, str_bool

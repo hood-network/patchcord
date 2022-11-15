@@ -18,7 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import asyncio
-from typing import List, Dict, Any, Optional, TypedDict
+from typing import List, Dict, Any, Optional, TypedDict, cast, Iterable, TYPE_CHECKING
 from xml.etree.ElementInclude import include
 
 import aiohttp
@@ -38,6 +38,10 @@ from litecord.blueprints.channel.reactions import (
 
 from litecord.types import timestamp_
 from litecord.json import pg_set_json
+from litecord.presence import PresenceManager
+
+if TYPE_CHECKING:
+    from litecord.typing_hax import LitecordApp
 
 log = Logger(__name__)
 
@@ -71,10 +75,12 @@ class EmojiStats(TypedDict):
 class Storage:
     """Class for common SQL statements."""
 
-    def __init__(self, app):
+    presence: PresenceManager
+
+    def __init__(self, app: LitecordApp):
         self.app = app
         self.db = app.db
-        self.presence = None
+        self.presence = app.presence
         self.stickers: Dict[int, dict] = {}
 
     async def fetchrow_with_json(self, query: str, *args) -> Any:
@@ -339,7 +345,7 @@ class Storage:
         full: bool = False,
         extra_clause: str = "",
         where_clause: str = "WHERE id = ANY($1::bigint[])",
-        args: Optional[List[Any]] = None,
+        args: Optional[Iterable[Any]] = None,
         large: Optional[int] = None,
     ) -> List[dict]:
         """Get many guild payloads."""
@@ -824,12 +830,12 @@ class Storage:
     ) -> List[Dict[str, Any]]:
         """Get a list of voice states for the given guild."""
         channel_ids = await self.get_channel_ids(guild_id)
-
+        if not user_id:
+            return []
         res = []
 
         for channel_id in channel_ids:
             states = await self.app.voice.fetch_states(channel_id)
-
             jsonified = [s.as_json_for(user_id) for s in states.values()]
 
             # discord does NOT insert guild_id to voice states on the
@@ -1176,7 +1182,7 @@ class Storage:
         include_member: bool = False,
         extra_clause: str = "",
         where_clause: str = "WHERE id = ANY($1::bigint[])",
-        args: Optional[List[Any]] = None,
+        args: Optional[Iterable[Any]] = None,
     ) -> List[dict]:
         """Get multiple messages' payloads."""
         rows = await self.fetch_with_json(
@@ -1475,6 +1481,7 @@ class Storage:
         )
         if features is None:
             return False
+        features = cast(List[str], features)
         return feature.upper() in features
 
     async def get_sticker_packs(self) -> dict:
