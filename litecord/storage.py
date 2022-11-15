@@ -18,7 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import asyncio
-from typing import List, Dict, Any, Optional, TypedDict, cast, TYPE_CHECKING
+from typing import List, Dict, Any, Optional, TypedDict, cast, Iterable, TYPE_CHECKING
 from xml.etree.ElementInclude import include
 
 import aiohttp
@@ -345,7 +345,7 @@ class Storage:
         full: bool = False,
         extra_clause: str = "",
         where_clause: str = "WHERE id = ANY($1::bigint[])",
-        args: Optional[List[Any]] = None,
+        args: Optional[Iterable[Any]] = None,
         large: Optional[int] = None,
     ) -> List[dict]:
         """Get many guild payloads."""
@@ -836,7 +836,6 @@ class Storage:
 
         for channel_id in channel_ids:
             states = await self.app.voice.fetch_states(channel_id)
-            
             jsonified = [s.as_json_for(user_id) for s in states.values()]
 
             # discord does NOT insert guild_id to voice states on the
@@ -1183,7 +1182,7 @@ class Storage:
         include_member: bool = False,
         extra_clause: str = "",
         where_clause: str = "WHERE id = ANY($1::bigint[])",
-        args: Optional[List[Any]] = None,
+        args: Optional[Iterable[Any]] = None,
     ) -> List[dict]:
         """Get multiple messages' payloads."""
         rows = await self.fetch_with_json(

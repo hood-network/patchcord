@@ -72,7 +72,7 @@ async def get_pins(channel_id):
             WHERE channel_id = $1 AND NOT (pinned = NULL)
             ORDER BY message_id DESC
         """,
-        args=[channel_id,],
+        args=(channel_id,),
     )
 
     return jsonify([message_view(message) for message in messages])

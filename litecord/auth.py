@@ -19,7 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import base64
 import binascii
-
+import asyncpg
 import bcrypt
 from itsdangerous import TimestampSigner, BadSignature
 from logbook import Logger
@@ -33,7 +33,7 @@ from litecord.typing_hax import request, app
 log = Logger(__name__)
 
 
-async def raw_token_check(token: str) -> int:
+async def raw_token_check(token: str, db: Optional[asyncpg.Pool] = None) -> int:
     """Check if a given token is valid.
 
     Returns
@@ -48,7 +48,7 @@ async def raw_token_check(token: str) -> int:
     Forbidden
         If token validation fails.
     """
-    db = app.db
+    db = db or app.db
 
     # just try by fragments instead of
     # unpacking

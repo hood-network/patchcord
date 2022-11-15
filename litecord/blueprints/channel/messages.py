@@ -88,7 +88,7 @@ async def message_search(
             ORDER BY id {order}
             LIMIT {limit}
         """,
-        args=[channel_id,],
+        args=(channel_id,),
     )
 
 

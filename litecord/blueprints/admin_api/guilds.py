@@ -99,7 +99,7 @@ async def query_guilds():
         ORDER BY name
         LIMIT $2 OFFSET $3
         """,
-        args=[query, limit, offset],
+        args=(query, limit, offset),
         full=True,
     )
 
