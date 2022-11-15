@@ -17,13 +17,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from quart import Blueprint, request, current_app as app, jsonify
+from quart import Blueprint, request, jsonify
 
 from litecord.blueprints.auth import token_check
 from litecord.blueprints.checks import guild_perm_check
 
 from litecord.schemas import validate, GUILD_PRUNE
 from litecord.common.guilds import remove_member
+from litecord.typing_hax import app
 
 bp = Blueprint("guild_moderation", __name__)
 

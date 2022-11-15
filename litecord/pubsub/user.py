@@ -19,7 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from typing import Callable, List, Optional
 
-from quart import current_app as app
+from litecord.typing_hax import app
 from .dispatcher import GatewayEvent
 from .utils import send_event_to_states
 

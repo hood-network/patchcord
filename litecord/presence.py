@@ -20,7 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 from typing import List, Dict, Any, Iterable, Optional
 from random import choice
 from dataclasses import dataclass
-from quart import current_app as app
+from .typing_hax import app
 
 from logbook import Logger
 
@@ -224,7 +224,7 @@ class PresenceManager:
 
     async def dispatch_friends_pres_filter(
         self, user: dict, filter_function, presence: BasePresence
-    ) -> None:
+    ):
         """
         Same as dispatch_friends_pres but passes a filter function
         Takes in a whole public user object instead of a user id

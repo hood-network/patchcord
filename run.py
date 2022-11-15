@@ -27,14 +27,9 @@ import asyncpg
 import logbook
 import logging
 import websockets
-from quart import Quart as _Quart, Request as _Request, jsonify, request
+from quart import Response, jsonify
 from logbook import StreamHandler, Logger
 from logbook.compat import redirect_logging
-from aiohttp import ClientSession
-from winter import SnowflakeFactory
-
-# import the config set by instance owner
-import config
 
 from litecord.blueprints import (
     gateway,
@@ -91,7 +86,7 @@ from litecord.blueprints.admin_api import (
 from litecord.blueprints.admin_api.voice import guild_region_check
 
 from litecord.ratelimits.handler import ratelimit_handler
-from litecord.ratelimits.main import RatelimitManager
+from litecord.ratelimits.bucket import RatelimitBucket
 
 from litecord.errors import BadRequest, LitecordError
 from litecord.gateway.state_manager import StateManager
@@ -107,7 +102,7 @@ from litecord.pubsub.lazy_guild import LazyGuildManager
 
 from litecord.gateway.gateway import websocket_handler
 
-from litecord.json import LitecordJSONProvider
+from litecord.typing_hax import LitecordApp, request
 
 # == HACKY PATCH ==
 # this MUST be removed once Hypercorn gets py3.10 support.
@@ -122,24 +117,10 @@ log = Logger("litecord.boot")
 redirect_logging()
 
 
-# Custom subclasses
-class Request(_Request):
-    def on_json_loading_failed(self, error: Exception) -> Any:
-        raise BadRequest(50109)
-
-
-class Quart(_Quart):
-    request_class = Request
-
-
 def make_app():
-    app = Quart(__name__)
-    app.config.from_object(f"config.{config.MODE}")
-    is_debug = app.config.get("DEBUG", False)
-    app.debug = is_debug
-    app.config["MAX_CONTENT_LENGTH"] = 500 * 1024 * 1024
-
-    if is_debug:
+    app = LitecordApp(__name__)
+    
+    if app.is_debug:
         log.info("on debug")
         handler.level = logbook.DEBUG
         app.logger.level = logbook.DEBUG
@@ -147,16 +128,13 @@ def make_app():
     # always keep websockets on INFO
     logging.getLogger("websockets").setLevel(logbook.INFO)
 
-    # use our custom json encoder for custom data types
-    app.json_provider_class = LitecordJSONProvider
-
     return app
 
 
 PREFIXES = ("/api", "/api/v5", "/api/v6", "/api/v7", "/api/v8", "/api/v9", "/api/v10")
 
 
-def set_blueprints(app_):
+def set_blueprints(app_: LitecordApp):
     """Set the blueprints for a given app instance"""
     bps = {
         gateway: None,
@@ -217,8 +195,10 @@ async def app_before_request():
     takes place."""
 
     try:
+        if not request.url_rule:
+            raise ValueError
         request.discord_api_version = int(request.url_rule.rule.split("/api/v")[1].split("/")[0])
-    except Exception:  # Default to 5 for ancient clients
+    except ValueError:  # Default to 5 for ancient clients
         request.discord_api_version = 5
     finally:
         # check if api version is smaller than 5 or bigger than 10
@@ -229,7 +209,7 @@ async def app_before_request():
 
 
 @app.after_request
-async def app_after_request(resp):
+async def app_after_request(resp: Response):
     """Handle CORS headers."""
     origin = request.headers.get("Origin", "*")
     resp.headers["Access-Control-Allow-Origin"] = origin
@@ -249,7 +229,7 @@ async def app_after_request(resp):
     return resp
 
 
-def _set_rtl_reset(bucket, resp):
+def _set_rtl_reset(bucket: RatelimitBucket, resp: Response):
     reset = bucket._window + bucket.second
     precision = request.headers.get("x-ratelimit-precision", "millisecond")
 
@@ -262,7 +242,7 @@ def _set_rtl_reset(bucket, resp):
 
 
 @app.after_request
-async def app_set_ratelimit_headers(resp):
+async def app_set_ratelimit_headers(resp: Response):
     """Set the specific ratelimit headers."""
     try:
         bucket = request.bucket
@@ -285,46 +265,19 @@ async def app_set_ratelimit_headers(resp):
     return resp
 
 
-async def init_app_db(app_):
+async def init_app_db(app_: LitecordApp):
     """Connect to databases.
 
     Also spawns the job scheduler.
     """
     log.info("db connect")
-    app_.db = await asyncpg.create_pool(**app.config["POSTGRES"])
+    pool = await asyncpg.create_pool(**app.config["POSTGRES"])
+    assert pool is not None
+    app_.db = pool
 
     app_.sched = JobManager(context_func=app.app_context)
 
-
-def init_app_managers(app_: Quart, *, init_voice=True):
-    """Initialize singleton classes."""
-    app_.winter_factory = SnowflakeFactory()
-    app_.loop = asyncio.get_event_loop()
-    app_.ratelimiter = RatelimitManager(app_.config.get("_testing"))
-    app_.state_manager = StateManager()
-
-    app_.storage = Storage(app_)
-    app_.user_storage = UserStorage(app_.storage)
-
-    app_.icons = IconManager(app_)
-
-    app_.dispatcher = EventDispatcher()
-    app_.presence = PresenceManager(app_)
-
-    app_.storage.presence = app_.presence
-
-    # only start VoiceManager if needed.
-    # we do this because of a bug on ./manage.py where it
-    # cancels the LVSPManager's spawn regions task. we don't
-    # need to start it on manage time.
-    if init_voice:
-        app_.voice = VoiceManager(app_)
-
-    app_.guild_store = GuildMemoryStore()
-    app_.lazy_guild = LazyGuildManager()
-
-
-async def api_index(app_):
+async def api_index(app_: LitecordApp):
     to_find = {}
     found = []
 
@@ -354,7 +307,8 @@ async def api_index(app_):
         path = path.replace("peer.id", "user.id")
 
         methods = rule.methods
-
+        if not methods: 
+            continue
         for method in methods:
             pathname = to_find.get((path, method))
             if pathname:
@@ -379,7 +333,7 @@ async def api_index(app_):
     log.debug("missing: {}", missing)
 
 
-async def post_app_start(app_):
+async def post_app_start(app_: LitecordApp):
     # we'll need to start a billing job
     app_.sched.spawn(payment_job())
     app_.sched.spawn(api_index(app_))
@@ -414,10 +368,6 @@ async def app_before_serving():
     """
     log.info("opening db")
     await init_app_db(app)
-
-    app.session = ClientSession()
-
-    init_app_managers(app)
     await post_app_start(app)
 
     # start gateway websocket
@@ -436,7 +386,7 @@ async def app_after_serving():
     # first close all clients, then close db
     tasks = app.state_manager.gen_close_tasks()
     if tasks:
-        await asyncio.wait(tasks, loop=app.loop)
+        await asyncio.wait(tasks)
 
     app.state_manager.close()
 
@@ -482,7 +432,7 @@ def handle_413(_):
 
 @app.errorhandler(500)
 async def handle_500(_):
-    jsonify({"message": "500: Internal Server Error", "code": 0}), 500
+    return jsonify({"message": "500: Internal Server Error", "code": 0}), 500
 
 if __name__ == "__main__":
     app.run()

@@ -17,7 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from quart import current_app as app, request
+from litecord.typing_hax import app, request
 
 from litecord.errors import Ratelimited
 from litecord.auth import token_check, Unauthorized

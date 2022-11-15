@@ -17,7 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from quart import Blueprint, request, current_app as app, jsonify
+from quart import Blueprint, request, jsonify
 
 from litecord.blueprints.auth import token_check
 from litecord.common.interop import channel_view
@@ -29,6 +29,7 @@ from litecord.blueprints.guild.roles import gen_pairs
 from litecord.schemas import validate, CHAN_CREATE, CHANNEL_UPDATE_POSITION
 from litecord.blueprints.checks import guild_check, guild_owner_check, guild_perm_check
 from litecord.common.guilds import create_guild_channel
+from litecord.typing_hax import app
 
 bp = Blueprint("guild_channels", __name__)
 

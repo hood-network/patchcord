@@ -19,7 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from typing import List, Dict, Tuple, Optional
 
-from quart import Blueprint, request, current_app as app, jsonify
+from quart import Blueprint, request, jsonify
 from logbook import Logger
 
 from litecord.auth import token_check
@@ -31,6 +31,7 @@ from litecord.schemas import validate, ROLE_CREATE, ROLE_UPDATE, ROLE_UPDATE_POS
 
 from litecord.utils import maybe_lazy_guild_dispatch
 from litecord.common.guilds import create_role
+from litecord.typing_hax import app
 
 log = Logger(__name__)
 bp = Blueprint("guild_roles", __name__)

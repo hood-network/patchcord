@@ -17,7 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from quart import Blueprint, request, current_app as app, jsonify
+from quart import Blueprint, request, jsonify
 
 from litecord.auth import token_check, admin_check
 from litecord.errors import NotFound
@@ -30,6 +30,7 @@ from litecord.enums import PremiumType
 from litecord.blueprints.checks import guild_check, guild_perm_check
 
 from litecord.common.guilds import add_member
+from litecord.typing_hax import app
 
 bp = Blueprint("guild_members", __name__)
 

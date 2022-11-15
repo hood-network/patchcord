@@ -28,8 +28,8 @@ from random import randint
 import websockets
 import zstandard as zstd
 from logbook import Logger
-from quart import current_app as app
 
+from litecord.typing_hax import app
 from litecord.auth import raw_token_check
 from litecord.enums import RelationshipType, ChannelType, ActivityType, Intents
 from litecord.utils import (

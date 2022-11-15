@@ -23,17 +23,17 @@ import binascii
 import bcrypt
 from itsdangerous import TimestampSigner, BadSignature
 from logbook import Logger
-from quart import request, current_app as app
 from typing import overload, Optional, Literal
 
 from litecord.errors import Forbidden, Unauthorized
 from litecord.enums import UserFlags
+from litecord.typing_hax import request, app
 
 
 log = Logger(__name__)
 
 
-async def raw_token_check(token: str, db=None) -> int:
+async def raw_token_check(token: str) -> int:
     """Check if a given token is valid.
 
     Returns
@@ -48,7 +48,7 @@ async def raw_token_check(token: str, db=None) -> int:
     Forbidden
         If token validation fails.
     """
-    db = db or app.db
+    db = app.db
 
     # just try by fragments instead of
     # unpacking
@@ -108,13 +108,12 @@ async def token_check(to_raise: Literal[False] = ...) -> Optional[int]:
     ...
 
 
-async def token_check(to_raise: bool = True) -> Optional[int]:
+async def token_check(to_raise = True) -> Optional[int]:
     """Check token information."""
     # first, check if the request info already has a uid
-    try:
-        return request.user_id
-    except AttributeError:
-        pass
+    user_id = getattr(request, "user_id", None)
+    if user_id:
+        return user_id
 
     try:
         token = request.headers["Authorization"]

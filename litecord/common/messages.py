@@ -6,7 +6,7 @@ from litecord.enums import PremiumType
 from litecord.errors import BadRequest, ManualFormError, TooLarge
 from logbook import Logger
 from PIL import Image
-from quart import request, current_app as app
+from litecord.typing_hax import app, request
 
 log = Logger(__name__)
 

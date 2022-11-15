@@ -17,9 +17,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from quart import Blueprint, jsonify, current_app as app
+from quart import Blueprint, jsonify
 
 from litecord.auth import admin_check
+from litecord.typing_hax import app
 
 bp = Blueprint("info_admin", __name__)
 

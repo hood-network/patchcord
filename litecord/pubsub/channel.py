@@ -20,7 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 from typing import List
 
 import asyncio
-from quart import current_app as app
+from litecord.typing_hax import app
 from logbook import Logger
 
 from litecord.enums import EVENTS_TO_INTENTS

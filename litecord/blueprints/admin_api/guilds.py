@@ -17,7 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from quart import Blueprint, jsonify, current_app as app, request
+from quart import Blueprint, jsonify, request
 from typing import List
 
 from litecord.auth import admin_check
@@ -28,6 +28,7 @@ from litecord.admin_schemas import GUILD_UPDATE, FEATURES
 from litecord.common.guilds import delete_guild
 from litecord.errors import NotFound
 from litecord.utils import extract_limit
+from litecord.typing_hax import app
 
 bp = Blueprint("guilds_admin", __name__)
 
@@ -98,7 +99,7 @@ async def query_guilds():
         ORDER BY name
         LIMIT $2 OFFSET $3
         """,
-        args=(query, limit, offset),
+        args=[query, limit, offset],
         full=True,
     )
 

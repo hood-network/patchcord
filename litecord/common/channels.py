@@ -17,13 +17,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 from typing import Optional
-from quart import current_app as app
-
 
 from litecord.errors import Forbidden
 from litecord.enums import RelationshipType
 from litecord.pubsub.member import dispatch_member
 from litecord.pubsub.user import dispatch_user
+from litecord.typing_hax import app
 
 
 async def channel_ack(
