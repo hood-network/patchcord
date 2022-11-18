@@ -274,9 +274,8 @@ async def init_app_db(app_: LitecordApp):
     pool = await asyncpg.create_pool(**app.config["POSTGRES"])
     assert pool is not None
     app_.db = pool
-
-    app.init_managers()
     app_.sched = JobManager(context_func=app.app_context)
+    app.init_managers()
 
 async def api_index(app_: LitecordApp):
     to_find = {}
