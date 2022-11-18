@@ -42,6 +42,8 @@ from litecord.presence import PresenceManager
 
 if TYPE_CHECKING:
     from litecord.typing_hax import LitecordApp
+else:
+    from quart import Quart as LitecordApp
 
 log = Logger(__name__)
 
