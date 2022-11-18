@@ -275,6 +275,7 @@ async def init_app_db(app_: LitecordApp):
     assert pool is not None
     app_.db = pool
 
+    app.init_managers()
     app_.sched = JobManager(context_func=app.app_context)
 
 async def api_index(app_: LitecordApp):

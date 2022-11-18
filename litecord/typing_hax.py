@@ -4,6 +4,7 @@ from asyncpg import Pool
 from quart import current_app, Quart, Request as _Request, request
 from typing import cast, Any, Optional
 from winter import SnowflakeFactory
+import config
 
 from .ratelimits.bucket import RatelimitBucket
 from .ratelimits.main import RatelimitManager
@@ -56,7 +57,7 @@ class LitecordApp(Quart):
     def __init__(
         self,
         import_name: str,
-        config_path: str = "config.ci",
+        config_path: str = f"config.{config.MODE}",
     ) -> None:
         super().__init__(
             import_name,
@@ -64,6 +65,7 @@ class LitecordApp(Quart):
         self.config.from_object(config_path)
         self.config["MAX_CONTENT_LENGTH"] = 500 * 1024 * 1024  # 500 MB
         
+    def init_managers(self):
         # Init singleton classes
         self.session = ClientSession()
         self.winter_factory = SnowflakeFactory()
