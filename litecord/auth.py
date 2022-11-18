@@ -23,11 +23,15 @@ import asyncpg
 import bcrypt
 from itsdangerous import TimestampSigner, BadSignature
 from logbook import Logger
-from typing import overload, Optional, Literal
+from typing import overload, Optional, Literal, TYPE_CHECKING
 
 from litecord.errors import Forbidden, Unauthorized
 from litecord.enums import UserFlags
-from litecord.typing_hax import request, app
+
+if TYPE_CHECKING:
+    from litecord.typing_hax import app, request
+else:
+    from quart import current_app as app, request
 
 
 log = Logger(__name__)

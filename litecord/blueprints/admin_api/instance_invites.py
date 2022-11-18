@@ -19,16 +19,20 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import string
 from random import choice
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
-from quart import Blueprint, jsonify, request
+from quart import Blueprint, jsonify
 
 from litecord.auth import admin_check
 from ...errors import InternalServerError, NotFound
 from litecord.types import timestamp_
 from litecord.schemas import validate
 from litecord.admin_schemas import INSTANCE_INVITE
-from litecord.typing_hax import app
+
+if TYPE_CHECKING:
+    from litecord.typing_hax import app, request
+else:
+    from quart import current_app as app, request
 
 bp = Blueprint("instance_invites", __name__)
 ALPHABET = string.ascii_lowercase + string.ascii_uppercase + string.digits

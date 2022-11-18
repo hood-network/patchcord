@@ -17,14 +17,19 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from quart import Blueprint, jsonify, request
+from quart import Blueprint, jsonify
+from typing import TYPE_CHECKING
 
 from litecord.auth import token_check
 from litecord.schemas import validate, USER_SETTINGS, GUILD_SETTINGS
 from litecord.blueprints.checks import guild_check
 from litecord.pubsub.user import dispatch_user
 from litecord.errors import NotFound
-from litecord.typing_hax import app
+
+if TYPE_CHECKING:
+    from litecord.typing_hax import app, request
+else:
+    from quart import current_app as app, request
 
 bp = Blueprint("users_settings", __name__)
 

@@ -28,9 +28,8 @@ lazy guilds:
 
 import asyncio
 from collections import defaultdict
-from typing import Any, List, Dict, Union, Optional, Iterable, Iterator, Tuple, Set
+from typing import Any, List, Dict, Union, Optional, Iterable, Iterator, Tuple, Set, TYPE_CHECKING
 from dataclasses import dataclass, asdict, field
-from litecord.typing_hax import app
 from logbook import Logger
 
 from litecord.permissions import (
@@ -44,6 +43,11 @@ from litecord.utils import index_by_func
 from litecord.utils import mmh3
 from litecord.gateway.state import GatewayState
 from litecord.presence import Presence
+
+if TYPE_CHECKING:
+    from litecord.typing_hax import app, request
+else:
+    from quart import current_app as app, request
 
 log = Logger(__name__)
 

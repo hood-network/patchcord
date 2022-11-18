@@ -17,9 +17,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from typing import List, Dict, Tuple, Optional
+from typing import List, Dict, Tuple, Optional, TYPE_CHECKING
 
-from quart import Blueprint, request, jsonify
+from quart import Blueprint, jsonify
 from logbook import Logger
 
 from litecord.auth import token_check
@@ -31,7 +31,11 @@ from litecord.schemas import validate, ROLE_CREATE, ROLE_UPDATE, ROLE_UPDATE_POS
 
 from litecord.utils import maybe_lazy_guild_dispatch
 from litecord.common.guilds import create_role
-from litecord.typing_hax import app
+
+if TYPE_CHECKING:
+    from litecord.typing_hax import app, request
+else:
+    from quart import current_app as app, request
 
 log = Logger(__name__)
 bp = Blueprint("guild_roles", __name__)

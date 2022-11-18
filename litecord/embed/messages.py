@@ -21,14 +21,18 @@ import re
 import asyncio
 import urllib.parse
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 
 from logbook import Logger
 
 from litecord.embed.sanitizer import proxify, fetch_metadata, fetch_mediaproxy_embed
 from litecord.embed.schemas import EmbedURL
 from litecord.enums import MessageFlags
-from litecord.typing_hax import app
+
+if TYPE_CHECKING:
+    from litecord.typing_hax import app
+else:
+    from quart import current_app as app
 
 log = Logger(__name__)
 

@@ -17,7 +17,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from quart import Blueprint, jsonify, request
+from quart import Blueprint, jsonify
+from typing import TYPE_CHECKING
 
 from litecord.auth import admin_check
 from litecord.blueprints.channel.messages import handle_get_messages
@@ -25,7 +26,13 @@ from litecord.common.interop import message_view
 from litecord.schemas import validate
 from litecord.errors import InternalServerError, NotFound
 from litecord.utils import extract_limit
-from litecord.typing_hax import app
+
+if TYPE_CHECKING:
+    from litecord.typing_hax import app, request
+else:
+    from quart import current_app as app, request
+
+
 
 bp = Blueprint("channels_admin", __name__)
 

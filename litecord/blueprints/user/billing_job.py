@@ -24,6 +24,7 @@ import datetime
 
 from asyncio import sleep, CancelledError
 from logbook import Logger
+from typing import TYPE_CHECKING
 
 from litecord.blueprints.user.billing import (
     get_subscription,
@@ -32,9 +33,13 @@ from litecord.blueprints.user.billing import (
     create_payment,
     process_subscription,
 )
-from litecord.typing_hax import app
 
 from litecord.types import MINUTES
+
+if TYPE_CHECKING:
+    from litecord.typing_hax import app, request
+else:
+    from quart import current_app as app, request
 
 log = Logger(__name__)
 

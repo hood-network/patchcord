@@ -17,17 +17,16 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from typing import List
+from typing import List, TYPE_CHECKING
 
 import asyncio
 from asyncpg import UniqueViolationError
 from datetime import datetime
-from quart import Blueprint, jsonify, request
+from quart import Blueprint, jsonify
 from logbook import Logger
 
 from litecord.types import timestamp_
 
-from typing_hax import app
 from ..errors import BadRequest, ManualFormError, MissingAccess, NotFound
 from ..schemas import validate, USER_UPDATE, GET_MENTIONS
 from ..utils import extract_limit, str_bool
@@ -51,6 +50,11 @@ from litecord.common.users import (
     roll_discrim,
     user_disconnect,
 )
+
+if TYPE_CHECKING:
+    from litecord.typing_hax import app, request
+else:
+    from quart import current_app as app, request
 
 bp = Blueprint("user", __name__)
 log = Logger(__name__)

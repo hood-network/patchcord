@@ -17,12 +17,15 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from typing import Callable, List, Optional
+from typing import Callable, List, Optional, TYPE_CHECKING
 
-from litecord.typing_hax import app
 from .dispatcher import GatewayEvent
 from .utils import send_event_to_states
 
+if TYPE_CHECKING:
+    from litecord.typing_hax import app
+else:
+    from quart import current_app as app
 
 async def dispatch_user_filter(
     user_id: int, filter_func: Optional[Callable[[str], bool]], event_data: GatewayEvent

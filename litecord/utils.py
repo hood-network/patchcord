@@ -21,13 +21,17 @@ import asyncio
 import secrets
 import datetime
 import re
-from typing import Any, Iterable, Optional, Sequence, Union, TypeVar
+from typing import Any, Iterable, Optional, Sequence, Union, TypeVar, TYPE_CHECKING
 
 from logbook import Logger
-from .typing_hax import app
 
 from .errors import ManualFormError
 from .enums import Flags
+
+if TYPE_CHECKING:
+    from litecord.typing_hax import app, request
+else:
+    from quart import current_app as app, request
 
 log = Logger(__name__)
 

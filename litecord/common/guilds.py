@@ -17,7 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from typing import List
+from typing import List, TYPE_CHECKING
 from logbook import Logger
 
 from .messages import PLAN_ID_TO_TYPE
@@ -30,7 +30,11 @@ from ..errors import BadRequest, Forbidden, MissingPermissions, NotFound
 from litecord.common.interop import role_view
 from litecord.pubsub.member import dispatch_member
 from litecord.system_messages import send_sys_message
-from litecord.typing_hax import app
+
+if TYPE_CHECKING:
+    from litecord.typing_hax import app, request
+else:
+    from quart import current_app as app, request
 
 log = Logger(__name__)
 

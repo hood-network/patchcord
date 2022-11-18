@@ -17,11 +17,15 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from litecord.typing_hax import app, request
+from typing import TYPE_CHECKING
 
 from litecord.errors import Ratelimited
 from litecord.auth import token_check, Unauthorized
 
+if TYPE_CHECKING:
+    from litecord.typing_hax import app, request
+else:
+    from quart import current_app as app, request
 
 async def _check_bucket(bucket):
     retry_after = bucket.update_rate_limit()

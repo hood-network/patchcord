@@ -22,14 +22,13 @@ import asyncio
 import pprint
 import zlib
 import time
-from typing import List, Dict, Any, Iterable, Optional
+from typing import List, Dict, Any, Iterable, Optional, TYPE_CHECKING
 from random import randint
 
 import websockets
 import zstandard as zstd
 from logbook import Logger
 
-from litecord.typing_hax import app
 from litecord.auth import raw_token_check
 from litecord.enums import RelationshipType, ChannelType, ActivityType, Intents
 from litecord.utils import (
@@ -69,6 +68,11 @@ from litecord.gateway.schemas import (
 from litecord.storage import int_
 
 from litecord.blueprints.gateway import get_gw
+
+if TYPE_CHECKING:
+    from litecord.typing_hax import app
+else:
+    from quart import current_app as app
 
 log = Logger(__name__)
 

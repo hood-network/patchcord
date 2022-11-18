@@ -17,15 +17,19 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from typing import List
+from typing import List, TYPE_CHECKING
 
 import asyncio
-from litecord.typing_hax import app
 from logbook import Logger
 
 from litecord.enums import EVENTS_TO_INTENTS
 from .dispatcher import DispatcherWithState, GatewayEvent
 
+if TYPE_CHECKING:
+    from litecord.typing_hax import app
+else:
+    from quart import current_app as app
+    
 log = Logger(__name__)
 
 

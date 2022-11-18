@@ -18,7 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from enum import IntEnum
-from typing import List, Union, Tuple, TypedDict, Optional
+from typing import List, Union, Tuple, TypedDict, Optional, TYPE_CHECKING
 
 from quart import Blueprint, request, jsonify
 from logbook import Logger
@@ -29,11 +29,14 @@ from litecord.utils import async_map, query_tuple_from_args, extract_limit
 from litecord.blueprints.auth import token_check
 from litecord.blueprints.checks import channel_check, channel_perm_check
 from litecord.common.messages import PLAN_ID_TO_TYPE
-from litecord.typing_hax import app
 
 from litecord.enums import GUILD_CHANS
 from litecord.enums import PremiumType
 
+if TYPE_CHECKING:
+    from litecord.typing_hax import app, request
+else:
+    from quart import current_app as app, request
 
 log = Logger(__name__)
 bp = Blueprint("channel_reactions", __name__)
