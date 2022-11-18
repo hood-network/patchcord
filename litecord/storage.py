@@ -82,7 +82,6 @@ class Storage:
     def __init__(self, app: LitecordApp):
         self.app = app
         self.db = app.db
-        self.presence = app.presence
         self.stickers: Dict[int, dict] = {}
 
     async def fetchrow_with_json(self, query: str, *args) -> Any:
