@@ -73,6 +73,8 @@ class LitecordApp(Quart):
         self.ratelimiter = RatelimitManager(self.config.get("_testing", False))
         self.state_manager = StateManager()
         self.storage = Storage(self)
+        self.presence = PresenceManager(self)
+        self.storage.presence = self.presence
         self.user_storage = UserStorage(self.storage)
         self.icons = IconManager(self)
         self.dispatcher = EventDispatcher()
