@@ -19,7 +19,6 @@ from .pubsub.lazy_guild import LazyGuildManager
 from .voice.manager import VoiceManager
 from .jobs import JobManager
 from .errors import BadRequest
-from .json import LitecordJSONProvider
 
 class Request(_Request):
 
@@ -35,8 +34,6 @@ class Request(_Request):
 
 class LitecordApp(Quart):
     request_class: Request
-    # use our custom json encoder for custom data types
-    json_provider_class = LitecordJSONProvider
     session: ClientSession
     db: Pool
     sched: JobManager

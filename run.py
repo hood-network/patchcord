@@ -101,6 +101,7 @@ from litecord.guild_memory_store import GuildMemoryStore
 from litecord.pubsub.lazy_guild import LazyGuildManager
 
 from litecord.gateway.gateway import websocket_handler
+from litecord.json import LitecordJSONProvider
 
 from litecord.typing_hax import LitecordApp, request
 
@@ -127,6 +128,10 @@ def make_app():
 
     # always keep websockets on INFO
     logging.getLogger("websockets").setLevel(logbook.INFO)
+
+    # use our custom json encoder for custom data types
+    # do not move this anywhere else
+    json_provider_class = LitecordJSONProvider
 
     return app
 
