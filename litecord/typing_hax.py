@@ -80,8 +80,7 @@ class LitecordApp(Quart):
         self.storage.presence = self.presence
         self.guild_store = GuildMemoryStore()
         self.lazy_guild = LazyGuildManager()
-        
-
+        self.voice = VoiceManager(self)
     @property
     def is_debug(self) -> bool:
         return self.config.get("DEBUG", False)
