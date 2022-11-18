@@ -18,14 +18,18 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import asyncpg
-from quart import Blueprint, jsonify, request
+from quart import Blueprint, jsonify
 from logbook import Logger
-
+from typing import TYPE_CHECKING
 from litecord.auth import admin_check
 from litecord.schemas import validate
 from litecord.admin_schemas import VOICE_SERVER, VOICE_REGION
 from litecord.errors import BadRequest
-from litecord.typing_hax import app
+
+if TYPE_CHECKING:
+    from litecord.typing_hax import app, request
+else:
+    from quart import current_app as app, request
 
 log = Logger(__name__)
 bp = Blueprint("voice_admin", __name__)

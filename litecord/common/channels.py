@@ -16,13 +16,17 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 from litecord.errors import Forbidden
 from litecord.enums import RelationshipType
 from litecord.pubsub.member import dispatch_member
 from litecord.pubsub.user import dispatch_user
-from litecord.typing_hax import app
+
+if TYPE_CHECKING:
+    from litecord.typing_hax import app, request
+else:
+    from quart import current_app as app, request
 
 
 async def channel_ack(

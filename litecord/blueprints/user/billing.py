@@ -20,6 +20,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import datetime
 import json
 from enum import Enum
+from quart import Blueprint, jsonify
+from typing import TYPE_CHECKING
 
 from litecord.auth import token_check
 from litecord.common.users import mass_user_update
@@ -28,10 +30,12 @@ from litecord.errors import BadRequest
 from litecord.schemas import validate
 from litecord.types import HOURS, timestamp_
 from litecord.utils import snowflake_timestamp
-from litecord.typing_hax import app
 from logbook import Logger
-from quart import Blueprint
-from quart import jsonify, request
+
+if TYPE_CHECKING:
+    from litecord.typing_hax import app, request
+else:
+    from quart import current_app as app, request
 
 log = Logger(__name__)
 bp = Blueprint("users_billing", __name__)

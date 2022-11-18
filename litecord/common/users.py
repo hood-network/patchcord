@@ -19,17 +19,21 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from datetime import datetime
 from random import randint
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, TYPE_CHECKING
 
 from asyncpg import UniqueViolationError
 from logbook import Logger
 
-from litecord.typing_hax import app
 from ..auth import hash_data
 from ..errors import BadRequest, ManualFormError
 from ..presence import BasePresence
 from ..pubsub.user import dispatch_user
 from ..utils import rand_hex
+
+if TYPE_CHECKING:
+    from litecord.typing_hax import app, request
+else:
+    from quart import current_app as app, request
 
 log = Logger(__name__)
 

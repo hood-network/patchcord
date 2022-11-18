@@ -1,12 +1,16 @@
 import json
 import os
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 from litecord.enums import PremiumType
 from litecord.errors import BadRequest, ManualFormError, TooLarge
 from logbook import Logger
 from PIL import Image
-from litecord.typing_hax import app, request
+
+if TYPE_CHECKING:
+    from litecord.typing_hax import app, request
+else:
+    from quart import current_app as app, request
 
 log = Logger(__name__)
 

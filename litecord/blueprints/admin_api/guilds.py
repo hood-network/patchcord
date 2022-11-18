@@ -17,8 +17,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from quart import Blueprint, jsonify, request
-from typing import List
+from quart import Blueprint, jsonify
+from typing import List, TYPE_CHECKING
 
 from litecord.auth import admin_check
 from litecord.blueprints.guilds import handle_guild_create, handle_guild_update
@@ -28,7 +28,11 @@ from litecord.admin_schemas import GUILD_UPDATE, FEATURES
 from litecord.common.guilds import delete_guild
 from litecord.errors import NotFound
 from litecord.utils import extract_limit
-from litecord.typing_hax import app
+
+if TYPE_CHECKING:
+    from litecord.typing_hax import app, request
+else:
+    from quart import current_app as app, request
 
 bp = Blueprint("guilds_admin", __name__)
 

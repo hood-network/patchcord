@@ -17,10 +17,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from typing import List, Tuple
+from typing import List, Tuple, TYPE_CHECKING
 
 import asyncio
-from litecord.typing_hax import app
 from logbook import Logger
 
 from .dispatcher import DispatcherWithState, GatewayEvent
@@ -28,6 +27,10 @@ from litecord.gateway.state import GatewayState
 from litecord.enums import EVENTS_TO_INTENTS, Intents
 from litecord.permissions import get_permissions
 
+if TYPE_CHECKING:
+    from litecord.typing_hax import app, request
+else:
+    from quart import current_app as app, request
 
 log = Logger(__name__)
 

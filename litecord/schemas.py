@@ -20,12 +20,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import re
 
 from datetime import datetime
-from typing import Union, Dict, List, Optional
+from typing import Union, Dict, List, Optional, TYPE_CHECKING
 
 from cerberus import Validator
 from cerberus.errors import BasicErrorHandler
 from logbook import Logger
-from .typing_hax import app
 
 from .errors import BadRequest, FormError
 from .permissions import Permissions
@@ -42,6 +41,11 @@ from .enums import (
 )
 
 from litecord.embed.schemas import EMBED_OBJECT, EmbedURL
+
+if TYPE_CHECKING:
+    from litecord.typing_hax import app
+else:
+    from quart import current_app as app
 
 log = Logger(__name__)
 

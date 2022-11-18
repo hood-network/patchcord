@@ -4,6 +4,7 @@ from asyncpg import Pool
 from quart import current_app, Quart, Request as _Request, request
 from typing import cast, Any, Optional
 from winter import SnowflakeFactory
+import config
 
 from .ratelimits.bucket import RatelimitBucket
 from .ratelimits.main import RatelimitManager
@@ -18,7 +19,6 @@ from .pubsub.lazy_guild import LazyGuildManager
 from .voice.manager import VoiceManager
 from .jobs import JobManager
 from .errors import BadRequest
-from .json import LitecordJSONProvider
 
 class Request(_Request):
 
@@ -34,8 +34,6 @@ class Request(_Request):
 
 class LitecordApp(Quart):
     request_class: Request
-    # use our custom json encoder for custom data types
-    json_provider_class = LitecordJSONProvider
     session: ClientSession
     db: Pool
     sched: JobManager
@@ -56,7 +54,7 @@ class LitecordApp(Quart):
     def __init__(
         self,
         import_name: str,
-        config_path: str = "config.ci",
+        config_path: str = f"config.{config.MODE}",
     ) -> None:
         super().__init__(
             import_name,
@@ -64,6 +62,7 @@ class LitecordApp(Quart):
         self.config.from_object(config_path)
         self.config["MAX_CONTENT_LENGTH"] = 500 * 1024 * 1024  # 500 MB
         
+    def init_managers(self):
         # Init singleton classes
         self.session = ClientSession()
         self.winter_factory = SnowflakeFactory()
@@ -75,10 +74,10 @@ class LitecordApp(Quart):
         self.icons = IconManager(self)
         self.dispatcher = EventDispatcher()
         self.presence = PresenceManager(self)
+        self.storage.presence = self.presence
         self.guild_store = GuildMemoryStore()
         self.lazy_guild = LazyGuildManager()
-        
-
+        self.voice = VoiceManager(self)
     @property
     def is_debug(self) -> bool:
         return self.config.get("DEBUG", False)

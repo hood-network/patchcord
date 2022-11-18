@@ -101,6 +101,7 @@ from litecord.guild_memory_store import GuildMemoryStore
 from litecord.pubsub.lazy_guild import LazyGuildManager
 
 from litecord.gateway.gateway import websocket_handler
+from litecord.json import LitecordJSONProvider
 
 from litecord.typing_hax import LitecordApp, request
 
@@ -127,6 +128,10 @@ def make_app():
 
     # always keep websockets on INFO
     logging.getLogger("websockets").setLevel(logbook.INFO)
+
+    # use our custom json encoder for custom data types
+    # do not move this anywhere else
+    json_provider_class = LitecordJSONProvider
 
     return app
 
@@ -198,7 +203,7 @@ async def app_before_request():
         if not request.url_rule:
             raise ValueError
         request.discord_api_version = int(request.url_rule.rule.split("/api/v")[1].split("/")[0])
-    except ValueError:  # Default to 5 for ancient clients
+    except Exception:  # Default to 5 for ancient clients
         request.discord_api_version = 5
     finally:
         # check if api version is smaller than 5 or bigger than 10
@@ -274,8 +279,8 @@ async def init_app_db(app_: LitecordApp):
     pool = await asyncpg.create_pool(**app.config["POSTGRES"])
     assert pool is not None
     app_.db = pool
-
     app_.sched = JobManager(context_func=app.app_context)
+    app.init_managers()
 
 async def api_index(app_: LitecordApp):
     to_find = {}

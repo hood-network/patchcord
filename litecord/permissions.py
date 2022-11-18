@@ -19,9 +19,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import ctypes
 from dataclasses import dataclass
-from typing import Optional, Union
+from typing import Optional, Union, TYPE_CHECKING
 
-from .typing_hax import app
+if TYPE_CHECKING:
+    from litecord.typing_hax import app
+else:
+    from quart import current_app as app
 
 # so we don't keep repeating the same
 # type for all the fields

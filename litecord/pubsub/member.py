@@ -17,11 +17,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from typing import List
-from litecord.typing_hax import app
+from typing import List, TYPE_CHECKING
 from .dispatcher import GatewayEvent
 from .utils import send_event_to_states
 
+if TYPE_CHECKING:
+    from litecord.typing_hax import app, request
+else:
+    from quart import current_app as app, request
 
 async def dispatch_member(
     guild_id: int, user_id: int, event: GatewayEvent

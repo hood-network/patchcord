@@ -18,9 +18,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from quart import Blueprint, jsonify
+from typing import TYPE_CHECKING
 
 from litecord.auth import admin_check
-from litecord.typing_hax import app
+
+if TYPE_CHECKING:
+    from litecord.typing_hax import app
+else:
+    from quart import current_app as app
 
 bp = Blueprint("info_admin", __name__)
 

@@ -19,7 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import asyncio
 
-from typing import List, Optional, Coroutine
+from typing import List, Optional, Coroutine, TYPE_CHECKING
 from collections import defaultdict
 
 from websockets.exceptions import ConnectionClosed
@@ -28,8 +28,11 @@ from logbook import Logger
 from litecord.gateway.state import GatewayState
 from litecord.gateway.opcodes import OP
 from litecord.enums import Intents
-from litecord.typing_hax import app
 
+if TYPE_CHECKING:
+    from litecord.typing_hax import app, request
+else:
+    from quart import current_app as app, request
 
 log = Logger(__name__)
 
