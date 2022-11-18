@@ -79,6 +79,7 @@ class LitecordApp(Quart):
         self.icons = IconManager(self)
         self.dispatcher = EventDispatcher()
         self.presence = PresenceManager(self)
+        self.storage.presence = self.presence
         self.guild_store = GuildMemoryStore()
         self.lazy_guild = LazyGuildManager()
         
