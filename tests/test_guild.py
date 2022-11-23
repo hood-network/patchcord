@@ -31,9 +31,7 @@ async def test_guild_create(test_cli_user):
     g_name = secrets.token_hex(5)
 
     # stage 1: create
-    resp = await test_cli_user.post(
-        "/api/v6/guilds", json={"name": g_name, "region": None}
-    )
+    resp = await test_cli_user.post("/api/v6/guilds", json={"name": g_name, "region": None})
 
     assert resp.status_code == 200
     rjson = await resp.json

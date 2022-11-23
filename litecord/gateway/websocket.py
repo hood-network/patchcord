@@ -76,9 +76,7 @@ else:
 
 log = Logger(__name__)
 
-WebsocketProperties = collections.namedtuple(
-    "WebsocketProperties", "version encoding compress zctx zsctx tasks"
-)
+WebsocketProperties = collections.namedtuple("WebsocketProperties", "version encoding compress zctx zsctx tasks")
 
 
 def _complete_users_list(user_id: str, base_ready, user_ready, ws_properties) -> dict:
@@ -104,17 +102,13 @@ def _complete_users_list(user_id: str, base_ready, user_ready, ws_properties) ->
 
     for private_channel in ready["private_channels"]:
         if private_channel["type"] == 1:
-            self_user_index = index_by_func(
-                lambda user: user["id"] == str(user_id), private_channel["recipients"]
-            )
+            self_user_index = index_by_func(lambda user: user["id"] == str(user_id), private_channel["recipients"])
             if ws_properties.version > 7:
                 assert self_user_index is not None
                 private_channel["recipients"].pop(self_user_index)
             else:
                 if self_user_index == 0:
-                    private_channel["recipients"].append(
-                        private_channel["recipients"].pop(0)
-                    )
+                    private_channel["recipients"].append(private_channel["recipients"].pop(0))
 
         # if ws_properties.version >= 9:
         #     private_channel["recipient_ids"] = [recipient["id"] for recipient in private_channel["recipients"]],
@@ -130,7 +124,9 @@ async def _compute_supplemental(app, base_ready, user_ready, users_to_send: dict
         "lazy_private_channels": [],
     }
 
-    supplemental["merged_presences"]["friends"] = [{**presence, "last_modified": 0} for presence in user_ready["presences"]]
+    supplemental["merged_presences"]["friends"] = [
+        {**presence, "last_modified": 0} for presence in user_ready["presences"]
+    ]
 
     for guild in base_ready["guilds"]:
         if not guild.get("unavailable"):
@@ -207,9 +203,7 @@ class GatewayWebsocket:
     async def _chunked_send(self, data: bytes, chunk_size: int):
         """Split data in chunk_size-big chunks and send them
         over the websocket."""
-        log.debug(
-            "zlib-stream: sending {} bytes into {}-byte chunks", len(data), chunk_size
-        )
+        log.debug("zlib-stream: sending {} bytes into {}-byte chunks", len(data), chunk_size)
 
         # we send the entire iterator as per websockets documentation
         # to pretent setting FIN when we don't want to
@@ -238,9 +232,7 @@ class GatewayWebsocket:
         await self._chunked_send(data, 1024)
 
     async def _zstd_stream_send(self, encoded):
-        compressor = self.ws_properties.zsctx.stream_writer(
-            WebsocketFileHandler(self.ws)
-        )
+        compressor = self.ws_properties.zsctx.stream_writer(WebsocketFileHandler(self.ws))
 
         compressor.write(encoded)
         compressor.flush(zstd.FLUSH_FRAME)
@@ -273,21 +265,12 @@ class GatewayWebsocket:
             await self._zlib_stream_send(want_bytes(encoded))
         elif self.ws_properties.compress == "zstd-stream":
             await self._zstd_stream_send(want_bytes(encoded))
-        elif (
-            self.state
-            and self.state.compress
-            and len(encoded) > 8192
-            and self.ws_properties.encoding != "etf"
-        ):
+        elif self.state and self.state.compress and len(encoded) > 8192 and self.ws_properties.encoding != "etf":
             # TODO determine better conditions to trigger a compress set
             # by identify
             await self.ws.send(zlib.compress(want_bytes(encoded)))
         else:
-            await self.ws.send(
-                want_bytes(encoded)
-                if self.ws_properties.encoding == "etf"
-                else want_string(encoded)
-            )
+            await self.ws.send(want_bytes(encoded) if self.ws_properties.encoding == "etf" else want_string(encoded))
 
     async def send_op(self, op_code: int, data: Any):
         """Send a packet but just the OP code information is filled in."""
@@ -314,16 +297,12 @@ class GatewayWebsocket:
         if task:
             task.cancel()
 
-        self.ws_properties.tasks["heartbeat"] = app.sched.spawn(
-            task_wrapper("hb wait", self._hb_wait(interval))
-        )
+        self.ws_properties.tasks["heartbeat"] = app.sched.spawn(task_wrapper("hb wait", self._hb_wait(interval)))
 
     async def _send_hello(self):
         """Send the OP 10 Hello packet over the websocket."""
         # random heartbeat intervals
-        await self.send_op(
-            OP.HELLO, {"heartbeat_interval": 41250, "_trace": ["litecord"]}
-        )
+        await self.send_op(OP.HELLO, {"heartbeat_interval": 41250, "_trace": ["litecord"]})
 
         self._hb_start(41250)
 
@@ -346,9 +325,7 @@ class GatewayWebsocket:
         try:
             await self.send(payload)
         except websockets.exceptions.ConnectionClosed:
-            log.warning(
-                "Failed to dispatch {!r} to {}", event.upper, self.state.session_id
-            )
+            log.warning("Failed to dispatch {!r} to {}", event.upper, self.state.session_id)
 
     async def _make_guild_list(self) -> List[Dict[str, Any]]:
         assert self.state is not None
@@ -357,9 +334,7 @@ class GatewayWebsocket:
         if self.state.bot:
             return [{"id": row, "unavailable": True} for row in guild_ids]
 
-        return await self.storage.get_guilds(
-            guild_ids, self.state.user_id, True, large=self.state.large
-        )
+        return await self.storage.get_guilds(guild_ids, self.state.user_id, True, large=self.state.large)
 
     async def _guild_dispatch(self, unavailable_guilds: List[Dict[str, Any]]):
         """Dispatch GUILD_CREATE information."""
@@ -370,9 +345,7 @@ class GatewayWebsocket:
             return
 
         guild_ids = [int(g["id"]) for g in unavailable_guilds]
-        guilds = await self.storage.get_guilds(
-            guild_ids, self.state.user_id, True, large=self.state.large
-        )
+        guilds = await self.storage.get_guilds(guild_ids, self.state.user_id, True, large=self.state.large)
         for guild in guilds:
             await self.dispatch_raw("GUILD_CREATE", {**guild, "unavailable": False})
 
@@ -382,11 +355,7 @@ class GatewayWebsocket:
         assert self.state is not None
         user_id = self.state.user_id
         relationships = await self.user_storage.get_relationships(user_id)
-        friend_users = [
-            r["user"]
-            for r in relationships
-            if r["type"] == RelationshipType.FRIEND.value
-        ]
+        friend_users = [r["user"] for r in relationships if r["type"] == RelationshipType.FRIEND.value]
 
         friend_presences = await self.app.presence.friend_presences(friend_users)
         settings = settings or await self.user_storage.get_user_settings(user_id)
@@ -440,15 +409,13 @@ class GatewayWebsocket:
 
         user_id = self.state.user_id
         user = await self.storage.get_user(user_id, True)
-
+        assert user
         user_ready = {}
         if not self.state.bot:
             # user, fetch info
             user_ready = await self._user_ready(**kwargs)
 
-        private_channels = await self.user_storage.get_dms(
-            user_id
-        ) + await self.user_storage.get_gdms(user_id)
+        private_channels = await self.user_storage.get_dms(user_id) + await self.user_storage.get_gdms(user_id)
 
         base_ready = {
             "v": self.ws_properties.version,
@@ -472,14 +439,13 @@ class GatewayWebsocket:
 
         # pass users_to_send to ready_supplemental so that its easier to
         # cross-reference things
-        full_ready_data, users_to_send = _complete_users_list(
-            user["id"], base_ready, user_ready, self.ws_properties
-        )
-        ready_supplemental = await _compute_supplemental(
-            self.app, base_ready, user_ready, users_to_send
-        )
+        full_ready_data, users_to_send = _complete_users_list(str(user.id), base_ready, user_ready, self.ws_properties)
+        ready_supplemental = await _compute_supplemental(self.app, base_ready, user_ready, users_to_send)
 
-        full_ready_data["merged_members"] = [[member for member in members if member["user"]["id"] == user["id"]] for members in ready_supplemental["merged_members"]]
+        full_ready_data["merged_members"] = [
+            [member for member in members if member["user"]["id"] == user.id]
+            for members in ready_supplemental["merged_members"]
+        ]
 
         if self.ws_properties.version < 6:  # Extremely old client compat
             for guild in full_ready_data["guilds"]:
@@ -608,14 +574,10 @@ class GatewayWebsocket:
         if not self.state:
             return
 
-        if not override_ratelimit and self._check_ratelimit(
-            "presence", self.state.session_id
-        ):
+        if not override_ratelimit and self._check_ratelimit("presence", self.state.session_id):
             return
 
-        settings = settings or await self.user_storage.get_user_settings(
-            self.state.user_id
-        )
+        settings = settings or await self.user_storage.get_user_settings(self.state.user_id)
 
         presence = BasePresence(status=(settings["status"] or "online"), game=None)
 
@@ -997,9 +959,7 @@ class GatewayWebsocket:
 
         await self._resume(range(seq, state.seq))
 
-    async def _req_guild_members(
-        self, guild_id, user_ids: List[int], query: str, limit: int, presences: bool
-    ):
+    async def _req_guild_members(self, guild_id, user_ids: List[int], query: str, limit: int, presences: bool):
         try:
             guild_id = int(guild_id)
         except (TypeError, ValueError):
@@ -1020,9 +980,7 @@ class GatewayWebsocket:
 
         # ASSUMPTION: requesting user_ids means we don't do query.
         if user_ids:
-            log.debug(
-                "req guild members: getting {} users in gid {}", len(user_ids), guild_id
-            )
+            log.debug("req guild members: getting {} users in gid {}", len(user_ids), guild_id)
             members = await self.storage.get_member_multi(guild_id, user_ids)
             mids = [int(m["user"]["id"]) for m in members]
 
@@ -1228,9 +1186,7 @@ class GatewayWebsocket:
 
             member_list = await app.lazy_guild.get_gml(chan_id)
 
-            perms = await get_permissions(
-                self.state.user_id, chan_id, storage=self.storage
-            )
+            perms = await get_permissions(self.state.user_id, chan_id, storage=self.storage)
 
             if not perms.bits.read_messages:
                 # ignore requests to unknown channels
@@ -1325,9 +1281,7 @@ class GatewayWebsocket:
         # TODO why is this inneficient?
         states = self.app.state_manager.user_states(user_id)
         if not any(s.ws for s in states):
-            await self.app.presence.dispatch_pres(
-                user_id, BasePresence(status="offline")
-            )
+            await self.app.presence.dispatch_pres(user_id, BasePresence(status="offline"))
 
     async def run(self):
         """Wrap :meth:`listen_messages` inside

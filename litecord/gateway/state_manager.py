@@ -233,9 +233,7 @@ class StateManager:
         """Close the state manager."""
         self.closed = True
 
-    async def fetch_user_states_for_channel(
-        self, channel_id: int, user_id: int
-    ) -> List[GatewayState]:
+    async def fetch_user_states_for_channel(self, channel_id: int, user_id: int) -> List[GatewayState]:
         """Get a list of gateway states for a user that can receive events on a certain channel."""
         # TODO optimize this with an in-memory store
         guild_id = await app.storage.guild_from_channel(channel_id)

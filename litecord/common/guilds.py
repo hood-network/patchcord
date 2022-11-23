@@ -147,9 +147,7 @@ async def create_role(guild_id, name: str, **kwargs):
     # we need to update the lazy guild handlers for the newly created group
     await maybe_lazy_guild_dispatch(guild_id, "new_role", role)
 
-    await app.dispatcher.guild.dispatch(
-        guild_id, ("GUILD_ROLE_CREATE", {"guild_id": str(guild_id), "role": role})
-    )
+    await app.dispatcher.guild.dispatch(guild_id, ("GUILD_ROLE_CREATE", {"guild_id": str(guild_id), "role": role}))
 
     return role_view(role)
 
@@ -208,9 +206,7 @@ async def _subscribe_users_new_channel(guild_id: int, channel_id: int) -> None:
             await app.dispatcher.channel.sub(channel_id, session_id)
 
 
-async def create_guild_channel(
-    guild_id: int, channel_id: int, ctype: ChannelType, **kwargs
-):
+async def create_guild_channel(guild_id: int, channel_id: int, ctype: ChannelType, **kwargs):
     """Create a channel in a guild."""
     await app.db.execute(
         """
@@ -236,9 +232,7 @@ async def create_guild_channel(
 
     parent_id = kwargs.get("parent_id") or None
 
-    banner = await app.icons.put(
-        "channel_banner", channel_id, kwargs.get("banner"), always_icon=True
-    )
+    banner = await app.icons.put("channel_banner", channel_id, kwargs.get("banner"), always_icon=True)
 
     # all channels go to guild_channels
     await app.db.execute(
@@ -263,9 +257,7 @@ async def create_guild_channel(
 
     # This needs to be last, because it depends on users being already sub'd
     if "permission_overwrites" in kwargs:
-        await process_overwrites(
-            guild_id, channel_id, kwargs["permission_overwrites"] or []
-        )
+        await process_overwrites(guild_id, channel_id, kwargs["permission_overwrites"] or [])
 
 
 async def _del_from_table(table: str, user_id: int):
@@ -353,9 +345,7 @@ async def create_guild_settings(guild_id: int, user_id: int):
     )
 
 
-async def add_member(
-    guild_id: int, user_id: int, *, basic: bool = False, skip_check: bool = False
-):
+async def add_member(guild_id: int, user_id: int, *, basic: bool = False, skip_check: bool = False):
     """Add a user to a guild.
 
     If `basic` is set to true, side-effects from member adding won't be
@@ -377,20 +367,14 @@ async def add_member(
 
         features = await app.storage.guild_features(guild_id) or []
         user = await app.storage.get_user(user_id, True)
-
-        if (
-            "INTERNAL_EMPLOYEE_ONLY" in features
-            and user["flags"] & UserFlags.staff != UserFlags.staff
-        ):
+        assert user is not None
+        if "INTERNAL_EMPLOYEE_ONLY" in features and user.flags & UserFlags.staff != UserFlags.staff:
             raise Forbidden(20017)
 
         if "INVITES_DISABLED" in features:
             raise Forbidden(40008)
 
-        if (
-            nsfw_level in (NSFWLevel.RESTRICTED, NSFWLevel.EXPLICIT)
-            and not user["nsfw_allowed"]
-        ):
+        if nsfw_level in (NSFWLevel.RESTRICTED, NSFWLevel.EXPLICIT) and not user.nsfw_allowed:
             raise Forbidden(20024)
 
     await app.db.execute(
@@ -425,15 +409,11 @@ async def add_member(
         guild_id,
     )
     if system_channel_id:
-        await send_sys_message(
-            system_channel_id, MessageType.GUILD_MEMBER_JOIN, user_id
-        )
+        await send_sys_message(system_channel_id, MessageType.GUILD_MEMBER_JOIN, user_id)
 
     # tell current members a new member came up
     member = await app.storage.get_member(guild_id, user_id)
-    await app.dispatcher.guild.dispatch(
-        guild_id, ("GUILD_MEMBER_ADD", {**member, **{"guild_id": str(guild_id)}})
-    )
+    await app.dispatcher.guild.dispatch(guild_id, ("GUILD_MEMBER_ADD", {**member, **{"guild_id": str(guild_id)}}))
 
     # pubsub changes for new member
     await app.lazy_guild.new_member(guild_id, user_id)

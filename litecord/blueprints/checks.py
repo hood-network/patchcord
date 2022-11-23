@@ -50,9 +50,7 @@ async def guild_check(user_id: int, guild_id: int, raise_err: bool = True) -> bo
     return True
 
 
-async def guild_owner_check(
-    user_id: int, guild_id: int, raise_err: bool = True
-) -> bool:
+async def guild_owner_check(user_id: int, guild_id: int, raise_err: bool = True) -> bool:
     """Check if a user is the owner of the guild."""
     data = await app.db.fetchrow(
         """
@@ -73,9 +71,7 @@ async def guild_owner_check(
     return True
 
 
-async def channel_check(
-    user_id, channel_id, *, only: Optional[Union[ChannelType, List[ChannelType]]] = None
-):
+async def channel_check(user_id, channel_id, *, only: Optional[Union[ChannelType, List[ChannelType]]] = None):
     """Check if the current user is authorized
     to read the channel's information."""
     chan_type = await app.storage.get_chan_type(channel_id)
@@ -141,9 +137,7 @@ async def _max_role_position(guild_id, member_id) -> Optional[int]:
     )
 
 
-async def _validate_target_member(
-    guild_id: int, user_id: int, target_member_id: int
-) -> bool:
+async def _validate_target_member(guild_id: int, user_id: int, target_member_id: int) -> bool:
     owner_id = await app.storage.db.fetchval(
         """
         SELECT owner_id

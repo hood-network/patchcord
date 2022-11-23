@@ -96,9 +96,7 @@ async def test_channel_message_send_on_new_channel(test_cli_user):
 async def test_channel_message_delete(test_cli_user):
     guild = await test_cli_user.create_guild()
     channel = await test_cli_user.create_guild_channel(guild_id=guild.id)
-    message = await test_cli_user.create_message(
-        guild_id=guild.id, channel_id=channel.id
-    )
+    message = await test_cli_user.create_message(guild_id=guild.id, channel_id=channel.id)
 
     resp = await test_cli_user.delete(
         f"/api/v6/channels/{channel.id}/messages/{message.id}",
@@ -115,9 +113,7 @@ async def test_channel_message_delete_different_author(test_cli_user):
     async with test_cli_user.app.app_context():
         await add_member(guild.id, user.id)
 
-    message = await test_cli_user.create_message(
-        guild_id=guild.id, channel_id=channel.id, author_id=user.id
-    )
+    message = await test_cli_user.create_message(guild_id=guild.id, channel_id=channel.id, author_id=user.id)
 
     resp = await test_cli_user.delete(
         f"/api/v6/channels/{channel.id}/messages/{message.id}",
@@ -131,9 +127,7 @@ async def test_channel_message_bulk_delete(test_cli_user):
     channel = await test_cli_user.create_guild_channel(guild_id=guild.id)
     messages = []
     for _ in range(10):
-        messages.append(
-            await test_cli_user.create_message(guild_id=guild.id, channel_id=channel.id)
-        )
+        messages.append(await test_cli_user.create_message(guild_id=guild.id, channel_id=channel.id))
 
     resp = await test_cli_user.post(
         f"/api/v6/channels/{channel.id}/messages/bulk-delete",

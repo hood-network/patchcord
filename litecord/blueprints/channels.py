@@ -19,9 +19,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import secrets
 import time
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 
-from quart import Blueprint, request, current_app as app, jsonify
+from quart import Blueprint, jsonify
 from logbook import Logger
 from emoji import EMOJI_DATA
 
@@ -57,6 +57,11 @@ from litecord.permissions import get_permissions, Target
 from .channel.messages import _del_msg_fkeys
 from .webhooks import _dispatch_webhook_update
 from .guilds import handle_search
+
+if TYPE_CHECKING:
+    from litecord.typing_hax import app, request
+else:
+    from quart import current_app as app, request
 
 log = Logger(__name__)
 bp = Blueprint("channels", __name__)
@@ -358,9 +363,7 @@ async def close_channel(channel_id):
                 )
 
                 chan = await app.storage.get_channel(channel_id, user_id=user_id)
-                await app.dispatcher.channel.dispatch(
-                    channel_id, ("CHANNEL_UPDATE", chan)
-                )
+                await app.dispatcher.channel.dispatch(channel_id, ("CHANNEL_UPDATE", chan))
 
         return jsonify(chan)
     else:
@@ -523,9 +526,7 @@ async def _update_channel_common(channel_id: int, guild_id: int, j: dict):
         left_shift = new_pos > current_pos
 
         # find all channels that we'll have to shift
-        shift_block: List[Optional[int]] = (
-            chans[current_pos:new_pos] if left_shift else chans[new_pos:current_pos]
-        )
+        shift_block: List[Optional[int]] = chans[current_pos:new_pos] if left_shift else chans[new_pos:current_pos]
 
         shift = -1 if left_shift else 1
 
@@ -567,9 +568,7 @@ async def _update_text_channel(channel_id: int, j: dict, _user_id: int):
     channel = await app.storage.get_channel(channel_id)
 
     # first do the specific ones related to guild_text_channels
-    for field in [
-        field for field in j.keys() if field in ("topic", "rate_limit_per_user")
-    ]:
+    for field in [field for field in j.keys() if field in ("topic", "rate_limit_per_user")]:
         await app.db.execute(
             f"""
         UPDATE guild_text_channels
@@ -580,10 +579,9 @@ async def _update_text_channel(channel_id: int, j: dict, _user_id: int):
             channel_id,
         )
 
-    if channel["type"] in (
-        ChannelType.GUILD_TEXT.value,
-        ChannelType.GUILD_NEWS.value,
-    ) and j["type"] in (ChannelType.GUILD_TEXT.value, ChannelType.GUILD_NEWS.value):
+    if channel["type"] in (ChannelType.GUILD_TEXT.value, ChannelType.GUILD_NEWS.value,) and j[
+        "type"
+    ] in (ChannelType.GUILD_TEXT.value, ChannelType.GUILD_NEWS.value):
         await app.db.execute(
             f"""
         UPDATE channels
@@ -652,9 +650,7 @@ async def _update_group_dm(channel_id: int, j: dict, author_id: int):
         )
 
     if "icon" in j:
-        new_icon = await app.icons.update(
-            "channel_icon", channel_id, j["icon"], always_icon=True
-        )
+        new_icon = await app.icons.update("channel_icon", channel_id, j["icon"], always_icon=True)
 
         await app.db.execute(
             """
@@ -722,9 +718,7 @@ async def trigger_typing(channel_id):
                 "channel_id": str(channel_id),
                 "user_id": str(user_id),
                 "timestamp": int(time.time()),
-                "guild_id": str(guild_id)
-                if ctype not in (ChannelType.DM, ChannelType.GROUP_DM)
-                else None,
+                "guild_id": str(guild_id) if ctype not in (ChannelType.DM, ChannelType.GROUP_DM) else None,
             },
         ),
     )
@@ -822,9 +816,7 @@ async def _search_channel(channel_id):
     await channel_perm_check(user_id, channel_id, "read_messages")
     await channel_perm_check(user_id, channel_id, "read_history")
 
-    return await handle_search(
-        await app.storage.guild_from_channel(channel_id), channel_id
-    )
+    return await handle_search(await app.storage.guild_from_channel(channel_id), channel_id)
 
 
 @bp.route("/<int:channel_id>/application-commands/search", methods=["GET"])
@@ -878,9 +870,7 @@ async def _msg_unset_flags(message_id: int, unset_flags: int):
     await _msg_update_flags(message_id, flags)
 
 
-@bp.route(
-    "/<int:channel_id>/messages/<int:message_id>/suppress-embeds", methods=["POST"]
-)
+@bp.route("/<int:channel_id>/messages/<int:message_id>/suppress-embeds", methods=["POST"])
 async def suppress_embeds(channel_id: int, message_id: int):
     """Toggle the embeds in a message.
 
@@ -984,9 +974,7 @@ async def publish_message(channel_id: int, message_id: int):
         "guild_id": message["guild_id"],
         "flags": message["flags"],
     }
-    await app.dispatcher.channel.dispatch(
-        channel_id, ("MESSAGE_UPDATE", update_payload)
-    )
+    await app.dispatcher.channel.dispatch(channel_id, ("MESSAGE_UPDATE", update_payload))
 
     # Now we execute all these hooks
     content = message.get("content", "")
@@ -999,7 +987,7 @@ async def publish_message(channel_id: int, message_id: int):
             continue
 
         user = await app.storage.get_user(found_id)
-        content = content.replace(match.group(0), user["username"] if user else "")
+        content = content.replace(match.group(0), user.username if user else "")
 
     result = {
         "content": content,
@@ -1050,9 +1038,7 @@ async def publish_message(channel_id: int, message_id: int):
             )
 
             payload = await app.storage.get_message(result_id, include_member=True)
-            await app.dispatcher.channel.dispatch(
-                hook["channel_id"], ("MESSAGE_CREATE", payload)
-            )
+            await app.dispatcher.channel.dispatch(hook["channel_id"], ("MESSAGE_CREATE", payload))
             app.sched.spawn(process_url_embed(payload))
 
     return jsonify(message_view(message))

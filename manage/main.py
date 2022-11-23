@@ -53,11 +53,7 @@ class FakeApp:
     def make_app(self) -> Quart:
         app = Quart(__name__)
         app.config.from_object(self.config)
-        fields = [
-            field
-            for (field, _val) in inspect.getmembers(self)
-            if not field.startswith("__")
-        ]
+        fields = [field for (field, _val) in inspect.getmembers(self) if not field.startswith("__")]
 
         for field in fields:
             setattr(app, field, getattr(self, field))

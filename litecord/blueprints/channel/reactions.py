@@ -177,9 +177,7 @@ async def add_reaction(channel_id: int, message_id: int, emoji: str):
     return "", 204
 
 
-def emoji_sql(
-    emoji_type, emoji_id, emoji_name, param_index: int = 4
-) -> Tuple[str, Union[int, str]]:
+def emoji_sql(emoji_type, emoji_id, emoji_name, param_index: int = 4) -> Tuple[str, Union[int, str]]:
     """Extract SQL clauses to search for specific emoji in the message_reactions table."""
     param = f"${param_index}"
 
@@ -234,9 +232,7 @@ async def _remove_reaction(channel_id: int, message_id: int, user_id: int, emoji
     if ctype in GUILD_CHANS:
         payload["guild_id"] = str(guild_id)
 
-    await app.dispatcher.channel.dispatch(
-        channel_id, ("MESSAGE_REACTION_REMOVE", payload)
-    )
+    await app.dispatcher.channel.dispatch(channel_id, ("MESSAGE_REACTION_REMOVE", payload))
 
 
 @bp.route(f"{BASEPATH}/<emoji>/@me", methods=["DELETE"])
@@ -318,6 +314,4 @@ async def remove_all_reactions(channel_id, message_id):
     if ctype in GUILD_CHANS:
         payload["guild_id"] = str(guild_id)
 
-    await app.dispatcher.channel.dispatch(
-        channel_id, ("MESSAGE_REACTION_REMOVE_ALL", payload)
-    )
+    await app.dispatcher.channel.dispatch(channel_id, ("MESSAGE_REACTION_REMOVE_ALL", payload))

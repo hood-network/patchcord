@@ -75,19 +75,13 @@ async def msg_create_request() -> tuple:
 def msg_create_check_content(payload: dict, files: list):
     """Check if there is actually any content being sent to us."""
     content = payload["content"] or ""
-    embeds = (
-        (payload.get("embeds") or []) or [payload["embed"]]
-        if "embed" in payload and payload["embed"]
-        else []
-    )
+    embeds = (payload.get("embeds") or []) or [payload["embed"]] if "embed" in payload and payload["embed"] else []
     sticker_ids = payload.get("sticker_ids")
     if not content and not embeds and not sticker_ids and not files:
         raise BadRequest(50006)
 
 
-async def msg_add_attachment(
-    message_id: int, channel_id: int, author_id: Optional[int], attachment_file
-) -> int:
+async def msg_add_attachment(message_id: int, channel_id: int, author_id: Optional[int], attachment_file) -> int:
     """Add an attachment to a message.
 
     Parameters
@@ -186,9 +180,7 @@ async def msg_add_attachment(
     return attachment_id
 
 
-async def msg_guild_text_mentions(
-    payload: dict, guild_id: int, mentions_everyone: bool, mentions_here: bool
-):
+async def msg_guild_text_mentions(payload: dict, guild_id: int, mentions_everyone: bool, mentions_here: bool):
     """Calculates mention data side-effects."""
     channel_id = int(payload["channel_id"])
 

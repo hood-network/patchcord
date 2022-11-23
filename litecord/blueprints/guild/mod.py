@@ -188,9 +188,7 @@ async def prune_members(user_id, guild_id, member_ids):
     # calculate permissions against each pruned member, don't prune
     # if permissions don't allow it
     for member_id in member_ids:
-        has_permissions = await guild_perm_check(
-            user_id, guild_id, "kick_members", member_id, raise_err=False
-        )
+        has_permissions = await guild_perm_check(user_id, guild_id, "kick_members", member_id, raise_err=False)
         if not has_permissions:
             continue
 

@@ -18,7 +18,19 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import asyncio
-from typing import List, Dict, Any, Optional, TypedDict, cast, Iterable, TYPE_CHECKING
+from typing import (
+    List,
+    Dict,
+    Any,
+    Optional,
+    TypedDict,
+    cast,
+    Iterable,
+    TYPE_CHECKING,
+    Union,
+    overload,
+    Literal,
+)
 from xml.etree.ElementInclude import include
 
 import aiohttp
@@ -35,7 +47,7 @@ from litecord.blueprints.channel.reactions import (
     partial_emoji,
     PartialEmoji,
 )
-
+from litecord.models import PartialUser, User
 from litecord.types import timestamp_
 from litecord.json import pg_set_json
 from litecord.presence import PresenceManager
@@ -108,30 +120,17 @@ class Storage:
     async def parse_user(self, duser: dict, secure: bool) -> dict:
         duser["premium"] = duser.pop("premium_since") is not None
         duser["public_flags"] = duser["flags"]
-        duser["banner_color"] = (
-            hex(duser["accent_color"]).replace("0x", "#")
-            if duser["accent_color"]
-            else None
-        )
+        duser["banner_color"] = hex(duser["accent_color"]).replace("0x", "#") if duser["accent_color"] else None
 
         if secure:
-            duser["desktop"] = True
+            duser["desktop"] = False
             duser["mobile"] = False
             duser["phone"] = duser["phone"] if duser["phone"] else None
 
             today = date.today()
             born = duser.pop("date_of_birth")
             duser["nsfw_allowed"] = (
-                (
-                    (
-                        today.year
-                        - born.year
-                        - ((today.month, today.day) < (born.month, born.day))
-                    )
-                    >= 18
-                )
-                if born
-                else True
+                ((today.year - born.year - ((today.month, today.day) < (born.month, born.day))) >= 18) if born else True
             )
 
             plan_id = await self.db.fetchval(
@@ -148,12 +147,25 @@ class Storage:
 
         return duser
 
-    async def get_user(self, user_id, secure: bool = False) -> Optional[Dict[str, Any]]:
+    @overload
+    async def get_user(self, user_id: int, full: Literal[True] = True) -> Optional[User]:
+        ...
+
+    @overload
+    async def get_user(self, user_id: int, full: Literal[False] = False) -> Optional[PartialUser]:
+        ...
+
+    async def get_user(self, user_id: int, full: bool = False) -> Union[Optional[User], Optional[PartialUser]]:
         """Get a single user payload."""
-        user_id = int(user_id)
+
+        # Look for user in cache IF full user isn't needed
+        if not full:
+            cache_user = self.app.cache.users.get(user_id, None)
+            if cache_user is not None:
+                return cache_user
 
         fields = [
-            "id::text",
+            "id",
             "username",
             "discriminator",
             "avatar",
@@ -167,12 +179,12 @@ class Storage:
             "pronouns",
             "avatar_decoration",
             "theme_colors",
+            "email",
+            "verified",
+            "mfa_enabled",
+            "date_of_birth",
+            "phone",
         ]
-
-        if secure:
-            fields.extend(
-                ["email", "verified", "mfa_enabled", "date_of_birth", "phone"]
-            )
 
         user_row = await self.db.fetchrow(
             f"""
@@ -186,7 +198,17 @@ class Storage:
         if not user_row:
             return None
 
-        return await self.parse_user(dict(user_row), secure)
+        plan_id = await self.db.fetchval(
+            """
+            SELECT payment_gateway_plan_id
+            FROM user_subscriptions
+            WHERE status = 1
+              AND user_id = $1
+            """,
+            int(user_id),
+        )
+
+        return User(**user_row, premium_type=PLAN_ID_TO_TYPE.get(cast(str, plan_id)))
 
     async def get_users(
         self,
@@ -194,7 +216,7 @@ class Storage:
         secure: bool = False,
         extra_clause: str = "",
         where_clause: str = "WHERE id = ANY($1::bigint[])",
-        args: Optional[List[Any]] = None,
+        args: Optional[Iterable[Any]] = None,
     ) -> List[dict]:
         """Get many user payloads."""
         fields = [
@@ -215,9 +237,7 @@ class Storage:
         ]
 
         if secure:
-            fields.extend(
-                ["email", "verified", "mfa_enabled", "date_of_birth", "phone"]
-            )
+            fields.extend(["email", "verified", "mfa_enabled", "date_of_birth", "phone"])
 
         users_rows = await self.db.fetch(
             f"""
@@ -228,9 +248,7 @@ class Storage:
             *(args or [user_ids if user_ids else []]),
         )
 
-        return await asyncio.gather(
-            *(self.parse_user(dict(user_row), secure) for user_row in users_rows)
-        )
+        return await asyncio.gather(*(self.parse_user(dict(user_row), secure) for user_row in users_rows))
 
     async def search_user(self, username: str, discriminator: str) -> int:
         """Search a user"""
@@ -298,23 +316,19 @@ class Storage:
         # hardcoding these since:
         #  - we aren't discord
         #  - the limit for guilds is unknown and heavily dependant on the hardware
-        drow["max_presences"] = drow["max_members"] = drow[
-            "max_video_channel_users"
-        ] = drow["max_stage_video_channel_users"] = 1000000
+        drow["max_presences"] = drow["max_members"] = drow["max_video_channel_users"] = drow[
+            "max_stage_video_channel_users"
+        ] = 1000000
 
         # TODO
         drow["preferred_locale"] = "en-US"
-        drow["guild_scheduled_events"] = drow["embedded_activities"] = drow[
-            "connections"
-        ] = drow["stickers"] = []
+        drow["guild_scheduled_events"] = drow["embedded_activities"] = drow["connections"] = drow["stickers"] = []
 
         if full:
             return {**drow, **await self.get_guild_extra(guild_id, user_id, large)}
         return drow
 
-    async def get_guild(
-        self, guild_id: int, user_id: Optional[int] = None
-    ) -> Optional[Dict]:
+    async def get_guild(self, guild_id: int, user_id: Optional[int] = None) -> Optional[Dict]:
         """Get guild payload."""
         unavailable = self.app.guild_store.get(guild_id, "unavailable", False)
         if unavailable:
@@ -366,9 +380,7 @@ class Storage:
             *(args or [guild_ids if guild_ids else []]),
         )
 
-        return await asyncio.gather(
-            *(self.parse_guild(dict(row), user_id, full, large) for row in rows)
-        )
+        return await asyncio.gather(*(self.parse_guild(dict(row), user_id, full, large) for row in rows))
 
     async def get_member_role_ids(self, guild_id: int, member_id: int) -> List[int]:
         """Get a list of role IDs that are on a member."""
@@ -402,9 +414,7 @@ class Storage:
 
         return roles
 
-    async def get_member(
-        self, guild_id, member_id, with_user: bool = True
-    ) -> Optional[Dict[str, Any]]:
+    async def get_member(self, guild_id, member_id, with_user: bool = True) -> Optional[Dict[str, Any]]:
         row = await self.db.fetchrow(
             """
         SELECT user_id, nickname AS nick, joined_at,
@@ -445,9 +455,7 @@ class Storage:
 
         return drow
 
-    async def get_member_multi(
-        self, guild_id: int, user_ids: List[int]
-    ) -> List[Dict[str, Any]]:
+    async def get_member_multi(self, guild_id: int, user_ids: List[int]) -> List[Dict[str, Any]]:
         """Get member information about multiple users in a guild."""
         members = []
 
@@ -460,9 +468,7 @@ class Storage:
 
         return members
 
-    async def get_members(
-        self, guild_id: int, with_user: bool = True
-    ) -> Dict[int, Dict[str, Any]]:
+    async def get_members(self, guild_id: int, with_user: bool = True) -> Dict[int, Dict[str, Any]]:
         """Get member information on a guild."""
         members_basic = await self.db.fetch(
             """
@@ -591,9 +597,7 @@ class Storage:
             channel_id,
         )
 
-    async def chan_overwrites(
-        self, channel_id: int, safe: bool = True
-    ) -> List[Dict[str, Any]]:
+    async def chan_overwrites(self, channel_id: int, safe: bool = True) -> List[Dict[str, Any]]:
         overwrite_rows = await self.db.fetch(
             f"""
         SELECT target_type, target_role, target_user, allow{'::text' if safe else ''}, deny{'::text' if safe else ''}
@@ -634,13 +638,11 @@ class Storage:
 
         return [r["member_id"] for r in user_ids]
 
-    async def _gdm_recipients(
-        self, channel_id: int, reference_id: Optional[int] = None
-    ) -> List[Dict]:
+    async def _gdm_recipients(self, channel_id: int, reference_id: Optional[int] = None) -> List[PartialUser]:
         """Get the list of users that are recipients of the
         given Group DM."""
         recipients = await self.gdm_recipient_ids(channel_id)
-        res = []
+        res: List[PartialUser] = []
 
         for user_id in recipients:
             if user_id == reference_id:
@@ -731,9 +733,7 @@ class Storage:
             drow["last_message_id"] = await self.chan_last_message_str(channel_id)
             return drow
 
-        raise RuntimeError(
-            f"Data Inconsistency: Channel type {ctype} is not properly handled"
-        )
+        raise RuntimeError(f"Data Inconsistency: Channel type {ctype} is not properly handled")
 
     async def get_channel_ids(self, guild_id: int) -> List[int]:
         """Get all channel IDs in a guild."""
@@ -782,9 +782,7 @@ class Storage:
 
         return channels
 
-    async def get_role(
-        self, role_id: int, guild_id: Optional[int] = None
-    ) -> Optional[Dict[str, Any]]:
+    async def get_role(self, role_id: int, guild_id: Optional[int] = None) -> Optional[Dict[str, Any]]:
         """get a single role's information."""
 
         guild_field = "AND guild_id = $2" if guild_id else ""
@@ -826,9 +824,7 @@ class Storage:
 
         return list(map(dict, roledata))
 
-    async def guild_voice_states(
-        self, guild_id: int, user_id=None
-    ) -> List[Dict[str, Any]]:
+    async def guild_voice_states(self, guild_id: int, user_id=None) -> List[Dict[str, Any]]:
         """Get a list of voice states for the given guild."""
         channel_ids = await self.get_channel_ids(guild_id)
         if not user_id:
@@ -848,9 +844,7 @@ class Storage:
 
         return res
 
-    async def get_guild_extra(
-        self, guild_id: int, user_id: Optional[int] = None, large: Optional[int] = None
-    ) -> Dict:
+    async def get_guild_extra(self, guild_id: int, user_id: Optional[int] = None, large: Optional[int] = None) -> Dict:
         """Get extra information about a guild."""
         res = {}
 
@@ -1004,14 +998,10 @@ class Storage:
         res["type"] = res.pop("message_type")
         res["content"] = res["content"] or ""
         res["pinned"] = bool(res["pinned"])
-        res["mention_roles"] = (
-            [str(r) for r in res["mention_roles"]] if res["mention_roles"] else []
-        )
+        res["mention_roles"] = [str(r) for r in res["mention_roles"]] if res["mention_roles"] else []
 
         guild_id = res["guild_id"]
-        is_crosspost = (
-            res["flags"] & MessageFlags.is_crosspost == MessageFlags.is_crosspost
-        )
+        is_crosspost = res["flags"] & MessageFlags.is_crosspost == MessageFlags.is_crosspost
         attachments = list(res["attachments"]) if res["attachments"] else []
         reactions = list(res["reactions"]) if res["reactions"] else []
 
@@ -1020,9 +1010,7 @@ class Storage:
         res["guild_id"] = str(guild_id) if guild_id else None
 
         if res.get("message_reference") and not is_crosspost and include_member:
-            message = await self.get_message(
-                int(res["message_reference"]["message_id"]), user_id, include_member
-            )
+            message = await self.get_message(int(res["message_reference"]["message_id"]), user_id, include_member)
             res["referenced_message"] = message
 
         async def _get_user(user_id):
@@ -1031,6 +1019,7 @@ class Storage:
             except KeyError:
                 user = await self.get_user(user_id)
                 if include_member and user and guild_id:
+                    user = user.to_json()
                     member = await self.get_member(guild_id, user_id, False)
                     if member:
                         user["member"] = member
@@ -1102,11 +1091,7 @@ class Storage:
             # TODO: content_type
             proto = "https" if self.app.config["IS_SSL"] else "http"
             main_url = self.app.config["MAIN_URL"]
-            attachment["url"] = (
-                f"{proto}://{main_url}/attachments/"
-                f"{a_channel_id}/{a_message_id}/"
-                f"{filename}"
-            )
+            attachment["url"] = f"{proto}://{main_url}/attachments/" f"{a_channel_id}/{a_message_id}/" f"{filename}"
             attachment["proxy_url"] = attachment["url"]
             if attachment["height"] is None:
                 attachment.pop("height")
@@ -1211,10 +1196,7 @@ class Storage:
 
         user_cache = {}
         return await asyncio.gather(
-            *(
-                self.parse_message(dict(row), user_id, include_member, user_cache)
-                for row in rows
-            )
+            *(self.parse_message(dict(row), user_id, include_member, user_cache) for row in rows)
         )
 
     async def get_invite(self, invite_code: str) -> Optional[Dict]:
@@ -1276,11 +1258,7 @@ class Storage:
         if chan is None:
             return None
 
-        dinv["channel"] = (
-            {"id": chan["id"], "name": chan["name"], "type": chan["type"]}
-            if chan
-            else None
-        )
+        dinv["channel"] = {"id": chan["id"], "name": chan["name"], "type": chan["type"]} if chan else None
 
         dinv["type"] = 0 if guild else (1 if chan else 2)
 
@@ -1289,9 +1267,7 @@ class Storage:
 
         return dinv
 
-    async def get_invite_extra(
-        self, invite_code: str, counts: bool = True, expiry: bool = False
-    ) -> dict:
+    async def get_invite_extra(self, invite_code: str, counts: bool = True, expiry: bool = False) -> dict:
         """Extra information about the invite, such as
         approximate guild and presence counts."""
         data = {}
@@ -1319,9 +1295,7 @@ class Storage:
             )
 
             data["expires_at"] = (
-                timestamp_(erow["created_at"] + timedelta(seconds=erow["max_age"]))
-                if erow["max_age"] > 0
-                else None
+                timestamp_(erow["created_at"] + timedelta(seconds=erow["max_age"])) if erow["max_age"] > 0 else None
             )
 
         return data
@@ -1342,12 +1316,9 @@ class Storage:
             return None
 
         dinv = dict(invite)
-        inviter = await self.get_user(invite["inviter"])
-        dinv["inviter"] = inviter
+        dinv["inviter"] = await self.get_user(invite["inviter"])
         dinv["expires_at"] = (
-            timestamp_(invite["created_at"] + timedelta(seconds=invite["max_age"]))
-            if invite["max_age"] > 0
-            else None
+            timestamp_(invite["created_at"] + timedelta(seconds=invite["max_age"])) if invite["max_age"] > 0 else None
         )
         dinv["created_at"] = timestamp_(invite["created_at"])
 

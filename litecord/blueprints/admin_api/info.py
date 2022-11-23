@@ -40,11 +40,7 @@ async def get_db_url():
     if host in ("localhost", "0.0.0.0"):
         host = app.config["MAIN_URL"]
 
-    return jsonify(
-        {
-            "url": f"postgres://{db['user']}:{db['password']}@{host}:5432/{db['database']}"
-        }
-    )
+    return jsonify({"url": f"postgres://{db['user']}:{db['password']}@{host}:5432/{db['database']}"})
 
 
 @bp.route("/snowflake", methods=["GET"])

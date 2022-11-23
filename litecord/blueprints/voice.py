@@ -17,13 +17,18 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 from collections import Counter
 from random import choice
 
-from quart import Blueprint, jsonify, current_app as app
+from quart import Blueprint, jsonify
 
 from litecord.blueprints.auth import token_check
+
+if TYPE_CHECKING:
+    from litecord.typing_hax import app
+else:
+    from quart import current_app as app
 
 bp = Blueprint("voice", __name__)
 

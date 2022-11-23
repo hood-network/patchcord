@@ -278,17 +278,13 @@ def setup(subparser):
     addbot_parser.add_argument("password", help="Password of the bot")
     addbot_parser.set_defaults(func=addbot)
 
-    setflag_parser = subparser.add_parser(
-        "setflag", help="Set a flag for a user", description=set_flag.__doc__
-    )
+    setflag_parser = subparser.add_parser("setflag", help="Set a flag for a user", description=set_flag.__doc__)
     setflag_parser.add_argument("username", help="Username of the user")
     setflag_parser.add_argument("discriminator", help="Discriminator of the user")
     setflag_parser.add_argument("flag_name", help="The flag to set"),
     setflag_parser.set_defaults(func=set_flag)
 
-    unsetflag_parser = subparser.add_parser(
-        "unsetflag", help="Unset a flag for a user", description=unset_flag.__doc__
-    )
+    unsetflag_parser = subparser.add_parser("unsetflag", help="Unset a flag for a user", description=unset_flag.__doc__)
     unsetflag_parser.add_argument("username", help="Username of the user")
     unsetflag_parser.add_argument("discriminator", help="Discriminator of the user")
     unsetflag_parser.add_argument("flag_name", help="The flag to unset"),
@@ -307,9 +303,7 @@ def setup(subparser):
     token_parser.add_argument("user_id", help="ID of the user")
     token_parser.set_defaults(func=generate_bot_token)
 
-    set_password_user_parser = subparser.add_parser(
-        "setpass", help="Set the password of a user"
-    )
+    set_password_user_parser = subparser.add_parser("setpass", help="Set the password of a user")
     set_password_user_parser.add_argument("username", help="Username of the user")
     set_password_user_parser.add_argument("discriminator", help="Discriminator of the user")
     set_password_user_parser.add_argument("password", help="New password for the user")

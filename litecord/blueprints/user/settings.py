@@ -175,9 +175,7 @@ async def get_note(target_id: int):
     if note is None:
         raise NotFound(10013)
 
-    return jsonify(
-        {"user_id": str(user_id), "note_user_id": str(target_id), "note": note}
-    )
+    return jsonify({"user_id": str(user_id), "note_user_id": str(target_id), "note": note})
 
 
 @bp.route("/@me/notes/<int:target_id>", methods=["PUT"])
@@ -209,8 +207,6 @@ async def put_note(target_id: int):
         note,
     )
 
-    await dispatch_user(
-        user_id, ("USER_NOTE_UPDATE", {"id": str(target_id), "note": note})
-    )
+    await dispatch_user(user_id, ("USER_NOTE_UPDATE", {"id": str(target_id), "note": note}))
 
     return "", 204

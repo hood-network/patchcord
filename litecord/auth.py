@@ -112,7 +112,7 @@ async def token_check(to_raise: Literal[False] = ...) -> Optional[int]:
     ...
 
 
-async def token_check(to_raise = True) -> Optional[int]:
+async def token_check(to_raise=True) -> Optional[int]:
     """Check token information."""
     # first, check if the request info already has a uid
     user_id = getattr(request, "user_id", None)

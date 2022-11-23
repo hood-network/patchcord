@@ -24,9 +24,7 @@ pytestmark = pytest.mark.asyncio
 
 
 async def _create_invite(test_cli_user, guild, channel, max_uses=0):
-    resp = await test_cli_user.post(
-        f'/api/v9/channels/{channel["id"]}/invites', json={"max_uses": max_uses}
-    )
+    resp = await test_cli_user.post(f'/api/v9/channels/{channel["id"]}/invites', json={"max_uses": max_uses})
     assert resp.status_code == 200
     rjson = await resp.json
 
@@ -111,9 +109,7 @@ async def test_leave_join_invite_cycle(test_cli_user):
 
         assert any(incoming_guild["id"] == str(guild.id) for incoming_guild in rjson)
 
-        resp = await test_cli_user.delete(
-            f"/api/v6/users/@me/guilds/{guild.id}", as_user=user
-        )
+        resp = await test_cli_user.delete(f"/api/v6/users/@me/guilds/{guild.id}", as_user=user)
         assert resp.status_code == 204
 
         resp = await test_cli_user.get("/api/v6/users/@me/guilds", as_user=user)
@@ -134,9 +130,7 @@ async def test_invite_max_uses(test_cli_user):
     # join and leave
     await _join_invite(test_cli_user, invite, user)
 
-    resp = await test_cli_user.delete(
-        f"/api/v6/users/@me/guilds/{guild.id}", as_user=user
-    )
+    resp = await test_cli_user.delete(f"/api/v6/users/@me/guilds/{guild.id}", as_user=user)
     assert resp.status_code == 204
 
     resp = await test_cli_user.post(f'/api/v9/invites/{invite["code"]}', as_user=user)

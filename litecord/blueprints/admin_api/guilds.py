@@ -128,9 +128,7 @@ async def create_guild():
         },
     )
     guild_id = j.get("id") or app.winter_factory.snowflake()
-    guild, extra = await handle_guild_create(
-        user_id, guild_id, {"features": j.get("features")}
-    )
+    guild, extra = await handle_guild_create(user_id, guild_id, {"features": j.get("features")})
     return jsonify({**guild, **extra}), 201
 
 
@@ -166,9 +164,7 @@ async def update_guild(guild_id: int):
     if old_unavailable and not new_unavailable:
         # Guild became available
         guild = await app.storage.get_guild_full(guild_id)
-        await app.dispatcher.guild.dispatch(
-            guild_id, ("GUILD_CREATE", {**guild, "unavailable": False})
-        )
+        await app.dispatcher.guild.dispatch(guild_id, ("GUILD_CREATE", {**guild, "unavailable": False}))
     elif not old_unavailable and new_unavailable:
         # Guild became unavailable
         await app.dispatcher.guild.dispatch(

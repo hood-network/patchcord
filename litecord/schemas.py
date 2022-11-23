@@ -181,9 +181,7 @@ class LitecordValidator(Validator):
         else:
             return True
 
-    def _validate_type_recipients(
-        self, value: Union[List[Union[int, str]], Union[int, str]]
-    ):
+    def _validate_type_recipients(self, value: Union[List[Union[int, str]], Union[int, str]]):
         return (
             all(self._validate_type_snowflake(v) for v in value)
             if isinstance(value, list)
@@ -289,9 +287,7 @@ class LitecordErrorHandler(BasicErrorHandler):
         info = self.messages.get(error.code, self.messages[0x00])
         return {
             "code": info["code"].format(constraint=error.constraint).upper(),
-            "message": info["message"].format(
-                *error.info, constraint=error.constraint, field=field, value=error.value
-            ),
+            "message": info["message"].format(*error.info, constraint=error.constraint, field=field, value=error.value),
         }
 
 

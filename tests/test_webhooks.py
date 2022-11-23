@@ -26,9 +26,7 @@ async def test_webhook_flow(test_cli_user):
     guild = await test_cli_user.create_guild()
     channel = await test_cli_user.create_guild_channel(guild_id=guild.id)
 
-    resp = await test_cli_user.post(
-        f"/api/v6/channels/{channel.id}/webhooks", json={"name": "awooga"}
-    )
+    resp = await test_cli_user.post(f"/api/v6/channels/{channel.id}/webhooks", json={"name": "awooga"})
     assert resp.status_code == 200
     rjson = await resp.json
     assert rjson["channel_id"] == str(channel.id)
@@ -46,7 +44,5 @@ async def test_webhook_flow(test_cli_user):
     assert resp.status_code == 204
 
     refetched_channel = await channel.refetch()
-    message = await test_cli_user.app.storage.get_message(
-        refetched_channel.last_message_id
-    )
+    message = await test_cli_user.app.storage.get_message(refetched_channel.last_message_id)
     assert message["author"]["id"] == webhook_id

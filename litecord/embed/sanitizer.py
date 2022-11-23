@@ -109,9 +109,7 @@ def proxify(url) -> str:
     return make_md_req_url("img", url)
 
 
-async def _md_client_req(
-    scope: str, url, *, ret_resp=False
-) -> Optional[Union[Tuple, Dict, List[Dict]]]:
+async def _md_client_req(scope: str, url, *, ret_resp=False) -> Optional[Union[Tuple, Dict, List[Dict]]]:
     """Makes a request to the mediaproxy.
 
     This has common code between all the main mediaproxy request functions

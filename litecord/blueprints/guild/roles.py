@@ -74,9 +74,7 @@ async def _role_update_dispatch(role_id: int, guild_id: int):
 
     await maybe_lazy_guild_dispatch(guild_id, "role_position_update", role)
 
-    await app.dispatcher.guild.dispatch(
-        guild_id, ("GUILD_ROLE_UPDATE", {"guild_id": str(guild_id), "role": role})
-    )
+    await app.dispatcher.guild.dispatch(guild_id, ("GUILD_ROLE_UPDATE", {"guild_id": str(guild_id), "role": role}))
 
     return role_view(role)
 

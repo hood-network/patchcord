@@ -19,6 +19,8 @@ from .pubsub.lazy_guild import LazyGuildManager
 from .voice.manager import VoiceManager
 from .jobs import JobManager
 from .errors import BadRequest
+from .cache import CacheManager
+
 
 class Request(_Request):
 
@@ -27,7 +29,7 @@ class Request(_Request):
     bucket_global: RatelimitBucket
     retry_after: Optional[int]
     user_id: Optional[int]
-    
+
     def on_json_loading_failed(self, error: Exception) -> Any:
         raise BadRequest(50109)
 
@@ -37,6 +39,7 @@ class LitecordApp(Quart):
     session: ClientSession
     db: Pool
     sched: JobManager
+    cache: CacheManager
 
     winter_factory: SnowflakeFactory
     loop: AbstractEventLoop
@@ -61,7 +64,7 @@ class LitecordApp(Quart):
         )
         self.config.from_object(config_path)
         self.config["MAX_CONTENT_LENGTH"] = 500 * 1024 * 1024  # 500 MB
-        
+
     def init_managers(self):
         # Init singleton classes
         self.session = ClientSession()
@@ -78,6 +81,7 @@ class LitecordApp(Quart):
         self.guild_store = GuildMemoryStore()
         self.lazy_guild = LazyGuildManager()
         self.voice = VoiceManager(self)
+
     @property
     def is_debug(self) -> bool:
         return self.config.get("DEBUG", False)

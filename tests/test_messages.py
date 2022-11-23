@@ -27,9 +27,7 @@ async def test_message_listing(test_cli_user):
     channel = await test_cli_user.create_guild_channel(guild_id=guild.id)
     messages = []
     for _ in range(10):
-        messages.append(
-            await test_cli_user.create_message(guild_id=guild.id, channel_id=channel.id)
-        )
+        messages.append(await test_cli_user.create_message(guild_id=guild.id, channel_id=channel.id))
 
     # assert all messages we just created can be refetched if we give the
     # middle message to the 'around' parameter
@@ -73,9 +71,7 @@ async def test_message_listing(test_cli_user):
 async def test_message_update(test_cli_user):
     guild = await test_cli_user.create_guild()
     channel = await test_cli_user.create_guild_channel(guild_id=guild.id)
-    message = await test_cli_user.create_message(
-        guild_id=guild.id, channel_id=channel.id
-    )
+    message = await test_cli_user.create_message(guild_id=guild.id, channel_id=channel.id)
 
     resp = await test_cli_user.patch(
         f"/api/v6/channels/{channel.id}/messages/{message.id}",
@@ -94,9 +90,7 @@ async def test_message_update(test_cli_user):
 async def test_message_pinning(test_cli_user):
     guild = await test_cli_user.create_guild()
     channel = await test_cli_user.create_guild_channel(guild_id=guild.id)
-    message = await test_cli_user.create_message(
-        guild_id=guild.id, channel_id=channel.id
-    )
+    message = await test_cli_user.create_message(guild_id=guild.id, channel_id=channel.id)
 
     resp = await test_cli_user.put(f"/api/v6/channels/{channel.id}/pins/{message.id}")
     assert resp.status_code == 204
@@ -107,9 +101,7 @@ async def test_message_pinning(test_cli_user):
     assert len(rjson) == 1
     assert rjson[0]["id"] == str(message.id)
 
-    resp = await test_cli_user.delete(
-        f"/api/v6/channels/{channel.id}/pins/{message.id}"
-    )
+    resp = await test_cli_user.delete(f"/api/v6/channels/{channel.id}/pins/{message.id}")
     assert resp.status_code == 204
 
     resp = await test_cli_user.get(f"/api/v6/channels/{channel.id}/pins")

@@ -24,6 +24,8 @@ from typing import List, Optional, Tuple, TYPE_CHECKING
 from asyncpg import UniqueViolationError
 from logbook import Logger
 
+from litecord.models import PartialUser, User
+
 from ..auth import hash_data
 from ..errors import BadRequest, ManualFormError
 from ..presence import BasePresence
@@ -38,7 +40,7 @@ else:
 log = Logger(__name__)
 
 
-async def mass_user_update(user_id: int) -> Tuple[dict, dict]:
+async def mass_user_update(user_id: int) -> Tuple[PartialUser, User]:
     """Dispatch a USER_UPDATE to the user itself
     Dispatches GUILD_MEMBER_UPDATE for others sharing guilds with the user
     Dispatches PRESENCE_UPDATE for friends outside of guilds
@@ -50,8 +52,8 @@ async def mass_user_update(user_id: int) -> Tuple[dict, dict]:
     lists are they subscribed to.
     """
     public_user = await app.storage.get_user(user_id)
-    private_user = await app.storage.get_user(user_id, secure=True)
-
+    private_user = await app.storage.get_user(user_id, full=True)
+    assert public_user and private_user
     # The user who initiated the profile change should also get possible guild events
     await dispatch_user(user_id, ("USER_UPDATE", private_user))
 
@@ -68,7 +70,7 @@ async def mass_user_update(user_id: int) -> Tuple[dict, dict]:
     presence = app.presence.fetch_self_presence(user_id)
 
     # usually this presence should be partial, but there should be no major issue with a full one
-    await app.presence.dispatch_friends_pres(int(public_user["id"]), presence)
+    await app.presence.dispatch_friends_pres(int(public_user.id), presence)
 
     for guild_id in guild_ids:
         await app.lazy_guild.update_user(guild_id, user_id)

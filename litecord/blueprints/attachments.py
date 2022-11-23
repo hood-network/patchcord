@@ -28,9 +28,7 @@ bp = Blueprint("attachments", __name__)
 ATTACHMENTS = Path.cwd() / "attachments"
 
 
-async def _resize_gif(
-    attach_id: int, resized_path: Path, width: int, height: int
-) -> str:
+async def _resize_gif(attach_id: int, resized_path: Path, width: int, height: int) -> str:
     """Resize a GIF attachment."""
 
     # get original gif bytes

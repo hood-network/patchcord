@@ -23,6 +23,7 @@ from dataclasses import dataclass
 
 if TYPE_CHECKING:
     from litecord.typing_hax import app
+    from litecord.storage import Storage
 else:
     from quart import current_app as app
 
@@ -120,13 +121,11 @@ class PresenceManager:
     """
 
     def __init__(self, app):
-        self.storage = app.storage
+        self.storage: Storage = app.storage
         self.user_storage = app.user_storage
         self.state_manager = app.state_manager
 
-    async def guild_presences(
-        self, members: dict, guild_id: int
-    ) -> List[Dict[Any, str]]:
+    async def guild_presences(self, members: dict, guild_id: int) -> List[Dict[Any, str]]:
         """Fetch all presences in a guild."""
         # this works via fetching all connected GatewayState on a guild
         # then fetching its respective member and merging that info with
@@ -149,9 +148,7 @@ class PresenceManager:
 
         return presences
 
-    async def dispatch_guild_pres(
-        self, guild_id: int, user_id: int, presence: BasePresence
-    ):
+    async def dispatch_guild_pres(self, guild_id: int, user_id: int, presence: BasePresence):
         """Dispatch a Presence update to an entire guild."""
 
         member = await self.storage.get_member(guild_id, user_id)
@@ -209,9 +206,7 @@ class PresenceManager:
 
         # everyone not in lazy guild mode
         # gets a PRESENCE_UPDATE
-        await app.dispatcher.guild.dispatch_filter(
-            guild_id, _session_check, ("PRESENCE_UPDATE", event_payload)
-        )
+        await app.dispatcher.guild.dispatch_filter(guild_id, _session_check, ("PRESENCE_UPDATE", event_payload))
 
         return in_lazy
 
@@ -226,9 +221,7 @@ class PresenceManager:
             ("PRESENCE_UPDATE", {**presence.partial_dict, **{"user": user}}),
         )
 
-    async def dispatch_friends_pres_filter(
-        self, user: dict, filter_function, presence: BasePresence
-    ):
+    async def dispatch_friends_pres_filter(self, user: dict, filter_function, presence: BasePresence):
         """
         Same as dispatch_friends_pres but passes a filter function
         Takes in a whole public user object instead of a user id
@@ -295,6 +288,6 @@ class PresenceManager:
         res = []
         for user in friends:
             presence = self.fetch_friend_presence(int(user["id"]))
-            res.append({**presence.partial_dict, 'user': user})
+            res.append({**presence.partial_dict, "user": user})
 
         return res
