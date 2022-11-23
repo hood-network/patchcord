@@ -120,7 +120,7 @@ redirect_logging()
 
 def make_app():
     app = LitecordApp(__name__)
-    
+
     if app.is_debug:
         log.info("on debug")
         handler.level = logbook.DEBUG
@@ -282,6 +282,7 @@ async def init_app_db(app_: LitecordApp):
     app_.sched = JobManager(context_func=app.app_context)
     app.init_managers()
 
+
 async def api_index(app_: LitecordApp):
     to_find = {}
     found = []
@@ -312,7 +313,7 @@ async def api_index(app_: LitecordApp):
         path = path.replace("peer.id", "user.id")
 
         methods = rule.methods
-        if not methods: 
+        if not methods:
             continue
         for method in methods:
             pathname = to_find.get((path, method))
@@ -377,9 +378,7 @@ async def app_before_serving():
 
     # start gateway websocket
     # voice websocket is handled by the voice server
-    ws_fut = start_websocket(
-        app.config["WS_HOST"], app.config["WS_PORT"], websocket_handler
-    )
+    ws_fut = start_websocket(app.config["WS_HOST"], app.config["WS_PORT"], websocket_handler)
 
     await ws_fut
 
@@ -438,6 +437,7 @@ def handle_413(_):
 @app.errorhandler(500)
 async def handle_500(_):
     return jsonify({"message": "500: Internal Server Error", "code": 0}), 500
+
 
 if __name__ == "__main__":
     app.run()

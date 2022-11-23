@@ -61,11 +61,9 @@ def _get_environment(app):
         "API_ENDPOINT": f"//{app.config['MAIN_URL']}/api",
         "API_VERSION": 9,
         "WEBAPP_ENDPOINT": f"//{app.config['MAIN_URL']}",
-        "GATEWAY_ENDPOINT": ("wss://" if app.config["IS_SSL"] else "ws://")
-        + app.config["WEBSOCKET_URL"],
+        "GATEWAY_ENDPOINT": ("wss://" if app.config["IS_SSL"] else "ws://") + app.config["WEBSOCKET_URL"],
         "CDN_HOST": f"//{app.config['MAIN_URL']}",
-        "ASSET_ENDPOINT": ("https://" if app.config["IS_SSL"] else "http://")
-        + app.config["MAIN_URL"],
+        "ASSET_ENDPOINT": ("https://" if app.config["IS_SSL"] else "http://") + app.config["MAIN_URL"],
         "MEDIA_PROXY_ENDPOINT": f"//{app.config['MEDIA_PROXY']}",
         "WIDGET_ENDPOINT": f"//{app.config['MAIN_URL']}/widget",
         "INVITE_HOST": f"{app.config['MAIN_URL']}/invite",
@@ -82,10 +80,7 @@ def _get_environment(app):
         "REMOTE_AUTH_ENDPOINT": "//remote-auth-gateway.discord.gg",
         "SENTRY_TAGS": {"buildId": "7ea92cf", "buildType": "normal"},
         "MIGRATION_SOURCE_ORIGIN": "https://discordapp.com",
-        "MIGRATION_DESTINATION_ORIGIN": (
-            "https://" if app.config["IS_SSL"] else "http://"
-        )
-        + app.config["MAIN_URL"],
+        "MIGRATION_DESTINATION_ORIGIN": ("https://" if app.config["IS_SSL"] else "http://") + app.config["MAIN_URL"],
         "HTML_TIMESTAMP": int(time.time() * 1000),
         "ALGOLIA_KEY": "aca0d7082e4e63af5ba5917d5e96bed0",
     }
@@ -140,9 +135,7 @@ async def _load_build(
         except KeyError:
             return "Build not found", 404
 
-    async with aiohttp.request(
-        "GET", f"https://api.discord.sale/builds/{value}"
-    ) as resp:
+    async with aiohttp.request("GET", f"https://api.discord.sale/builds/{value}") as resp:
         if not 300 > resp.status >= 200:
             try:
                 info = BUILDS[value]
@@ -187,9 +180,7 @@ async def _load_build(
         resp = await make_response(await render_template(file, **kwargs))
         if clear_override:
             resp.set_cookie("buildOverride", "", expires=0)
-        if not default and not (
-            request.cookies.get("buildOverride") and not clear_override
-        ):
+        if not default and not (request.cookies.get("buildOverride") and not clear_override):
             resp.set_cookie(
                 "buildOverride",
                 await generate_build_override_cookie(
@@ -270,16 +261,10 @@ async def _proxy_asset(asset, default: bool = False):
         try:
             async with aopen(f"assets/{asset}", "rb") as f:
                 data = await f.read()
-                response = await make_response(
-                    data, 200, {"content-type": guess_content_type(asset)}
-                )
+                response = await make_response(data, 200, {"content-type": guess_content_type(asset)})
         except FileNotFoundError:
-            async with aiohttp.request(
-                "GET", f"https://canary.discord.com/assets/{asset}"
-            ) as resp:
-                if (
-                    not 300 > resp.status >= 200
-                ):  # Fallback to the Wayback Machine if the asset is not found
+            async with aiohttp.request("GET", f"https://canary.discord.com/assets/{asset}") as resp:
+                if not 300 > resp.status >= 200:  # Fallback to the Wayback Machine if the asset is not found
                     async with aiohttp.request(
                         "GET",
                         f"http://web.archive.org/web/0im_/discordapp.com/assets/{asset}",
@@ -325,13 +310,11 @@ async def _proxy_asset(asset, default: bool = False):
                             # Various regexes
                             .replace(
                                 r'RegExp("^https://(?:ptb\\.|canary\\.)?(discordapp|discord)\\.com/__development/link?[\\S]+$"',
-                                r'RegExp("^https://%s/__development/link?[\\S]+$"'
-                                % host.replace(".", r"\\."),
+                                r'RegExp("^https://%s/__development/link?[\\S]+$"' % host.replace(".", r"\\."),
                             )
                             .replace(
                                 r"/^((https:\/\/)?(discord\.gg\/)|(discord\.com\/)(invite\/)?)?[A-Za-z0-9]{8,8}$/",
-                                r"/^((https:\/\/)?(%s\/)(invite\/)?)?[A-Za-z0-9]{8,8}$/"
-                                % host.replace(".", r"\."),
+                                r"/^((https:\/\/)?(%s\/)(invite\/)?)?[A-Za-z0-9]{8,8}$/" % host.replace(".", r"\."),
                             )
                             .replace('+"|discordapp.com|discord.com)$"', f'+"{host})$"')
                             .replace(
@@ -417,16 +400,12 @@ async def generate_build_override_link(data: dict) -> str:
     expiration = (
         datetime.fromtimestamp(2147483647)
         if not j["meta"]["ttl_seconds"]
-        else (
-            datetime.now(tz=timezone.utc) + timedelta(seconds=j["meta"]["ttl_seconds"])
-        )
+        else (datetime.now(tz=timezone.utc) + timedelta(seconds=j["meta"]["ttl_seconds"]))
     )
     data = {
         "targetBuildOverride": j["overrides"],
         "releaseChannel": j["meta"]["release_channel"],
-        "validForUserIds": [
-            str(id) for id in j["meta"].get("valid_for_user_ids") or []
-        ],
+        "validForUserIds": [str(id) for id in j["meta"].get("valid_for_user_ids") or []],
         "allowLoggedOut": j["meta"]["allow_logged_out"],
         "expiresAt": format_date_time(time.mktime(expiration.timetuple())),
     }
@@ -453,9 +432,7 @@ async def create_override_link():
     if not await is_staff(user_id):
         return "The maze wasn't meant for you", 403
 
-    return jsonify(
-        {"url": await generate_build_override_link(await request.get_json())}
-    )
+    return jsonify({"url": await generate_build_override_link(await request.get_json())})
 
 
 @bp.route("/__development/link", methods=["GET"])
@@ -495,9 +472,7 @@ async def use_overrride_link():
 
     expires_at = datetime(*parsedate(info["expiresAt"])[:6], tzinfo=timezone.utc)  # type: ignore
     if datetime.now(tz=timezone.utc) > expires_at:
-        return {
-            "message": "This link has expired. You will need to get a new one."
-        }, 400
+        return {"message": "This link has expired. You will need to get a new one."}, 400
 
     if not info["allowLoggedOut"]:
         token = j.get("token")
@@ -515,9 +490,7 @@ async def use_overrride_link():
     resp = jsonify({"message": "Build overrides have been successfully applied!"})
     resp.set_cookie(
         "buildOverride",
-        await generate_build_override_cookie(
-            info["targetBuildOverride"], info["expiresAt"]
-        ),
+        await generate_build_override_cookie(info["targetBuildOverride"], info["expiresAt"]),
         expires=expires_at,
     )
     return resp
@@ -557,9 +530,7 @@ async def set_build_overrides():
     resp = jsonify({"message": "Build overrides have been successfully applied!"})
     resp.set_cookie(
         "buildOverride",
-        await generate_build_override_cookie(
-            j["overrides"], format_date_time(2147483647)
-        ),
+        await generate_build_override_cookie(j["overrides"], format_date_time(2147483647)),
         expires=2147483647,
     )
     return resp

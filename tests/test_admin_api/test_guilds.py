@@ -55,9 +55,7 @@ async def test_guild_update(test_cli_staff):
     # would be overkill to test the side-effects, so... I'm not
     # testing them. Yes, I know its a bad idea, but if someone has an easier
     # way to write that, do send an MR.
-    resp = await test_cli_staff.patch(
-        f"/api/v6/admin/guilds/{guild_id}", json={"unavailable": True}
-    )
+    resp = await test_cli_staff.patch(f"/api/v6/admin/guilds/{guild_id}", json={"unavailable": True})
 
     assert resp.status_code == 200
     rjson = await resp.json
@@ -92,9 +90,7 @@ async def test_guild_delete(test_cli_staff):
 async def test_guild_create_voice(test_cli_staff):
     region_id = secrets.token_hex(6)
     region_name = secrets.token_hex(6)
-    resp = await test_cli_staff.put(
-        "/api/v6/admin/voice/regions", json={"id": region_id, "name": region_name}
-    )
+    resp = await test_cli_staff.put("/api/v6/admin/voice/regions", json={"id": region_id, "name": region_name})
     assert resp.status_code == 200
     rjson = await resp.json
     assert isinstance(rjson, list)

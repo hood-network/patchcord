@@ -112,9 +112,7 @@ async def _put_emoji(guild_id):
     )
 
     if icon is None:
-        raise ManualFormError(
-            image={"code": "IMAGE_INVALID", "message": "Invalid image data"}
-        )
+        raise ManualFormError(image={"code": "IMAGE_INVALID", "message": "Invalid image data"})
 
     # TODO: better way to detect animated emoji rather than just gifs,
     # maybe a list perhaps?

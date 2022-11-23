@@ -29,7 +29,7 @@ if TYPE_CHECKING:
     from litecord.typing_hax import app
 else:
     from quart import current_app as app
-    
+
 log = Logger(__name__)
 
 
@@ -69,8 +69,6 @@ class ChannelDispatcher(DispatcherWithState[int, str, GatewayEvent, List[str]]):
 
         await asyncio.gather(*(_dispatch(sid) for sid in session_ids))
 
-        log.info(
-            "Dispatched chan={} {!r} to {} states", channel_id, event[0], len(sessions)
-        )
+        log.info("Dispatched chan={} {!r} to {} states", channel_id, event[0], len(sessions))
 
         return sessions

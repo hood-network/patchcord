@@ -33,11 +33,11 @@ class LitecordJSONEncoder(json.JSONEncoder):
         if isinstance(value, (Decimal, UUID)):
             return str(value)
 
+        if hasattr(value, "to_json"):
+            return value.to_json()
+
         if is_dataclass(value):
             return asdict(value)
-
-        if hasattr(value, "to_json"):
-            return value.to_json
 
         return super().default(value)
 

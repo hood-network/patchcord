@@ -224,9 +224,7 @@ async def modify_guild_member(guild_id, member_id):
         partial["nick"] = j["nick"]
 
     await app.lazy_guild.pres_update(guild_id, member_id, partial)
-    await app.dispatcher.guild.dispatch(
-        guild_id, ("GUILD_MEMBER_UPDATE", {**{"guild_id": str(guild_id)}, **member})
-    )
+    await app.dispatcher.guild.dispatch(guild_id, ("GUILD_MEMBER_UPDATE", {**{"guild_id": str(guild_id)}, **member}))
 
     return member
 
@@ -242,6 +240,7 @@ async def update_nickname(guild_id):
     j = validate(await request.get_json(), SELF_MEMBER_UPDATE)
     member = await app.storage.get_member(guild_id, user_id)
     user = await app.storage.get_user(user_id, True)
+    assert user is not None
     presence_dict = {}
 
     if to_update(j, member, "nick"):
@@ -258,7 +257,7 @@ async def update_nickname(guild_id):
         presence_dict["nick"] = j["nick"] or None
 
     if to_update(j, member, "avatar"):
-        if not j["avatar"] or user["premium_type"] == PremiumType.TIER_2:
+        if not j["avatar"] or user.premium_type == PremiumType.TIER_2:
             new_icon = await app.icons.update(
                 "member_avatar",
                 f"{guild_id}_{user_id}",
@@ -280,10 +279,8 @@ async def update_nickname(guild_id):
             presence_dict["avatar"] = new_icon.icon_hash
 
     if to_update(j, member, "banner"):
-        if not j["banner"] or user["premium_type"] == PremiumType.TIER_2:
-            new_icon = await app.icons.update(
-                "member_banner", f"{guild_id}_{user_id}", j["banner"], always_icon=True
-            )
+        if not j["banner"] or user.premium_type == PremiumType.TIER_2:
+            new_icon = await app.icons.update("member_banner", f"{guild_id}_{user_id}", j["banner"], always_icon=True)
 
             await app.db.execute(
                 """
@@ -298,7 +295,7 @@ async def update_nickname(guild_id):
             presence_dict["banner"] = new_icon.icon_hash
 
     if to_update(j, member, "bio"):
-        if not j["bio"] or user["premium_type"] == PremiumType.TIER_2:
+        if not j["bio"] or user.premium_type == PremiumType.TIER_2:
             await app.db.execute(
                 """
             UPDATE members
@@ -329,18 +326,14 @@ async def update_nickname(guild_id):
     # call pres_update for nick changes, etc.
     if presence_dict:
         await app.lazy_guild.pres_update(guild_id, user_id, presence_dict)
-    await app.dispatcher.guild.dispatch(
-        guild_id, ("GUILD_MEMBER_UPDATE", {**{"guild_id": str(guild_id)}, **member})
-    )
+    await app.dispatcher.guild.dispatch(guild_id, ("GUILD_MEMBER_UPDATE", {**{"guild_id": str(guild_id)}, **member}))
 
     # We inject the guild_id into the payload because the profiles endpoint needs it
     member["guild_id"] = str(guild_id)
     return jsonify(member)
 
 
-@bp.route(
-    "/<int:guild_id>/members/<int:member_id>/roles/<int:role_id>", methods=["PUT"]
-)
+@bp.route("/<int:guild_id>/members/<int:member_id>/roles/<int:role_id>", methods=["PUT"])
 async def add_member_role(guild_id, member_id, role_id):
     user_id = await token_check()
     await guild_perm_check(user_id, guild_id, "manage_roles")
@@ -385,9 +378,7 @@ async def add_member_role(guild_id, member_id, role_id):
     return "", 204
 
 
-@bp.route(
-    "/<int:guild_id>/members/<int:member_id>/roles/<int:role_id>", methods=["DELETE"]
-)
+@bp.route("/<int:guild_id>/members/<int:member_id>/roles/<int:role_id>", methods=["DELETE"])
 async def remove_member_role(guild_id, member_id, role_id):
     user_id = await token_check()
     await guild_perm_check(user_id, guild_id, "manage_roles")

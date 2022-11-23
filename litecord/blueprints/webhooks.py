@@ -19,10 +19,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import secrets
 import hashlib
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, TYPE_CHECKING
 
 import asyncpg
-from quart import Blueprint, jsonify, current_app as app, request
+from quart import Blueprint, jsonify
 
 from litecord.auth import token_check
 from litecord.blueprints.checks import (
@@ -59,12 +59,15 @@ from litecord.json import pg_set_json
 from litecord.enums import MessageType
 from litecord.images import STATIC_IMAGE_MIMES
 
+if TYPE_CHECKING:
+    from litecord.typing_hax import app, request
+else:
+    from quart import current_app as app, request
+
 bp = Blueprint("webhooks", __name__)
 
 
-async def get_webhook(
-    webhook_id: int, *, secure: bool = True
-) -> Optional[Dict[str, Any]]:
+async def get_webhook(webhook_id: int, *, secure: bool = True) -> Optional[Dict[str, Any]]:
     """Get a webhook data"""
     row = await app.db.fetchrow(
         """
@@ -316,9 +319,7 @@ async def modify_webhook(webhook_id: int):
 
     if "channel_id" in j:
         chan = await app.storage.get_channel(j["channel_id"])
-        if (j["channel_id"] and not chan) or (
-            chan and chan["guild_id"] != str(guild_id)
-        ):
+        if (j["channel_id"] and not chan) or (chan and chan["guild_id"] != str(guild_id)):
             raise NotFound(10003)
 
     await _update_webhook(webhook_id, j)
@@ -525,11 +526,7 @@ async def execute_webhook(webhook_id: int, webhook_token):
             "everyone_mention": mentions_everyone or mentions_here,
             "embeds": [
                 await fill_embed(embed)
-                for embed in (
-                    (j.get("embeds") or []) or [j["embed"]]
-                    if "embed" in j and j["embed"]
-                    else []
-                )
+                for embed in ((j.get("embeds") or []) or [j["embed"]] if "embed" in j and j["embed"] else [])
             ],
             "info": {"name": j.get("username", webhook["name"]), "avatar": avatar},
         },
@@ -578,11 +575,7 @@ async def get_webhook_message(webhook_id, webhook_token, message_id):
     await webhook_token_check(webhook_id, webhook_token)
 
     payload = await app.storage.get_message(message_id)
-    if (
-        not payload
-        or not payload["webhook_id"]
-        or int(payload["webhook_id"]) != webhook_id
-    ):
+    if not payload or not payload["webhook_id"] or int(payload["webhook_id"]) != webhook_id:
         raise NotFound(10008)
 
     return jsonify(message_view(payload))
@@ -597,11 +590,7 @@ async def update_webhook_message(webhook_id, webhook_token, message_id):
     _, channel_id = await webhook_token_check(webhook_id, webhook_token)
 
     old_message = await app.storage.get_message(message_id)
-    if (
-        not old_message
-        or not old_message["webhook_id"]
-        or int(old_message["webhook_id"]) != webhook_id
-    ):
+    if not old_message or not old_message["webhook_id"] or int(old_message["webhook_id"]) != webhook_id:
         raise NotFound(10008)
 
     j = validate(await request.get_json(), WEBHOOK_MESSAGE_UPDATE)
@@ -624,11 +613,7 @@ async def update_webhook_message(webhook_id, webhook_token, message_id):
         updated = True
         embeds = [
             await fill_embed(embed)
-            for embed in (
-                (j.get("embeds") or []) or [j["embed"]]
-                if "embed" in j and j["embed"]
-                else []
-            )
+            for embed in ((j.get("embeds") or []) or [j["embed"]] if "embed" in j and j["embed"] else [])
         ]
         await app.db.execute(
             """
@@ -683,11 +668,7 @@ async def delete_webhook_message(webhook_id, webhook_token, message_id):
     guild_id, channel_id = await webhook_token_check(webhook_id, webhook_token)
 
     payload = await app.storage.get_message(message_id)
-    if (
-        not payload
-        or not payload["webhook_id"]
-        or int(payload["webhook_id"]) != webhook_id
-    ):
+    if not payload or not payload["webhook_id"] or int(payload["webhook_id"]) != webhook_id:
         raise NotFound(10008)
 
     await _del_msg_fkeys(message_id, channel_id)

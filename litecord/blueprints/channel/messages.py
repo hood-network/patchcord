@@ -110,12 +110,8 @@ async def around_message_search(
 
     around_message = await app.storage.get_message(around_id, user_id)
     around_message = [around_message] if around_message else []
-    before_messages = await message_search(
-        channel_id, halved_limit, before=around_id, order="DESC"
-    )
-    after_messages = await message_search(
-        channel_id, halved_limit, after=around_id, order="ASC"
-    )
+    before_messages = await message_search(channel_id, halved_limit, before=around_id, order="DESC")
+    after_messages = await message_search(channel_id, halved_limit, after=around_id, order="ASC")
     return list(reversed(before_messages)) + around_message + after_messages
 
 
@@ -132,9 +128,7 @@ async def handle_get_messages(channel_id: int):
     limit = extract_limit(request, default=50)
 
     if "around" in request.args:
-        messages = await around_message_search(
-            channel_id, int(request.args["around"]), limit
-        )
+        messages = await around_message_search(channel_id, int(request.args["around"]), limit)
     else:
         before, after = query_tuple_from_args(request.args, limit)
         messages = await message_search(channel_id, limit, before=before, after=after)
@@ -216,11 +210,7 @@ async def create_message(
     mentions = []
     mention_roles = []
     if data.get("content"):
-        if (
-            allowed_mentions is None
-            or "users" in allowed_mentions.get("parse", [])
-            or allowed_mentions.get("users")
-        ):
+        if allowed_mentions is None or "users" in allowed_mentions.get("parse", []) or allowed_mentions.get("users"):
             allowed = (allowed_mentions.get("users") or []) if allowed_mentions else []
             if ctype == ChannelType.GROUP_DM:
                 members = await app.db.fetch(
@@ -264,9 +254,7 @@ async def create_message(
                 mentions.append(found_id)
 
         if actual_guild_id and (
-            allowed_mentions is None
-            or "roles" in allowed_mentions.get("parse", [])
-            or allowed_mentions.get("roles")
+            allowed_mentions is None or "roles" in allowed_mentions.get("parse", []) or allowed_mentions.get("roles")
         ):
             guild_roles = await app.db.fetch(
                 """
@@ -297,8 +285,7 @@ async def create_message(
 
     if (
         data.get("message_reference")
-        and not data.get("flags", 0) & MessageFlags.is_crosspost
-        == MessageFlags.is_crosspost
+        and not data.get("flags", 0) & MessageFlags.is_crosspost == MessageFlags.is_crosspost
         and (allowed_mentions is None or allowed_mentions.get("replied_user", False))
     ):
         reply_id = await app.db.fetchval(
@@ -330,9 +317,7 @@ async def create_message(
             data["tts"],
             data["everyone_mention"],
             data["nonce"],
-            MessageType.DEFAULT.value
-            if not data.get("message_reference")
-            else MessageType.REPLY.value,
+            MessageType.DEFAULT.value if not data.get("message_reference") else MessageType.REPLY.value,
             data.get("flags") or 0,
             data.get("embeds") or [],
             data.get("message_reference") or None,
@@ -464,25 +449,16 @@ async def _create_message(channel_id):
         # guild_id is the dm's peer_id
         await dm_pre_check(user_id, channel_id, guild_id)
 
-    can_everyone = (
-        await channel_perm_check(user_id, channel_id, "mention_everyone", False)
-        and ctype != ChannelType.DM
-    )
+    can_everyone = await channel_perm_check(user_id, channel_id, "mention_everyone", False) and ctype != ChannelType.DM
 
     mentions_everyone = ("@everyone" in j["content"]) and can_everyone
     mentions_here = ("@here" in j["content"]) and can_everyone
 
-    is_tts = j.get("tts", False) and await channel_perm_check(
-        user_id, channel_id, "send_tts_messages", False
-    )
+    is_tts = j.get("tts", False) and await channel_perm_check(user_id, channel_id, "send_tts_messages", False)
 
     embeds = [
         await fill_embed(embed)
-        for embed in (
-            (j.get("embeds") or []) or [j["embed"]]
-            if "embed" in j and j["embed"]
-            else []
-        )
+        for embed in ((j.get("embeds") or []) or [j["embed"]] if "embed" in j and j["embed"] else [])
     ]
     message_id = await create_message(
         channel_id,
@@ -500,10 +476,7 @@ async def _create_message(channel_id):
             "allowed_mentions": j.get("allowed_mentions"),
             "sticker_ids": j.get("sticker_ids"),
             "flags": MessageFlags.suppress_embeds
-            if (
-                j.get("flags", 0) & MessageFlags.suppress_embeds
-                == MessageFlags.suppress_embeds
-            )
+            if (j.get("flags", 0) & MessageFlags.suppress_embeds == MessageFlags.suppress_embeds)
             else 0,
         },
         recipient_id=guild_id if ctype == ChannelType.DM else None,
@@ -541,9 +514,7 @@ async def _create_message(channel_id):
     )
 
     if ctype not in (ChannelType.DM, ChannelType.GROUP_DM):
-        await msg_guild_text_mentions(
-            payload, guild_id, mentions_everyone, mentions_here
-        )
+        await msg_guild_text_mentions(payload, guild_id, mentions_everyone, mentions_here)
 
     return jsonify(message_view(payload))
 
@@ -578,9 +549,7 @@ async def edit_message(channel_id, message_id):
         old_flags = MessageFlags.from_int(old_message.get("flags", 0))
         new_flags = MessageFlags.from_int(int(j["flags"]))
 
-        toggle_flag(
-            old_flags, MessageFlags.suppress_embeds, new_flags.is_suppress_embeds
-        )
+        toggle_flag(old_flags, MessageFlags.suppress_embeds, new_flags.is_suppress_embeds)
 
         if old_flags.value != old_message["flags"]:
             await app.db.execute(
@@ -610,11 +579,7 @@ async def edit_message(channel_id, message_id):
         updated = True
         embeds = [
             await fill_embed(embed)
-            for embed in (
-                (j.get("embeds") or []) or [j["embed"]]
-                if "embed" in j and j["embed"]
-                else []
-            )
+            for embed in ((j.get("embeds") or []) or [j["embed"]] if "embed" in j and j["embed"] else [])
         ]
         await app.db.execute(
             """
@@ -637,9 +602,7 @@ async def edit_message(channel_id, message_id):
                     "channel_id": channel_id,
                     "content": j["content"],
                     "embeds": old_message["embeds"],
-                    "flags": flags
-                    if flags is not None
-                    else old_message.get("flags", 0),
+                    "flags": flags if flags is not None else old_message.get("flags", 0),
                 },
                 delay=0.2,
             )
@@ -663,9 +626,7 @@ async def edit_message(channel_id, message_id):
         await app.dispatcher.channel.dispatch(channel_id, ("MESSAGE_UPDATE", message))
 
     # now we handle crossposted messages
-    if updated and (
-        message.get("flags", 0) & MessageFlags.crossposted == MessageFlags.crossposted
-    ):
+    if updated and (message.get("flags", 0) & MessageFlags.crossposted == MessageFlags.crossposted):
         async with app.db.acquire() as conn:
             await pg_set_json(conn)
 
@@ -708,17 +669,13 @@ async def edit_message(channel_id, message_id):
                             "id": id,
                             "channel_id": row["channel_id"],
                             "content": j["content"],
-                            "embeds": embeds
-                            if embeds is not None
-                            else old_message["embeds"],
+                            "embeds": embeds if embeds is not None else old_message["embeds"],
                         },
                         delay=0.2,
                     )
 
                 message = await app.storage.get_message(id)
-                await app.dispatcher.channel.dispatch(
-                    row["channel_id"], ("MESSAGE_UPDATE", message)
-                )
+                await app.dispatcher.channel.dispatch(row["channel_id"], ("MESSAGE_UPDATE", message))
 
     return jsonify(message_view(message))
 
@@ -778,9 +735,7 @@ async def _del_msg_fkeys(message_id: int, channel_id: int):
             )
 
             message = await app.storage.get_message(id)
-            await app.dispatcher.channel.dispatch(
-                channel_id, ("MESSAGE_UPDATE", message)
-            )
+            await app.dispatcher.channel.dispatch(channel_id, ("MESSAGE_UPDATE", message))
 
     # take the chance and delete all the data from the other tables too!
 

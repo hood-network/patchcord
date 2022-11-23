@@ -17,10 +17,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from typing import Tuple, Dict, List
+from typing import Tuple, Dict, List, TYPE_CHECKING
 from collections import defaultdict
 from dataclasses import fields
-from quart import current_app as app, request
 
 from logbook import Logger
 
@@ -29,6 +28,10 @@ from litecord.enums import ChannelType, VOICE_CHANNELS
 from litecord.voice.state import VoiceState
 from litecord.voice.lvsp_manager import LVSPManager
 
+if TYPE_CHECKING:
+    from litecord.typing_hax import app, request, LitecordApp
+else:
+    from quart import current_app as app, request
 
 VoiceKey = Tuple[int, int]
 log = Logger(__name__)
@@ -45,7 +48,7 @@ def _construct_state(state_dict: dict) -> VoiceState:
 class VoiceManager:
     """Main voice manager class."""
 
-    def __init__(self, app):
+    def __init__(self, app: LitecordApp):
         self.app = app
 
         # double dict, first key is guild/channel id, second key is user id
@@ -72,7 +75,7 @@ class VoiceManager:
         # hacky user_limit but should work, as channels not
         # in guilds won't have that field.
         is_full = states >= channel.get("user_limit", 100)
-        is_bot = (await self.app.storage.get_user(user_id))["bot"]
+        is_bot = (await self.app.storage.get_user(user_id)).bot
         is_manager = perms.bits.manage_channels
 
         # if the channel is full AND:
@@ -181,9 +184,7 @@ class VoiceManager:
         channel_id = int(data["channel_id"])
 
         existing_states = self.states[voice_key]
-        channel_exists = any(
-            state.channel_id == channel_id for state in existing_states
-        )
+        channel_exists = any(state.channel_id == channel_id for state in existing_states)
 
         if not channel_exists:
             await self._create_ctx_guild(guild_id, channel_id)

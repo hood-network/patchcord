@@ -150,9 +150,7 @@ class WrappedGuild:
 
     async def refetch(self) -> "WrappedGuild":
         async with self.test_cli.app.app_context():
-            guild = await self.test_cli.app.storage.get_guild_full(
-                self.id, user_id=self.test_cli.user["id"]
-            )
+            guild = await self.test_cli.app.storage.get_guild_full(self.id, user_id=self.test_cli.user["id"])
             return WrappedGuild.from_json(self.test_cli, guild)
 
     @classmethod
@@ -170,9 +168,7 @@ class WrappedGuild:
                     "widget_channel_id": int_(rjson["widget_channel_id"]),
                     "system_channel_id": int_(rjson["system_channel_id"]),
                     "rules_channel_id": int_(rjson["rules_channel_id"]),
-                    "public_updates_channel_id": int_(
-                        rjson["public_updates_channel_id"]
-                    ),
+                    "public_updates_channel_id": int_(rjson["public_updates_channel_id"]),
                 },
             },
         )
@@ -379,9 +375,7 @@ class TestClient:
         channel_id = self.app.winter_factory.snowflake()
 
         async with self.app.app_context():
-            await create_guild_channel(
-                guild_id, channel_id, type, **{**{"name": name}, **kwargs}
-            )
+            await create_guild_channel(guild_id, channel_id, type, **{**{"name": name}, **kwargs})
             channel_data = await self.app.storage.get_channel(channel_id)
 
         return self.add_resource(WrappedGuildChannel.from_json(self, channel_data))

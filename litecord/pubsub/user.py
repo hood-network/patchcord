@@ -27,6 +27,7 @@ if TYPE_CHECKING:
 else:
     from quart import current_app as app
 
+
 async def dispatch_user_filter(
     user_id: int, filter_func: Optional[Callable[[str], bool]], event_data: GatewayEvent
 ) -> List[str]:

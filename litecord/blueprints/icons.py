@@ -18,12 +18,17 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from os.path import splitext
-
+from typing import TYPE_CHECKING
 import aiohttp
-from quart import Blueprint, current_app as app, send_file, redirect, make_response
+from quart import Blueprint, send_file, redirect, make_response
 
 from litecord.embed.sanitizer import make_md_req_url
 from litecord.embed.schemas import EmbedURL
+
+if TYPE_CHECKING:
+    from litecord.typing_hax import app, request
+else:
+    from quart import current_app as app, request
 
 bp = Blueprint("images", __name__)
 
@@ -98,17 +103,13 @@ async def _get_avatar_decoration(user_id, avatar_file):
 @bp.route("/guilds/<int:guild_id>/users/<int:user_id>/avatars/<avatar_file>")
 async def _get_member_avatar(guild_id, user_id, avatar_file):
     avatar_hash, ext = splitext_(avatar_file)
-    return await send_icon(
-        "member_avatar", f"{guild_id}_{user_id}", avatar_hash, ext=ext
-    )
+    return await send_icon("member_avatar", f"{guild_id}_{user_id}", avatar_hash, ext=ext)
 
 
 @bp.route("/guilds/<int:guild_id>/users/<int:user_id>/banners/<banner_file>")
 async def _get_member_banner(guild_id, user_id, banner_file):
     avatar_hash, ext = splitext_(banner_file)
-    return await send_icon(
-        "member_banner", f"{guild_id}_{user_id}", avatar_hash, ext=ext
-    )
+    return await send_icon("member_banner", f"{guild_id}_{user_id}", avatar_hash, ext=ext)
 
 
 # @bp.route('/app-icons/<int:application_id>/<icon_hash>.<ext>')

@@ -27,6 +27,7 @@ if TYPE_CHECKING:
 else:
     from quart import current_app as app, request
 
+
 async def _check_bucket(bucket):
     retry_after = bucket.update_rate_limit()
 
@@ -35,9 +36,7 @@ async def _check_bucket(bucket):
     if retry_after:
         request.retry_after = retry_after
 
-        raise Ratelimited(
-            **{"retry_after": int(retry_after * 1000), "global": request.bucket_global}
-        )
+        raise Ratelimited(**{"retry_after": int(retry_after * 1000), "global": request.bucket_global})
 
 
 async def _handle_global(ratelimit):

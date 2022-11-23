@@ -102,14 +102,10 @@ class AsyncWebsocket:
             assert self.ws.state is ConnectionState.REMOTE_CLOSING
             await self.send(event.response())
             if process_event:
-                raise websockets.ConnectionClosed(
-                    RcvdWrapper(event.code, event.reason), None
-                )
+                raise websockets.ConnectionClosed(RcvdWrapper(event.code, event.reason), None)
 
         if expect is not None and not isinstance(event, expect):
-            raise AssertionError(
-                f"Expected {expect!r} websocket event, got {type(event)!r}"
-            )
+            raise AssertionError(f"Expected {expect!r} websocket event, got {type(event)!r}")
 
         # this keeps compatibility with code written for aaugustin/websockets
         if expect is Message and process_event:
@@ -228,9 +224,7 @@ async def get_gw(test_cli, version: int) -> str:
     return gw_json["url"]
 
 
-async def gw_start(
-    test_cli, *, version: int = 6, etf=False, compress: Optional[str] = None
-):
+async def gw_start(test_cli, *, version: int = 6, etf=False, compress: Optional[str] = None):
     """Start a websocket connection"""
     gw_url = await get_gw(test_cli, version)
 
@@ -269,9 +263,7 @@ async def test_ready(test_cli_user):
     # get the hello frame but ignore it
     await _json(conn)
 
-    await _json_send(
-        conn, {"op": OP.IDENTIFY, "d": {"token": test_cli_user.user["token"]}}
-    )
+    await _json_send(conn, {"op": OP.IDENTIFY, "d": {"token": test_cli_user.user["token"]}})
 
     # try to get a ready
     try:
@@ -307,9 +299,7 @@ async def test_ready_fields(test_cli_user):
     # get the hello frame but ignore it
     await _json(conn)
 
-    await _json_send(
-        conn, {"op": OP.IDENTIFY, "d": {"token": test_cli_user.user["token"]}}
-    )
+    await _json_send(conn, {"op": OP.IDENTIFY, "d": {"token": test_cli_user.user["token"]}})
 
     try:
         await extract_and_verify_ready(conn)
@@ -322,9 +312,7 @@ async def test_ready_fields(test_cli_user):
 async def test_ready_v9(test_cli_user):
     conn = await gw_start(test_cli_user.cli, version=9)
     await _json(conn)
-    await _json_send(
-        conn, {"op": OP.IDENTIFY, "d": {"token": test_cli_user.user["token"]}}
-    )
+    await _json_send(conn, {"op": OP.IDENTIFY, "d": {"token": test_cli_user.user["token"]}})
 
     try:
         ready = await _json(conn)
@@ -353,9 +341,7 @@ async def test_heartbeat(test_cli_user):
     # get the hello frame but ignore it
     await _json(conn)
 
-    await _json_send(
-        conn, {"op": OP.IDENTIFY, "d": {"token": test_cli_user.user["token"]}}
-    )
+    await _json_send(conn, {"op": OP.IDENTIFY, "d": {"token": test_cli_user.user["token"]}})
 
     # ignore ready data
     ready = await _json(conn)
@@ -391,9 +377,7 @@ async def test_resume(test_cli_user):
     # get the hello frame but ignore it
     await _json(conn)
 
-    await _json_send(
-        conn, {"op": OP.IDENTIFY, "d": {"token": test_cli_user.user["token"]}}
-    )
+    await _json_send(conn, {"op": OP.IDENTIFY, "d": {"token": test_cli_user.user["token"]}})
 
     try:
         ready = await _json(conn)
@@ -464,9 +448,7 @@ async def test_resume(test_cli_user):
 async def test_ready_bot(test_cli_bot):
     conn = await gw_start(test_cli_bot.cli)
     await _json(conn)  # ignore hello
-    await _json_send(
-        conn, {"op": OP.IDENTIFY, "d": {"token": test_cli_bot.user["token"]}}
-    )
+    await _json_send(conn, {"op": OP.IDENTIFY, "d": {"token": test_cli_bot.user["token"]}})
 
     try:
         await extract_and_verify_ready(conn)

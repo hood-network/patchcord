@@ -210,9 +210,7 @@ def overwrite_mix(perms: Permissions, overwrite: dict) -> Permissions:
     return Permissions(result)
 
 
-def overwrite_find_mix(
-    perms: Permissions, overwrites: dict, target_id: int
-) -> Permissions:
+def overwrite_find_mix(perms: Permissions, overwrites: dict, target_id: int) -> Permissions:
     """Mix a given permission with a given overwrite.
 
     Returns the given permission if an overwrite is not found.
@@ -240,9 +238,7 @@ def overwrite_find_mix(
     return perms
 
 
-async def role_permissions(
-    guild_id: int, role_id: int, channel_id: int, storage=None
-) -> Permissions:
+async def role_permissions(guild_id: int, role_id: int, channel_id: int, storage=None) -> Permissions:
     """Get the permissions for a role, in relation to a channel"""
     if not storage:
         storage = app.storage
@@ -332,6 +328,4 @@ async def get_permissions(member_id: int, channel_id, *, storage=None) -> Permis
 
     base_perms = await base_permissions(member_id, guild_id, storage)
 
-    return await compute_overwrites(
-        base_perms, member_id, channel_id, guild_id, storage
-    )
+    return await compute_overwrites(base_perms, member_id, channel_id, guild_id, storage)

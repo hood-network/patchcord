@@ -94,28 +94,17 @@ def mmh3(inp_str: str, seed: int = 0):
     i = 0
 
     while i < bytecount:
-        k1 = (
-            (key[i] & 0xFF)
-            | ((key[i + 1] & 0xFF) << 8)
-            | ((key[i + 2] & 0xFF) << 16)
-            | ((key[i + 3] & 0xFF) << 24)
-        )
+        k1 = (key[i] & 0xFF) | ((key[i + 1] & 0xFF) << 8) | ((key[i + 2] & 0xFF) << 16) | ((key[i + 3] & 0xFF) << 24)
 
         i += 4
 
-        k1 = (
-            (((k1 & 0xFFFF) * c1) + ((((_u(k1) >> 16) * c1) & 0xFFFF) << 16))
-        ) & 0xFFFFFFFF
+        k1 = ((((k1 & 0xFFFF) * c1) + ((((_u(k1) >> 16) * c1) & 0xFFFF) << 16))) & 0xFFFFFFFF
         k1 = (k1 << 15) | (_u(k1) >> 17)
-        k1 = (
-            (((k1 & 0xFFFF) * c2) + ((((_u(k1) >> 16) * c2) & 0xFFFF) << 16))
-        ) & 0xFFFFFFFF
+        k1 = ((((k1 & 0xFFFF) * c2) + ((((_u(k1) >> 16) * c2) & 0xFFFF) << 16))) & 0xFFFFFFFF
 
         h1 ^= k1
         h1 = (h1 << 13) | (_u(h1) >> 19)
-        h1b = (
-            (((h1 & 0xFFFF) * 5) + ((((_u(h1) >> 16) * 5) & 0xFFFF) << 16))
-        ) & 0xFFFFFFFF
+        h1b = ((((h1 & 0xFFFF) * 5) + ((((_u(h1) >> 16) * 5) & 0xFFFF) << 16))) & 0xFFFFFFFF
         h1 = ((h1b & 0xFFFF) + 0x6B64) + ((((_u(h1b) >> 16) + 0xE654) & 0xFFFF) << 16)
 
     k1 = 0
@@ -139,16 +128,9 @@ def mmh3(inp_str: str, seed: int = 0):
     h1 ^= len(key)
 
     h1 ^= _u(h1) >> 16
-    h1 = (
-        ((h1 & 0xFFFF) * 0x85EBCA6B) + ((((_u(h1) >> 16) * 0x85EBCA6B) & 0xFFFF) << 16)
-    ) & 0xFFFFFFFF
+    h1 = (((h1 & 0xFFFF) * 0x85EBCA6B) + ((((_u(h1) >> 16) * 0x85EBCA6B) & 0xFFFF) << 16)) & 0xFFFFFFFF
     h1 ^= _u(h1) >> 13
-    h1 = (
-        (
-            ((h1 & 0xFFFF) * 0xC2B2AE35)
-            + ((((_u(h1) >> 16) * 0xC2B2AE35) & 0xFFFF) << 16)
-        )
-    ) & 0xFFFFFFFF
+    h1 = ((((h1 & 0xFFFF) * 0xC2B2AE35) + ((((_u(h1) >> 16) * 0xC2B2AE35) & 0xFFFF) << 16))) & 0xFFFFFFFF
     h1 ^= _u(h1) >> 16
 
     return _u(h1) >> 0
@@ -184,9 +166,7 @@ def maybe_int(val: Any) -> Union[int, Any]:
         return val
 
 
-async def maybe_lazy_guild_dispatch(
-    guild_id: int, event: str, role, force: bool = False
-):
+async def maybe_lazy_guild_dispatch(guild_id: int, event: str, role, force: bool = False):
     # sometimes we want to dispatch an event
     # even if the role isn't hoisted
 

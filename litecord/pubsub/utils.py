@@ -24,9 +24,7 @@ from ..gateway.state import GatewayState
 log = logging.getLogger(__name__)
 
 
-async def send_event_to_states(
-    states: List[GatewayState], event_data: Tuple[str, Any]
-) -> List[str]:
+async def send_event_to_states(states: List[GatewayState], event_data: Tuple[str, Any]) -> List[str]:
     """Dispatch an event to a list of states."""
     res = []
 

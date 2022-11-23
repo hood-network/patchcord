@@ -26,9 +26,8 @@ if TYPE_CHECKING:
 else:
     from quart import current_app as app, request
 
-async def dispatch_member(
-    guild_id: int, user_id: int, event: GatewayEvent
-) -> List[str]:
+
+async def dispatch_member(guild_id: int, user_id: int, event: GatewayEvent) -> List[str]:
     states = app.state_manager.fetch_states(user_id, guild_id)
 
     # if no states were found, we should unsub the user from the guild

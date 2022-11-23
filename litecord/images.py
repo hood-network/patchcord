@@ -85,9 +85,7 @@ class Icon:
             return None
 
         ext = get_ext(self.mime)
-        return str(
-            IMAGE_FOLDER / f"{self.fs_hash if self.icon_hash else self.key}.{ext}"
-        )
+        return str(IMAGE_FOLDER / f"{self.fs_hash if self.icon_hash else self.key}.{ext}")
 
     @property
     def as_pathlib(self) -> Optional[Path]:
@@ -180,9 +178,7 @@ def parse_data_uri(string) -> tuple:
             given_mime = "image/png"
         elif raw_data[0:3] == b"\xff\xd8\xff" or raw_data[6:10] in (b"JFIF", b"Exif"):
             given_mime = "image/jpeg"
-        elif raw_data.startswith(
-            (b"\x47\x49\x46\x38\x37\x61", b"\x47\x49\x46\x38\x39\x61")
-        ):
+        elif raw_data.startswith((b"\x47\x49\x46\x38\x37\x61", b"\x47\x49\x46\x38\x39\x61")):
             given_mime = "image/gif"
         elif raw_data.startswith(b"RIFF") and raw_data[8:12] == b"WEBP":
             given_mime = "image/webp"
@@ -318,9 +314,7 @@ class IconManager:
         target_mime = get_mime(target)
         log.info("converting from {} to {}", icon.mime, target_mime)
 
-        target_path = (
-            IMAGE_FOLDER / f"{icon.fs_hash if icon.fs_hash else icon.key}.{target}"
-        )
+        target_path = IMAGE_FOLDER / f"{icon.fs_hash if icon.fs_hash else icon.key}.{target}"
 
         if target_path.exists():
             return Icon(icon.key, icon.icon_hash, target_mime)
@@ -449,7 +443,7 @@ class IconManager:
             """
         DELETE FROM icons WHERE key=$1
         """,
-            str(key)
+            str(key),
         )
         await self.storage.db.execute(
             """
@@ -463,10 +457,7 @@ class IconManager:
         )
 
         # write it off to fs
-        icon_path = (
-            IMAGE_FOLDER
-            / f"{icon_hash.split('.')[-1] if icon_hash else key}.{extension}"
-        )
+        icon_path = IMAGE_FOLDER / f"{icon_hash.split('.')[-1] if icon_hash else key}.{extension}"
         if not icon_path.exists():
             icon_path.write_bytes(raw_data)
 
@@ -532,9 +523,7 @@ class IconManager:
             """,
                 old_icon.fs_hash,
             )
-            if (
-                hits and len(hits) <= 1
-            ):  # if we have more than one hit, we can't delete it
+            if hits and len(hits) <= 1:  # if we have more than one hit, we can't delete it
                 await self.delete(old_icon)
 
         return icon

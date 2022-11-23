@@ -82,9 +82,7 @@ class Dispatcher(Generic[K, V, EventType, DispatchType]):
         """Clear a key from the backend."""
         ...
 
-    async def dispatch_filter(
-        self, key: K, filter_function: Callable[[K], bool], event: EventType
-    ) -> List[str]:
+    async def dispatch_filter(self, key: K, filter_function: Callable[[K], bool], event: EventType) -> List[str]:
         """Selectively dispatch to the list of subscribers.
 
         Function must return a list of separate identifiers for composability.

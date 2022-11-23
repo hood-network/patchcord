@@ -22,7 +22,8 @@ import secrets
 from datetime import datetime, date
 import itsdangerous
 import bcrypt
-from quart import Blueprint, jsonify, request, current_app as app
+from quart import Blueprint, jsonify
+from typing import TYPE_CHECKING
 from logbook import Logger
 
 
@@ -33,6 +34,11 @@ from litecord.errors import ManualFormError
 from litecord.pubsub.user import dispatch_user
 from .invites import use_invite
 
+if TYPE_CHECKING:
+    from litecord.typing_hax import app, request
+else:
+    from quart import current_app as app, request
+
 log = Logger(__name__)
 bp = Blueprint("auth", __name__)
 
@@ -42,9 +48,7 @@ async def check_password(pwd_hash: str, given_password: str) -> bool:
     pwd_encoded = pwd_hash.encode()
     given_encoded = given_password.encode()
 
-    return await app.loop.run_in_executor(
-        None, bcrypt.checkpw, given_encoded, pwd_encoded
-    )
+    return await app.loop.run_in_executor(None, bcrypt.checkpw, given_encoded, pwd_encoded)
 
 
 def make_token(user_id, user_pwd_hash) -> str:
@@ -86,9 +90,7 @@ async def register():
         today = date.today()
         date_of_birth = datetime.strptime(j["date_of_birth"], "%Y-%m-%d")
         if (
-            today.year
-            - date_of_birth.year
-            - ((today.month, today.day) < (date_of_birth.month, date_of_birth.day))
+            today.year - date_of_birth.year - ((today.month, today.day) < (date_of_birth.month, date_of_birth.day))
         ) < 13:
             raise ManualFormError(
                 date_of_birth={
@@ -145,9 +147,7 @@ async def _register_with_invite():
         today = date.today()
         date_of_birth = datetime.strptime(data["date_of_birth"], "%Y-%m-%d")
         if (
-            today.year
-            - date_of_birth.year
-            - ((today.month, today.day) < (date_of_birth.month, date_of_birth.day))
+            today.year - date_of_birth.year - ((today.month, today.day) < (date_of_birth.month, date_of_birth.day))
         ) < 13:
             raise ManualFormError(
                 date_of_birth={
@@ -165,9 +165,7 @@ async def _register_with_invite():
         invcode,
     )
 
-    user_id, pwd_hash = await create_user(
-        data["username"], data["email"], data["password"], date_of_birth
-    )
+    user_id, pwd_hash = await create_user(data["username"], data["email"], data["password"], date_of_birth)
 
     return jsonify({"token": make_token(user_id, pwd_hash)})
 

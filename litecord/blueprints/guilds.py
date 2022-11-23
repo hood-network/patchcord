@@ -83,9 +83,7 @@ async def guild_create_roles_prep(guild_id: int, roles: list) -> dict:
     # from the 2nd and forward,
     # should be treated as new roles
     for role in roles[1:]:
-        cr = await create_role(
-            guild_id, role.pop("name"), default_perms=default_perms, **role
-        )
+        cr = await create_role(guild_id, role.pop("name"), default_perms=default_perms, **role)
         if role.get("id") is not None:
             role_map[role["id"]] = int(cr["id"])
 
@@ -136,9 +134,7 @@ async def _general_guild_icon(scope: str, guild_id: int, icon: Optional[str], **
 
 async def put_guild_icon(guild_id: int, icon: Optional[str]):
     """Insert a guild icon on the icon database."""
-    return await _general_guild_icon(
-        "guild_icon", guild_id, icon, size=(1024, 1024), always_icon=True
-    )
+    return await _general_guild_icon("guild_icon", guild_id, icon, size=(1024, 1024), always_icon=True)
 
 
 async def handle_search(guild_id: Optional[int], channel_id: Optional[int] = None):
@@ -175,10 +171,7 @@ async def handle_search(guild_id: Optional[int], channel_id: Optional[int] = Non
         can_read = [channel for channel in j["channel_id"] if channel in can_read]
     if j.get("mentions"):
         extra += f" AND content = ANY(${len(args) + 1}::text[])"
-        args.append(
-            [f"%<@{id}>%" for id in j["mentions"]]
-            + [f"%<@!{id}>%" for id in j["mentions"]]
-        )
+        args.append([f"%<@{id}>%" for id in j["mentions"]] + [f"%<@!{id}>%" for id in j["mentions"]])
     if j.get("link_hostname"):
         extra += f" AND content = ANY(${len(args) + 1}::text[])"
         args.append(
@@ -187,9 +180,7 @@ async def handle_search(guild_id: Optional[int], channel_id: Optional[int] = Non
         )
     if j.get("embed_provider"):
         extra += f" AND embeds::text == ANY(${len(args) + 1}::text[])"
-        args.append(
-            ['%"provider": {"name": %s%' % provider for provider in j["embed_provider"]]
-        )
+        args.append(['%"provider": {"name": %s%' % provider for provider in j["embed_provider"]])
     if j.get("embed_type"):
         extra += f" AND embeds::text == ANY(${len(args) + 1}::text[])"
         args.append(['%"type": %s%' % type for type in j["embed_type"]])
@@ -287,9 +278,7 @@ async def create_guild():
     return jsonify(guild), 201
 
 
-async def handle_guild_create(
-    user_id: int, guild_id: int, extra_j: Optional[dict] = None
-) -> Tuple[dict, dict]:
+async def handle_guild_create(user_id: int, guild_id: int, extra_j: Optional[dict] = None) -> Tuple[dict, dict]:
     j = validate(await request.get_json(), GUILD_CREATE)
     extra_j = extra_j or {}
 
@@ -354,9 +343,7 @@ async def handle_guild_create(
     # create a single #general channel.
     general_id = guild_id
 
-    await create_guild_channel(
-        guild_id, general_id, ChannelType.GUILD_TEXT, name="general"
-    )
+    await create_guild_channel(guild_id, general_id, ChannelType.GUILD_TEXT, name="general")
 
     role_map = {}
     if j.get("roles"):
@@ -484,22 +471,14 @@ async def handle_guild_update(guild_id: int, check: bool = True):
     if to_update(j, guild, "icon"):
         await _guild_update_icon("guild_icon", guild_id, j["icon"], size=(1024, 1024))
 
-    if to_update(j, guild, "splash") and await app.storage.has_feature(
-        guild_id, "INVITE_SPLASH"
-    ):
+    if to_update(j, guild, "splash") and await app.storage.has_feature(guild_id, "INVITE_SPLASH"):
         await _guild_update_icon("guild_splash", guild_id, j["splash"])
 
-    if to_update(j, guild, "banner") and await app.storage.has_feature(
-        guild_id, "BANNER"
-    ):
+    if to_update(j, guild, "banner") and await app.storage.has_feature(guild_id, "BANNER"):
         await _guild_update_icon("guild_banner", guild_id, j["banner"])
 
-    if to_update(j, guild, "discovery_splash") and await app.storage.has_feature(
-        guild_id, "DISCOVERABLE"
-    ):
-        await _guild_update_icon(
-            "guild_discovery_splash", guild_id, j["discovery_splash"]
-        )
+    if to_update(j, guild, "discovery_splash") and await app.storage.has_feature(guild_id, "DISCOVERABLE"):
+        await _guild_update_icon("guild_discovery_splash", guild_id, j["discovery_splash"])
 
     if "features" in j:
         features = await app.storage.guild_features(guild_id) or []
@@ -583,9 +562,7 @@ async def handle_guild_update(guild_id: int, check: bool = True):
             await create_guild_channel(
                 guild_id,
                 chan_id,
-                ChannelType.GUILD_TEXT
-                if field != "afk_channel_id"
-                else ChannelType.GUILD_VOICE,
+                ChannelType.GUILD_TEXT if field != "afk_channel_id" else ChannelType.GUILD_VOICE,
                 name=default_channel_map[field],
             )
 
@@ -595,9 +572,7 @@ async def handle_guild_update(guild_id: int, check: bool = True):
             await app.dispatcher.guild.dispatch(guild_id, ("CHANNEL_CREATE", chan))
 
         elif chan["guild_id"] != str(guild_id):
-            raise ManualFormError(
-                **{field: {"code": "INVALID_CHANNEL", "message": "Channel is invalid."}}
-            )
+            raise ManualFormError(**{field: {"code": "INVALID_CHANNEL", "message": "Channel is invalid."}})
 
         elif chan is None:
             await app.db.execute(

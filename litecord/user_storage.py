@@ -129,9 +129,7 @@ class UserStorage:
         )
 
         # only need their ids
-        incoming_friends = [
-            r["user_id"] for r in incoming_friends if r["user_id"] not in mutuals
-        ]
+        incoming_friends = [r["user_id"] for r in incoming_friends if r["user_id"] not in mutuals]
 
         # only fetch blocks we did,
         # not fetching the ones people did to us
@@ -191,11 +189,7 @@ class UserStorage:
         """Get all friend IDs for a user."""
         rels = await self.get_relationships(user_id)
 
-        return [
-            int(r["user"]["id"])
-            for r in rels
-            if r["type"] == RelationshipType.FRIEND.value
-        ]
+        return [int(r["user"]["id"]) for r in rels if r["type"] == RelationshipType.FRIEND.value]
 
     async def get_dms(self, user_id: int) -> List[Dict[str, Any]]:
         """Get all DM channels for a user, including group DMs.

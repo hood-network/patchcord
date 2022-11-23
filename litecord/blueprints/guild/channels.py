@@ -68,9 +68,7 @@ async def create_channel(guild_id):
             }
         )
 
-    if channel_type == ChannelType.GUILD_NEWS and not app.storage.has_feature(
-        guild_id, "NEWS"
-    ):
+    if channel_type == ChannelType.GUILD_NEWS and not app.storage.has_feature(guild_id, "NEWS"):
         raise ManualFormError(
             type={
                 "code": "BASE_TYPE_CHOICES",
@@ -144,19 +142,13 @@ async def modify_channel_pos(guild_id):
     j = validate({"channels": raw_j}, CHANNEL_UPDATE_POSITION)
     j = j["channels"]
 
-    channels = {
-        int(chan["id"]): chan for chan in await app.storage.get_channel_data(guild_id)
-    }
+    channels = {int(chan["id"]): chan for chan in await app.storage.get_channel_data(guild_id)}
     channel_tree = {}
 
     for chan in j:
         conn = await app.db.acquire()
         _id = int(chan["id"])
-        if (
-            _id in channels
-            and "parent_id" in chan
-            and (chan["parent_id"] is None or chan["parent_id"] in channels)
-        ):
+        if _id in channels and "parent_id" in chan and (chan["parent_id"] is None or chan["parent_id"] in channels):
             channels[_id]["parent_id"] = chan["parent_id"]
             await conn.execute(
                 """
@@ -180,11 +172,7 @@ async def modify_channel_pos(guild_id):
         _channel_ids = list(map(lambda chan: int(chan["id"]), _channels))
         print(_key, _channel_ids)
         _channel_positions = {chan["position"]: int(chan["id"]) for chan in _channels}
-        _change_list = list(
-            filter(
-                lambda chan: "position" in chan and int(chan["id"]) in _channel_ids, j
-            )
-        )
+        _change_list = list(filter(lambda chan: "position" in chan and int(chan["id"]) in _channel_ids, j))
         _swap_pairs = gen_pairs(_change_list, _channel_positions)
 
         await _do_channel_updates(guild_id, _swap_pairs)

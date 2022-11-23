@@ -47,9 +47,7 @@ async def get_dms():
 
 async def jsonify_dm(dm_id: int, user_id: int):
     dm_chan = await app.storage.get_dm(dm_id, user_id)
-    self_user_index = index_by_func(
-        lambda user: user["id"] == str(user_id), dm_chan["recipients"]
-    )
+    self_user_index = index_by_func(lambda user: user["id"] == str(user_id), dm_chan["recipients"])
 
     if request.discord_api_version > 7:
         assert self_user_index is not None

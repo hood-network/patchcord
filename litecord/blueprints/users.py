@@ -89,8 +89,7 @@ async def query_users():
 async def get_me():
     """Get the current user's information."""
     user_id = await token_check()
-    user = await app.storage.get_user(user_id, True)
-    return jsonify(user)
+    return await app.storage.get_user(user_id, True)
 
 
 @bp.route("/<int:target_id>", methods=["GET"])
@@ -100,7 +99,7 @@ async def get_other(target_id):
     other = await app.storage.get_user(target_id)
     if not other:
         raise NotFound(10013)
-    return jsonify(other)
+    return other.to_json(secure=False)
 
 
 async def _try_username_patch(user_id, new_username: str) -> str:
@@ -161,7 +160,7 @@ async def _try_discrim_patch(user_id, new_discrim: str):
         raise BadRequest(30006)
 
 
-async def _check_pass(j, user):
+async def _check_pass(j, user, password_hash: str):
     # Do not do password checks on unclaimed accounts
     if user["email"] is None:
         return
@@ -174,8 +173,7 @@ async def _check_pass(j, user):
             }
         )
 
-    phash = user["password_hash"]
-    if not await check_password(phash, j["password"]):
+    if not await check_password(password_hash, j["password"]):
         raise ManualFormError(
             password={
                 "code": "PASSWORD_DOES_NOT_MATCH",
@@ -195,8 +193,8 @@ async def patch_me():
 async def handle_user_update(user_id: int, check_password: bool = True):
     j = validate(await request.get_json(), USER_UPDATE)
     user = await app.storage.get_user(user_id, True)
-
-    user["password_hash"] = await app.db.fetchval(
+    assert user is not None
+    password_hash = await app.db.fetchval(
         """
     SELECT password_hash
     FROM users
@@ -204,31 +202,32 @@ async def handle_user_update(user_id: int, check_password: bool = True):
     """,
         user_id,
     )
+    user_dict = user.to_json()
 
-    if to_update(j, user, "username"):
+    if to_update(j, user_dict, "username"):
         if check_password:
-            await _check_pass(j, user)
+            await _check_pass(j, user, password_hash)
 
         discrim = await _try_username_patch(user_id, j["username"])
-        user["username"] = j["username"]
-        user["discriminator"] = discrim
+        user.username = j["username"]
+        user.discriminator = discrim
 
-    if to_update(j, user, "discriminator"):
+    if to_update(j, user_dict, "discriminator"):
         if check_password:
-            await _check_pass(j, user)
+            await _check_pass(j, user, password_hash)
 
         try:
             new_discrim = "%04d" % int(j["discriminator"])
         except (ValueError, TypeError):
             pass
         else:
-            if new_discrim != user["discriminator"]:
+            if new_discrim != user.discriminator:
                 await _try_discrim_patch(user_id, new_discrim)
-                user["discriminator"] = new_discrim
+                user.discriminator = new_discrim
 
-    if to_update(j, user, "email"):
+    if to_update(j, user_dict, "email"):
         if check_password:
-            await _check_pass(j, user)
+            await _check_pass(j, user, password_hash)
 
         await app.db.execute(
             """
@@ -239,8 +238,8 @@ async def handle_user_update(user_id: int, check_password: bool = True):
             j["email"],
             user_id,
         )
-        user["email"] = j["email"]
-        user["verified"] = False
+        user.email = j["email"]
+        user.verified = False
 
     # only update if values are different
     # from what the user gave.
@@ -252,16 +251,14 @@ async def handle_user_update(user_id: int, check_password: bool = True):
 
     # IconManager.update will take care of validating
     # the value once put()-ing
-    if to_update(j, user, "avatar"):
+    if to_update(j, user_dict, "avatar"):
         mime, _ = parse_data_uri(j["avatar"])
 
         no_gif = False
-        if mime == "image/gif" and user["premium_type"] == PremiumType.NONE:
+        if mime == "image/gif" and user.premium_type == PremiumType.NONE:
             no_gif = True
 
-        new_icon = await app.icons.update(
-            "user_avatar", user_id, j["avatar"], size=(1024, 1024), always_icon=True
-        )
+        new_icon = await app.icons.update("user_avatar", user_id, j["avatar"], size=(1024, 1024), always_icon=True)
 
         await app.db.execute(
             """
@@ -269,14 +266,12 @@ async def handle_user_update(user_id: int, check_password: bool = True):
         SET avatar = $1
         WHERE id = $2
         """,
-            new_icon.icon_hash.lstrip("a_")
-            if (no_gif and new_icon.icon_hash)
-            else new_icon.icon_hash,
+            new_icon.icon_hash.lstrip("a_") if (no_gif and new_icon.icon_hash) else new_icon.icon_hash,
             user_id,
         )
 
-    if to_update(j, user, "avatar_decoration"):
-        if not j["avatar_decoration"] or user["premium_type"] == PremiumType.TIER_2:
+    if to_update(j, user_dict, "avatar_decoration"):
+        if not j["avatar_decoration"] or user.premium_type == PremiumType.TIER_2:
             new_icon = await app.icons.update(
                 "user_avatar_decoration",
                 user_id,
@@ -294,11 +289,9 @@ async def handle_user_update(user_id: int, check_password: bool = True):
                 user_id,
             )
 
-    if to_update(j, user, "banner"):
-        if not j["banner"] or user["premium_type"] == PremiumType.TIER_2:
-            new_icon = await app.icons.update(
-                "user_banner", user_id, j["banner"], always_icon=True
-            )
+    if to_update(j, user_dict, "banner"):
+        if not j["banner"] or user.premium_type == PremiumType.TIER_2:
+            new_icon = await app.icons.update("user_banner", user_id, j["banner"], always_icon=True)
 
             await app.db.execute(
                 """
@@ -310,7 +303,7 @@ async def handle_user_update(user_id: int, check_password: bool = True):
                 user_id,
             )
 
-    if to_update(j, user, "bio"):
+    if to_update(j, user_dict, "bio"):
         await app.db.execute(
             """
             UPDATE users
@@ -321,7 +314,7 @@ async def handle_user_update(user_id: int, check_password: bool = True):
             user_id,
         )
 
-    if to_update(j, user, "pronouns"):
+    if to_update(j, user_dict, "pronouns"):
         await app.db.execute(
             """
             UPDATE users
@@ -341,7 +334,7 @@ async def handle_user_update(user_id: int, check_password: bool = True):
             except ValueError:
                 pass
 
-    if to_update(j, user, "accent_color"):
+    if to_update(j, user_dict, "accent_color"):
         await app.db.execute(
             """
             UPDATE users
@@ -352,8 +345,8 @@ async def handle_user_update(user_id: int, check_password: bool = True):
             user_id,
         )
 
-    if to_update(j, user, "theme_colors"):
-        if not j["theme_colors"] or user["premium_type"] == PremiumType.TIER_2:
+    if to_update(j, user_dict, "theme_colors"):
+        if not j["theme_colors"] or user.premium_type == PremiumType.TIER_2:
             await app.db.execute(
                 """
                 UPDATE users
@@ -368,7 +361,7 @@ async def handle_user_update(user_id: int, check_password: bool = True):
 
     if "new_password" in j and j["new_password"]:
         if check_password:
-            await _check_pass(j, user)
+            await _check_pass(j, user, password_hash)
 
         new_hash = await hash_data(j["new_password"])
         await app.db.execute(
@@ -382,18 +375,14 @@ async def handle_user_update(user_id: int, check_password: bool = True):
         )
 
     if j.get("flags"):
-        old_flags = UserFlags.from_int(user["flags"])
+        old_flags = UserFlags.from_int(user.flags)
         new_flags = UserFlags.from_int(j["flags"])
 
-        toggle_flag(
-            old_flags, UserFlags.premium_dismissed, new_flags.is_premium_dismissed
-        )
-        toggle_flag(
-            old_flags, UserFlags.unread_urgent_system, new_flags.is_unread_urgent_system
-        )
+        toggle_flag(old_flags, UserFlags.premium_dismissed, new_flags.is_premium_dismissed)
+        toggle_flag(old_flags, UserFlags.unread_urgent_system, new_flags.is_unread_urgent_system)
         toggle_flag(old_flags, UserFlags.disable_premium, new_flags.is_disable_premium)
 
-        if old_flags.value != user["flags"]:
+        if old_flags.value != user.flags:
             await app.db.execute(
                 """
             UPDATE users
@@ -431,8 +420,6 @@ async def handle_user_update(user_id: int, check_password: bool = True):
             datetime.strptime(j["date_of_birth"], "%Y-%m-%d"),
             user_id,
         )
-
-    user.pop("password_hash")
 
     _, private_user = await mass_user_update(user_id)
     return private_user
@@ -528,9 +515,7 @@ async def get_library():
     return jsonify([])
 
 
-async def map_guild_ids_to_mutual_list(
-    mutual_guild_ids: List[int], peer_id: int
-) -> List[dict]:
+async def map_guild_ids_to_mutual_list(mutual_guild_ids: List[int], peer_id: int) -> List[dict]:
     mutual_result = []
 
     # ascending sorting
@@ -555,7 +540,6 @@ async def get_profile(peer_id: int):
     """Get a user's profile."""
     user_id = await token_check()
     peer = await app.storage.get_user(peer_id)
-
     if not peer:
         raise NotFound(10013)
 
@@ -563,7 +547,7 @@ async def get_profile(peer_id: int):
     friends = await app.user_storage.are_friends_with(user_id, peer_id)
     staff = await is_staff(user_id)
 
-    # don't return a proper card if no guilds are being shared (bypassed by starf)
+    # don't return a proper card if no guilds are being shared (bypassed by staff)
     if not mutual_guilds and not friends and not staff:
         raise MissingAccess()
 
@@ -589,8 +573,8 @@ async def get_profile(peer_id: int):
     )
 
     result = {
-        "user": peer,
-        "user_profile": peer,
+        "user": peer.to_json(secure=False),
+        "user_profile": peer.to_json(secure=False),
         "connected_accounts": [],
         "premium_type": PLAN_ID_TO_TYPE.get(plan_id),
         "premium_since": timestamp_(peer_premium),
@@ -599,9 +583,7 @@ async def get_profile(peer_id: int):
     }
 
     if request.args.get("with_mutual_guilds", type=str_bool) in (None, True):
-        result["mutual_guilds"] = await map_guild_ids_to_mutual_list(
-            mutual_guilds, peer_id
-        )
+        result["mutual_guilds"] = await map_guild_ids_to_mutual_list(mutual_guilds, peer_id)
 
     if request.args.get("guild_id", type=int):
         guild_id = int(request.args["guild_id"])
@@ -614,13 +596,12 @@ async def get_profile(peer_id: int):
                 result["guild_member"] = result["guild_member_profile"] = member_data
                 result["guild_member_profile"]["guild_id"] = str(guild_id)  # Husk
 
-    if peer["bot"] and not peer["system"]:
+    if peer.bot and not peer.system:
         result["application"] = {
-            "id": peer["id"],
+            "id": peer.id,
             "flags": 8667136,
             "popular_application_command_ids": [],
-            "verified": peer["flags"] & UserFlags.verified_bot
-            == UserFlags.verified_bot,
+            "verified": peer.flags & UserFlags.verified_bot == UserFlags.verified_bot,
         }
 
     return jsonify(result)
@@ -730,9 +711,7 @@ async def _get_tinder_score_affinity_users():
     # We make semi-accurate affinities by using relationships and private channels
     friends = await app.user_storage.get_friend_ids(user_id)
     dms = await app.user_storage.get_dms(user_id)
-    dm_recipients = [
-        r["id"] for dm in dms for r in dm["recipients"] if int(r["id"]) != user_id
-    ]
+    dm_recipients = [r["id"] for dm in dms for r in dm["recipients"] if int(r["id"]) != user_id]
     return jsonify(
         {
             "user_affinities": list(set(map(str, friends + dm_recipients))),

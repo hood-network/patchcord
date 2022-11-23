@@ -49,9 +49,7 @@ async def _dispatch_pins_update(channel_id: int) -> None:
         channel_id,
     )
 
-    timestamp = (
-        app.winter_factory.to_datetime(message_id) if message_id is not None else None
-    )
+    timestamp = app.winter_factory.to_datetime(message_id) if message_id is not None else None
     await app.dispatcher.channel.dispatch(
         channel_id,
         (
@@ -114,9 +112,7 @@ async def add_pin(channel_id, message_id):
 
     await _dispatch_pins_update(channel_id)
 
-    await send_sys_message(
-        channel_id, MessageType.CHANNEL_PINNED_MESSAGE, message_id, user_id
-    )
+    await send_sys_message(channel_id, MessageType.CHANNEL_PINNED_MESSAGE, message_id, user_id)
 
     return "", 204
 

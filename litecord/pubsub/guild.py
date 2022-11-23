@@ -56,9 +56,7 @@ def can_dispatch(event_type, event_data, state) -> bool:
 class GuildDispatcher(DispatcherWithState[int, str, GatewayEvent, List[str]]):
     """Guild backend for Pub/Sub."""
 
-    async def sub_user(
-        self, guild_id: int, user_id: int
-    ) -> Tuple[List[GatewayState], List[int]]:
+    async def sub_user(self, guild_id: int, user_id: int) -> Tuple[List[GatewayState], List[int]]:
         states = app.state_manager.fetch_states(user_id, guild_id)
         asyncio.gather(*(self.sub(guild_id, state.session_id) for state in states))
 
@@ -68,25 +66,23 @@ class GuildDispatcher(DispatcherWithState[int, str, GatewayEvent, List[str]]):
 
         guild_chan_ids = await app.storage.get_channel_ids(guild_id)
         channel_ids = []
+
         async def sub_channel(channel_id):
             perms = await get_permissions(user_id, channel_id)
             if perms.bits.read_messages:
                 channel_ids.append(channel_id)
+
         await asyncio.gather(*(sub_channel(chan_id) for chan_id in guild_chan_ids))
 
         return states, channel_ids
 
-    async def unsub_user(
-        self, guild_id: int, user_id: int
-    ) -> Tuple[List[GatewayState], List[int]]:
+    async def unsub_user(self, guild_id: int, user_id: int) -> Tuple[List[GatewayState], List[int]]:
         states = app.state_manager.fetch_states(user_id, guild_id)
         asyncio.gather(*(self.unsub(guild_id, state.session_id) for state in states))
         guild_chan_ids = await app.storage.get_channel_ids(guild_id)
         return states, guild_chan_ids
 
-    async def dispatch_filter(
-        self, guild_id: int, filter_function, event: GatewayEvent
-    ):
+    async def dispatch_filter(self, guild_id: int, filter_function, event: GatewayEvent):
         session_ids = self.state[guild_id]
         sessions: List[str] = []
         event_type, event_data = event

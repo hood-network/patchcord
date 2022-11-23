@@ -184,9 +184,7 @@ async def get_payment_source(user_id: int, source_id: int) -> dict:
 
     derow["default"] = derow.pop("default_")
     derow["billing_address"] = (
-        json.loads(derow["billing_address"])
-        if isinstance(derow["billing_address"], str)
-        else derow["billing_address"]
+        json.loads(derow["billing_address"]) if isinstance(derow["billing_address"], str) else derow["billing_address"]
     )
 
     source = {
@@ -512,11 +510,7 @@ async def _create_subscription():
 @bp.route("/@me/billing/subscriptions/<int:subscription_id>", methods=["GET"])
 async def _get_subscription(subscription_id):
     await token_check()
-    return jsonify(
-        await get_subscription(
-            subscription_id or int((await request.get_json())["subscription_id"])
-        )
-    )
+    return jsonify(await get_subscription(subscription_id or int((await request.get_json())["subscription_id"])))
 
 
 @bp.route("/@me/billing/subscriptions/<int:subscription_id>", methods=["DELETE"])

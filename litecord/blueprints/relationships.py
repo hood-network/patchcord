@@ -17,8 +17,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from quart import Blueprint, jsonify, request, current_app as app
+from quart import Blueprint, jsonify
 from asyncpg import UniqueViolationError
+from typing import TYPE_CHECKING
 
 from ..auth import token_check
 from ..schemas import validate, RELATIONSHIP, RELATIONSHIP_UPDATE, SPECIFIC_FRIEND
@@ -26,6 +27,10 @@ from ..enums import RelationshipType
 from litecord.errors import BadRequest
 from litecord.pubsub.user import dispatch_user
 
+if TYPE_CHECKING:
+    from litecord.typing_hax import app, request
+else:
+    from quart import current_app as app, request
 
 bp = Blueprint("relationship", __name__)
 
@@ -57,9 +62,7 @@ async def _sub_friend(user, peer):
     await _dispatch_single_pres(int(peer["id"]), user_pres)
 
 
-async def make_friend(
-    user_id: int, peer_id: int, rel_type=RelationshipType.FRIEND.value
-):
+async def make_friend(user_id: int, peer_id: int, rel_type=RelationshipType.FRIEND.value):
     _friend = RelationshipType.FRIEND.value
     _block = RelationshipType.BLOCK.value
 
@@ -111,9 +114,7 @@ async def make_friend(
                 _friend,
             )
 
-            await dispatch_user(
-                peer_id, ("RELATIONSHIP_REMOVE", {"type": _friend, "id": str(user_id)})
-            )
+            await dispatch_user(peer_id, ("RELATIONSHIP_REMOVE", {"type": _friend, "id": str(user_id)}))
 
             await _unsub_friend(user_id, peer_id)
 
@@ -348,18 +349,14 @@ async def remove_relationship(peer_id: int):
         # if there wasnt any mutual friendship before,
         # assume they were requests of INCOMING
         # and OUTGOING.
-        user_del_type = (
-            RelationshipType.OUTGOING.value if incoming_rel_type != _friend else _friend
-        )
+        user_del_type = RelationshipType.OUTGOING.value if incoming_rel_type != _friend else _friend
 
         await _dispatch(
             user_id,
             ("RELATIONSHIP_REMOVE", {"id": str(peer_id), "type": user_del_type}),
         )
 
-        peer_del_type = (
-            RelationshipType.INCOMING.value if incoming_rel_type != _friend else _friend
-        )
+        peer_del_type = RelationshipType.INCOMING.value if incoming_rel_type != _friend else _friend
 
         await _dispatch(
             peer_id,
@@ -381,9 +378,7 @@ async def remove_relationship(peer_id: int):
         _block,
     )
 
-    await _dispatch(
-        user_id, ("RELATIONSHIP_REMOVE", {"id": str(peer_id), "type": _block})
-    )
+    await _dispatch(user_id, ("RELATIONSHIP_REMOVE", {"id": str(peer_id), "type": _block}))
 
     await _unsub_friend(user_id, peer_id)
 

@@ -17,7 +17,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from quart import Blueprint, jsonify, request, current_app as app
+from quart import Blueprint, jsonify
+from typing import TYPE_CHECKING
 import json
 import secrets
 
@@ -30,6 +31,11 @@ from ..utils import str_bool, toggle_flag
 from litecord.auth import token_check
 from litecord.blueprints.checks import guild_perm_check
 from litecord.errors import ManualFormError
+
+if TYPE_CHECKING:
+    from litecord.typing_hax import app, request
+else:
+    from quart import current_app as app, request
 
 bp = Blueprint("science", __name__)
 
@@ -60,9 +66,7 @@ async def experiments():
 
     user_id = await token_check(False)
     if not user_id and not request.headers.get("X-Fingerprint"):
-        ret[
-            "fingerprint"
-        ] = f"{app.winter_factory.snowflake()}.{secrets.token_urlsafe(32)}"
+        ret["fingerprint"] = f"{app.winter_factory.snowflake()}.{secrets.token_urlsafe(32)}"
 
     if request.args.get("with_guild_experiments", type=str_bool):
         ret["guild_experiments"] = await app.storage.get_guild_experiments()
@@ -150,7 +154,7 @@ async def partners_apply():
         guild_id,
     )
     user = await app.storage.get_user(owner_id)
-    flags = UserFlags.from_int(user["flags"])
+    flags = UserFlags.from_int(user.flags)
     toggle_flag(flags, UserFlags.partner, True)
 
     await app.db.execute(

@@ -23,6 +23,7 @@ if TYPE_CHECKING:
 else:
     from quart import current_app as app, request
 
+
 def guild_view(guild_data: dict) -> dict:
     # Do all the below if applicable
     if request.discord_api_version < 8:
@@ -48,17 +49,9 @@ def channel_view(channel_data: dict) -> dict:
         for overwrite in channel_data["permission_overwrites"]:
             overwrite["type"] = "role" if overwrite["type"] == 0 else "member"
             overwrite["allow_new"] = overwrite.get("allow", "0")
-            overwrite["allow"] = (
-                (int(overwrite["allow"]) & ((2 << 31) - 1))
-                if overwrite.get("allow")
-                else 0
-            )
+            overwrite["allow"] = (int(overwrite["allow"]) & ((2 << 31) - 1)) if overwrite.get("allow") else 0
             overwrite["deny_new"] = overwrite.get("deny", "0")
-            overwrite["deny"] = (
-                (int(overwrite["deny"]) & ((2 << 31) - 1))
-                if overwrite.get("deny")
-                else 0
-            )
+            overwrite["deny"] = (int(overwrite["deny"]) & ((2 << 31) - 1)) if overwrite.get("deny") else 0
     return channel_data
 
 

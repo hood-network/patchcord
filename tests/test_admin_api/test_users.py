@@ -44,9 +44,7 @@ async def test_list_users(test_cli_staff):
 
 @pytest.mark.asyncio
 async def test_find_single_user(test_cli_staff):
-    user = await test_cli_staff.create_user(
-        username="test_user" + secrets.token_hex(2), email=email()
-    )
+    user = await test_cli_staff.create_user(username="test_user" + secrets.token_hex(2), email=email())
     resp = await _search(test_cli_staff, username=user.name)
 
     assert resp.status_code == 200
@@ -123,9 +121,7 @@ async def test_user_update(test_cli_staff):
     user = await test_cli_staff.create_user()
 
     # set them as partner flag
-    resp = await test_cli_staff.patch(
-        f"/api/v6/admin/users/{user.id}", json={"flags": UserFlags.partner}
-    )
+    resp = await test_cli_staff.patch(f"/api/v6/admin/users/{user.id}", json={"flags": UserFlags.partner})
 
     assert resp.status_code == 200
     rjson = await resp.json
